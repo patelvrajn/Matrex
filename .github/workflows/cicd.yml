@@ -1,0 +1,23 @@
+name: C/C++ CICD
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout_repository
+      uses: actions/checkout@v4
+    - name: install_google_test
+      run: ./setup_googletest.sh
+    - name: run_cpp_unit_tests
+      run: |
+        cd tests
+        make all
+        ./hello_world_test

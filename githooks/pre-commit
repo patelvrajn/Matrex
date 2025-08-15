@@ -1,0 +1,5 @@
+#!/bin/bash
+
+find . -iname '*.cpp' -o -iname '*.hpp' | clang-format --style=Google -i --files=/dev/stdin
+git add --all
+

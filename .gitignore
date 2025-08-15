@@ -1,0 +1,8 @@
+*.o
+*.d
+hello_world
+hello_world_test
+*.gcno
+*.gcda
+*.gcov
+
