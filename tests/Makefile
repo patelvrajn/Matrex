@@ -16,7 +16,7 @@ prog_depends = $(patsubst %.cpp,%.d,$(prog_srcs))
 test_depends = $(patsubst %.cpp,%.d,$(test_srcs))
 
 # Name of project
-PROJECT_NAME = hello_world_test
+PROJECT_NAME = matrex
 
 # Compiler and compiler flags.
 CXX      = g++
