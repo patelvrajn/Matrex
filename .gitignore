@@ -1,8 +1,8 @@
 *.o
 *.d
-hello_world
-hello_world_test
+matrex
 *.gcno
 *.gcda
 *.gcov
+.vscode/
 
