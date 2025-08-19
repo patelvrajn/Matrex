@@ -9,12 +9,14 @@ class Bitboard {
   Bitboard();
   Bitboard(uint64_t board);
 
+  void pretty_print() const;
+
   uint64_t get_board() const;
   void set_board(uint64_t board);
 
   void unset_square(const Square& s);
   void set_square(const Square& s);
-  uint64_t get_square(const Square& s);
+  uint64_t get_square(const Square& s) const;
 
   uint8_t high_bit_count() const;
   uint8_t low_bit_count() const;

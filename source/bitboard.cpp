@@ -8,6 +8,41 @@ Bitboard::Bitboard() : m_board(0) {}
 
 Bitboard::Bitboard(uint64_t board) : m_board(board) {}
 
+void Bitboard::pretty_print() const {
+  std::cout << "Bitboard: " << m_board << " (0x" << std::hex << m_board << ")"
+            << std::endl;
+
+  for (uint8_t rank = 0; rank < NUM_OF_RANKS_ON_CHESS_BOARD; rank++) {
+    for (uint8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; file++) {
+      Square s(rank, file);
+
+      // Print the ranks on the left hand side of the board before the first
+      // file.
+      if (file == 0) {
+        std::cout << (NUM_OF_RANKS_ON_CHESS_BOARD - rank) << "   ";
+      }
+
+      if (get_square(s)) {
+        std::cout << 1 << " ";
+      } else {
+        std::cout << 0 << " ";
+      }
+    }
+
+    std::cout << std::endl;
+  }
+
+  std::cout << std::endl;
+  std::cout << "    ";
+
+  for (uint8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; file++) {
+    char file_char = 'A' + file;
+    std::cout << file_char << " ";
+  }
+
+  std::cout << std::endl;
+}
+
 uint64_t Bitboard::get_board() const { return m_board; }
 
 void Bitboard::set_board(uint64_t board) { m_board = board; }
@@ -22,7 +57,7 @@ void Bitboard::set_square(const Square& s) {
   m_board = (m_board | s.get_mask());
 }
 
-uint64_t Bitboard::get_square(const Square& s) {
+uint64_t Bitboard::get_square(const Square& s) const {
   return (m_board & s.get_mask());
 }
 
