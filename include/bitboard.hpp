@@ -21,6 +21,8 @@ class Bitboard {
   uint8_t high_bit_count() const;
   uint8_t low_bit_count() const;
 
+  int8_t get_index_of_high_lsb() const;
+
   // Bitwise operators overload.
   Bitboard operator|(const Bitboard& other) const;
   Bitboard operator&(const Bitboard& other) const;

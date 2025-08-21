@@ -89,6 +89,22 @@ uint8_t Bitboard::low_bit_count() const {
   return (NUM_OF_SQUARES_ON_CHESS_BOARD - high_bit_count());
 }
 
+int8_t Bitboard::get_index_of_high_lsb() const {
+  if (m_board == 0) {
+    return -1;
+  }
+
+  int8_t position = 0;
+  uint64_t temp_board = m_board;
+
+  while ((temp_board & 1) == 0) {
+    temp_board >>= 1;
+    position++;
+  }
+
+  return position;
+}
+
 Bitboard Bitboard::operator|(const Bitboard& other) const {
   return Bitboard(m_board | other.m_board);
 }
