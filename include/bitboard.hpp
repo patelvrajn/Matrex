@@ -23,6 +23,10 @@ class Bitboard {
 
   int8_t get_index_of_high_lsb() const;
 
+  // Equality operators overload.
+  bool operator==(const Bitboard& other) const;
+  bool operator!=(const Bitboard& other) const;
+
   // Bitwise operators overload.
   Bitboard operator|(const Bitboard& other) const;
   Bitboard operator&(const Bitboard& other) const;

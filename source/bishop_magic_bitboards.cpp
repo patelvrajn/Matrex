@@ -1,5 +1,6 @@
 #include "bishop_magic_bitboards.hpp"
 
+#include <iostream>
 #include <random>
 
 #include "occupancy.hpp"
@@ -9,13 +10,36 @@ bool Bishop_Magic_Bitboards::m_is_magics_initialized = false;
 
 std::array<Magic_Hash_Table, NUM_OF_SQUARES_ON_CHESS_BOARD>
     Bishop_Magic_Bitboards::m_attack_hash_tables{};
+
 std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
-    Bishop_Magic_Bitboards::m_magics{};
+    Bishop_Magic_Bitboards::m_magics = {
+        1134730381265408ULL,    20284086875130114ULL,   434606161820387089ULL,
+        4612883387133264427ULL, 1189249644271509520ULL, 5932974407180288ULL,
+        2378186819975520388ULL, 144154779093049344ULL,  1153502184218853905ULL,
+        144689305078530112ULL,  72083991242615810ULL,   13585582861066256ULL,
+        9020463265497344ULL,    2307814438264114240ULL, 2594233922922750976ULL,
+        4686558947489874947ULL, 289375277271746062ULL,  2252006245998784ULL,
+        37161328359768072ULL,   3377734118041616ULL,    5188992055191798784ULL,
+        306526258244813154ULL,  288512418131346176ULL,  36063983773495296ULL,
+        289374968330981377ULL,  9296010173569106432ULL, 9800963087145635856ULL,
+        145249884077826112ULL,  5911819009153581059ULL, 577024320832819204ULL,
+        290069859709223424ULL,  299342057701576ULL,     2850071579273728ULL,
+        5084348059747216ULL,    4616823280350265376ULL, 1532721357127808ULL,
+        9297701239099756800ULL, 1134702442852353ULL,    282720519062017ULL,
+        2252420436526409ULL,    6936405478197429248ULL, 9372836658270969872ULL,
+        4721461948284437506ULL, 2488531402056835328ULL, 2305913380407378177ULL,
+        9307051503162229248ULL, 4612266569190353024ULL, 577116062315971075ULL,
+        2328924850791923712ULL, 71485705289728ULL,      9227911387857625088ULL,
+        6918092001764704868ULL, 576460822130327552ULL,  1203028483136882816ULL,
+        9277432850348310528ULL, 2269484375098384ULL,    20100850128900ULL,
+        188995864580ULL,        9104027699120129ULL,    259521302927345668ULL,
+        117111182772536832ULL,  1224981572579758336ULL, 324549459340427776ULL,
+        289360742829916288ULL};
 
 Bishop_Magic_Bitboards::Bishop_Magic_Bitboards() {
-  if (!m_is_magics_initialized) {
-    init_magics();
-  }
+  // if (!m_is_magics_initialized) {
+  //   init_magics();
+  // }
 
   if (!m_is_attack_tables_initialized) {
     init_attack_hash_tables();
@@ -71,10 +95,19 @@ void Bishop_Magic_Bitboards::init_attack_hash_tables() {
       // Generate an occupancy bitboard from the index.
       Bitboard occupancy = set_occupancy(idx, num_of_high_bits_in_mask, mask);
 
+      // Multiply occupancy by magic to generate hash
+      uint64_t hash = occupancy.get_board() * m_magics[square_idx];
+
+      // Extract index bits: shift right to keep only the top
+      // `num_of_high_bits_in_mask` bits. This is our hash index into the
+      // attack table.
+      uint64_t magic_index =
+          hash >> ((sizeof(hash) << 3) - num_of_high_bits_in_mask);
+
       // Compute bishop attack bitboard for this square given the specific
       // occupancy. This simulates the bishop moving along diagonals and being
       // blocked by pieces where the occupancy bitboard has 1s.
-      attacks[idx] = calculate_bishop_attacks(s, occupancy);
+      attacks[magic_index] = calculate_bishop_attacks(s, occupancy);
     }
 
     // Build a Magic Hash Table for this square.
@@ -169,7 +202,7 @@ void Bishop_Magic_Bitboards::init_magics() {
         }
         // If slot already contains a different attack set, collision → magic
         // fails.
-        else if (used[magic_index].get_board() != attacks[idx].get_board()) {
+        else if (used[magic_index] != attacks[idx]) {
           fail = true;
           break;
         }

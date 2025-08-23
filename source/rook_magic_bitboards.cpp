@@ -10,12 +10,44 @@ bool Rook_Magic_Bitboards::m_is_magics_initialized = false;
 std::array<Magic_Hash_Table, NUM_OF_SQUARES_ON_CHESS_BOARD>
     Rook_Magic_Bitboards::m_attack_hash_tables{};
 std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
-    Rook_Magic_Bitboards::m_magics{};
+    Rook_Magic_Bitboards::m_magics = {
+        612489824201375777ULL,   18015635461111872ULL,
+        13871122036941684744ULL, 72093638208785664ULL,
+        1585302287834808324ULL,  72059947680530688ULL,
+        648518921872277508ULL,   36029076737097984ULL,
+        140738562130016ULL,      10376363911348752384ULL,
+        36873291759230984ULL,    8358821680256258048ULL,
+        9385642738890571904ULL,  4644354303984128ULL,
+        2306406274880768004ULL,  1829588472697728ULL,
+        2415077300944900ULL,     9227893504083050496ULL,
+        288249068386271488ULL,   76561743555334276ULL,
+        1315192378637694976ULL,  437131738410388104ULL,
+        576605888115245320ULL,   1731776993512410125ULL,
+        2322170705379376ULL,     2599245489136226304ULL,
+        148618862867251328ULL,   4611694816676286464ULL,
+        9223377538708965376ULL,  37155248833562112ULL,
+        13835902484507918340ULL, 4612816617028617217ULL,
+        162130426259833902ULL,   4900207224028151842ULL,
+        77124764275057728ULL,    2306300612226066690ULL,
+        281646792197296ULL,      9225634833940620288ULL,
+        9223389638771605768ULL,  140815879897344ULL,
+        44255351439368ULL,       5485454852589109248ULL,
+        281612420055088ULL,      576742370356297737ULL,
+        6062132071109820432ULL,  144678206815993865ULL,
+        72727265374633992ULL,    4611695506014470156ULL,
+        72572070945280ULL,       4773833197735657792ULL,
+        17594870431872ULL,       2306713891144532224ULL,
+        54126760572747904ULL,    2814785469305344ULL,
+        4774660596912103680ULL,  576461029882728960ULL,
+        144397212812582973ULL,   3458905320582037505ULL,
+        35188676116497ULL,       2640252875359397893ULL,
+        10414600042319877ULL,    282041912927745ULL,
+        81628945871552644ULL,    564136505254018ULL};
 
 Rook_Magic_Bitboards::Rook_Magic_Bitboards() {
-  if (!m_is_magics_initialized) {
-    init_magics();
-  }
+  // if (!m_is_magics_initialized) {
+  //   init_magics();
+  // }
 
   if (!m_is_attack_tables_initialized) {
     init_attack_hash_tables();
@@ -71,10 +103,19 @@ void Rook_Magic_Bitboards::init_attack_hash_tables() {
       // Generate an occupancy bitboard from the index.
       Bitboard occupancy = set_occupancy(idx, num_of_high_bits_in_mask, mask);
 
+      // Multiply occupancy by magic to generate hash
+      uint64_t hash = occupancy.get_board() * m_magics[square_idx];
+
+      // Extract index bits: shift right to keep only the top
+      // `num_of_high_bits_in_mask` bits. This is our hash index into the
+      // attack table.
+      uint64_t magic_index =
+          hash >> ((sizeof(hash) << 3) - num_of_high_bits_in_mask);
+
       // Compute rook attack bitboard for this square given the specific
       // occupancy. This simulates the rook moving along diagonals and being
       // blocked by pieces where the occupancy bitboard has 1s.
-      attacks[idx] = calculate_rook_attacks(s, occupancy);
+      attacks[magic_index] = calculate_rook_attacks(s, occupancy);
     }
 
     // Build a Magic Hash Table for this square.
@@ -169,7 +210,7 @@ void Rook_Magic_Bitboards::init_magics() {
         }
         // If slot already contains a different attack set, collision → magic
         // fails.
-        else if (used[magic_index].get_board() != attacks[idx].get_board()) {
+        else if (used[magic_index] != attacks[idx]) {
           fail = true;
           break;
         }

@@ -105,6 +105,14 @@ int8_t Bitboard::get_index_of_high_lsb() const {
   return position;
 }
 
+bool Bitboard::operator==(const Bitboard& other) const {
+  return (this->m_board == other.m_board);
+}
+
+bool Bitboard::operator!=(const Bitboard& other) const {
+  return (this->m_board != other.m_board);
+}
+
 Bitboard Bitboard::operator|(const Bitboard& other) const {
   return Bitboard(m_board | other.m_board);
 }
