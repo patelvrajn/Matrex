@@ -1,18 +1,18 @@
-#include "bishop_magic_bitboards.hpp"
+#include "rook_magic_bitboards.hpp"
 
 #include <random>
 
 #include "occupancy.hpp"
 
-bool Bishop_Magic_Bitboards::m_is_attack_tables_initialized = false;
-bool Bishop_Magic_Bitboards::m_is_magics_initialized = false;
+bool Rook_Magic_Bitboards::m_is_attack_tables_initialized = false;
+bool Rook_Magic_Bitboards::m_is_magics_initialized = false;
 
 std::array<Magic_Hash_Table, NUM_OF_SQUARES_ON_CHESS_BOARD>
-    Bishop_Magic_Bitboards::m_attack_hash_tables{};
+    Rook_Magic_Bitboards::m_attack_hash_tables{};
 std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
-    Bishop_Magic_Bitboards::m_magics{};
+    Rook_Magic_Bitboards::m_magics{};
 
-Bishop_Magic_Bitboards::Bishop_Magic_Bitboards() {
+Rook_Magic_Bitboards::Rook_Magic_Bitboards() {
   if (!m_is_magics_initialized) {
     init_magics();
   }
@@ -22,19 +22,19 @@ Bishop_Magic_Bitboards::Bishop_Magic_Bitboards() {
   }
 }
 
-Bitboard Bishop_Magic_Bitboards::get_attacks(const Square& s,
-                                             Bitboard occupancy) const {
+Bitboard Rook_Magic_Bitboards::get_attacks(const Square& s,
+                                           Bitboard occupancy) const {
   return m_attack_hash_tables[s.get_index()].get_attacks(occupancy);
 }
 
 // ============================================================================
-// Initializes the bishop magic bitboard attack hash tables.
-// This function builds the lookup tables that allow bishops to "magically"
+// Initializes the rook magic bitboard attack hash tables.
+// This function builds the lookup tables that allow rooks to "magically"
 // compute their moves extremely fast using bitwise tricks and precomputed data.
 // ============================================================================
-void Bishop_Magic_Bitboards::init_attack_hash_tables() {
+void Rook_Magic_Bitboards::init_attack_hash_tables() {
   // Loop over all 64 squares of the chessboard
-  // Each square needs its own magic hash table because bishop moves
+  // Each square needs its own magic hash table because rook moves
   // depend heavily on the square they are standing on
   for (uint8_t square_idx = 0; square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
        square_idx++) {
@@ -42,13 +42,13 @@ void Bishop_Magic_Bitboards::init_attack_hash_tables() {
     // This represents the actual chessboard square
     const Square s(square_idx);
 
-    // Generate the bishop mask for this square.
+    // Generate the rook mask for this square.
     // The mask contains all potential sliding directions (diagonals)
     // but WITHOUT including edge squares.
-    const Bitboard mask = mask_bishop_attacks(s);
+    const Bitboard mask = mask_rook_attacks(s);
 
     // Count how many bits are set in the mask.
-    // This tells us how many squares the bishop could theoretically interact
+    // This tells us how many squares the rook could theoretically interact
     // with when generating all possible occupancies.
     const uint8_t num_of_high_bits_in_mask = mask.high_bit_count();
 
@@ -58,12 +58,12 @@ void Bishop_Magic_Bitboards::init_attack_hash_tables() {
     // configurations.
     const uint64_t attacks_array_size = (1ULL << num_of_high_bits_in_mask);
 
-    // Dynamically allocate an array to store all possible bishop attacks
+    // Dynamically allocate an array to store all possible rook attacks
     // for each blocker configuration.
-    // For each occupancy of the masked squares, we will precompute bishop
+    // For each occupancy of the masked squares, we will precompute rook
     // moves.
-    // Note: This saves memory compared to a fixed size array [64][512] which
-    // assumes 512 different configurations per square.
+    // Note: This saves memory compared to a fixed size array [64][4096] which
+    // assumes 4096 different configurations per square.
     Bitboard* attacks = new Bitboard[attacks_array_size];
 
     // Iterate over every possible occupancy configuration for the mask
@@ -71,18 +71,18 @@ void Bishop_Magic_Bitboards::init_attack_hash_tables() {
       // Generate an occupancy bitboard from the index.
       Bitboard occupancy = set_occupancy(idx, num_of_high_bits_in_mask, mask);
 
-      // Compute bishop attack bitboard for this square given the specific
-      // occupancy. This simulates the bishop moving along diagonals and being
+      // Compute rook attack bitboard for this square given the specific
+      // occupancy. This simulates the rook moving along diagonals and being
       // blocked by pieces where the occupancy bitboard has 1s.
-      attacks[idx] = calculate_bishop_attacks(s, occupancy);
+      attacks[idx] = calculate_rook_attacks(s, occupancy);
     }
 
     // Build a Magic Hash Table for this square.
     Magic_Hash_Table table(m_magics[square_idx], num_of_high_bits_in_mask, mask,
                            attacks);
 
-    // Save the constructed hash table into the bishop’s global attack tables,
-    // indexed by square. After this step, looking up bishop moves for this
+    // Save the constructed hash table into the rook’s global attack tables,
+    // indexed by square. After this step, looking up rook moves for this
     // square during gameplay will be O(1).
     m_attack_hash_tables[square_idx] = table;
   }
@@ -90,15 +90,15 @@ void Bishop_Magic_Bitboards::init_attack_hash_tables() {
   m_is_attack_tables_initialized = true;
 }
 
-// Initialize bishop magic numbers for all 64 squares of the chessboard
+// Initialize rook magic numbers for all 64 squares of the chessboard
 // This function attempts to find "magic numbers" for each square
-// that allow efficient indexing into precomputed bishop attack tables.
+// that allow efficient indexing into precomputed rook attack tables.
 // Magic bitboards are a chess programming optimization that replaces
 // slow ray-tracing with fast hash table lookups.
-void Bishop_Magic_Bitboards::init_magics() {
+void Rook_Magic_Bitboards::init_magics() {
   // Random number generator (Mersenne Twister 64-bit), seeded with fixed value.
   // We use a fixed seed to ensure reproducibility of results.
-  std::mt19937_64 rng(3);
+  std::mt19937_64 rng(1755979527);
   std::uniform_int_distribution<uint64_t> dist;
 
   // Loop over all squares of the chessboard (0..63).
@@ -108,9 +108,9 @@ void Bishop_Magic_Bitboards::init_magics() {
     // Wrap raw index in a Square object.
     const Square s(square_idx);
 
-    // Generate the *mask* of relevant squares for bishop moves from `s`.
+    // Generate the *mask* of relevant squares for rook moves from `s`.
     // The mask excludes edges (since they never block further sliding moves).
-    const Bitboard mask = mask_bishop_attacks(s);
+    const Bitboard mask = mask_rook_attacks(s);
 
     // Count how many bits are set in the mask.
     // This corresponds to how many squares can act as blockers.
@@ -122,17 +122,17 @@ void Bishop_Magic_Bitboards::init_magics() {
 
     // Allocate arrays to hold:
     // - `occupancies`: all possible blocker configurations
-    // - `attacks`: bishop attack sets for each blocker configuration
+    // - `attacks`: rook attack sets for each blocker configuration
     Bitboard* occupancies = new Bitboard[attacks_array_size];
     Bitboard* attacks = new Bitboard[attacks_array_size];
 
     // Generate all possible blocker boards and their corresponding attacks
-    // for this bishop square.
+    // for this rook square.
     for (uint64_t idx = 0; idx < attacks_array_size; idx++) {
       // Generate occupancy bitboard for given subset of mask bits
       occupancies[idx] = set_occupancy(idx, num_of_high_bits_in_mask, mask);
-      // Compute bishop attack set for this occupancy
-      attacks[idx] = calculate_bishop_attacks(s, occupancies[idx]);
+      // Compute rook attack set for this occupancy
+      attacks[idx] = calculate_rook_attacks(s, occupancies[idx]);
     }
 
     // Attempt to find a suitable magic number for this square.
@@ -192,74 +192,60 @@ void Bishop_Magic_Bitboards::init_magics() {
   m_is_magics_initialized = true;
 }
 
-// Generate bishop attack mask for a square (without board edges)
-Bitboard Bishop_Magic_Bitboards::mask_bishop_attacks(const Square& s) const {
+// Generate rook attack mask for a square (without board edges)
+Bitboard Rook_Magic_Bitboards::mask_rook_attacks(const Square& s) const {
   Bitboard attacks;
 
-  const uint8_t bishop_rank = s.get_rank();
-  const uint8_t bishop_file = s.get_file();
+  const uint8_t rook_rank = s.get_rank();
+  const uint8_t rook_file = s.get_file();
 
-  for (int8_t r = bishop_rank + 1, f = bishop_file + 1; r <= 6 && f <= 6;
-       r++, f++) {
-    attacks.set_square(Square(r, f));
+  for (int8_t r = rook_rank + 1; r <= 6; r++) {
+    attacks.set_square(Square(r, rook_file));
   }
-
-  for (int8_t r = bishop_rank + 1, f = bishop_file - 1; r <= 6 && f >= 1;
-       r++, f--) {
-    attacks.set_square(Square(r, f));
+  for (int8_t r = rook_rank - 1; r >= 1; r--) {
+    attacks.set_square(Square(r, rook_file));
   }
-
-  for (int8_t r = bishop_rank - 1, f = bishop_file + 1; r >= 1 && f <= 6;
-       r--, f++) {
-    attacks.set_square(Square(r, f));
+  for (int8_t f = rook_file + 1; f <= 6; f++) {
+    attacks.set_square(Square(rook_rank, f));
   }
-
-  for (int8_t r = bishop_rank - 1, f = bishop_file - 1; r >= 1 && f >= 1;
-       r--, f--) {
-    attacks.set_square(Square(r, f));
+  for (int8_t f = rook_file - 1; f >= 1; f--) {
+    attacks.set_square(Square(rook_rank, f));
   }
 
   return attacks;
 }
 
-// Given blockers, generate bishop attacks from a square with board edges.
-Bitboard Bishop_Magic_Bitboards::calculate_bishop_attacks(
+// Given blockers, generate rook attacks from a square with board edges.
+Bitboard Rook_Magic_Bitboards::calculate_rook_attacks(
     const Square& s, const Bitboard& blockers) const {
   Bitboard attacks;
 
-  const uint8_t bishop_rank = s.get_rank();
-  const uint8_t bishop_file = s.get_file();
+  const uint8_t rook_rank = s.get_rank();
+  const uint8_t rook_file = s.get_file();
 
-  for (int8_t r = bishop_rank + 1, f = bishop_file + 1; r <= 7 && f <= 7;
-       r++, f++) {
-    attacks.set_square(Square(r, f));
+  for (int8_t r = rook_rank + 1; r <= 7; r++) {
+    attacks.set_square(Square(r, rook_file));
     if (blockers.get_board() &
-        Square(r, f)
+        Square(r, rook_file)
             .get_mask()) {  // If a blocker exists on the square, stop the ray.
       break;
     }
   }
-
-  for (int8_t r = bishop_rank + 1, f = bishop_file - 1; r <= 7 && f >= 0;
-       r++, f--) {
-    attacks.set_square(Square(r, f));
-    if (blockers.get_board() & Square(r, f).get_mask()) {
+  for (int8_t r = rook_rank - 1; r >= 0; r--) {
+    attacks.set_square(Square(r, rook_file));
+    if (blockers.get_board() & Square(r, rook_file).get_mask()) {
       break;
     }
   }
-
-  for (int8_t r = bishop_rank - 1, f = bishop_file + 1; r >= 0 && f <= 7;
-       r--, f++) {
-    attacks.set_square(Square(r, f));
-    if (blockers.get_board() & Square(r, f).get_mask()) {
+  for (int8_t f = rook_file + 1; f <= 7; f++) {
+    attacks.set_square(Square(rook_rank, f));
+    if (blockers.get_board() & Square(rook_rank, f).get_mask()) {
       break;
     }
   }
-
-  for (int8_t r = bishop_rank - 1, f = bishop_file - 1; r >= 0 && f >= 0;
-       r--, f--) {
-    attacks.set_square(Square(r, f));
-    if (blockers.get_board() & Square(r, f).get_mask()) {
+  for (int8_t f = rook_file - 1; f >= 0; f--) {
+    attacks.set_square(Square(rook_rank, f));
+    if (blockers.get_board() & Square(rook_rank, f).get_mask()) {
       break;
     }
   }

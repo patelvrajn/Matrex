@@ -9,7 +9,7 @@ class Rook_Magic_Bitboards {
  public:
   Rook_Magic_Bitboards();
 
-  Bitboard get_attacks(const Square& s, Bitboard occupancy);
+  Bitboard get_attacks(const Square& s, Bitboard occupancy) const;
 
  private:
   static bool m_is_attack_tables_initialized;
