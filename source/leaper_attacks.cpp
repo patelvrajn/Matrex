@@ -1,5 +1,20 @@
 #include "leaper_attacks.hpp"
 
+// Initialize global variables storing leaper piece attacks.
+void init_leaper_attacks() {
+  for (uint8_t square_idx = 0; square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
+       square_idx++) {
+    pawn_attacks[PIECE_COLOR::WHITE][square_idx] =
+        mask_pawn_attacks(PIECE_COLOR::WHITE, Square(square_idx));
+    pawn_attacks[PIECE_COLOR::BLACK][square_idx] =
+        mask_pawn_attacks(PIECE_COLOR::BLACK, Square(square_idx));
+
+    knight_attacks[square_idx] = mask_knight_attacks(Square(square_idx));
+
+    king_attacks[square_idx] = mask_king_attacks(Square(square_idx));
+  }
+}
+
 // Function that generates all possible pawn attack moves (not forward pushes!)
 // for a pawn of a given color on a given square, using bitboards.
 Bitboard mask_pawn_attacks(PIECE_COLOR c, const Square& s) {

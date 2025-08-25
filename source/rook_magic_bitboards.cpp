@@ -55,7 +55,7 @@ Rook_Magic_Bitboards::Rook_Magic_Bitboards() {
 }
 
 Bitboard Rook_Magic_Bitboards::get_attacks(const Square& s,
-                                           Bitboard occupancy) const {
+                                           const Bitboard& occupancy) const {
   return m_attack_hash_tables[s.get_index()].get_attacks(occupancy);
 }
 

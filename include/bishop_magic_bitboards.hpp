@@ -9,7 +9,7 @@ class Bishop_Magic_Bitboards {
  public:
   Bishop_Magic_Bitboards();
 
-  Bitboard get_attacks(const Square& s, Bitboard occupancy) const;
+  Bitboard get_attacks(const Square& s, const Bitboard& occupancy) const;
 
  private:
   static bool m_is_attack_tables_initialized;
