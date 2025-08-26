@@ -1,7 +1,6 @@
 #include "bitboard.hpp"
 #include "globals.hpp"
 #include "gtest/gtest.h"
-#include "hello_world.hpp"
 
 // Initialized here to avoid undefined reference on compilation.
 Bitboard pawn_attacks[NUM_OF_PLAYERS][NUM_OF_SQUARES_ON_CHESS_BOARD]{};
@@ -20,5 +19,3 @@ int main(int argc, char **argv) {
     return 1;
   }
 }
-
-TEST(hello_world_test, test_one) { ASSERT_EQ(print_hello_world(), 0); }
