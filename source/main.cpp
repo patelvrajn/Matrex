@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "bishop_magic_bitboards.hpp"
+#include "chess_board.hpp"
 #include "leaper_attacks.hpp"
 #include "rook_magic_bitboards.hpp"
 
@@ -18,6 +19,11 @@ int main(void) {
 
   Bishop_Magic_Bitboards bmagic;
   Rook_Magic_Bitboards rmagic;
+
+  Chess_Board cb;
+  cb.set_from_fen(
+      "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+  cb.pretty_print();
 
   return 0;
 }

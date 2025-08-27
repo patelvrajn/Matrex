@@ -13,14 +13,11 @@ void Bitboard::pretty_print() const {
             << std::endl;
 
   for (uint8_t rank = 0; rank < NUM_OF_RANKS_ON_CHESS_BOARD; rank++) {
+    // Print the ranks on the left hand side of the board before the first file.
+    std::cout << (NUM_OF_RANKS_ON_CHESS_BOARD - rank) << "   ";
+
     for (uint8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; file++) {
       Square s(rank, file);
-
-      // Print the ranks on the left hand side of the board before the first
-      // file.
-      if (file == 0) {
-        std::cout << (NUM_OF_RANKS_ON_CHESS_BOARD - rank) << "   ";
-      }
 
       if (get_square(s)) {
         std::cout << 1 << " ";
