@@ -12,6 +12,11 @@ Chess_Board::Chess_Board() {
   m_color_occupancy_bitboards = {};
 }
 
+Bitboard Chess_Board::get_both_occupancies() {
+  return (m_color_occupancy_bitboards[PIECE_COLOR::WHITE] |
+          m_color_occupancy_bitboards[PIECE_COLOR::BLACK]);
+}
+
 void Chess_Board::pretty_print() const {
   for (uint8_t rank = 0; rank < NUM_OF_RANKS_ON_CHESS_BOARD; rank++) {
     // Print the ranks on the left hand side of the board before the first file.

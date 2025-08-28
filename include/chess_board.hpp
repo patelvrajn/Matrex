@@ -30,6 +30,8 @@ class Chess_Board {
 
   void set_from_fen(const std::string& fen);
 
+  Bitboard get_both_occupancies();
+
  private:
   std::array<std::array<Bitboard, NUM_OF_UNIQUE_PIECES_PER_PLAYER>,
              NUM_OF_PLAYERS>
