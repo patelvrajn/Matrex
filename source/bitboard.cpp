@@ -44,11 +44,7 @@ uint64_t Bitboard::get_board() const { return m_board; }
 
 void Bitboard::set_board(uint64_t board) { m_board = board; }
 
-void Bitboard::unset_square(const Square& s) {
-  if (get_square(s)) {                   // If square is set.
-    m_board = (m_board ^ s.get_mask());  // Unset square.
-  }
-}
+void Bitboard::unset_square(const Square& s) { m_board &= ~(s.get_mask()); }
 
 void Bitboard::set_square(const Square& s) {
   m_board = (m_board | s.get_mask());
