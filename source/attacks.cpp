@@ -11,13 +11,21 @@ std::array<Bitboard, NUM_OF_SQUARES_ON_CHESS_BOARD>
 std::array<Bitboard, NUM_OF_SQUARES_ON_CHESS_BOARD>
     Attacks::m_king_attack_tables{};
 
-Bishop_Magic_Bitboards Attacks::m_bishop_attack_tables;
-Rook_Magic_Bitboards Attacks::m_rook_attack_tables;
-
 Attacks::Attacks() {
   if (!m_is_attack_tables_initialized) {
     init_leaper_attacks();
   }
+}
+
+Bishop_Magic_Bitboards& Attacks::m_bishop_attack_tables() {
+  static Bishop_Magic_Bitboards* bishop_attack_tables =
+      new Bishop_Magic_Bitboards();
+  return *bishop_attack_tables;
+}
+
+Rook_Magic_Bitboards& Attacks::m_rook_attack_tables() {
+  static Rook_Magic_Bitboards* rook_attack_tables = new Rook_Magic_Bitboards();
+  return *rook_attack_tables;
 }
 
 Bitboard Attacks::get_pawn_attacks(const Square& s, PIECE_COLOR c) const {
@@ -33,17 +41,16 @@ Bitboard Attacks::get_king_attacks(const Square& s) const {
 }
 
 Bitboard Attacks::get_bishop_attacks(const Square& s,
-                                     const Bitboard& occupancy) const {
-  return m_bishop_attack_tables.get_attacks(s, occupancy);
+                                     const Bitboard& occupancy) {
+  return m_bishop_attack_tables().get_attacks(s, occupancy);
 }
 
-Bitboard Attacks::get_rook_attacks(const Square& s,
-                                   const Bitboard& occupancy) const {
-  return m_rook_attack_tables.get_attacks(s, occupancy);
+Bitboard Attacks::get_rook_attacks(const Square& s, const Bitboard& occupancy) {
+  return m_rook_attack_tables().get_attacks(s, occupancy);
 }
 
 Bitboard Attacks::get_queen_attacks(const Square& s,
-                                    const Bitboard& occupancy) const {
+                                    const Bitboard& occupancy) {
   return (this->get_bishop_attacks(s, occupancy) |
           this->get_rook_attacks(s, occupancy));
 }
