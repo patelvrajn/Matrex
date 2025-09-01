@@ -95,6 +95,8 @@ class Square {
   uint8_t get_file() const;
   uint64_t get_mask() const;
 
+  bool operator==(const Square& other) const;
+
  private:
   uint8_t m_index;
 };

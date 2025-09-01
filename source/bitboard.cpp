@@ -4,9 +4,23 @@
 
 #include "globals.hpp"
 
-Bitboard::Bitboard() : m_board(0) {}
+bool Bitboard::m_is_between_squares_masks_initialized = false;
 
-Bitboard::Bitboard(uint64_t board) : m_board(board) {}
+std::array<std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
+           NUM_OF_SQUARES_ON_CHESS_BOARD>
+    Bitboard::m_between_squares_masks{};
+
+Bitboard::Bitboard() : m_board(0) {
+  if (!m_is_between_squares_masks_initialized) {
+    init_between_squares_masks();
+  }
+}
+
+Bitboard::Bitboard(uint64_t board) : m_board(board) {
+  if (!m_is_between_squares_masks_initialized) {
+    init_between_squares_masks();
+  }
+}
 
 void Bitboard::pretty_print() const {
   std::cout << "Bitboard: " << m_board << " (0x" << std::hex << m_board << ")"
@@ -98,6 +112,27 @@ int8_t Bitboard::get_index_of_high_lsb() const {
   return position;
 }
 
+int8_t Bitboard::get_index_of_high_msb() const {
+  if (m_board == 0) {
+    return -1;
+  }
+
+  int8_t position = 63;
+  uint64_t temp_board = m_board;
+
+  while ((temp_board & 0x8000000000000000ULL) == 0) {
+    temp_board <<= 1;
+    position--;
+  }
+
+  return position;
+}
+
+uint64_t Bitboard::get_between_squares_mask(const Square& a,
+                                            const Square& b) const {
+  return m_between_squares_masks[a.get_index()][b.get_index()];
+}
+
 bool Bitboard::operator==(const Bitboard& other) const {
   return (this->m_board == other.m_board);
 }
@@ -151,4 +186,62 @@ Bitboard& Bitboard::operator<<=(uint8_t shift) {
 Bitboard& Bitboard::operator>>=(uint8_t shift) {
   m_board >>= shift;
   return *this;
+}
+
+uint64_t Bitboard::generate_between_squares_mask(const Square& a,
+                                                 const Square& b) const {
+  uint64_t mask = 0;
+  int8_t delta = 0;
+
+  // There are no squares in between a and b if they are the same square.
+  if (a == b) {
+    return mask;
+  }
+
+  const int8_t distance = b.get_index() - a.get_index();
+
+  if ((distance & 7) == 0) {  // Squares a and b are on the same file.
+
+    delta = ((distance > 0) ? 8 : -8);  // Move along the file.
+
+  } else if (b.get_rank() ==
+             a.get_rank()) {  // Squares a and b are on the same rank.
+
+    delta = ((distance > 0) ? 1 : -1);  // Move along the rank.
+
+  } else if ((distance % 9) == 0) {  // Squares a and b are on a diagonal.
+
+    delta = ((distance > 0) ? 9 : -9);  // Move along the diagonal.
+
+  } else if ((distance % 7) == 0) {  // Squares a and b are on another diagonal.
+
+    delta = ((distance > 0) ? 7 : -7);  // Move along the diagonal.
+
+  } else {
+    return mask;  // No diagonal or orthogonal path between the squares.
+  }
+
+  // Starting from square a travel until you get to square b while setting the
+  // bits in the mask corresponding to squares between squres a and b.
+  int square_index = a.get_index() + delta;
+  while (square_index != b.get_index()) {
+    mask |= Square(square_index).get_mask();
+    square_index += delta;
+  }
+
+  return mask;
+}
+
+void Bitboard::init_between_squares_masks() {
+  for (uint8_t outer_square_idx = 0;
+       outer_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD; outer_square_idx++) {
+    for (uint8_t inner_square_idx = 0;
+         inner_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD; inner_square_idx++) {
+      m_between_squares_masks[outer_square_idx][inner_square_idx] =
+          generate_between_squares_mask(Square(outer_square_idx),
+                                        Square(inner_square_idx));
+    }
+  }
+
+  m_is_between_squares_masks_initialized = true;
 }

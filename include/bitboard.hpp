@@ -2,6 +2,9 @@
 
 #include <stdint.h>
 
+#include <array>
+
+#include "globals.hpp"
 #include "square.hpp"
 
 class Bitboard {
@@ -22,6 +25,9 @@ class Bitboard {
   uint8_t low_bit_count() const;
 
   int8_t get_index_of_high_lsb() const;
+  int8_t get_index_of_high_msb() const;
+
+  uint64_t get_between_squares_mask(const Square& a, const Square& b) const;
 
   // Equality operators overload.
   bool operator==(const Bitboard& other) const;
@@ -42,4 +48,15 @@ class Bitboard {
 
  private:
   uint64_t m_board;
+
+  static bool m_is_between_squares_masks_initialized;
+
+  static std::array<std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
+                    NUM_OF_SQUARES_ON_CHESS_BOARD>
+      m_between_squares_masks;
+
+  uint64_t generate_between_squares_mask(const Square& a,
+                                         const Square& b) const;
+
+  void init_between_squares_masks();
 };

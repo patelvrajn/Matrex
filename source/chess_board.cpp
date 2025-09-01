@@ -8,13 +8,89 @@ Chess_Board::Chess_Board() {
       CASTLING_RIGHTS_FLAGS::B_KINGSIDE | CASTLING_RIGHTS_FLAGS::B_QUEENSIDE;
   m_state.enpassant_square = ESQUARE::NO_SQUARE;
   m_state.side_to_move = PIECE_COLOR::WHITE;
+  m_state.half_move_clock = 0;
+  m_state.full_move_count = 0;
   m_piece_bitboards = {};
   m_color_occupancy_bitboards = {};
 }
 
-Bitboard Chess_Board::get_both_occupancies() {
+Chess_Board::Chess_Board(const Bitboard& w_pawn_bb, const Bitboard& w_knight_bb,
+                         const Bitboard& w_bishop_bb, const Bitboard& w_rook_bb,
+                         const Bitboard& w_queen_bb, const Bitboard& w_king_bb,
+                         const Bitboard& b_pawn_bb, const Bitboard& b_knight_bb,
+                         const Bitboard& b_bishop_bb, const Bitboard& b_rook_bb,
+                         const Bitboard& b_queen_bb,
+                         const Bitboard& b_king_bb) {
+  m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::PAWN] = w_pawn_bb;
+  m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::KNIGHT] = w_knight_bb;
+  m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::BISHOP] = w_bishop_bb;
+  m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::ROOK] = w_rook_bb;
+  m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::QUEEN] = w_queen_bb;
+  m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::KING] = w_king_bb;
+
+  m_color_occupancy_bitboards[PIECE_COLOR::WHITE] = w_pawn_bb | w_knight_bb |
+                                                    w_bishop_bb | w_rook_bb |
+                                                    w_queen_bb | w_king_bb;
+
+  m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::PAWN] = b_pawn_bb;
+  m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KNIGHT] = b_knight_bb;
+  m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::BISHOP] = b_bishop_bb;
+  m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::ROOK] = b_rook_bb;
+  m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::QUEEN] = b_queen_bb;
+  m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KING] = w_king_bb;
+
+  m_color_occupancy_bitboards[PIECE_COLOR::BLACK] = b_pawn_bb | b_knight_bb |
+                                                    b_bishop_bb | b_rook_bb |
+                                                    b_queen_bb | b_king_bb;
+
+  m_state.castling_rights =
+      CASTLING_RIGHTS_FLAGS::W_KINGSIDE | CASTLING_RIGHTS_FLAGS::W_QUEENSIDE |
+      CASTLING_RIGHTS_FLAGS::B_KINGSIDE | CASTLING_RIGHTS_FLAGS::B_QUEENSIDE;
+  m_state.enpassant_square = ESQUARE::NO_SQUARE;
+  m_state.side_to_move = PIECE_COLOR::WHITE;
+  m_state.half_move_clock = 0;
+  m_state.full_move_count = 0;
+}
+
+Bitboard Chess_Board::get_both_color_occupancies() const {
   return (m_color_occupancy_bitboards[PIECE_COLOR::WHITE] |
           m_color_occupancy_bitboards[PIECE_COLOR::BLACK]);
+}
+
+Bitboard Chess_Board::get_color_occupancies(PIECE_COLOR c) const {
+  return m_color_occupancy_bitboards[c];
+}
+
+Bitboard Chess_Board::get_piece_occupancies(PIECE_COLOR c, PIECES p) const {
+  return m_piece_bitboards[c][p];
+}
+
+Square Chess_Board::get_en_passant_square() const {
+  return Square(m_state.enpassant_square);
+}
+
+PIECE_COLOR Chess_Board::get_side_to_move() const {
+  return m_state.side_to_move;
+}
+
+Square Chess_Board::get_king_square(PIECE_COLOR c) const {
+  return Square(m_piece_bitboards[c][PIECES::KING].get_index_of_high_lsb());
+}
+
+bool Chess_Board::does_white_have_short_castle_rights() const {
+  return m_state.castling_rights & CASTLING_RIGHTS_FLAGS::W_KINGSIDE;
+}
+
+bool Chess_Board::does_white_have_long_castle_rights() const {
+  return m_state.castling_rights & CASTLING_RIGHTS_FLAGS::W_QUEENSIDE;
+}
+
+bool Chess_Board::does_black_have_short_castle_rights() const {
+  return m_state.castling_rights & CASTLING_RIGHTS_FLAGS::B_KINGSIDE;
+}
+
+bool Chess_Board::does_black_have_long_castle_rights() const {
+  return m_state.castling_rights & CASTLING_RIGHTS_FLAGS::B_QUEENSIDE;
 }
 
 void Chess_Board::pretty_print() const {
@@ -100,20 +176,83 @@ void Chess_Board::pretty_print() const {
 }
 
 std::pair<PIECE_COLOR, PIECES> Chess_Board::what_piece_is_on_square(
-    Square& s) const {
-  for (uint8_t player_idx = 0; player_idx < NUM_OF_PLAYERS; player_idx++) {
-    for (uint8_t piece_idx = 0; piece_idx < NUM_OF_UNIQUE_PIECES_PER_PLAYER;
-         piece_idx++) {
-      // Check if this player's piece is on that square if so, return what color
-      // the piece is and what piece it is.
-      if (m_piece_bitboards[player_idx][piece_idx].get_board() & s.get_mask()) {
-        return {(PIECE_COLOR)player_idx, (PIECES)piece_idx};
-      }
-    }
-  }
+    const Square& s) const {
+  uint8_t white_value =
+      ((1 + PIECES::PAWN) *
+       ((m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::PAWN] >> s.get_index())
+            .get_board() &
+        1)) +
+      ((1 + PIECES::KNIGHT) *
+       ((m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::KNIGHT] >> s.get_index())
+            .get_board() &
+        1)) +
+      ((1 + PIECES::BISHOP) *
+       ((m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::BISHOP] >> s.get_index())
+            .get_board() &
+        1)) +
+      ((1 + PIECES::ROOK) *
+       ((m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::ROOK] >> s.get_index())
+            .get_board() &
+        1)) +
+      ((1 + PIECES::QUEEN) *
+       ((m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::QUEEN] >> s.get_index())
+            .get_board() &
+        1)) +
+      ((1 + PIECES::KING) *
+       ((m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::KING] >> s.get_index())
+            .get_board() &
+        1));
 
-  // No piece from either color had a piece on that square.
-  return {NO_COLOR, NO_PIECE};
+  PIECES white_piece =
+      (PIECES)(((PIECES)((white_value - 1) * (white_value != 0))) +
+               (PIECES::NO_PIECE * (white_value == 0)));
+
+  uint8_t black_value =
+      ((1 + PIECES::PAWN) *
+       ((m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::PAWN] >> s.get_index())
+            .get_board() &
+        1)) +
+      ((1 + PIECES::KNIGHT) *
+       ((m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KNIGHT] >> s.get_index())
+            .get_board() &
+        1)) +
+      ((1 + PIECES::BISHOP) *
+       ((m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::BISHOP] >> s.get_index())
+            .get_board() &
+        1)) +
+      ((1 + PIECES::ROOK) *
+       ((m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::ROOK] >> s.get_index())
+            .get_board() &
+        1)) +
+      ((1 + PIECES::QUEEN) *
+       ((m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::QUEEN] >> s.get_index())
+            .get_board() &
+        1)) +
+      ((1 + PIECES::KING) *
+       ((m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KING] >> s.get_index())
+            .get_board() &
+        1));
+
+  PIECES black_piece =
+      (PIECES)(((PIECES)((black_value - 1) * (black_value != 0))) +
+               (PIECES::NO_PIECE * (black_value == 0)));
+
+  PIECE_COLOR return_color =
+      (PIECE_COLOR)((PIECE_COLOR::NO_COLOR *
+                     ((black_piece == NO_PIECE) &
+                      (white_piece == NO_PIECE))) +  // If no pieces are on the
+                                                     // square, return no color.
+                    (PIECE_COLOR::BLACK *
+                     (black_piece !=
+                      NO_PIECE)));  // If there is a black piece, return black.
+                                    // Otherwise, return white.
+
+  PIECES return_piece =
+      (PIECES)((PIECES::NO_PIECE * (return_color == NO_COLOR)) +
+               (white_piece * (return_color == PIECE_COLOR::WHITE)) +
+               (black_piece * (return_color == PIECE_COLOR::BLACK)));
+
+  return {return_color, return_piece};
 }
 
 void Chess_Board::set_from_fen(const std::string& fen) {

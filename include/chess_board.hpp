@@ -24,13 +24,38 @@ class Chess_Board {
  public:
   Chess_Board();
 
+  Chess_Board(const Bitboard& w_pawn_bb, const Bitboard& w_knight_bb,
+              const Bitboard& w_bishop_bb, const Bitboard& w_rook_bb,
+              const Bitboard& w_queen_bb, const Bitboard& w_king_bb,
+              const Bitboard& b_pawn_bb, const Bitboard& b_knight_bb,
+              const Bitboard& b_bishop_bb, const Bitboard& b_rook_bb,
+              const Bitboard& b_queen_bb, const Bitboard& b_king_bb);
+
   void pretty_print() const;
 
-  std::pair<PIECE_COLOR, PIECES> what_piece_is_on_square(Square& s) const;
+  std::pair<PIECE_COLOR, PIECES> what_piece_is_on_square(const Square& s) const;
 
   void set_from_fen(const std::string& fen);
 
-  Bitboard get_both_occupancies();
+  Bitboard get_both_color_occupancies() const;
+
+  Bitboard get_color_occupancies(PIECE_COLOR c) const;
+
+  Bitboard get_piece_occupancies(PIECE_COLOR c, PIECES p) const;
+
+  Square get_en_passant_square() const;
+
+  PIECE_COLOR get_side_to_move() const;
+
+  Square get_king_square(PIECE_COLOR c) const;
+
+  bool does_white_have_short_castle_rights() const;
+
+  bool does_white_have_long_castle_rights() const;
+
+  bool does_black_have_short_castle_rights() const;
+
+  bool does_black_have_long_castle_rights() const;
 
  private:
   std::array<std::array<Bitboard, NUM_OF_UNIQUE_PIECES_PER_PLAYER>,

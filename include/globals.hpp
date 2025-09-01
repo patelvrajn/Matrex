@@ -17,6 +17,9 @@ enum PIECE_COLOR { WHITE, BLACK, NO_COLOR };
 
 enum PIECES { PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, NO_PIECE };
 
+constexpr std::string PIECE_STRINGS[] = {"PAWN",  "KNIGHT", "BISHOP",  "ROOK",
+                                         "QUEEN", "KING",   "NO_PIECE"};
+
 constexpr std::string
     UNICODE_PIECES[NUM_OF_PLAYERS * NUM_OF_UNIQUE_PIECES_PER_PLAYER] = {
         "♙", "♘", "♗", "♖", "♕", "♔", "♟︎", "♞", "♝", "♜", "♛", "♚"};

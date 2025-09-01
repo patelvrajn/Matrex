@@ -34,3 +34,7 @@ uint64_t Square::get_mask() const {  // Does not return a bitboard otherwise,
   uint64_t temp = 1;
   return (temp << m_index);
 }
+
+bool Square::operator==(const Square& other) const {
+  return (this->m_index == other.m_index);
+}
