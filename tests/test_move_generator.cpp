@@ -13,18 +13,20 @@ TEST(move_generator_tests, free_to_move_king) {
 
   std::vector<Chess_Move> expected_move_list;
 
-  Chess_Move move = {.source_square = ESQUARE::D2,
-                     .destination_square = ESQUARE::C1,
-                     .moving_piece = PIECES::KING,
-                     .promoted_piece = PIECES::NO_PIECE,
-                     .captured_piece = PIECES::NO_PIECE,
-                     .is_capture = false,
-                     .is_short_castling = false,
-                     .is_long_castling = false,
-                     .is_double_pawn_push = false,
-                     .is_en_passant = false,
-                     .is_promotion = false,
-                     .is_check = false};
+  Chess_Move move = {
+      .source_square = ESQUARE::D2,
+      .destination_square = ESQUARE::C1,
+      .moving_piece = PIECES::KING,
+      .promoted_piece = PIECES::NO_PIECE,
+      .captured_piece = PIECES::NO_PIECE,
+      .is_capture = false,
+      .is_short_castling = false,
+      .is_long_castling = false,
+      .is_double_pawn_push = false,
+      .is_en_passant = false,
+      .is_promotion = false,
+      .is_check = false,
+      .next_board_state = nullptr};  // TODO: Should compare next position.
 
   expected_move_list.push_back(move);
 

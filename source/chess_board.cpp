@@ -12,6 +12,7 @@ Chess_Board::Chess_Board() {
   m_state.full_move_count = 0;
   m_piece_bitboards = {};
   m_color_occupancy_bitboards = {};
+  m_previous_board = nullptr;
 }
 
 Chess_Board::Chess_Board(const Bitboard& w_pawn_bb, const Bitboard& w_knight_bb,
@@ -50,6 +51,7 @@ Chess_Board::Chess_Board(const Bitboard& w_pawn_bb, const Bitboard& w_knight_bb,
   m_state.side_to_move = PIECE_COLOR::WHITE;
   m_state.half_move_clock = 0;
   m_state.full_move_count = 0;
+  m_previous_board = nullptr;
 }
 
 Bitboard Chess_Board::get_both_color_occupancies() const {

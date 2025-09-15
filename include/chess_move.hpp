@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <memory>
 
 #include "square.hpp"
 
@@ -17,6 +18,7 @@ struct Chess_Move {
   bool is_en_passant : 1;
   bool is_promotion : 1;
   bool is_check : 1;
+  std::shared_ptr<Chess_Board> next_board_state;
 
   void pretty_print() const {
     std::cout << "Move (" << SQUARE_STRINGS[source_square] << " to "

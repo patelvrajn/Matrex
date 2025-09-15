@@ -642,15 +642,11 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       constexpr std::pair<PIECE_COLOR, PIECES> who_is_on_target_square =
           std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE);
 
-      Chess_Board next_board_state = calculate_future_board_state(
-          PIECE_COLOR::WHITE, PIECES::PAWN, Square(source_square),
-          Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
-          false, Square(0), false, Square(0), Square(0));
-
-      Move_Generator pushed_pawn_mg(next_board_state);
-      bool is_check =
-          ((pushed_pawn_mg.attackers_to_square(opposing_king_square) &
-            Square(target_square).get_mask()) != 0);
+      std::shared_ptr<Chess_Board> next_board_state =
+          calculate_future_board_state(
+              PIECE_COLOR::WHITE, PIECES::PAWN, Square(source_square),
+              Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
+              false, Square(0), false, Square(0), Square(0));
 
       Chess_Move move = {.source_square = source_square,
                          .destination_square = target_square,
@@ -663,7 +659,9 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                          .is_double_pawn_push = false,
                          .is_en_passant = false,
                          .is_promotion = false,
-                         .is_check = is_check};
+                         .is_check = is_check(our_side, opposing_king_square,
+                                              *next_board_state),
+                         .next_board_state = next_board_state};
 
       output.push_back(move);
     }
@@ -690,15 +688,11 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       constexpr std::pair<PIECE_COLOR, PIECES> who_is_on_target_square =
           std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE);
 
-      Chess_Board next_board_state = calculate_future_board_state(
-          PIECE_COLOR::BLACK, PIECES::PAWN, Square(source_square),
-          Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
-          false, Square(0), false, Square(0), Square(0));
-
-      Move_Generator pushed_pawn_mg(next_board_state);
-      bool is_check =
-          ((pushed_pawn_mg.attackers_to_square(opposing_king_square) &
-            Square(target_square).get_mask()) != 0);
+      std::shared_ptr<Chess_Board> next_board_state =
+          calculate_future_board_state(
+              PIECE_COLOR::BLACK, PIECES::PAWN, Square(source_square),
+              Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
+              false, Square(0), false, Square(0), Square(0));
 
       Chess_Move move = {.source_square = source_square,
                          .destination_square = target_square,
@@ -711,7 +705,9 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                          .is_double_pawn_push = false,
                          .is_en_passant = false,
                          .is_promotion = false,
-                         .is_check = is_check};
+                         .is_check = is_check(our_side, opposing_king_square,
+                                              *next_board_state),
+                         .next_board_state = next_board_state};
 
       output.push_back(move);
     }
@@ -750,15 +746,11 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       constexpr std::pair<PIECE_COLOR, PIECES> who_is_on_target_square =
           std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE);
 
-      Chess_Board next_board_state = calculate_future_board_state(
-          PIECE_COLOR::WHITE, PIECES::PAWN, Square(source_square),
-          Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
-          false, Square(0), false, Square(0), Square(0));
-
-      Move_Generator pushed_pawn_mg(next_board_state);
-      bool is_check =
-          ((pushed_pawn_mg.attackers_to_square(opposing_king_square) &
-            Square(target_square).get_mask()) != 0);
+      std::shared_ptr<Chess_Board> next_board_state =
+          calculate_future_board_state(
+              PIECE_COLOR::WHITE, PIECES::PAWN, Square(source_square),
+              Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
+              false, Square(0), false, Square(0), Square(0));
 
       Chess_Move move = {.source_square = source_square,
                          .destination_square = target_square,
@@ -771,7 +763,9 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                          .is_double_pawn_push = true,
                          .is_en_passant = false,
                          .is_promotion = false,
-                         .is_check = is_check};
+                         .is_check = is_check(our_side, opposing_king_square,
+                                              *next_board_state),
+                         .next_board_state = next_board_state};
 
       output.push_back(move);
     }
@@ -796,15 +790,11 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       constexpr std::pair<PIECE_COLOR, PIECES> who_is_on_target_square =
           std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE);
 
-      Chess_Board next_board_state = calculate_future_board_state(
-          PIECE_COLOR::BLACK, PIECES::PAWN, Square(source_square),
-          Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
-          false, Square(0), false, Square(0), Square(0));
-
-      Move_Generator pushed_pawn_mg(next_board_state);
-      bool is_check =
-          ((pushed_pawn_mg.attackers_to_square(opposing_king_square) &
-            Square(target_square).get_mask()) != 0);
+      std::shared_ptr<Chess_Board> next_board_state =
+          calculate_future_board_state(
+              PIECE_COLOR::BLACK, PIECES::PAWN, Square(source_square),
+              Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
+              false, Square(0), false, Square(0), Square(0));
 
       Chess_Move move = {.source_square = source_square,
                          .destination_square = target_square,
@@ -817,7 +807,9 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                          .is_double_pawn_push = true,
                          .is_en_passant = false,
                          .is_promotion = false,
-                         .is_check = is_check};
+                         .is_check = is_check(our_side, opposing_king_square,
+                                              *next_board_state),
+                         .next_board_state = next_board_state};
 
       output.push_back(move);
     }
@@ -857,26 +849,25 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                            .is_double_pawn_push = false,
                            .is_en_passant = true,
                            .is_promotion = false,
-                           .is_check = false};
+                           .is_check = false,
+                           .next_board_state = nullptr};
 
         if (our_side == PIECE_COLOR::WHITE) {
           Square victim_pawn_square =
               Square(Bitboard(Square(target_square).get_mask() << 8)
                          .get_index_of_high_lsb());
 
-          Chess_Board next_board_state = calculate_future_board_state(
-              PIECE_COLOR::WHITE, PIECES::PAWN, Square(source_square),
-              Square(target_square),
-              std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
-              PIECES::NO_PIECE, true, victim_pawn_square, false, Square(0),
-              Square(0));
+          std::shared_ptr<Chess_Board> next_board_state =
+              calculate_future_board_state(
+                  PIECE_COLOR::WHITE, PIECES::PAWN, Square(source_square),
+                  Square(target_square),
+                  std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
+                  PIECES::NO_PIECE, true, victim_pawn_square, false, Square(0),
+                  Square(0));
 
-          Move_Generator en_passant_mg(next_board_state);
-          bool is_check =
-              ((en_passant_mg.attackers_to_square(opposing_king_square) &
-                Square(target_square).get_mask()) != 0);
-
-          move.is_check = is_check;
+          move.is_check =
+              is_check(our_side, opposing_king_square, *next_board_state);
+          move.next_board_state = next_board_state;
 
           output.push_back(move);
 
@@ -885,19 +876,17 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
               Square(Bitboard(Square(target_square).get_mask() >> 8)
                          .get_index_of_high_lsb());
 
-          Chess_Board next_board_state = calculate_future_board_state(
-              PIECE_COLOR::BLACK, PIECES::PAWN, Square(source_square),
-              Square(target_square),
-              std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
-              PIECES::NO_PIECE, true, victim_pawn_square, false, Square(0),
-              Square(0));
+          std::shared_ptr<Chess_Board> next_board_state =
+              calculate_future_board_state(
+                  PIECE_COLOR::BLACK, PIECES::PAWN, Square(source_square),
+                  Square(target_square),
+                  std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
+                  PIECES::NO_PIECE, true, victim_pawn_square, false, Square(0),
+                  Square(0));
 
-          Move_Generator en_passant_mg(next_board_state);
-          bool is_check =
-              ((en_passant_mg.attackers_to_square(opposing_king_square) &
-                Square(target_square).get_mask()) != 0);
-
-          move.is_check = is_check;
+          move.is_check =
+              is_check(our_side, opposing_king_square, *next_board_state);
+          move.next_board_state = next_board_state;
 
           output.push_back(move);
         }
@@ -944,15 +933,11 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       const auto who_is_on_target_square =
           m_chess_board.what_piece_is_on_square(Square(target_square));
 
-      Chess_Board next_board_state = calculate_future_board_state(
-          PIECE_COLOR::WHITE, PIECES::PAWN, Square(source_square),
-          Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
-          false, Square(0), false, Square(0), Square(0));
-
-      Move_Generator attacking_pawn_mg(next_board_state);
-      bool is_check =
-          ((attacking_pawn_mg.attackers_to_square(opposing_king_square) &
-            Square(target_square).get_mask()) != 0);
+      std::shared_ptr<Chess_Board> next_board_state =
+          calculate_future_board_state(
+              PIECE_COLOR::WHITE, PIECES::PAWN, Square(source_square),
+              Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
+              false, Square(0), false, Square(0), Square(0));
 
       Chess_Move move = {.source_square = source_square,
                          .destination_square = target_square,
@@ -965,7 +950,9 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                          .is_double_pawn_push = false,
                          .is_en_passant = false,
                          .is_promotion = false,
-                         .is_check = is_check};
+                         .is_check = is_check(our_side, opposing_king_square,
+                                              *next_board_state),
+                         .next_board_state = next_board_state};
 
       output.push_back(move);
 
@@ -1009,15 +996,11 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       const auto who_is_on_target_square =
           m_chess_board.what_piece_is_on_square(Square(target_square));
 
-      Chess_Board next_board_state = calculate_future_board_state(
-          PIECE_COLOR::BLACK, PIECES::PAWN, Square(source_square),
-          Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
-          false, Square(0), false, Square(0), Square(0));
-
-      Move_Generator attacking_pawn_mg(next_board_state);
-      bool is_check =
-          ((attacking_pawn_mg.attackers_to_square(opposing_king_square) &
-            Square(target_square).get_mask()) != 0);
+      std::shared_ptr<Chess_Board> next_board_state =
+          calculate_future_board_state(
+              PIECE_COLOR::BLACK, PIECES::PAWN, Square(source_square),
+              Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
+              false, Square(0), false, Square(0), Square(0));
 
       Chess_Move move = {.source_square = source_square,
                          .destination_square = target_square,
@@ -1030,7 +1013,9 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                          .is_double_pawn_push = false,
                          .is_en_passant = false,
                          .is_promotion = false,
-                         .is_check = is_check};
+                         .is_check = is_check(our_side, opposing_king_square,
+                                              *next_board_state),
+                         .next_board_state = next_board_state};
 
       output.push_back(move);
 
@@ -1056,10 +1041,11 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
     const auto who_is_on_target_square =
         m_chess_board.what_piece_is_on_square(target_square);
 
-    Chess_Board cb = calculate_future_board_state(
-        our_side, PIECES::KING, our_king_square, target_square,
-        who_is_on_target_square, PIECES::NO_PIECE, false, Square(0), false,
-        Square(0), Square(0));
+    std::shared_ptr<Chess_Board> next_board_state =
+        calculate_future_board_state(our_side, PIECES::KING, our_king_square,
+                                     target_square, who_is_on_target_square,
+                                     PIECES::NO_PIECE, false, Square(0), false,
+                                     Square(0), Square(0));
 
     Chess_Move move = {
         .source_square = ESQUARE(our_king_square.get_index()),
@@ -1073,7 +1059,8 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
         .is_double_pawn_push = false,
         .is_en_passant = false,
         .is_promotion = false,
-        .is_check = is_check(our_side, opposing_king_square, cb)};
+        .is_check = is_check(our_side, opposing_king_square, *next_board_state),
+        .next_board_state = next_board_state};
 
     output.push_back(move);
 
@@ -1104,12 +1091,13 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       are_white_short_castle_squares_empty &&
       are_white_short_castle_squares_safe && is_white_king_not_in_check &&
       is_white_the_moving_side) {
-    Chess_Board next_board_state = calculate_future_board_state(
-        PIECE_COLOR::WHITE, PIECES::KING, Square(ESQUARE::E1),
-        Square(ESQUARE::G1),
-        std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
-        PIECES::NO_PIECE, false, Square(0), true, Square(ESQUARE::H1),
-        Square(ESQUARE::F1));
+    std::shared_ptr<Chess_Board> next_board_state =
+        calculate_future_board_state(
+            PIECE_COLOR::WHITE, PIECES::KING, Square(ESQUARE::E1),
+            Square(ESQUARE::G1),
+            std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
+            PIECES::NO_PIECE, false, Square(0), true, Square(ESQUARE::H1),
+            Square(ESQUARE::F1));
 
     Chess_Move move = {
         .source_square = ESQUARE::E1,
@@ -1123,7 +1111,8 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
         .is_double_pawn_push = false,
         .is_en_passant = false,
         .is_promotion = false,
-        .is_check = is_check(our_side, opposing_king_square, next_board_state)};
+        .is_check = is_check(our_side, opposing_king_square, *next_board_state),
+        .next_board_state = next_board_state};
 
     output.push_back(move);
   }
@@ -1147,12 +1136,13 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       are_white_long_castle_squares_empty &&
       are_white_long_castle_squares_safe && is_white_king_not_in_check &&
       is_white_the_moving_side) {
-    Chess_Board next_board_state = calculate_future_board_state(
-        PIECE_COLOR::WHITE, PIECES::KING, Square(ESQUARE::E1),
-        Square(ESQUARE::C1),
-        std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
-        PIECES::NO_PIECE, false, Square(0), true, Square(ESQUARE::A1),
-        Square(ESQUARE::D1));
+    std::shared_ptr<Chess_Board> next_board_state =
+        calculate_future_board_state(
+            PIECE_COLOR::WHITE, PIECES::KING, Square(ESQUARE::E1),
+            Square(ESQUARE::C1),
+            std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
+            PIECES::NO_PIECE, false, Square(0), true, Square(ESQUARE::A1),
+            Square(ESQUARE::D1));
 
     Chess_Move move = {
         .source_square = ESQUARE::E1,
@@ -1166,7 +1156,8 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
         .is_double_pawn_push = false,
         .is_en_passant = false,
         .is_promotion = false,
-        .is_check = is_check(our_side, opposing_king_square, next_board_state)};
+        .is_check = is_check(our_side, opposing_king_square, *next_board_state),
+        .next_board_state = next_board_state};
 
     output.push_back(move);
   }
@@ -1194,12 +1185,13 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       are_black_short_castle_squares_empty &&
       are_black_short_castle_squares_safe && is_black_king_not_in_check &&
       is_black_the_moving_side) {
-    Chess_Board next_board_state = calculate_future_board_state(
-        PIECE_COLOR::BLACK, PIECES::KING, Square(ESQUARE::E8),
-        Square(ESQUARE::G8),
-        std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
-        PIECES::NO_PIECE, false, Square(0), true, Square(ESQUARE::H8),
-        Square(ESQUARE::F8));
+    std::shared_ptr<Chess_Board> next_board_state =
+        calculate_future_board_state(
+            PIECE_COLOR::BLACK, PIECES::KING, Square(ESQUARE::E8),
+            Square(ESQUARE::G8),
+            std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
+            PIECES::NO_PIECE, false, Square(0), true, Square(ESQUARE::H8),
+            Square(ESQUARE::F8));
 
     Chess_Move move = {
         .source_square = ESQUARE::E8,
@@ -1213,7 +1205,8 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
         .is_double_pawn_push = false,
         .is_en_passant = false,
         .is_promotion = false,
-        .is_check = is_check(our_side, opposing_king_square, next_board_state)};
+        .is_check = is_check(our_side, opposing_king_square, *next_board_state),
+        .next_board_state = next_board_state};
 
     output.push_back(move);
   }
@@ -1237,12 +1230,13 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       are_black_long_castle_squares_empty &&
       are_black_long_castle_squares_safe && is_black_king_not_in_check &&
       is_black_the_moving_side) {
-    Chess_Board next_board_state = calculate_future_board_state(
-        PIECE_COLOR::BLACK, PIECES::KING, Square(ESQUARE::E8),
-        Square(ESQUARE::C8),
-        std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
-        PIECES::NO_PIECE, false, Square(0), true, Square(ESQUARE::A8),
-        Square(ESQUARE::D8));
+    std::shared_ptr<Chess_Board> next_board_state =
+        calculate_future_board_state(
+            PIECE_COLOR::BLACK, PIECES::KING, Square(ESQUARE::E8),
+            Square(ESQUARE::C8),
+            std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
+            PIECES::NO_PIECE, false, Square(0), true, Square(ESQUARE::A8),
+            Square(ESQUARE::D8));
 
     Chess_Move move = {
         .source_square = ESQUARE::E8,
@@ -1256,7 +1250,8 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
         .is_double_pawn_push = false,
         .is_en_passant = false,
         .is_promotion = false,
-        .is_check = is_check(our_side, opposing_king_square, next_board_state)};
+        .is_check = is_check(our_side, opposing_king_square, *next_board_state),
+        .next_board_state = next_board_state};
 
     output.push_back(move);
   }
@@ -1302,7 +1297,7 @@ void Move_Generator::generate_pawn_promotions(
   const auto who_is_on_target_square =
       m_chess_board.what_piece_is_on_square(target_square);
 
-  Chess_Board next_board_state = calculate_future_board_state(
+  std::shared_ptr<Chess_Board> next_board_state = calculate_future_board_state(
       moving_side, PIECES::PAWN, Square(source_square), Square(target_square),
       who_is_on_target_square, PIECES::KNIGHT, false, Square(0), false,
       Square(0), Square(0));
@@ -1319,7 +1314,8 @@ void Move_Generator::generate_pawn_promotions(
                      .is_en_passant = false,
                      .is_promotion = true,
                      .is_check = is_check(moving_side, opposing_king_square,
-                                          next_board_state)};
+                                          *next_board_state),
+                     .next_board_state = next_board_state};
 
   output.push_back(move);
 
@@ -1330,10 +1326,11 @@ void Move_Generator::generate_pawn_promotions(
       Square(0), Square(0));
 
   bool is_bishop_promotion_check =
-      is_check(moving_side, opposing_king_square, next_board_state);
+      is_check(moving_side, opposing_king_square, *next_board_state);
 
   move.promoted_piece = PIECES::BISHOP;
   move.is_check = is_bishop_promotion_check;
+  move.next_board_state = next_board_state;
 
   output.push_back(move);
 
@@ -1344,16 +1341,23 @@ void Move_Generator::generate_pawn_promotions(
       Square(0));
 
   bool is_rook_promotion_check =
-      is_check(moving_side, opposing_king_square, next_board_state);
+      is_check(moving_side, opposing_king_square, *next_board_state);
 
   move.promoted_piece = PIECES::ROOK;
   move.is_check = is_rook_promotion_check;
+  move.next_board_state = next_board_state;
 
   output.push_back(move);
 
   // Pawn to queen promotion.
+  next_board_state = calculate_future_board_state(
+      moving_side, PIECES::PAWN, Square(source_square), Square(target_square),
+      who_is_on_target_square, PIECES::QUEEN, false, Square(0), false,
+      Square(0), Square(0));
+
   move.promoted_piece = PIECES::QUEEN;
   move.is_check = (is_bishop_promotion_check | is_rook_promotion_check);
+  move.next_board_state = next_board_state;
 
   output.push_back(move);
 }
@@ -1409,10 +1413,11 @@ void Move_Generator::generate_minor_and_major_piece_moves(
       const auto who_is_on_target_square =
           m_chess_board.what_piece_is_on_square(target_square);
 
-      Chess_Board cb = calculate_future_board_state(
-          our_side, moving_piece, source_square, target_square,
-          who_is_on_target_square, PIECES::NO_PIECE, false, Square(0), false,
-          Square(0), Square(0));
+      std::shared_ptr<Chess_Board> next_board_state =
+          calculate_future_board_state(our_side, moving_piece, source_square,
+                                       target_square, who_is_on_target_square,
+                                       PIECES::NO_PIECE, false, Square(0),
+                                       false, Square(0), Square(0));
 
       Chess_Move move = {
           .source_square = ESQUARE(source_square.get_index()),
@@ -1426,7 +1431,9 @@ void Move_Generator::generate_minor_and_major_piece_moves(
           .is_double_pawn_push = false,
           .is_en_passant = false,
           .is_promotion = false,
-          .is_check = is_check(our_side, opposing_king_square, cb)};
+          .is_check =
+              is_check(our_side, opposing_king_square, *next_board_state),
+          .next_board_state = next_board_state};
 
       output.push_back(move);
 
@@ -1548,7 +1555,7 @@ Bitboard Move_Generator::calculate_future_occupancy(
   return future_occupancy;
 }
 
-Chess_Board Move_Generator::calculate_future_board_state(
+std::shared_ptr<Chess_Board> Move_Generator::calculate_future_board_state(
     PIECE_COLOR moving_side, PIECES moving_piece, Square source_square,
     Square target_square,
     std::pair<PIECE_COLOR, PIECES> who_is_on_target_square,
@@ -1617,9 +1624,12 @@ Chess_Board Move_Generator::calculate_future_board_state(
       is_en_passant, en_passant_captured_pawn_square, is_castling,
       rook_source_square, rook_target_square);
 
-  return Chess_Board(
-      white_pawn_occupancy, white_knight_occupancy, white_bishop_occupancy,
-      white_rook_occupancy, white_queen_occupancy, white_king_occupancy,
-      black_pawn_occupancy, black_knight_occupancy, black_bishop_occupancy,
-      black_rook_occupancy, black_queen_occupancy, black_king_occupancy);
+  std::shared_ptr<Chess_Board> future_board_state =
+      std::make_shared<Chess_Board>(
+          white_pawn_occupancy, white_knight_occupancy, white_bishop_occupancy,
+          white_rook_occupancy, white_queen_occupancy, white_king_occupancy,
+          black_pawn_occupancy, black_knight_occupancy, black_bishop_occupancy,
+          black_rook_occupancy, black_queen_occupancy, black_king_occupancy);
+
+  return future_board_state;
 }

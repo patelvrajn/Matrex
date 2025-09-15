@@ -1,3 +1,4 @@
+#include <memory>
 #include <vector>
 
 #include "attacks.hpp"
@@ -52,7 +53,7 @@ class Move_Generator {
       Square en_passant_captured_pawn_square, bool is_castling,
       Square rook_source_square, Square rook_target_square);
 
-  Chess_Board calculate_future_board_state(
+  std::shared_ptr<Chess_Board> calculate_future_board_state(
       PIECE_COLOR moving_side, PIECES moving_piece, Square source_square,
       Square target_square,
       std::pair<PIECE_COLOR, PIECES> who_is_on_target_square,

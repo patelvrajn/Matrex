@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <memory>
 
 #include "bitboard.hpp"
 #include "globals.hpp"
@@ -67,4 +68,6 @@ class Chess_Board {
 
   void place_pieces_from_fen(const std::string& rank_description,
                              uint8_t length_of_description, uint8_t rank);
+
+  std::shared_ptr<Chess_Board> m_previous_board;
 };
