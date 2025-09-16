@@ -93,9 +93,8 @@ Bitboard Move_Generator::generate_check_mask() const {
   //   bishop/rook/queen).
   // So we generate a mask of all squares on the line between the checker and
   // the king, then OR it with the checker’s square.
-  return ((a.get_queen_attacks(our_king_square, both_color_occupancies) &
-           a.get_queen_attacks(Square(checkers.get_index_of_high_lsb()),
-                               both_color_occupancies)) |
+  return (Bitboard(checkers.get_between_squares_mask(
+              our_king_square, Square(checkers.get_index_of_high_lsb()))) |
           checkers);
 }
 
@@ -129,102 +128,120 @@ Bitboard Move_Generator::generate_pin_d(
   // Direction Index 3 = South-West = LSB (0)
   constexpr uint8_t USE_MSB_FOR_CLOSEST_BLOCKER[4] = {0, 1, 1, 0};
 
+  int8_t ray_idx = -1;  // Index of the ray direction where our piece lies (if
+                        // any). -1 means not found / not on a diagonal ray.
+
   // Loop through all bishop ray directions (NE, NW, SE, SW)
   for (uint8_t direction_idx = 0; direction_idx < NUM_OF_BISHOP_RAY_DIRECTIONS;
        direction_idx++) {
-    // Whether or not to use MSB or LSB to find the closest blocker of the king
-    // for this ray direction.
-    const uint64_t use_msb =
-        -((uint64_t)(USE_MSB_FOR_CLOSEST_BLOCKER[direction_idx] == 1));
-
     // Get the ray from our king in this direction (all squares in that diagonal
     // line)
     Bitboard ray = a.get_bishop_rays(our_king_square, direction_idx);
 
-    // Find all pieces (blockers) along that ray
-    Bitboard blockers = ray & both_color_occupancies;
-
-    // Mask that is all 1s if there is at least one blocker, all 0s otherwise
-    // (bit trick: -(bool) expands true → 0xFFFF...FFFF, false → 0)
-    Bitboard has_blockers = Bitboard((uint64_t)(-(uint64_t)(blockers != 0)));
-
-    // Trick: if no blockers, get_index_of_high_lsb/msb returns ~has_blockers
-    // fallback (will always return a valid index)
-    Bitboard blockers_always_high = (blockers | ~has_blockers);
-
-    // Choose the correct nearest blocker based on use_msb.
-    uint8_t nearest_blocker_candidate_lsb_idx =
-        blockers_always_high.get_index_of_high_lsb();
-    uint8_t nearest_blocker_candidate_msb_idx =
-        blockers_always_high.get_index_of_high_msb();
-    uint8_t choosen_nearest_blocker =
-        (nearest_blocker_candidate_msb_idx & use_msb) |
-        (nearest_blocker_candidate_lsb_idx & (~use_msb));
-
-    // First blocker = nearest occupied square on the ray
-    Bitboard first_blocker =
-        Bitboard(Square(choosen_nearest_blocker).get_mask());
-
-    // Check if first blocker is *our* piece
-    Bitboard is_first_blocker_my_piece = Bitboard(
-        (uint64_t)(-((uint64_t)((first_blocker &
-                                 m_chess_board.get_color_occupancies(our_side))
-                                    .get_board() > 0))));
-
-    // Check if that first blocker is the specific "chosen" piece we’re testing
-    Bitboard is_first_blocker_the_chosen_piece = Bitboard((uint64_t)(-(
-        (uint64_t)((first_blocker & one_hot_piece_bitboard).get_board() > 0))));
-
-    // Remove that first blocker (we’re going to look for the *next* one)
-    blockers = blockers & (~first_blocker);
-
-    // Do we still have another blocker left further along the ray?
-    Bitboard has_second_blocker =
-        Bitboard((uint64_t)(-(uint64_t)(blockers != 0)));
-
-    // Trick: if no blockers, get_index_of_high_lsb/msb returns
-    // ~has_second_blocker fallback (will always return a valid index)
-    blockers_always_high = (blockers | ~has_second_blocker);
-
-    // Choose the correct nearest blocker based on use_msb.
-    nearest_blocker_candidate_lsb_idx =
-        blockers_always_high.get_index_of_high_lsb();
-    nearest_blocker_candidate_msb_idx =
-        blockers_always_high.get_index_of_high_msb();
-    choosen_nearest_blocker = (nearest_blocker_candidate_msb_idx & use_msb) |
-                              (nearest_blocker_candidate_lsb_idx & (~use_msb));
-
-    // Get that second blocker square (nearest after the first)
-    Square second_blocker_square = Square(choosen_nearest_blocker);
-    Bitboard second_blocker = Bitboard(second_blocker_square.get_mask());
-
-    // Check if second blocker is an enemy bishop or queen
-    Bitboard is_second_blocker_enemy_bishop_or_queen = Bitboard((uint64_t)(-(
-        (uint64_t)((second_blocker & (m_chess_board.get_piece_occupancies(
-                                          opposing_side, PIECES::BISHOP) |
-                                      m_chess_board.get_piece_occupancies(
-                                          opposing_side, PIECES::QUEEN)))
-                       .get_board() > 0))));
-
-    // Get the path between our king and the second blocker (the pin line)
-    // Include second blocker square itself, since it can be captured
-    Bitboard path = Bitboard(
-        pin_d.get_between_squares_mask(m_chess_board.get_king_square(our_side),
-                                       second_blocker_square) |
-        second_blocker.get_board());
-
-    // Now accumulate pin result:
-    // Conditions must ALL be true:
-    //  - At least one blocker exists
-    //  - First blocker is our piece
-    //  - First blocker is the specific piece being tested
-    //  - A second blocker exists
-    //  - That second blocker is an enemy bishop/queen
-    // If all true → add the "pin path" squares to result
-    pin_d |= (path & has_blockers & is_first_blocker_my_piece &
-              is_first_blocker_the_chosen_piece & has_second_blocker &
-              is_second_blocker_enemy_bishop_or_queen);
+    // Check if our piece lies on this ray
+    // If so, store the direction index.
+    if ((one_hot_piece_bitboard & ray).get_board() != 0) {
+      ray_idx = direction_idx;
+    }
   }
+
+  if (ray_idx == -1) {
+    // Our piece is not on any diagonal ray from the king, so it cannot be
+    // pinned diagonally. Return a mask all bits set - the chosen piece can move
+    // anywhere.
+    return Bitboard((uint64_t)-1);
+  }
+
+  // Whether or not to use MSB or LSB to find the closest blocker of the king
+  // for this ray direction.
+  const uint64_t use_msb =
+      -((uint64_t)(USE_MSB_FOR_CLOSEST_BLOCKER[ray_idx] == 1));
+
+  // Get the ray from our king in this direction (all squares in that diagonal
+  // line)
+  Bitboard ray = a.get_bishop_rays(our_king_square, ray_idx);
+
+  // Find all pieces (blockers) along that ray
+  Bitboard blockers = ray & both_color_occupancies;
+
+  // Mask that is all 1s if there is at least one blocker, all 0s otherwise (bit
+  // trick: -(bool) expands true → 0xFFFF...FFFF, false → 0)
+  Bitboard has_blockers = Bitboard((uint64_t)(-(uint64_t)(blockers != 0)));
+
+  // Trick: if no blockers, get_index_of_high_lsb/msb returns ~has_blockers
+  // fallback (will always return a valid index)
+  Bitboard blockers_always_high = (blockers | ~has_blockers);
+
+  // Choose the correct nearest blocker based on use_msb.
+  uint8_t nearest_blocker_candidate_lsb_idx =
+      blockers_always_high.get_index_of_high_lsb();
+  uint8_t nearest_blocker_candidate_msb_idx =
+      blockers_always_high.get_index_of_high_msb();
+  uint8_t choosen_nearest_blocker =
+      (nearest_blocker_candidate_msb_idx & use_msb) |
+      (nearest_blocker_candidate_lsb_idx & (~use_msb));
+
+  // First blocker = nearest occupied square on the ray
+  Bitboard first_blocker = Bitboard(Square(choosen_nearest_blocker).get_mask());
+
+  // Check if first blocker is *our* piece
+  Bitboard is_first_blocker_my_piece = Bitboard((uint64_t)(-(
+      (uint64_t)((first_blocker & m_chess_board.get_color_occupancies(our_side))
+                     .get_board() > 0))));
+
+  // Check if that first blocker is the specific "chosen" piece we’re testing
+  Bitboard is_first_blocker_the_chosen_piece = Bitboard((uint64_t)(-(
+      (uint64_t)((first_blocker & one_hot_piece_bitboard).get_board() > 0))));
+
+  // Remove that first blocker (we’re going to look for the *next* one)
+  blockers = blockers & (~first_blocker);
+
+  // Do we still have another blocker left further along the ray?
+  Bitboard has_second_blocker =
+      Bitboard((uint64_t)(-(uint64_t)(blockers != 0)));
+
+  // Trick: if no blockers, get_index_of_high_lsb/msb returns
+  // ~has_second_blocker fallback (will always return a valid index)
+  blockers_always_high = (blockers | ~has_second_blocker);
+
+  // Choose the correct nearest blocker based on use_msb.
+  nearest_blocker_candidate_lsb_idx =
+      blockers_always_high.get_index_of_high_lsb();
+  nearest_blocker_candidate_msb_idx =
+      blockers_always_high.get_index_of_high_msb();
+  choosen_nearest_blocker = (nearest_blocker_candidate_msb_idx & use_msb) |
+                            (nearest_blocker_candidate_lsb_idx & (~use_msb));
+
+  // Get that second blocker square (nearest after the first)
+  Square second_blocker_square = Square(choosen_nearest_blocker);
+  Bitboard second_blocker = Bitboard(second_blocker_square.get_mask());
+
+  // Check if second blocker is an enemy bishop or queen
+  Bitboard is_second_blocker_enemy_bishop_or_queen = Bitboard((uint64_t)(-(
+      (uint64_t)((second_blocker & (m_chess_board.get_piece_occupancies(
+                                        opposing_side, PIECES::BISHOP) |
+                                    m_chess_board.get_piece_occupancies(
+                                        opposing_side, PIECES::QUEEN)))
+                     .get_board() > 0))));
+
+  // Get the path between our king and the second blocker (the pin line)
+  // Include second blocker square itself, since it can be captured
+  Bitboard path = Bitboard(
+      pin_d.get_between_squares_mask(m_chess_board.get_king_square(our_side),
+                                     second_blocker_square) |
+      second_blocker.get_board());
+
+  // Now accumulate pin result:
+  // Conditions must ALL be true:
+  //  - At least one blocker exists
+  //  - First blocker is our piece
+  //  - First blocker is the specific piece being tested
+  //  - A second blocker exists
+  //  - That second blocker is an enemy bishop/queen
+  // If all true → add the "pin path" squares to result
+  pin_d |= (path & has_blockers & is_first_blocker_my_piece &
+            is_first_blocker_the_chosen_piece & has_second_blocker &
+            is_second_blocker_enemy_bishop_or_queen);
 
   // If no pins found, return a mask all bits set - the chosen piece can move
   // anywhere it is not pinned diagonally.
@@ -266,102 +283,122 @@ Bitboard Move_Generator::generate_pin_hv(
   // Direction Index 3 = West  = MSB (1)
   constexpr uint8_t USE_MSB_FOR_CLOSEST_BLOCKER[4] = {0, 1, 0, 1};
 
-  // Loop through all rook ray directions (N, S, W, E)
-  for (uint8_t direction_idx = 0; direction_idx < NUM_OF_ROOK_RAY_DIRECTIONS;
-       direction_idx++) {
-    // Whether or not to use MSB or LSB to find the closest blocker of the king
-    // for this ray direction.
-    const uint64_t use_msb =
-        -((uint64_t)(USE_MSB_FOR_CLOSEST_BLOCKER[direction_idx] == 1));
+  int8_t ray_idx =
+      -1;  // Index of the ray direction where our piece lies (if
+           // any). -1 means not found / not on a horizontal/vertical ray.
 
+  // Loop through all rook ray directions (N, S, W, E)
+  for (uint8_t direction_idx = 0; direction_idx < NUM_OF_BISHOP_RAY_DIRECTIONS;
+       direction_idx++) {
     // Get the ray from our king in this direction (all squares in that
     // horizontal/vertical line)
     Bitboard ray = a.get_rook_rays(our_king_square, direction_idx);
 
-    // Find all pieces (blockers) along that ray
-    Bitboard blockers = ray & both_color_occupancies;
-
-    // Mask that is all 1s if there is at least one blocker, all 0s otherwise
-    // (bit trick: -(bool) expands true → 0xFFFF...FFFF, false → 0)
-    Bitboard has_blockers = Bitboard((uint64_t)(-(uint64_t)(blockers != 0)));
-
-    // Trick: if no blockers, get_index_of_high_lsb/msb returns ~has_blockers
-    // fallback (will always return a valid index)
-    Bitboard blockers_always_high = (blockers | ~has_blockers);
-
-    // Choose the correct nearest blocker based on use_msb.
-    uint8_t nearest_blocker_candidate_lsb_idx =
-        blockers_always_high.get_index_of_high_lsb();
-    uint8_t nearest_blocker_candidate_msb_idx =
-        blockers_always_high.get_index_of_high_msb();
-    uint8_t choosen_nearest_blocker =
-        (nearest_blocker_candidate_msb_idx & use_msb) |
-        (nearest_blocker_candidate_lsb_idx & (~use_msb));
-
-    // First blocker = nearest occupied square on the ray
-    Bitboard first_blocker =
-        Bitboard(Square(choosen_nearest_blocker).get_mask());
-
-    // Check if first blocker is *our* piece
-    Bitboard is_first_blocker_my_piece = Bitboard(
-        (uint64_t)(-((uint64_t)((first_blocker &
-                                 m_chess_board.get_color_occupancies(our_side))
-                                    .get_board() > 0))));
-
-    // Check if that first blocker is the specific "chosen" piece we’re testing
-    Bitboard is_first_blocker_the_chosen_piece = Bitboard((uint64_t)(-(
-        (uint64_t)((first_blocker & one_hot_piece_bitboard).get_board() > 0))));
-
-    // Remove that first blocker (we’re going to look for the *next* one)
-    blockers = blockers & (~first_blocker);
-
-    // Do we still have another blocker left further along the ray?
-    Bitboard has_second_blocker =
-        Bitboard((uint64_t)(-(uint64_t)(blockers != 0)));
-
-    // Trick: if no blockers, get_index_of_high_lsb/msb returns
-    // ~has_second_blocker fallback (will always return a valid index)
-    blockers_always_high = (blockers | ~has_second_blocker);
-
-    // Choose the correct nearest blocker based on use_msb.
-    nearest_blocker_candidate_lsb_idx =
-        blockers_always_high.get_index_of_high_lsb();
-    nearest_blocker_candidate_msb_idx =
-        blockers_always_high.get_index_of_high_msb();
-    choosen_nearest_blocker = (nearest_blocker_candidate_msb_idx & use_msb) |
-                              (nearest_blocker_candidate_lsb_idx & (~use_msb));
-
-    // Get that second blocker square (nearest after the first)
-    Square second_blocker_square = Square(choosen_nearest_blocker);
-    Bitboard second_blocker = Bitboard(second_blocker_square.get_mask());
-
-    // Check if second blocker is an enemy rook or queen
-    Bitboard is_second_blocker_enemy_rook_or_queen = Bitboard((uint64_t)(-(
-        (uint64_t)((second_blocker & (m_chess_board.get_piece_occupancies(
-                                          opposing_side, PIECES::ROOK) |
-                                      m_chess_board.get_piece_occupancies(
-                                          opposing_side, PIECES::QUEEN)))
-                       .get_board() > 0))));
-
-    // Get the path between our king and the second blocker (the pin line)
-    // Include second blocker square itself, since it can be captured
-    Bitboard path = Bitboard(
-        pin_hv.get_between_squares_mask(m_chess_board.get_king_square(our_side),
-                                        second_blocker_square) |
-        second_blocker.get_board());
-
-    // Now accumulate pin result:
-    // Conditions must ALL be true:
-    //  - At least one blocker exists
-    //  - First blocker is our piece
-    //  - First blocker is the specific piece being tested
-    //  - A second blocker exists
-    //  - That second blocker is an enemy rook/queen
-    // If all true → add the "pin path" squares to result
-    pin_hv |= (path & has_blockers & is_first_blocker_my_piece &
-               is_first_blocker_the_chosen_piece & has_second_blocker &
-               is_second_blocker_enemy_rook_or_queen);
+    // Check if our piece lies on this ray
+    // If so, store the direction index.
+    if ((one_hot_piece_bitboard & ray).get_board() != 0) {
+      ray_idx = direction_idx;
+    }
   }
+
+  if (ray_idx == -1) {
+    // Our piece is not on any horizontal/vertical ray from the king, so it
+    // cannot be pinned horizontally/vertically. Return a mask all bits set -
+    // the chosen piece can move anywhere.
+    return Bitboard((uint64_t)-1);
+    ;
+  }
+
+  // Whether or not to use MSB or LSB to find the closest blocker of the king
+  // for this ray direction.
+  const uint64_t use_msb =
+      -((uint64_t)(USE_MSB_FOR_CLOSEST_BLOCKER[ray_idx] == 1));
+
+  // Get the ray from our king in this direction (all squares in that
+  // horizontal/vertical line)
+  Bitboard ray = a.get_rook_rays(our_king_square, ray_idx);
+
+  // Find all pieces (blockers) along that ray
+  Bitboard blockers = ray & both_color_occupancies;
+
+  // Mask that is all 1s if there is at least one blocker, all 0s otherwise
+  // (bit trick: -(bool) expands true → 0xFFFF...FFFF, false → 0)
+  Bitboard has_blockers = Bitboard((uint64_t)(-(uint64_t)(blockers != 0)));
+
+  // Trick: if no blockers, get_index_of_high_lsb/msb returns ~has_blockers
+  // fallback (will always return a valid index)
+  Bitboard blockers_always_high = (blockers | ~has_blockers);
+
+  // Choose the correct nearest blocker based on use_msb.
+  uint8_t nearest_blocker_candidate_lsb_idx =
+      blockers_always_high.get_index_of_high_lsb();
+  uint8_t nearest_blocker_candidate_msb_idx =
+      blockers_always_high.get_index_of_high_msb();
+  uint8_t choosen_nearest_blocker =
+      (nearest_blocker_candidate_msb_idx & use_msb) |
+      (nearest_blocker_candidate_lsb_idx & (~use_msb));
+
+  // First blocker = nearest occupied square on the ray
+  Bitboard first_blocker = Bitboard(Square(choosen_nearest_blocker).get_mask());
+
+  // Check if first blocker is *our* piece
+  Bitboard is_first_blocker_my_piece = Bitboard((uint64_t)(-(
+      (uint64_t)((first_blocker & m_chess_board.get_color_occupancies(our_side))
+                     .get_board() > 0))));
+
+  // Check if that first blocker is the specific "chosen" piece we’re testing
+  Bitboard is_first_blocker_the_chosen_piece = Bitboard((uint64_t)(-(
+      (uint64_t)((first_blocker & one_hot_piece_bitboard).get_board() > 0))));
+
+  // Remove that first blocker (we’re going to look for the *next* one)
+  blockers = blockers & (~first_blocker);
+
+  // Do we still have another blocker left further along the ray?
+  Bitboard has_second_blocker =
+      Bitboard((uint64_t)(-(uint64_t)(blockers != 0)));
+
+  // Trick: if no blockers, get_index_of_high_lsb/msb returns
+  // ~has_second_blocker fallback (will always return a valid index)
+  blockers_always_high = (blockers | ~has_second_blocker);
+
+  // Choose the correct nearest blocker based on use_msb.
+  nearest_blocker_candidate_lsb_idx =
+      blockers_always_high.get_index_of_high_lsb();
+  nearest_blocker_candidate_msb_idx =
+      blockers_always_high.get_index_of_high_msb();
+  choosen_nearest_blocker = (nearest_blocker_candidate_msb_idx & use_msb) |
+                            (nearest_blocker_candidate_lsb_idx & (~use_msb));
+
+  // Get that second blocker square (nearest after the first)
+  Square second_blocker_square = Square(choosen_nearest_blocker);
+  Bitboard second_blocker = Bitboard(second_blocker_square.get_mask());
+
+  // Check if second blocker is an enemy rook or queen
+  Bitboard is_second_blocker_enemy_rook_or_queen = Bitboard((uint64_t)(-(
+      (uint64_t)((second_blocker & (m_chess_board.get_piece_occupancies(
+                                        opposing_side, PIECES::ROOK) |
+                                    m_chess_board.get_piece_occupancies(
+                                        opposing_side, PIECES::QUEEN)))
+                     .get_board() > 0))));
+
+  // Get the path between our king and the second blocker (the pin line)
+  // Include second blocker square itself, since it can be captured
+  Bitboard path = Bitboard(
+      pin_hv.get_between_squares_mask(m_chess_board.get_king_square(our_side),
+                                      second_blocker_square) |
+      second_blocker.get_board());
+
+  // Now accumulate pin result:
+  // Conditions must ALL be true:
+  //  - At least one blocker exists
+  //  - First blocker is our piece
+  //  - First blocker is the specific piece being tested
+  //  - A second blocker exists
+  //  - That second blocker is an enemy rook/queen
+  // If all true → add the "pin path" squares to result
+  pin_hv |= (path & has_blockers & is_first_blocker_my_piece &
+             is_first_blocker_the_chosen_piece & has_second_blocker &
+             is_second_blocker_enemy_rook_or_queen);
 
   // If no pins found, return a mask all bits set - the chosen piece can move
   // anywhere it is not pinned horizontally/vertically.
@@ -378,9 +415,45 @@ Bitboard Move_Generator::generate_pin_hv(
 //           that are currently attacking a given square.
 // ======================================================
 Bitboard Move_Generator::attackers_to_square(const Square& s) {
+  return attackers_to_square(
+      s, m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::PAWN),
+      m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::KNIGHT),
+      m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::BISHOP),
+      m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::ROOK),
+      m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::QUEEN),
+      m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::KING),
+      m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::PAWN),
+      m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::KNIGHT),
+      m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::BISHOP),
+      m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::ROOK),
+      m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::QUEEN),
+      m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::KING));
+}
+
+// ======================================================
+// Function: Move_Generator::attackers_to_square
+// Purpose : Return a bitboard of ALL pieces (any color)
+//           that are currently attacking a given square.
+// ======================================================
+Bitboard Move_Generator::attackers_to_square(
+    const Square& s, const Bitboard& white_pawn_occupancy,
+    const Bitboard& white_knight_occupancy,
+    const Bitboard& white_bishop_occupancy,
+    const Bitboard& white_rook_occupancy, const Bitboard& white_queen_occupancy,
+    const Bitboard& white_king_occupancy, const Bitboard& black_pawn_occupancy,
+    const Bitboard& black_knight_occupancy,
+    const Bitboard& black_bishop_occupancy,
+    const Bitboard& black_rook_occupancy, const Bitboard& black_queen_occupancy,
+    const Bitboard& black_king_occupancy) {
   Bitboard attackers;  // Final result: union of all attackers
   Attacks
       a;  // Utility class for attack masks (knight jumps, pawn attacks, etc.)
+
+  Bitboard both_color_occupancies =
+      white_pawn_occupancy | white_knight_occupancy | white_bishop_occupancy |
+      white_rook_occupancy | white_queen_occupancy | white_king_occupancy |
+      black_pawn_occupancy | black_knight_occupancy | black_bishop_occupancy |
+      black_rook_occupancy | black_queen_occupancy | black_king_occupancy;
 
   // ======================================================
   // 1. PAWN ATTACKS
@@ -392,12 +465,10 @@ Bitboard Move_Generator::attackers_to_square(const Square& s) {
   //   - Intersect that with all actual WHITE pawns on the board.
   // The inversion is required because pawn attacks are asymmetric.
   attackers |=
-      (a.get_pawn_attacks(s, PIECE_COLOR::WHITE) &
-       m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::PAWN));
+      (a.get_pawn_attacks(s, PIECE_COLOR::WHITE) & black_pawn_occupancy);
 
   attackers |=
-      (a.get_pawn_attacks(s, PIECE_COLOR::BLACK) &
-       m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::PAWN));
+      (a.get_pawn_attacks(s, PIECE_COLOR::BLACK) & white_pawn_occupancy);
 
   // ======================================================
   // 2. KNIGHT ATTACKS
@@ -405,11 +476,8 @@ Bitboard Move_Generator::attackers_to_square(const Square& s) {
   // Knights are simple: their attack pattern is independent of board occupancy.
   // Generate knight moves from 's' and see if ANY white or black knight sits on
   // them.
-  attackers |=
-      (a.get_knight_attacks(s) & (m_chess_board.get_piece_occupancies(
-                                      PIECE_COLOR::WHITE, PIECES::KNIGHT) |
-                                  m_chess_board.get_piece_occupancies(
-                                      PIECE_COLOR::BLACK, PIECES::KNIGHT)));
+  attackers |= (a.get_knight_attacks(s) &
+                (white_knight_occupancy | black_knight_occupancy));
 
   // ======================================================
   // 3. BISHOP + QUEEN ATTACKS
@@ -418,15 +486,9 @@ Bitboard Move_Generator::attackers_to_square(const Square& s) {
   // Generate all diagonal attacks from 's' (accounting for blockers with
   // occupancy), then intersect with *all bishops + queens* on the board,
   // regardless of color.
-  attackers |=
-      (a.get_bishop_attacks(s, m_chess_board.get_both_color_occupancies()) &
-       (m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE,
-                                            PIECES::BISHOP) |
-        m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::QUEEN) |
-        m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK,
-                                            PIECES::BISHOP) |
-        m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK,
-                                            PIECES::QUEEN)));
+  attackers |= (a.get_bishop_attacks(s, both_color_occupancies) &
+                (white_bishop_occupancy | white_queen_occupancy |
+                 black_bishop_occupancy | black_queen_occupancy));
 
   // ======================================================
   // 4. ROOK + QUEEN ATTACKS
@@ -434,13 +496,9 @@ Bitboard Move_Generator::attackers_to_square(const Square& s) {
   // Rooks slide horizontally/vertically, and queens can also move like rooks.
   // Generate rook attacks from 's' (with occupancy), then intersect with *all
   // rooks + queens* on the board.
-  attackers |=
-      (a.get_rook_attacks(s, m_chess_board.get_both_color_occupancies()) &
-       (m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::ROOK) |
-        m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::QUEEN) |
-        m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::ROOK) |
-        m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK,
-                                            PIECES::QUEEN)));
+  attackers |= (a.get_rook_attacks(s, both_color_occupancies) &
+                (white_rook_occupancy | white_queen_occupancy |
+                 black_rook_occupancy | black_queen_occupancy));
 
   // ======================================================
   // 5. KING ATTACKS
@@ -448,9 +506,7 @@ Bitboard Move_Generator::attackers_to_square(const Square& s) {
   // Kings attack their 8 surrounding squares.
   // Generate king moves from 's' and see if either king occupies those squares.
   attackers |=
-      (a.get_king_attacks(s) &
-       (m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::KING) |
-        m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::KING)));
+      (a.get_king_attacks(s) & (white_king_occupancy | black_king_occupancy));
 
   // ======================================================
   // Done! 'attackers' now contains all pieces (both sides)
@@ -503,12 +559,36 @@ Bitboard Move_Generator::is_our_king_ring_attacked() {
     // `get_index_of_high_lsb()` = index of least significant bit set.
     const Square king_ring_square = Square(king_ring.get_index_of_high_lsb());
 
+    Bitboard black_king_occupancy = Bitboard(
+        m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::KING)
+            .get_board() *
+        (our_side == PIECE_COLOR::WHITE));
+    Bitboard white_king_occupancy = Bitboard(
+        m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::KING)
+            .get_board() *
+        (our_side == PIECE_COLOR::BLACK));
+
+    Bitboard king_ring_square_attackers = attackers_to_square(
+        king_ring_square,
+        m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::PAWN),
+        m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::KNIGHT),
+        m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::BISHOP),
+        m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::ROOK),
+        m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::QUEEN),
+        white_king_occupancy,
+        m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::PAWN),
+        m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::KNIGHT),
+        m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::BISHOP),
+        m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::ROOK),
+        m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::QUEEN),
+        black_king_occupancy);
+
     // Check if that king-ring square is attacked:
     //   - attackers_to_square(square) → all pieces attacking this square
     //   - & m_chess_board.get_color_occupancies(opposing_side) → restrict to
     //   enemy side
     //   - If result != 0 → at least one enemy piece attacks this square.
-    if ((attackers_to_square(king_ring_square) &
+    if ((king_ring_square_attackers &
          m_chess_board.get_color_occupancies(opposing_side))
             .get_board()) {
       // If attacked, set that square’s bit in our result mask.
@@ -547,12 +627,6 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
 
   Square our_king_square = Square(our_king_occupancies.get_index_of_high_lsb());
 
-  Bitboard opposing_king_occupancies =
-      m_chess_board.get_piece_occupancies(opposing_side, PIECES::KING);
-
-  Square opposing_king_square =
-      Square(opposing_king_occupancies.get_index_of_high_lsb());
-
   // Pawn Moves + Checkmask.
   // pawns >>= 8 = + 1 rank for white.
   // pawns <<= 8 = + 1 rank for black.
@@ -589,7 +663,7 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
 
     if (pawn_moves != 0) {
       generate_pawn_promotions(Square(source_square), Square(target_square),
-                               our_side, opposing_king_square, output);
+                               output);
     }
 
     w_promotion_single_pushes.unset_square(Square(target_square));
@@ -610,11 +684,17 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
 
     if (pawn_moves != 0) {
       generate_pawn_promotions(Square(source_square), Square(target_square),
-                               our_side, opposing_king_square, output);
+                               output);
     }
 
     b_promotion_single_pushes.unset_square(Square(target_square));
   }
+
+  // Reset promotion single pushes for non-promotion single pushes logic
+  w_promotion_single_pushes =
+      w_single_pawn_pushes & EIGHTH_RANK & is_white_the_moving_side_mask;
+  b_promotion_single_pushes =
+      b_single_pawn_pushes & FIRST_RANK & is_black_the_moving_side_mask;
 
   Bitboard w_non_promotion_single_pushes = w_single_pawn_pushes &
                                            (~w_promotion_single_pushes) &
@@ -638,16 +718,6 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                           check_mask & pin_hv & pin_d;
 
     if (pawn_moves != 0) {
-      // Nothing should be on target square in order to move a pawn foward.
-      constexpr std::pair<PIECE_COLOR, PIECES> who_is_on_target_square =
-          std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE);
-
-      std::shared_ptr<Chess_Board> next_board_state =
-          calculate_future_board_state(
-              PIECE_COLOR::WHITE, PIECES::PAWN, Square(source_square),
-              Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
-              false, Square(0), false, Square(0), Square(0));
-
       Chess_Move move = {.source_square = source_square,
                          .destination_square = target_square,
                          .moving_piece = PIECES::PAWN,
@@ -656,12 +726,12 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                          .is_capture = false,
                          .is_short_castling = false,
                          .is_long_castling = false,
+                         .castling_rook_source_square = ESQUARE::NO_SQUARE,
+                         .castling_rook_destination_square = ESQUARE::NO_SQUARE,
                          .is_double_pawn_push = false,
                          .is_en_passant = false,
-                         .is_promotion = false,
-                         .is_check = is_check(our_side, opposing_king_square,
-                                              *next_board_state),
-                         .next_board_state = next_board_state};
+                         .en_passant_victim_square = ESQUARE::NO_SQUARE,
+                         .is_promotion = false};
 
       output.push_back(move);
     }
@@ -684,16 +754,6 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                           check_mask & pin_hv & pin_d;
 
     if (pawn_moves != 0) {
-      // Nothing should be on target square in order to move a pawn foward.
-      constexpr std::pair<PIECE_COLOR, PIECES> who_is_on_target_square =
-          std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE);
-
-      std::shared_ptr<Chess_Board> next_board_state =
-          calculate_future_board_state(
-              PIECE_COLOR::BLACK, PIECES::PAWN, Square(source_square),
-              Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
-              false, Square(0), false, Square(0), Square(0));
-
       Chess_Move move = {.source_square = source_square,
                          .destination_square = target_square,
                          .moving_piece = PIECES::PAWN,
@@ -702,12 +762,12 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                          .is_capture = false,
                          .is_short_castling = false,
                          .is_long_castling = false,
+                         .castling_rook_source_square = ESQUARE::NO_SQUARE,
+                         .castling_rook_destination_square = ESQUARE::NO_SQUARE,
                          .is_double_pawn_push = false,
                          .is_en_passant = false,
-                         .is_promotion = false,
-                         .is_check = is_check(our_side, opposing_king_square,
-                                              *next_board_state),
-                         .next_board_state = next_board_state};
+                         .en_passant_victim_square = ESQUARE::NO_SQUARE,
+                         .is_promotion = false};
 
       output.push_back(move);
     }
@@ -742,16 +802,6 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                           check_mask & pin_hv & pin_d;
 
     if (pawn_moves != 0) {
-      // Nothing should be on target square in order to move a pawn foward.
-      constexpr std::pair<PIECE_COLOR, PIECES> who_is_on_target_square =
-          std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE);
-
-      std::shared_ptr<Chess_Board> next_board_state =
-          calculate_future_board_state(
-              PIECE_COLOR::WHITE, PIECES::PAWN, Square(source_square),
-              Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
-              false, Square(0), false, Square(0), Square(0));
-
       Chess_Move move = {.source_square = source_square,
                          .destination_square = target_square,
                          .moving_piece = PIECES::PAWN,
@@ -760,12 +810,12 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                          .is_capture = false,
                          .is_short_castling = false,
                          .is_long_castling = false,
+                         .castling_rook_source_square = ESQUARE::NO_SQUARE,
+                         .castling_rook_destination_square = ESQUARE::NO_SQUARE,
                          .is_double_pawn_push = true,
                          .is_en_passant = false,
-                         .is_promotion = false,
-                         .is_check = is_check(our_side, opposing_king_square,
-                                              *next_board_state),
-                         .next_board_state = next_board_state};
+                         .en_passant_victim_square = ESQUARE::NO_SQUARE,
+                         .is_promotion = false};
 
       output.push_back(move);
     }
@@ -786,16 +836,6 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                           check_mask & pin_hv & pin_d;
 
     if (pawn_moves != 0) {
-      // Nothing should be on target square in order to move a pawn foward.
-      constexpr std::pair<PIECE_COLOR, PIECES> who_is_on_target_square =
-          std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE);
-
-      std::shared_ptr<Chess_Board> next_board_state =
-          calculate_future_board_state(
-              PIECE_COLOR::BLACK, PIECES::PAWN, Square(source_square),
-              Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
-              false, Square(0), false, Square(0), Square(0));
-
       Chess_Move move = {.source_square = source_square,
                          .destination_square = target_square,
                          .moving_piece = PIECES::PAWN,
@@ -804,12 +844,12 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                          .is_capture = false,
                          .is_short_castling = false,
                          .is_long_castling = false,
+                         .castling_rook_source_square = ESQUARE::NO_SQUARE,
+                         .castling_rook_destination_square = ESQUARE::NO_SQUARE,
                          .is_double_pawn_push = true,
                          .is_en_passant = false,
-                         .is_promotion = false,
-                         .is_check = is_check(our_side, opposing_king_square,
-                                              *next_board_state),
-                         .next_board_state = next_board_state};
+                         .en_passant_victim_square = ESQUARE::NO_SQUARE,
+                         .is_promotion = false};
 
       output.push_back(move);
     }
@@ -838,37 +878,29 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                                   check_mask & pin_d & pin_hv;
 
       if (can_do_enpassant.get_board() != 0) {
-        Chess_Move move = {.source_square = source_square,
-                           .destination_square = target_square,
-                           .moving_piece = PIECES::PAWN,
-                           .promoted_piece = PIECES::NO_PIECE,
-                           .captured_piece = PIECES::PAWN,
-                           .is_capture = true,
-                           .is_short_castling = false,
-                           .is_long_castling = false,
-                           .is_double_pawn_push = false,
-                           .is_en_passant = true,
-                           .is_promotion = false,
-                           .is_check = false,
-                           .next_board_state = nullptr};
+        Chess_Move move = {
+            .source_square = source_square,
+            .destination_square = target_square,
+            .moving_piece = PIECES::PAWN,
+            .promoted_piece = PIECES::NO_PIECE,
+            .captured_piece = PIECES::PAWN,
+            .is_capture = true,
+            .is_short_castling = false,
+            .is_long_castling = false,
+            .castling_rook_source_square = ESQUARE::NO_SQUARE,
+            .castling_rook_destination_square = ESQUARE::NO_SQUARE,
+            .is_double_pawn_push = false,
+            .is_en_passant = true,
+            .en_passant_victim_square = ESQUARE::NO_SQUARE,
+            .is_promotion = false};
 
         if (our_side == PIECE_COLOR::WHITE) {
           Square victim_pawn_square =
               Square(Bitboard(Square(target_square).get_mask() << 8)
                          .get_index_of_high_lsb());
 
-          std::shared_ptr<Chess_Board> next_board_state =
-              calculate_future_board_state(
-                  PIECE_COLOR::WHITE, PIECES::PAWN, Square(source_square),
-                  Square(target_square),
-                  std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
-                  PIECES::NO_PIECE, true, victim_pawn_square, false, Square(0),
-                  Square(0));
-
-          move.is_check =
-              is_check(our_side, opposing_king_square, *next_board_state);
-          move.next_board_state = next_board_state;
-
+          move.en_passant_victim_square =
+              (ESQUARE)victim_pawn_square.get_index();
           output.push_back(move);
 
         } else {
@@ -876,18 +908,8 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
               Square(Bitboard(Square(target_square).get_mask() >> 8)
                          .get_index_of_high_lsb());
 
-          std::shared_ptr<Chess_Board> next_board_state =
-              calculate_future_board_state(
-                  PIECE_COLOR::BLACK, PIECES::PAWN, Square(source_square),
-                  Square(target_square),
-                  std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
-                  PIECES::NO_PIECE, true, victim_pawn_square, false, Square(0),
-                  Square(0));
-
-          move.is_check =
-              is_check(our_side, opposing_king_square, *next_board_state);
-          move.next_board_state = next_board_state;
-
+          move.en_passant_victim_square =
+              (ESQUARE)victim_pawn_square.get_index();
           output.push_back(move);
         }
       }
@@ -920,7 +942,7 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
           (ESQUARE)((uint8_t)promotable_pawn_attacks.get_index_of_high_lsb());
 
       generate_pawn_promotions(Square(source_square), Square(target_square),
-                               our_side, opposing_king_square, output);
+                               output);
 
       promotable_pawn_attacks.unset_square(Square(target_square));
     }
@@ -933,12 +955,6 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       const auto who_is_on_target_square =
           m_chess_board.what_piece_is_on_square(Square(target_square));
 
-      std::shared_ptr<Chess_Board> next_board_state =
-          calculate_future_board_state(
-              PIECE_COLOR::WHITE, PIECES::PAWN, Square(source_square),
-              Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
-              false, Square(0), false, Square(0), Square(0));
-
       Chess_Move move = {.source_square = source_square,
                          .destination_square = target_square,
                          .moving_piece = PIECES::PAWN,
@@ -947,12 +963,12 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                          .is_capture = true,
                          .is_short_castling = false,
                          .is_long_castling = false,
+                         .castling_rook_source_square = ESQUARE::NO_SQUARE,
+                         .castling_rook_destination_square = ESQUARE::NO_SQUARE,
                          .is_double_pawn_push = false,
                          .is_en_passant = false,
-                         .is_promotion = false,
-                         .is_check = is_check(our_side, opposing_king_square,
-                                              *next_board_state),
-                         .next_board_state = next_board_state};
+                         .en_passant_victim_square = ESQUARE::NO_SQUARE,
+                         .is_promotion = false};
 
       output.push_back(move);
 
@@ -974,7 +990,7 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
         m_chess_board.get_color_occupancies(PIECE_COLOR::WHITE) & check_mask &
         pin_d & pin_hv;
 
-    Bitboard promotable_pawn_attacks = pawn_attacks & EIGHTH_RANK;
+    Bitboard promotable_pawn_attacks = pawn_attacks & FIRST_RANK;
     Bitboard non_promotable_pawn_attacks =
         pawn_attacks & (~promotable_pawn_attacks);
 
@@ -983,7 +999,7 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
           (ESQUARE)((uint8_t)promotable_pawn_attacks.get_index_of_high_lsb());
 
       generate_pawn_promotions(Square(source_square), Square(target_square),
-                               our_side, opposing_king_square, output);
+                               output);
 
       promotable_pawn_attacks.unset_square(Square(target_square));
     }
@@ -996,12 +1012,6 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       const auto who_is_on_target_square =
           m_chess_board.what_piece_is_on_square(Square(target_square));
 
-      std::shared_ptr<Chess_Board> next_board_state =
-          calculate_future_board_state(
-              PIECE_COLOR::BLACK, PIECES::PAWN, Square(source_square),
-              Square(target_square), who_is_on_target_square, PIECES::NO_PIECE,
-              false, Square(0), false, Square(0), Square(0));
-
       Chess_Move move = {.source_square = source_square,
                          .destination_square = target_square,
                          .moving_piece = PIECES::PAWN,
@@ -1010,12 +1020,12 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
                          .is_capture = true,
                          .is_short_castling = false,
                          .is_long_castling = false,
+                         .castling_rook_source_square = ESQUARE::NO_SQUARE,
+                         .castling_rook_destination_square = ESQUARE::NO_SQUARE,
                          .is_double_pawn_push = false,
                          .is_en_passant = false,
-                         .is_promotion = false,
-                         .is_check = is_check(our_side, opposing_king_square,
-                                              *next_board_state),
-                         .next_board_state = next_board_state};
+                         .en_passant_victim_square = ESQUARE::NO_SQUARE,
+                         .is_promotion = false};
 
       output.push_back(move);
 
@@ -1041,12 +1051,6 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
     const auto who_is_on_target_square =
         m_chess_board.what_piece_is_on_square(target_square);
 
-    std::shared_ptr<Chess_Board> next_board_state =
-        calculate_future_board_state(our_side, PIECES::KING, our_king_square,
-                                     target_square, who_is_on_target_square,
-                                     PIECES::NO_PIECE, false, Square(0), false,
-                                     Square(0), Square(0));
-
     Chess_Move move = {
         .source_square = ESQUARE(our_king_square.get_index()),
         .destination_square = ESQUARE(target_square.get_index()),
@@ -1056,11 +1060,12 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
         .is_capture = (who_is_on_target_square.first == opposing_side),
         .is_short_castling = false,
         .is_long_castling = false,
+        .castling_rook_source_square = ESQUARE::NO_SQUARE,
+        .castling_rook_destination_square = ESQUARE::NO_SQUARE,
         .is_double_pawn_push = false,
         .is_en_passant = false,
-        .is_promotion = false,
-        .is_check = is_check(our_side, opposing_king_square, *next_board_state),
-        .next_board_state = next_board_state};
+        .en_passant_victim_square = ESQUARE::NO_SQUARE,
+        .is_promotion = false};
 
     output.push_back(move);
 
@@ -1068,10 +1073,9 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
   }
 
   // Castling Moves
-  const bool are_white_short_castle_squares_empty =
+  const bool are_white_short_castle_squares_empty = {
       ((~m_chess_board.get_both_color_occupancies()) &
-       WHITE_SHORT_CASTLE_SQUARES)
-          .get_board();
+       WHITE_SHORT_CASTLE_SQUARES) == WHITE_SHORT_CASTLE_SQUARES};
   const bool is_f1_square_safe =
       ((attackers_to_square(Square(ESQUARE::F1)) &
         m_chess_board.get_color_occupancies(PIECE_COLOR::BLACK))
@@ -1091,36 +1095,27 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       are_white_short_castle_squares_empty &&
       are_white_short_castle_squares_safe && is_white_king_not_in_check &&
       is_white_the_moving_side) {
-    std::shared_ptr<Chess_Board> next_board_state =
-        calculate_future_board_state(
-            PIECE_COLOR::WHITE, PIECES::KING, Square(ESQUARE::E1),
-            Square(ESQUARE::G1),
-            std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
-            PIECES::NO_PIECE, false, Square(0), true, Square(ESQUARE::H1),
-            Square(ESQUARE::F1));
-
-    Chess_Move move = {
-        .source_square = ESQUARE::E1,
-        .destination_square = ESQUARE::G1,
-        .moving_piece = PIECES::KING,
-        .promoted_piece = PIECES::NO_PIECE,
-        .captured_piece = PIECES::NO_PIECE,
-        .is_capture = false,
-        .is_short_castling = true,
-        .is_long_castling = false,
-        .is_double_pawn_push = false,
-        .is_en_passant = false,
-        .is_promotion = false,
-        .is_check = is_check(our_side, opposing_king_square, *next_board_state),
-        .next_board_state = next_board_state};
+    Chess_Move move = {.source_square = ESQUARE::E1,
+                       .destination_square = ESQUARE::G1,
+                       .moving_piece = PIECES::KING,
+                       .promoted_piece = PIECES::NO_PIECE,
+                       .captured_piece = PIECES::NO_PIECE,
+                       .is_capture = false,
+                       .is_short_castling = true,
+                       .is_long_castling = false,
+                       .castling_rook_source_square = ESQUARE::H1,
+                       .castling_rook_destination_square = ESQUARE::F1,
+                       .is_double_pawn_push = false,
+                       .is_en_passant = false,
+                       .en_passant_victim_square = ESQUARE::NO_SQUARE,
+                       .is_promotion = false};
 
     output.push_back(move);
   }
 
   const bool are_white_long_castle_squares_empty =
-      ((~m_chess_board.get_both_color_occupancies()) &
-       WHITE_LONG_CASTLE_SQUARES)
-          .get_board();
+      (((~m_chess_board.get_both_color_occupancies()) &
+        WHITE_LONG_CASTLE_SQUARES) == WHITE_LONG_CASTLE_SQUARES);
   const bool is_c1_square_safe =
       ((attackers_to_square(Square(ESQUARE::C1)) &
         m_chess_board.get_color_occupancies(PIECE_COLOR::BLACK))
@@ -1136,36 +1131,27 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       are_white_long_castle_squares_empty &&
       are_white_long_castle_squares_safe && is_white_king_not_in_check &&
       is_white_the_moving_side) {
-    std::shared_ptr<Chess_Board> next_board_state =
-        calculate_future_board_state(
-            PIECE_COLOR::WHITE, PIECES::KING, Square(ESQUARE::E1),
-            Square(ESQUARE::C1),
-            std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
-            PIECES::NO_PIECE, false, Square(0), true, Square(ESQUARE::A1),
-            Square(ESQUARE::D1));
-
-    Chess_Move move = {
-        .source_square = ESQUARE::E1,
-        .destination_square = ESQUARE::C1,
-        .moving_piece = PIECES::KING,
-        .promoted_piece = PIECES::NO_PIECE,
-        .captured_piece = PIECES::NO_PIECE,
-        .is_capture = false,
-        .is_short_castling = false,
-        .is_long_castling = true,
-        .is_double_pawn_push = false,
-        .is_en_passant = false,
-        .is_promotion = false,
-        .is_check = is_check(our_side, opposing_king_square, *next_board_state),
-        .next_board_state = next_board_state};
+    Chess_Move move = {.source_square = ESQUARE::E1,
+                       .destination_square = ESQUARE::C1,
+                       .moving_piece = PIECES::KING,
+                       .promoted_piece = PIECES::NO_PIECE,
+                       .captured_piece = PIECES::NO_PIECE,
+                       .is_capture = false,
+                       .is_short_castling = false,
+                       .is_long_castling = true,
+                       .castling_rook_source_square = ESQUARE::A1,
+                       .castling_rook_destination_square = ESQUARE::D1,
+                       .is_double_pawn_push = false,
+                       .is_en_passant = false,
+                       .en_passant_victim_square = ESQUARE::NO_SQUARE,
+                       .is_promotion = false};
 
     output.push_back(move);
   }
 
-  const bool are_black_short_castle_squares_empty =
+  const bool are_black_short_castle_squares_empty = {
       ((~m_chess_board.get_both_color_occupancies()) &
-       BLACK_SHORT_CASTLE_SQUARES)
-          .get_board();
+       BLACK_SHORT_CASTLE_SQUARES) == BLACK_SHORT_CASTLE_SQUARES};
   const bool is_f8_square_safe =
       ((attackers_to_square(Square(ESQUARE::F8)) &
         m_chess_board.get_color_occupancies(PIECE_COLOR::WHITE))
@@ -1185,36 +1171,27 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       are_black_short_castle_squares_empty &&
       are_black_short_castle_squares_safe && is_black_king_not_in_check &&
       is_black_the_moving_side) {
-    std::shared_ptr<Chess_Board> next_board_state =
-        calculate_future_board_state(
-            PIECE_COLOR::BLACK, PIECES::KING, Square(ESQUARE::E8),
-            Square(ESQUARE::G8),
-            std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
-            PIECES::NO_PIECE, false, Square(0), true, Square(ESQUARE::H8),
-            Square(ESQUARE::F8));
-
-    Chess_Move move = {
-        .source_square = ESQUARE::E8,
-        .destination_square = ESQUARE::G8,
-        .moving_piece = PIECES::KING,
-        .promoted_piece = PIECES::NO_PIECE,
-        .captured_piece = PIECES::NO_PIECE,
-        .is_capture = false,
-        .is_short_castling = true,
-        .is_long_castling = false,
-        .is_double_pawn_push = false,
-        .is_en_passant = false,
-        .is_promotion = false,
-        .is_check = is_check(our_side, opposing_king_square, *next_board_state),
-        .next_board_state = next_board_state};
+    Chess_Move move = {.source_square = ESQUARE::E8,
+                       .destination_square = ESQUARE::G8,
+                       .moving_piece = PIECES::KING,
+                       .promoted_piece = PIECES::NO_PIECE,
+                       .captured_piece = PIECES::NO_PIECE,
+                       .is_capture = false,
+                       .is_short_castling = true,
+                       .is_long_castling = false,
+                       .castling_rook_source_square = ESQUARE::H8,
+                       .castling_rook_destination_square = ESQUARE::F8,
+                       .is_double_pawn_push = false,
+                       .is_en_passant = false,
+                       .en_passant_victim_square = ESQUARE::NO_SQUARE,
+                       .is_promotion = false};
 
     output.push_back(move);
   }
 
   const bool are_black_long_castle_squares_empty =
-      ((~m_chess_board.get_both_color_occupancies()) &
-       BLACK_LONG_CASTLE_SQUARES)
-          .get_board();
+      (((~m_chess_board.get_both_color_occupancies()) &
+        BLACK_LONG_CASTLE_SQUARES) == BLACK_LONG_CASTLE_SQUARES);
   const bool is_c8_square_safe =
       ((attackers_to_square(Square(ESQUARE::C8)) &
         m_chess_board.get_color_occupancies(PIECE_COLOR::WHITE))
@@ -1230,78 +1207,29 @@ void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
       are_black_long_castle_squares_empty &&
       are_black_long_castle_squares_safe && is_black_king_not_in_check &&
       is_black_the_moving_side) {
-    std::shared_ptr<Chess_Board> next_board_state =
-        calculate_future_board_state(
-            PIECE_COLOR::BLACK, PIECES::KING, Square(ESQUARE::E8),
-            Square(ESQUARE::C8),
-            std::make_pair(PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE),
-            PIECES::NO_PIECE, false, Square(0), true, Square(ESQUARE::A8),
-            Square(ESQUARE::D8));
-
-    Chess_Move move = {
-        .source_square = ESQUARE::E8,
-        .destination_square = ESQUARE::C8,
-        .moving_piece = PIECES::KING,
-        .promoted_piece = PIECES::NO_PIECE,
-        .captured_piece = PIECES::NO_PIECE,
-        .is_capture = false,
-        .is_short_castling = false,
-        .is_long_castling = true,
-        .is_double_pawn_push = false,
-        .is_en_passant = false,
-        .is_promotion = false,
-        .is_check = is_check(our_side, opposing_king_square, *next_board_state),
-        .next_board_state = next_board_state};
+    Chess_Move move = {.source_square = ESQUARE::E8,
+                       .destination_square = ESQUARE::C8,
+                       .moving_piece = PIECES::KING,
+                       .promoted_piece = PIECES::NO_PIECE,
+                       .captured_piece = PIECES::NO_PIECE,
+                       .is_capture = false,
+                       .is_short_castling = false,
+                       .is_long_castling = true,
+                       .castling_rook_source_square = ESQUARE::A8,
+                       .castling_rook_destination_square = ESQUARE::D8,
+                       .is_double_pawn_push = false,
+                       .is_en_passant = false,
+                       .en_passant_victim_square = ESQUARE::NO_SQUARE,
+                       .is_promotion = false};
 
     output.push_back(move);
   }
 }
 
-bool Move_Generator::is_check(
-    PIECE_COLOR
-        moving_side,  // The side that just made a move (the "attacker").
-    Square
-        opposing_king_square,  // The square where the opposing king is located.
-    Chess_Board cb  // A snapshot of the board state to evaluate against.
-) {
-  // Create a new Move_Generator tied to the given board state.
-  // This ensures attack calculations are based on "cb," not on the current
-  // internal board state.
-  Move_Generator mg(cb);
-
-  // --- CORE LOGIC ---
-  // Step 1: Get all attackers to the opposing king's square.
-  //   mg.attackers_to_square(opposing_king_square) returns a bitboard of ALL
-  //   pieces (from both sides) that currently attack that king square.
-  //
-  // Step 2: Intersect those attackers with the occupancy of the moving side.
-  //   cb.get_color_occupancies(moving_side) gives all pieces of the side that
-  //   just moved. Bitwise AND selects only those attackers that belong to the
-  //   moving side.
-  //
-  // Step 3: Convert the result to a raw integer mask via .get_board().
-  //   If the result != 0, it means there is at least one piece of the moving
-  //   side directly attacking the opposing king’s square → king is in check.
-  //
-  // Step 4: Return true if check, false otherwise.
-  return ((mg.attackers_to_square(opposing_king_square) &
-           cb.get_color_occupancies(moving_side))
-              .get_board() != 0);
-}
-
-void Move_Generator::generate_pawn_promotions(
-    const Square& source_square, const Square& target_square,
-    PIECE_COLOR moving_side, const Square& opposing_king_square,
-    std::vector<Chess_Move>& output) {
+void Move_Generator::generate_pawn_promotions(const Square& source_square,
+                                              const Square& target_square,
+                                              std::vector<Chess_Move>& output) {
   // Pawn to knight promotion
-  const auto who_is_on_target_square =
-      m_chess_board.what_piece_is_on_square(target_square);
-
-  std::shared_ptr<Chess_Board> next_board_state = calculate_future_board_state(
-      moving_side, PIECES::PAWN, Square(source_square), Square(target_square),
-      who_is_on_target_square, PIECES::KNIGHT, false, Square(0), false,
-      Square(0), Square(0));
-
   Chess_Move move = {.source_square = (ESQUARE)source_square.get_index(),
                      .destination_square = (ESQUARE)target_square.get_index(),
                      .moving_piece = PIECES::PAWN,
@@ -1310,55 +1238,25 @@ void Move_Generator::generate_pawn_promotions(
                      .is_capture = false,
                      .is_short_castling = false,
                      .is_long_castling = false,
+                     .castling_rook_source_square = ESQUARE::NO_SQUARE,
+                     .castling_rook_destination_square = ESQUARE::NO_SQUARE,
                      .is_double_pawn_push = false,
                      .is_en_passant = false,
-                     .is_promotion = true,
-                     .is_check = is_check(moving_side, opposing_king_square,
-                                          *next_board_state),
-                     .next_board_state = next_board_state};
+                     .en_passant_victim_square = ESQUARE::NO_SQUARE,
+                     .is_promotion = true};
 
   output.push_back(move);
 
   // Pawn to bishop promotion.
-  next_board_state = calculate_future_board_state(
-      moving_side, PIECES::PAWN, Square(source_square), Square(target_square),
-      who_is_on_target_square, PIECES::BISHOP, false, Square(0), false,
-      Square(0), Square(0));
-
-  bool is_bishop_promotion_check =
-      is_check(moving_side, opposing_king_square, *next_board_state);
-
   move.promoted_piece = PIECES::BISHOP;
-  move.is_check = is_bishop_promotion_check;
-  move.next_board_state = next_board_state;
-
   output.push_back(move);
 
   // Pawn to rook promotion.
-  next_board_state = calculate_future_board_state(
-      moving_side, PIECES::PAWN, Square(source_square), Square(target_square),
-      who_is_on_target_square, PIECES::ROOK, false, Square(0), false, Square(0),
-      Square(0));
-
-  bool is_rook_promotion_check =
-      is_check(moving_side, opposing_king_square, *next_board_state);
-
   move.promoted_piece = PIECES::ROOK;
-  move.is_check = is_rook_promotion_check;
-  move.next_board_state = next_board_state;
-
   output.push_back(move);
 
   // Pawn to queen promotion.
-  next_board_state = calculate_future_board_state(
-      moving_side, PIECES::PAWN, Square(source_square), Square(target_square),
-      who_is_on_target_square, PIECES::QUEEN, false, Square(0), false,
-      Square(0), Square(0));
-
   move.promoted_piece = PIECES::QUEEN;
-  move.is_check = (is_bishop_promotion_check | is_rook_promotion_check);
-  move.next_board_state = next_board_state;
-
   output.push_back(move);
 }
 
@@ -1372,12 +1270,6 @@ void Move_Generator::generate_minor_and_major_piece_moves(
   const Bitboard enemy_or_empty =
       m_chess_board.get_color_occupancies(opposing_side) |
       (~(m_chess_board.get_both_color_occupancies()));
-
-  Bitboard opposing_king_occupancies =
-      m_chess_board.get_piece_occupancies(opposing_side, PIECES::KING);
-
-  Square opposing_king_square =
-      Square(opposing_king_occupancies.get_index_of_high_lsb());
 
   Bitboard piece_occupancies =
       m_chess_board.get_piece_occupancies(our_side, moving_piece);
@@ -1413,12 +1305,6 @@ void Move_Generator::generate_minor_and_major_piece_moves(
       const auto who_is_on_target_square =
           m_chess_board.what_piece_is_on_square(target_square);
 
-      std::shared_ptr<Chess_Board> next_board_state =
-          calculate_future_board_state(our_side, moving_piece, source_square,
-                                       target_square, who_is_on_target_square,
-                                       PIECES::NO_PIECE, false, Square(0),
-                                       false, Square(0), Square(0));
-
       Chess_Move move = {
           .source_square = ESQUARE(source_square.get_index()),
           .destination_square = ESQUARE(target_square.get_index()),
@@ -1428,12 +1314,12 @@ void Move_Generator::generate_minor_and_major_piece_moves(
           .is_capture = (who_is_on_target_square.first == opposing_side),
           .is_short_castling = false,
           .is_long_castling = false,
+          .castling_rook_source_square = ESQUARE::NO_SQUARE,
+          .castling_rook_destination_square = ESQUARE::NO_SQUARE,
           .is_double_pawn_push = false,
           .is_en_passant = false,
-          .is_promotion = false,
-          .is_check =
-              is_check(our_side, opposing_king_square, *next_board_state),
-          .next_board_state = next_board_state};
+          .en_passant_victim_square = ESQUARE::NO_SQUARE,
+          .is_promotion = false};
 
       output.push_back(move);
 
@@ -1443,193 +1329,4 @@ void Move_Generator::generate_minor_and_major_piece_moves(
     piece_occupancies.unset_square(
         Square(piece_occupancies.get_index_of_high_lsb()));
   }
-}
-
-Bitboard Move_Generator::calculate_future_occupancy(
-    PIECE_COLOR moving_side,  // Side making the move
-    PIECE_COLOR
-        color_of_piece_of_interest,  // Side whose occupancy we're computing
-    PIECES piece_of_interest,  // The tracked piece type (e.g., PAWN, KNIGHT...)
-    PIECES moving_piece,       // The piece type being moved this turn
-    Square source_square,      // From-square of the move
-    Square target_square,      // To-square of the move
-    std::pair<PIECE_COLOR, PIECES>
-        who_is_on_target_square,  // What was on target before the move
-    PIECES promotion_piece,       // If promotion, what piece it becomes (else
-                                  // PIECES::NO_PIECE)
-    bool is_en_passant,           // True if this move is en passant
-    Square en_passant_captured_pawn_square,  // Square of pawn captured by en
-                                             // passant (not target)
-    bool is_castling,                        // True if this move is castling
-    Square rook_source_square,               // Rook's start square for castling
-    Square rook_target_square  // Rook's landing square for castling
-) {
-  // --- Start with current occupancy for this piece type & color ---
-  Bitboard future_occupancy = m_chess_board.get_piece_occupancies(
-      color_of_piece_of_interest, piece_of_interest);
-
-  // --- Case A: a piece of interest was captured on the target square (normal
-  // capture) --- True when the mover is the enemy and a piece-of-interest was
-  // on the target.
-  bool is_this_piece_the_target =
-      (moving_side != color_of_piece_of_interest) &&
-      (who_is_on_target_square.first == color_of_piece_of_interest) &&
-      (who_is_on_target_square.second == piece_of_interest);
-
-  // --- Case B: the piece of interest is the one that is moving (source ->
-  // target) --- NOTE: for pawns this will be true when a pawn moves, including
-  // promotions.
-  bool is_this_piece_the_moving_piece =
-      (moving_side == color_of_piece_of_interest) &&
-      (moving_piece == piece_of_interest);
-
-  // --- Case C: the move is a pawn promotion that produces this piece type ---
-  // True when the mover is our side, the mover is a pawn, and the promotion
-  // result matches piece_of_interest.
-  bool is_this_piece_the_promotion_result =
-      (moving_side == color_of_piece_of_interest) &&
-      (moving_piece == PIECES::PAWN) && (promotion_piece == piece_of_interest);
-
-  // --- Case D: en passant victim removal (victim is always a pawn) ---
-  // True when move is en passant and we are tracking the captured pawn's
-  // color/type.
-  bool is_this_piece_the_en_passant_victim =
-      is_en_passant && (color_of_piece_of_interest != moving_side) &&
-      (piece_of_interest == PIECES::PAWN);
-
-  // --- Case E: castling rook moves (rook moves from rook_source ->
-  // rook_target) ---
-  bool is_this_piece_the_castling_rook =
-      is_castling && (moving_side == color_of_piece_of_interest) &&
-      (piece_of_interest == PIECES::ROOK);
-
-  // Detect pawn-promotion move (mover was a pawn and a promotion occurred) ---
-  // We'll use this to suppress adding a pawn to the target square when
-  // promotion happens.
-  bool is_pawn_promotion =
-      (moving_piece == PIECES::PAWN) && (promotion_piece != PIECES::NO_PIECE);
-
-  // -------------------------------------------------------------------------
-  // Apply branchless updates (XOR + masks). Multiplying mask by a bool
-  // (0/1) enables or disables that specific toggle. XOR toggles the bit.
-  // -------------------------------------------------------------------------
-
-  // 1) Normal capture at target: remove captured piece (if it was of
-  // piece_of_interest)
-  future_occupancy ^=
-      Bitboard(target_square.get_mask() * is_this_piece_the_target);
-
-  // 2) En passant victim removal (victim is not on target square)
-  future_occupancy ^= Bitboard(en_passant_captured_pawn_square.get_mask() *
-                               is_this_piece_the_en_passant_victim);
-
-  // 3) Moving piece: remove from source square (always remove the mover from
-  // its source)
-  //    This MUST happen for pawn promotions as well (pawn leaves its source
-  //    square).
-  future_occupancy ^=
-      Bitboard(source_square.get_mask() * is_this_piece_the_moving_piece);
-
-  // 4) Moving piece: add to target square UNLESS this is a pawn promotion.
-  //    IMPORTANT: For pawn promotions we MUST NOT set the pawn bit on the
-  //    target square. The promoted piece (handled below) will occupy the
-  //    target square instead.
-  future_occupancy ^=
-      Bitboard(target_square.get_mask() *
-               (is_this_piece_the_moving_piece && !is_pawn_promotion));
-
-  // 5) Promotion result: add the promoted piece at the target square (if it
-  // matches piece_of_interest)
-  future_occupancy ^=
-      Bitboard(target_square.get_mask() * is_this_piece_the_promotion_result);
-
-  // 6) Castling rook: remove rook from its starting square (if we are tracking
-  // rooks)
-  future_occupancy ^=
-      Bitboard(rook_source_square.get_mask() * is_this_piece_the_castling_rook);
-
-  // 7) Castling rook: add rook to its landing square (if we are tracking rooks)
-  future_occupancy ^=
-      Bitboard(rook_target_square.get_mask() * is_this_piece_the_castling_rook);
-
-  return future_occupancy;
-}
-
-std::shared_ptr<Chess_Board> Move_Generator::calculate_future_board_state(
-    PIECE_COLOR moving_side, PIECES moving_piece, Square source_square,
-    Square target_square,
-    std::pair<PIECE_COLOR, PIECES> who_is_on_target_square,
-    PIECES promotion_piece, bool is_en_passant,
-    Square en_passant_captured_pawn_square, bool is_castling,
-    Square rook_source_square, Square rook_target_square) {
-  const Bitboard white_pawn_occupancy = calculate_future_occupancy(
-      moving_side, PIECE_COLOR::WHITE, PIECES::PAWN, moving_piece,
-      source_square, target_square, who_is_on_target_square, promotion_piece,
-      is_en_passant, en_passant_captured_pawn_square, is_castling,
-      rook_source_square, rook_target_square);
-  const Bitboard white_knight_occupancy = calculate_future_occupancy(
-      moving_side, PIECE_COLOR::WHITE, PIECES::KNIGHT, moving_piece,
-      source_square, target_square, who_is_on_target_square, promotion_piece,
-      is_en_passant, en_passant_captured_pawn_square, is_castling,
-      rook_source_square, rook_target_square);
-  const Bitboard white_bishop_occupancy = calculate_future_occupancy(
-      moving_side, PIECE_COLOR::WHITE, PIECES::BISHOP, moving_piece,
-      source_square, target_square, who_is_on_target_square, promotion_piece,
-      is_en_passant, en_passant_captured_pawn_square, is_castling,
-      rook_source_square, rook_target_square);
-  const Bitboard white_rook_occupancy = calculate_future_occupancy(
-      moving_side, PIECE_COLOR::WHITE, PIECES::ROOK, moving_piece,
-      source_square, target_square, who_is_on_target_square, promotion_piece,
-      is_en_passant, en_passant_captured_pawn_square, is_castling,
-      rook_source_square, rook_target_square);
-  const Bitboard white_queen_occupancy = calculate_future_occupancy(
-      moving_side, PIECE_COLOR::WHITE, PIECES::QUEEN, moving_piece,
-      source_square, target_square, who_is_on_target_square, promotion_piece,
-      is_en_passant, en_passant_captured_pawn_square, is_castling,
-      rook_source_square, rook_target_square);
-  const Bitboard white_king_occupancy = calculate_future_occupancy(
-      moving_side, PIECE_COLOR::WHITE, PIECES::KING, moving_piece,
-      source_square, target_square, who_is_on_target_square, promotion_piece,
-      is_en_passant, en_passant_captured_pawn_square, is_castling,
-      rook_source_square, rook_target_square);
-
-  const Bitboard black_pawn_occupancy = calculate_future_occupancy(
-      moving_side, PIECE_COLOR::BLACK, PIECES::PAWN, moving_piece,
-      source_square, target_square, who_is_on_target_square, promotion_piece,
-      is_en_passant, en_passant_captured_pawn_square, is_castling,
-      rook_source_square, rook_target_square);
-  const Bitboard black_knight_occupancy = calculate_future_occupancy(
-      moving_side, PIECE_COLOR::BLACK, PIECES::KNIGHT, moving_piece,
-      source_square, target_square, who_is_on_target_square, promotion_piece,
-      is_en_passant, en_passant_captured_pawn_square, is_castling,
-      rook_source_square, rook_target_square);
-  const Bitboard black_bishop_occupancy = calculate_future_occupancy(
-      moving_side, PIECE_COLOR::BLACK, PIECES::BISHOP, moving_piece,
-      source_square, target_square, who_is_on_target_square, promotion_piece,
-      is_en_passant, en_passant_captured_pawn_square, is_castling,
-      rook_source_square, rook_target_square);
-  const Bitboard black_rook_occupancy = calculate_future_occupancy(
-      moving_side, PIECE_COLOR::BLACK, PIECES::ROOK, moving_piece,
-      source_square, target_square, who_is_on_target_square, promotion_piece,
-      is_en_passant, en_passant_captured_pawn_square, is_castling,
-      rook_source_square, rook_target_square);
-  const Bitboard black_queen_occupancy = calculate_future_occupancy(
-      moving_side, PIECE_COLOR::BLACK, PIECES::QUEEN, moving_piece,
-      source_square, target_square, who_is_on_target_square, promotion_piece,
-      is_en_passant, en_passant_captured_pawn_square, is_castling,
-      rook_source_square, rook_target_square);
-  const Bitboard black_king_occupancy = calculate_future_occupancy(
-      moving_side, PIECE_COLOR::BLACK, PIECES::KING, moving_piece,
-      source_square, target_square, who_is_on_target_square, promotion_piece,
-      is_en_passant, en_passant_captured_pawn_square, is_castling,
-      rook_source_square, rook_target_square);
-
-  std::shared_ptr<Chess_Board> future_board_state =
-      std::make_shared<Chess_Board>(
-          white_pawn_occupancy, white_knight_occupancy, white_bishop_occupancy,
-          white_rook_occupancy, white_queen_occupancy, white_king_occupancy,
-          black_pawn_occupancy, black_knight_occupancy, black_bishop_occupancy,
-          black_rook_occupancy, black_queen_occupancy, black_king_occupancy);
-
-  return future_board_state;
 }

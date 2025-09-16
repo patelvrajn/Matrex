@@ -38,7 +38,7 @@ Chess_Board::Chess_Board(const Bitboard& w_pawn_bb, const Bitboard& w_knight_bb,
   m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::BISHOP] = b_bishop_bb;
   m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::ROOK] = b_rook_bb;
   m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::QUEEN] = b_queen_bb;
-  m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KING] = w_king_bb;
+  m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KING] = b_king_bb;
 
   m_color_occupancy_bitboards[PIECE_COLOR::BLACK] = b_pawn_bb | b_knight_bb |
                                                     b_bishop_bb | b_rook_bb |
@@ -255,6 +255,130 @@ std::pair<PIECE_COLOR, PIECES> Chess_Board::what_piece_is_on_square(
                (black_piece * (return_color == PIECE_COLOR::BLACK)));
 
   return {return_color, return_piece};
+}
+
+Chess_Board Chess_Board::calculate_future_board_state(
+    PIECE_COLOR moving_side, PIECES moving_piece, Square source_square,
+    Square target_square,
+    std::pair<PIECE_COLOR, PIECES> who_is_on_target_square,
+    PIECES promotion_piece, bool is_en_passant,
+    Square en_passant_captured_pawn_square, bool is_castling,
+    Square rook_source_square, Square rook_target_square) {
+  const Bitboard white_pawn_occupancy = calculate_future_occupancy(
+      moving_side, PIECE_COLOR::WHITE, PIECES::PAWN, moving_piece,
+      source_square, target_square, who_is_on_target_square, promotion_piece,
+      is_en_passant, en_passant_captured_pawn_square, is_castling,
+      rook_source_square, rook_target_square);
+  const Bitboard white_knight_occupancy = calculate_future_occupancy(
+      moving_side, PIECE_COLOR::WHITE, PIECES::KNIGHT, moving_piece,
+      source_square, target_square, who_is_on_target_square, promotion_piece,
+      is_en_passant, en_passant_captured_pawn_square, is_castling,
+      rook_source_square, rook_target_square);
+  const Bitboard white_bishop_occupancy = calculate_future_occupancy(
+      moving_side, PIECE_COLOR::WHITE, PIECES::BISHOP, moving_piece,
+      source_square, target_square, who_is_on_target_square, promotion_piece,
+      is_en_passant, en_passant_captured_pawn_square, is_castling,
+      rook_source_square, rook_target_square);
+  const Bitboard white_rook_occupancy = calculate_future_occupancy(
+      moving_side, PIECE_COLOR::WHITE, PIECES::ROOK, moving_piece,
+      source_square, target_square, who_is_on_target_square, promotion_piece,
+      is_en_passant, en_passant_captured_pawn_square, is_castling,
+      rook_source_square, rook_target_square);
+  const Bitboard white_queen_occupancy = calculate_future_occupancy(
+      moving_side, PIECE_COLOR::WHITE, PIECES::QUEEN, moving_piece,
+      source_square, target_square, who_is_on_target_square, promotion_piece,
+      is_en_passant, en_passant_captured_pawn_square, is_castling,
+      rook_source_square, rook_target_square);
+  const Bitboard white_king_occupancy = calculate_future_occupancy(
+      moving_side, PIECE_COLOR::WHITE, PIECES::KING, moving_piece,
+      source_square, target_square, who_is_on_target_square, promotion_piece,
+      is_en_passant, en_passant_captured_pawn_square, is_castling,
+      rook_source_square, rook_target_square);
+
+  const Bitboard black_pawn_occupancy = calculate_future_occupancy(
+      moving_side, PIECE_COLOR::BLACK, PIECES::PAWN, moving_piece,
+      source_square, target_square, who_is_on_target_square, promotion_piece,
+      is_en_passant, en_passant_captured_pawn_square, is_castling,
+      rook_source_square, rook_target_square);
+  const Bitboard black_knight_occupancy = calculate_future_occupancy(
+      moving_side, PIECE_COLOR::BLACK, PIECES::KNIGHT, moving_piece,
+      source_square, target_square, who_is_on_target_square, promotion_piece,
+      is_en_passant, en_passant_captured_pawn_square, is_castling,
+      rook_source_square, rook_target_square);
+  const Bitboard black_bishop_occupancy = calculate_future_occupancy(
+      moving_side, PIECE_COLOR::BLACK, PIECES::BISHOP, moving_piece,
+      source_square, target_square, who_is_on_target_square, promotion_piece,
+      is_en_passant, en_passant_captured_pawn_square, is_castling,
+      rook_source_square, rook_target_square);
+  const Bitboard black_rook_occupancy = calculate_future_occupancy(
+      moving_side, PIECE_COLOR::BLACK, PIECES::ROOK, moving_piece,
+      source_square, target_square, who_is_on_target_square, promotion_piece,
+      is_en_passant, en_passant_captured_pawn_square, is_castling,
+      rook_source_square, rook_target_square);
+  const Bitboard black_queen_occupancy = calculate_future_occupancy(
+      moving_side, PIECE_COLOR::BLACK, PIECES::QUEEN, moving_piece,
+      source_square, target_square, who_is_on_target_square, promotion_piece,
+      is_en_passant, en_passant_captured_pawn_square, is_castling,
+      rook_source_square, rook_target_square);
+  const Bitboard black_king_occupancy = calculate_future_occupancy(
+      moving_side, PIECE_COLOR::BLACK, PIECES::KING, moving_piece,
+      source_square, target_square, who_is_on_target_square, promotion_piece,
+      is_en_passant, en_passant_captured_pawn_square, is_castling,
+      rook_source_square, rook_target_square);
+
+  return Chess_Board(
+      white_pawn_occupancy, white_knight_occupancy, white_bishop_occupancy,
+      white_rook_occupancy, white_queen_occupancy, white_king_occupancy,
+      black_pawn_occupancy, black_knight_occupancy, black_bishop_occupancy,
+      black_rook_occupancy, black_queen_occupancy, black_king_occupancy);
+}
+
+void Chess_Board::make_move(const Chess_Move& move) {
+  m_previous_board = std::make_shared<Chess_Board>(*this);
+
+  Chess_Board next_board_state = calculate_future_board_state(
+      m_state.side_to_move, move.moving_piece, move.source_square,
+      move.destination_square,
+      what_piece_is_on_square(Square(move.destination_square)),
+      move.promoted_piece, move.is_en_passant, move.en_passant_victim_square,
+      (move.is_short_castling || move.is_long_castling),
+      move.castling_rook_source_square, move.castling_rook_destination_square);
+
+  if (move.is_double_pawn_push) {
+    if (m_state.side_to_move == PIECE_COLOR::WHITE) {
+      m_state.enpassant_square = ESQUARE(move.destination_square + 8);
+    } else {
+      m_state.enpassant_square = ESQUARE(move.destination_square - 8);
+    }
+  } else {
+    m_state.enpassant_square = ESQUARE::NO_SQUARE;
+  }
+
+  if (move.is_short_castling || move.is_long_castling) {
+    // Castling rights are removed when the king moves.
+    if (m_state.side_to_move == PIECE_COLOR::WHITE) {
+      m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::B_KINGSIDE |
+                                   CASTLING_RIGHTS_FLAGS::B_QUEENSIDE);
+    } else {
+      m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::W_KINGSIDE |
+                                   CASTLING_RIGHTS_FLAGS::W_QUEENSIDE);
+    }
+  }
+
+  m_state.side_to_move = (PIECE_COLOR)((~m_state.side_to_move) & 0x1);
+
+  m_piece_bitboards = next_board_state.m_piece_bitboards;
+  m_color_occupancy_bitboards = next_board_state.m_color_occupancy_bitboards;
+}
+
+void Chess_Board::undo_moves(uint64_t num_of_moves) {  // TODO: Undo stack
+  std::shared_ptr<Chess_Board> past_board =
+      std::make_shared<Chess_Board>(*(this->m_previous_board));
+
+  m_state = past_board->m_state;
+  m_piece_bitboards = past_board->m_piece_bitboards;
+  m_color_occupancy_bitboards = past_board->m_color_occupancy_bitboards;
+  m_previous_board = past_board->m_previous_board;
 }
 
 void Chess_Board::set_from_fen(const std::string& fen) {

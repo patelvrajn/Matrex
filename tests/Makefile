@@ -26,7 +26,8 @@ CXXFLAGS = \
 			    -fprofile-abs-path \
 		      -std=c++23 \
 		      -pthread \
-	        -O0 \
+	        -O3 \
+					-flto \
 	        -MMD \
 	        -MP \
 	        -Wall \

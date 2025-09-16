@@ -28,36 +28,27 @@ class Move_Generator {
   Bitboard generate_check_mask() const;
   Bitboard generate_pin_hv(const Bitboard& one_hot_piece_bitboard) const;
   Bitboard generate_pin_d(const Bitboard& one_hot_piece_bitboard) const;
+  Bitboard attackers_to_square(const Square& s,
+                               const Bitboard& white_pawn_occupancy,
+                               const Bitboard& white_knight_occupancy,
+                               const Bitboard& white_bishop_occupancy,
+                               const Bitboard& white_rook_occupancy,
+                               const Bitboard& white_queen_occupancy,
+                               const Bitboard& white_king_occupancy,
+                               const Bitboard& black_pawn_occupancy,
+                               const Bitboard& black_knight_occupancy,
+                               const Bitboard& black_bishop_occupancy,
+                               const Bitboard& black_rook_occupancy,
+                               const Bitboard& black_queen_occupancy,
+                               const Bitboard& black_king_occupancy);
   Bitboard attackers_to_square(const Square& s);
   Bitboard is_our_king_ring_attacked();
 
-  bool is_check(PIECE_COLOR moving_side, Square opposing_king_square,
-                Chess_Board cb);
-
   void generate_pawn_promotions(const Square& source_square,
                                 const Square& target_square,
-                                PIECE_COLOR moving_side,
-                                const Square& opposing_king_square,
                                 std::vector<Chess_Move>& output);
 
   void generate_minor_and_major_piece_moves(const PIECES moving_piece,
                                             Attacks a,
                                             std::vector<Chess_Move>& output);
-
-  Bitboard calculate_future_occupancy(
-      PIECE_COLOR moving_side, PIECE_COLOR color_of_piece_of_interest,
-      PIECES piece_of_interest, PIECES moving_piece, Square source_square,
-      Square target_square,
-      std::pair<PIECE_COLOR, PIECES> who_is_on_target_square,
-      PIECES promotion_piece, bool is_en_passant,
-      Square en_passant_captured_pawn_square, bool is_castling,
-      Square rook_source_square, Square rook_target_square);
-
-  std::shared_ptr<Chess_Board> calculate_future_board_state(
-      PIECE_COLOR moving_side, PIECES moving_piece, Square source_square,
-      Square target_square,
-      std::pair<PIECE_COLOR, PIECES> who_is_on_target_square,
-      PIECES promotion_piece, bool is_en_passant,
-      Square en_passant_captured_pawn_square, bool is_castling,
-      Square rook_source_square, Square rook_target_square);
 };

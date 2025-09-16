@@ -1,9 +1,12 @@
 #pragma once
 
 #include <iostream>
-#include <memory>
 
+#include "chess_board.hpp"
 #include "square.hpp"
+
+// Forward declaration to get around circular dependency issues.
+class Chess_Board;
 
 struct Chess_Move {
   ESQUARE source_square : 7;
@@ -14,11 +17,12 @@ struct Chess_Move {
   bool is_capture : 1;
   bool is_short_castling : 1;
   bool is_long_castling : 1;
+  ESQUARE castling_rook_source_square : 7;
+  ESQUARE castling_rook_destination_square : 7;
   bool is_double_pawn_push : 1;
   bool is_en_passant : 1;
+  ESQUARE en_passant_victim_square : 7;
   bool is_promotion : 1;
-  bool is_check : 1;
-  std::shared_ptr<Chess_Board> next_board_state;
 
   void pretty_print() const {
     std::cout << "Move (" << SQUARE_STRINGS[source_square] << " to "
@@ -29,10 +33,15 @@ struct Chess_Move {
               << "\tis_capture: " << is_capture << "\n"
               << "\tis_short_castling: " << is_short_castling << "\n"
               << "\tis_long_castling: " << is_long_castling << "\n"
+              << "\tCastling Rook Source Square: "
+              << SQUARE_STRINGS[castling_rook_source_square] << "\n"
+              << "\tCastling Rook Target Square: "
+              << SQUARE_STRINGS[castling_rook_destination_square] << "\n"
               << "\tis_double_pawn_push: " << is_double_pawn_push << "\n"
               << "\tis_en_passant: " << is_en_passant << "\n"
-              << "\tis_promotion: " << is_promotion << "\n"
-              << "\tis_check: " << is_check << std::endl;
+              << "\tEn Passsant Victim Square: "
+              << SQUARE_STRINGS[castling_rook_destination_square] << "\n"
+              << "\tis_promotion: " << is_promotion << std::endl;
   }
 
   bool operator==(const Chess_Move& m) const {
@@ -44,8 +53,12 @@ struct Chess_Move {
            (m.is_capture == is_capture) &&
            (m.is_short_castling == is_short_castling) &&
            (m.is_long_castling == is_long_castling) &&
+           (m.castling_rook_source_square == castling_rook_source_square) &&
+           (m.castling_rook_destination_square ==
+            castling_rook_destination_square) &&
            (m.is_double_pawn_push == is_double_pawn_push) &&
            (m.is_en_passant == is_en_passant) &&
-           (m.is_promotion == is_promotion) && (m.is_check == is_check);
+           (m.en_passant_victim_square == en_passant_victim_square) &&
+           (m.is_promotion == is_promotion);
   }
 };

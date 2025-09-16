@@ -1,5 +1,6 @@
 #include "bitboard.hpp"
 
+#include <bit>
 #include <iostream>
 
 #include "globals.hpp"
@@ -11,12 +12,6 @@ std::array<std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
     Bitboard::m_between_squares_masks{};
 
 Bitboard::Bitboard() : m_board(0) {
-  if (!m_is_between_squares_masks_initialized) {
-    init_between_squares_masks();
-  }
-}
-
-Bitboard::Bitboard(uint64_t board) : m_board(board) {
   if (!m_is_between_squares_masks_initialized) {
     init_between_squares_masks();
   }
@@ -101,15 +96,7 @@ int8_t Bitboard::get_index_of_high_lsb() const {
     return -1;
   }
 
-  int8_t position = 0;
-  uint64_t temp_board = m_board;
-
-  while ((temp_board & 1) == 0) {
-    temp_board >>= 1;
-    position++;
-  }
-
-  return position;
+  return __builtin_ctzll(m_board);
 }
 
 int8_t Bitboard::get_index_of_high_msb() const {
@@ -117,75 +104,12 @@ int8_t Bitboard::get_index_of_high_msb() const {
     return -1;
   }
 
-  int8_t position = 63;
-  uint64_t temp_board = m_board;
-
-  while ((temp_board & 0x8000000000000000ULL) == 0) {
-    temp_board <<= 1;
-    position--;
-  }
-
-  return position;
+  return ((NUM_OF_SQUARES_ON_CHESS_BOARD - 1) - std::countl_zero(m_board));
 }
 
 uint64_t Bitboard::get_between_squares_mask(const Square& a,
                                             const Square& b) const {
   return m_between_squares_masks[a.get_index()][b.get_index()];
-}
-
-bool Bitboard::operator==(const Bitboard& other) const {
-  return (this->m_board == other.m_board);
-}
-
-bool Bitboard::operator!=(const Bitboard& other) const {
-  return (this->m_board != other.m_board);
-}
-
-Bitboard Bitboard::operator|(const Bitboard& other) const {
-  return Bitboard(m_board | other.m_board);
-}
-
-Bitboard Bitboard::operator&(const Bitboard& other) const {
-  return Bitboard(m_board & other.m_board);
-}
-
-Bitboard Bitboard::operator^(const Bitboard& other) const {
-  return Bitboard(m_board ^ other.m_board);
-}
-
-Bitboard Bitboard::operator<<(const uint8_t shift) const {
-  return Bitboard(m_board << shift);
-}
-
-Bitboard Bitboard::operator>>(const uint8_t shift) const {
-  return Bitboard(m_board >> shift);
-}
-
-Bitboard Bitboard::operator~() const { return Bitboard(~m_board); }
-
-Bitboard& Bitboard::operator|=(const Bitboard& other) {
-  m_board |= other.m_board;
-  return *this;
-}
-
-Bitboard& Bitboard::operator&=(const Bitboard& other) {
-  m_board &= other.m_board;
-  return *this;
-}
-
-Bitboard& Bitboard::operator^=(const Bitboard& other) {
-  m_board ^= other.m_board;
-  return *this;
-}
-
-Bitboard& Bitboard::operator<<=(uint8_t shift) {
-  m_board <<= shift;
-  return *this;
-}
-
-Bitboard& Bitboard::operator>>=(uint8_t shift) {
-  m_board >>= shift;
-  return *this;
 }
 
 uint64_t Bitboard::generate_between_squares_mask(const Square& a,

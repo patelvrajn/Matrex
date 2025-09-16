@@ -20,6 +20,7 @@ CXXFLAGS = \
 		      -g \
 		      -std=c++23 \
 	        -O3 \
+					-flto \
 	        -MMD \
 	        -MP \
 	        -Wall \

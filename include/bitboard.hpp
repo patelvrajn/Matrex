@@ -60,3 +60,64 @@ class Bitboard {
 
   void init_between_squares_masks();
 };
+
+inline Bitboard::Bitboard(uint64_t board) : m_board(board) {
+  if (!m_is_between_squares_masks_initialized) {
+    init_between_squares_masks();
+  }
+}
+
+inline bool Bitboard::operator==(const Bitboard& other) const {
+  return (this->m_board == other.m_board);
+}
+
+inline bool Bitboard::operator!=(const Bitboard& other) const {
+  return (this->m_board != other.m_board);
+}
+
+inline Bitboard Bitboard::operator|(const Bitboard& other) const {
+  return Bitboard(m_board | other.m_board);
+}
+
+inline Bitboard Bitboard::operator&(const Bitboard& other) const {
+  return Bitboard(m_board & other.m_board);
+}
+
+inline Bitboard Bitboard::operator^(const Bitboard& other) const {
+  return Bitboard(m_board ^ other.m_board);
+}
+
+inline Bitboard Bitboard::operator<<(const uint8_t shift) const {
+  return Bitboard(m_board << shift);
+}
+
+inline Bitboard Bitboard::operator>>(const uint8_t shift) const {
+  return Bitboard(m_board >> shift);
+}
+
+inline Bitboard Bitboard::operator~() const { return Bitboard(~m_board); }
+
+inline Bitboard& Bitboard::operator|=(const Bitboard& other) {
+  m_board |= other.m_board;
+  return *this;
+}
+
+inline Bitboard& Bitboard::operator&=(const Bitboard& other) {
+  m_board &= other.m_board;
+  return *this;
+}
+
+inline Bitboard& Bitboard::operator^=(const Bitboard& other) {
+  m_board ^= other.m_board;
+  return *this;
+}
+
+inline Bitboard& Bitboard::operator<<=(uint8_t shift) {
+  m_board <<= shift;
+  return *this;
+}
+
+inline Bitboard& Bitboard::operator>>=(uint8_t shift) {
+  m_board >>= shift;
+  return *this;
+}

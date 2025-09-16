@@ -100,3 +100,10 @@ class Square {
  private:
   uint8_t m_index;
 };
+
+inline uint64_t Square::get_mask()
+    const {  // Does not return a bitboard otherwise,
+             // there is a circular dependency.
+  uint64_t temp = 1;
+  return (temp << m_index);
+}
