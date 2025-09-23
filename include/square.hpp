@@ -94,6 +94,8 @@ class Square {
   uint8_t get_rank() const;
   uint8_t get_file() const;
   uint64_t get_mask() const;
+  uint8_t get_diagonal() const;
+  uint8_t get_antidiagonal() const;
 
   bool operator==(const Square& other) const;
 

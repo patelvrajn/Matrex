@@ -5,14 +5,22 @@
 
 #include "globals.hpp"
 
-bool Bitboard::m_is_between_squares_masks_initialized = false;
+bool Bitboard::m_are_masks_initialized = false;
 
 std::array<std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
            NUM_OF_SQUARES_ON_CHESS_BOARD>
     Bitboard::m_between_squares_masks{};
 
+std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> Bitboard::m_rank_masks{};
+std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> Bitboard::m_file_masks{};
+std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
+    Bitboard::m_diagonal_masks{};
+std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
+    Bitboard::m_antidiagonal_masks{};
+
 Bitboard::Bitboard() : m_board(0) {
-  if (!m_is_between_squares_masks_initialized) {
+  if (!m_are_masks_initialized) {
+    init_geometry_masks();
     init_between_squares_masks();
   }
 }
@@ -167,5 +175,74 @@ void Bitboard::init_between_squares_masks() {
     }
   }
 
-  m_is_between_squares_masks_initialized = true;
+  m_are_masks_initialized = true;
+}
+
+void Bitboard::init_geometry_masks() {
+  for (uint8_t outer_square_index = 0;
+       outer_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
+       outer_square_index++) {
+    const Square outer_square(outer_square_index);
+    const uint8_t r = outer_square.get_rank();
+    const uint8_t f = outer_square.get_file();
+
+    uint64_t rank = 0;
+    uint64_t file = 0;
+    uint64_t diag = 0;
+    uint64_t antidiag = 0;
+
+    for (uint8_t inner_square_index = 0;
+         inner_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
+         inner_square_index++) {
+      const Square inner_square(inner_square_index);
+      const uint8_t rr = inner_square.get_rank();
+      const uint8_t ff = inner_square.get_file();
+
+      if (rr == r) rank |= inner_square.get_mask();
+      if (ff == f) file |= inner_square.get_mask();
+      if ((rr - ff) == (r - f)) diag |= inner_square.get_mask();
+      if ((rr + ff) == (r + f)) antidiag |= inner_square.get_mask();
+    }
+
+    m_rank_masks[outer_square_index] = rank;
+    m_file_masks[outer_square_index] = file;
+    m_diagonal_masks[outer_square_index] = diag;
+    m_antidiagonal_masks[outer_square_index] = antidiag;
+  }
+}
+
+Bitboard Bitboard::get_rank_mask(const Square& s) {
+  return Bitboard(m_rank_masks[s.get_index()]);
+}
+
+Bitboard Bitboard::get_file_mask(const Square& s) {
+  return Bitboard(m_file_masks[s.get_index()]);
+}
+
+Bitboard Bitboard::get_diagonal_mask(const Square& s) {
+  return Bitboard(m_diagonal_masks[s.get_index()]);
+}
+
+Bitboard Bitboard::get_antidiagonal_mask(const Square& s) {
+  return Bitboard(m_antidiagonal_masks[s.get_index()]);
+}
+
+Bitboard Bitboard::get_infinite_ray(const Square& a, const Square& b) {
+  if (a.get_rank() == b.get_rank()) {
+    return get_rank_mask(a);
+  }
+
+  if (a.get_file() == b.get_file()) {
+    return get_file_mask(a);
+  }
+
+  if (a.get_diagonal() == b.get_diagonal()) {
+    return get_diagonal_mask(a);
+  }
+
+  if (a.get_antidiagonal() == b.get_antidiagonal()) {
+    return get_antidiagonal_mask(a);
+  }
+
+  return Bitboard();
 }

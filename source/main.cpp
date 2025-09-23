@@ -21,17 +21,16 @@ int main(void) {
 
   constexpr uint64_t PERFT_DEPTH = 6;
 
-  // Timer t;
-  // uint64_t perft_count = perft(cb, PERFT_DEPTH);
-  // uint64_t time_taken = t.stop();
+  Timer t;
+  uint64_t perft_count = perft(cb, PERFT_DEPTH);
+  uint64_t time_taken = t.stop();
 
-  // std::cout << "Perft(" << PERFT_DEPTH << "): " << perft_count << std::endl;
-  // std::cout << "Time taken (ns): " << time_taken << std::endl;
-  // std::cout << "NPS: " << (((double)perft_count) / ((double)time_taken /
-  // 1e9))
-  //           << std::endl;
+  std::cout << "Perft(" << PERFT_DEPTH << "): " << perft_count << std::endl;
+  std::cout << "Time taken (ns): " << time_taken << std::endl;
+  std::cout << "NPS: " << (((double)perft_count) / ((double)time_taken / 1e9))
+            << std::endl;
 
-  divide_perft(cb, PERFT_DEPTH);
+  // divide_perft(cb, PERFT_DEPTH);
 
   return 0;
 }

@@ -29,6 +29,15 @@ uint8_t Square::get_file() const {
   return (m_index & 7);  // Modulo 8
 }
 
+uint8_t Square::get_diagonal() const {
+  return 7 + (this->get_rank() -
+              this->get_file());  // 7 is to normalize (-7 to 7) to (0 to 14)
+}
+
+uint8_t Square::get_antidiagonal() const {
+  return (this->get_rank() + this->get_file());
+}
+
 bool Square::operator==(const Square& other) const {
   return (this->m_index == other.m_index);
 }

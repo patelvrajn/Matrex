@@ -1,5 +1,6 @@
 #include "perft.hpp"
 
+#include <cassert>
 #include <vector>
 
 #include "move_generator.hpp"
@@ -15,11 +16,11 @@ uint64_t perft(Chess_Board& board, uint64_t depth) {
 
   mg.generate_all_moves(moves);
   for (const auto& move : moves) {
-    board.make_move(move);
+    Undo_Chess_Move undo = board.make_move(move);
 
     nodes += perft(board, (depth - 1));
 
-    board.undo_moves(1);
+    board.undo_move(undo);
   }
 
   return nodes;
@@ -33,7 +34,7 @@ uint64_t divide_perft(Chess_Board& board, uint64_t depth) {
   uint64_t nodes = 0;
 
   for (const auto& move : moves) {
-    board.make_move(move);
+    Undo_Chess_Move undo = board.make_move(move);
 
     uint64_t child_nodes = perft(board, (depth - 1));
     nodes += child_nodes;
@@ -61,7 +62,7 @@ uint64_t divide_perft(Chess_Board& board, uint64_t depth) {
               << SQUARE_STRINGS[move.destination_square] << promotion_string
               << " - " << child_nodes << std::endl;
 
-    board.undo_moves(1);
+    board.undo_move(undo);
   }
 
   std::cout << "Total nodes: " << nodes << std::endl;
