@@ -9,8 +9,23 @@
 
 class Bitboard {
  public:
+  class Iterator {
+   public:
+    Iterator(uint64_t board);
+    Square operator*() const;
+    Iterator& operator++();
+    bool operator==(const Iterator& other) const;
+    bool operator!=(const Iterator& other) const;
+
+   private:
+    uint64_t m_board;
+  };
+
   Bitboard();
   Bitboard(uint64_t board);
+
+  Iterator begin() const;
+  Iterator end() const;
 
   void pretty_print() const;
 
