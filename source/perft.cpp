@@ -7,7 +7,7 @@
 
 uint64_t perft(Chess_Board& board, uint64_t depth) {
   Move_Generator mg(board);
-  std::vector<Chess_Move> moves;
+  Chess_Move_List moves;
   uint64_t nodes = 0;
 
   if (depth == 0) {
@@ -28,7 +28,7 @@ uint64_t perft(Chess_Board& board, uint64_t depth) {
 
 uint64_t divide_perft(Chess_Board& board, uint64_t depth) {
   Move_Generator mg(board);
-  std::vector<Chess_Move> moves;
+  Chess_Move_List moves;
   mg.generate_all_moves(moves);
 
   uint64_t nodes = 0;
