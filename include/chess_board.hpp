@@ -1,8 +1,6 @@
 #pragma once
 
 #include <array>
-// #include <memory>
-#include <deque>
 
 #include "bitboard.hpp"
 #include "chess_move.hpp"
