@@ -1,12 +1,12 @@
 #pragma once
 
 #include <iostream>
+#include <array>
 
-#include "chess_board.hpp"
+#include "globals.hpp"
 #include "square.hpp"
 
-// Forward declaration to get around circular dependency issues.
-class Chess_Board;
+constexpr uint16_t MAXIMUM_NUM_OF_MOVES_IN_A_POSITION = 256;
 
 struct Chess_Move {
   ESQUARE source_square : 7;
@@ -69,3 +69,22 @@ struct Undo_Chess_Move {
   uint8_t half_move_clock : 6;
   ESQUARE enpassant_square : 7;
 };
+
+class Chess_Move_List {
+ public:
+  Chess_Move_List();
+
+  inline void append(const Chess_Move& move);
+
+  const Chess_Move* begin() const;
+  const Chess_Move* end() const;
+
+ private:
+  uint16_t m_max_index;
+  std::array<Chess_Move, MAXIMUM_NUM_OF_MOVES_IN_A_POSITION> m_list;
+};
+
+inline void Chess_Move_List::append(const Chess_Move& move) {
+  m_list[m_max_index] = move;
+  m_max_index++;
+}
