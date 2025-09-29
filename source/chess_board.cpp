@@ -69,6 +69,14 @@ Square Chess_Board::get_en_passant_square() const {
   return Square(m_state.enpassant_square);
 }
 
+Square Chess_Board::get_en_passant_victim_square() const {
+  return (m_state.side_to_move == PIECE_COLOR::WHITE)
+             ? Square(Bitboard(Square(m_state.enpassant_square).get_mask() << 8)
+                          .get_index_of_high_lsb())
+             : Square(Bitboard(Square(m_state.enpassant_square).get_mask() >> 8)
+                          .get_index_of_high_lsb());
+}
+
 PIECE_COLOR Chess_Board::get_side_to_move() const {
   return m_state.side_to_move;
 }

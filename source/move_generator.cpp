@@ -2,7 +2,8 @@
 
 #include <iostream>
 
-Move_Generator::Move_Generator(const Chess_Board& cb) : m_chess_board(cb) {}
+Move_Generator::Move_Generator(const Chess_Board& cb)
+    : m_chess_board(cb), m_enpassantable_checker(false) {}
 
 void Move_Generator::set_chess_board(const Chess_Board& cb) {
   m_chess_board = cb;
@@ -14,7 +15,7 @@ void Move_Generator::set_chess_board(const Chess_Board& cb) {
 //          - If single check: only moves that block or capture the checker are
 //          legal.
 //          - If double check: only king moves are legal (mask = empty).
-Bitboard Move_Generator::generate_check_mask() const {
+Bitboard Move_Generator::generate_check_mask() {
   Bitboard checkers;  // Bitboard that will hold all pieces currently checking
                       // the king.
   Attacks
@@ -88,13 +89,24 @@ Bitboard Move_Generator::generate_check_mask() const {
 
   // --- Case 3: Single check ---
   // If only ONE checker exists, then legal moves must either:
-  //   (1) Capture the checking piece, OR
-  //   (2) Block the attack ray (only possible against sliders:
-  //   bishop/rook/queen).
-  // So we generate a mask of all squares on the line between the checker and
-  // the king, then OR it with the checker’s square.
-  return (Bitboard(checkers.get_between_squares_mask(
-              our_king_square, Square(checkers.get_index_of_high_lsb()))) |
+  //   (1) Capture the checking piece directly, OR
+  //   (2) Block the attack ray (only possible against sliding checkers:
+  //       bishop/rook/queen).
+  //
+  // Special case: if the checker is a pawn that just advanced two squares and
+  // is en-passant capturable, an en passant capture could neutralize the check.
+  // We do NOT add the en passant target square to the generic mask here,
+  // because that would incorrectly allow other pieces to "move" there.
+  // Instead, we record this condition in `m_enpassantable_checker`, and the
+  // pawn move generator will allow the en passant capture specifically.
+  const Square checker_square = Square(checkers.get_index_of_high_lsb());
+
+  if (m_chess_board.get_en_passant_victim_square() == checker_square) {
+    m_enpassantable_checker = true;
+  }
+
+  return (Bitboard(checkers.get_between_squares_mask(our_king_square,
+                                                     checker_square)) |
           checkers);
 }
 

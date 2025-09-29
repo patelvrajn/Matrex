@@ -24,7 +24,9 @@ class Move_Generator {
  private:
   Chess_Board m_chess_board;
 
-  Bitboard generate_check_mask() const;
+  bool m_enpassantable_checker;
+
+  Bitboard generate_check_mask();
   Bitboard generate_pinned() const;
   Bitboard get_pin_mask(const Bitboard& pinned,
                         const Square& source_square) const;
@@ -69,9 +71,9 @@ class Move_Generator {
                                            Chess_Move_List& output);
 
   template <PIECE_COLOR moving_side>
-  inline void generate_non_promotion_pawn_captures(
-      const Bitboard& pinned, const Bitboard& check_mask,
-      Chess_Move_List& output);
+  inline void generate_non_promotion_pawn_captures(const Bitboard& pinned,
+                                                   const Bitboard& check_mask,
+                                                   Chess_Move_List& output);
 
   template <PIECE_COLOR moving_side>
   inline void generate_promotion_pawn_captures(const Bitboard& pinned,
@@ -79,9 +81,9 @@ class Move_Generator {
                                                Chess_Move_List& output);
 
   template <PIECE_COLOR moving_side, PIECES moving_piece>
-  inline void generate_minor_and_major_piece_moves(
-      const Bitboard& pinned, const Bitboard& check_mask,
-      Chess_Move_List& output);
+  inline void generate_minor_and_major_piece_moves(const Bitboard& pinned,
+                                                   const Bitboard& check_mask,
+                                                   Chess_Move_List& output);
 
   template <PIECE_COLOR moving_side>
   inline void generate_king_moves(Chess_Move_List& output);
@@ -266,6 +268,8 @@ inline void Move_Generator::generate_en_passant_captures(
 
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
 
+  const Square king_square = m_chess_board.get_king_square(moving_side);
+
   Square en_passant_square = m_chess_board.get_en_passant_square();
   if (en_passant_square.get_index() != ESQUARE::NO_SQUARE) {
     const Bitboard en_passant_pawns =
@@ -273,12 +277,39 @@ inline void Move_Generator::generate_en_passant_captures(
         m_chess_board.get_piece_occupancies(moving_side, PIECES::PAWN);
 
     for (const Square& source_square : en_passant_pawns) {
+      const Square en_passant_victim_square =
+          m_chess_board.get_en_passant_victim_square();
+
       const Bitboard pin_mask = get_pin_mask(pinned, source_square);
 
-      const Bitboard can_do_enpassant =
-          Bitboard(en_passant_square.get_mask()) & check_mask & pin_mask;
+      // Special case where the checker can be removed via en passant.
+      const Bitboard can_remove_checker =
+          m_chess_board.get_en_passant_square().get_mask() &
+          ((uint64_t)(-(uint64_t)(m_enpassantable_checker == true)));
 
-      if (can_do_enpassant != 0) {
+      const Bitboard can_do_enpassant = Bitboard(en_passant_square.get_mask()) &
+                                        (check_mask | can_remove_checker) &
+                                        pin_mask;
+
+      // Takes care of the situation where an enemy rook or queen is on the same
+      // rank as a friendly enpassant alongside the friendly king. En passant is
+      // not possible because the friendly king would be in check after the
+      // move.
+      const Bitboard en_passant_rank_mask =
+          Bitboard::get_rank_mask(source_square);
+      const Bitboard occupancy_without_en_passant_pawns =
+          m_chess_board.get_both_color_occupancies() ^
+          en_passant_victim_square.get_mask() ^ source_square.get_mask();
+      const Bitboard enemy_orthogonal_movers =
+          m_chess_board.get_piece_occupancies(opposing_side, PIECES::ROOK) |
+          m_chess_board.get_piece_occupancies(opposing_side, PIECES::QUEEN);
+      const Bitboard ortogonal_attacks_to_king_without_en_passant_pawns =
+          (a.get_rook_attacks(king_square, occupancy_without_en_passant_pawns) &
+           en_passant_rank_mask) &
+          enemy_orthogonal_movers;
+
+      if ((can_do_enpassant != 0) &&
+          (ortogonal_attacks_to_king_without_en_passant_pawns == 0)) {
         const Chess_Move move = {
             .source_square = (ESQUARE)source_square.get_index(),
             .destination_square = (ESQUARE)en_passant_square.get_index(),
@@ -296,15 +327,7 @@ inline void Move_Generator::generate_en_passant_captures(
             .is_double_pawn_push = false,
             .is_en_passant = true,
             .en_passant_victim_square =
-                (moving_side == PIECE_COLOR::WHITE)
-                    ? (ESQUARE)(Square(
-                                    Bitboard(en_passant_square.get_mask() << 8)
-                                        .get_index_of_high_lsb())
-                                    .get_index())
-                    : (ESQUARE)(Square(
-                                    Bitboard(en_passant_square.get_mask() >> 8)
-                                        .get_index_of_high_lsb())
-                                    .get_index()),
+                (ESQUARE)en_passant_victim_square.get_index(),
             .is_promotion = false};
 
         output.append(move);
@@ -455,8 +478,7 @@ inline void Move_Generator::generate_minor_and_major_piece_moves(
 }
 
 template <PIECE_COLOR moving_side>
-inline void Move_Generator::generate_king_moves(
-    Chess_Move_List& output) {
+inline void Move_Generator::generate_king_moves(Chess_Move_List& output) {
   Attacks a;
 
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);

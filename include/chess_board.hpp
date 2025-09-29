@@ -54,6 +54,8 @@ class Chess_Board {
 
   Square get_en_passant_square() const;
 
+  Square get_en_passant_victim_square() const;
+
   PIECE_COLOR get_side_to_move() const;
 
   Square get_king_square(PIECE_COLOR c) const;
