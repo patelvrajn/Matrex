@@ -96,23 +96,27 @@ class Move_Generator {
 };
 
 inline void Move_Generator::generate_pawn_promotions(
-    const Square& source_square, const Square& target_square,
+    const Square& source_square, const Square& destination_square,
     Chess_Move_List& output) {
+  const auto who_is_on_destination_square =
+      m_chess_board.what_piece_is_on_square(destination_square);
+
   // Pawn to knight promotion
-  Chess_Move move = {.source_square = (ESQUARE)source_square.get_index(),
-                     .destination_square = (ESQUARE)target_square.get_index(),
-                     .moving_piece = PIECES::PAWN,
-                     .promoted_piece = PIECES::KNIGHT,
-                     .captured_piece = PIECES::NO_PIECE,
-                     .is_capture = false,
-                     .is_short_castling = false,
-                     .is_long_castling = false,
-                     .castling_rook_source_square = ESQUARE::NO_SQUARE,
-                     .castling_rook_destination_square = ESQUARE::NO_SQUARE,
-                     .is_double_pawn_push = false,
-                     .is_en_passant = false,
-                     .en_passant_victim_square = ESQUARE::NO_SQUARE,
-                     .is_promotion = true};
+  Chess_Move move = {
+      .source_square = (ESQUARE)source_square.get_index(),
+      .destination_square = (ESQUARE)destination_square.get_index(),
+      .moving_piece = PIECES::PAWN,
+      .promoted_piece = PIECES::KNIGHT,
+      .captured_piece = who_is_on_destination_square.second,
+      .is_capture = (who_is_on_destination_square.second != PIECES::NO_PIECE),
+      .is_short_castling = false,
+      .is_long_castling = false,
+      .castling_rook_source_square = ESQUARE::NO_SQUARE,
+      .castling_rook_destination_square = ESQUARE::NO_SQUARE,
+      .is_double_pawn_push = false,
+      .is_en_passant = false,
+      .en_passant_victim_square = ESQUARE::NO_SQUARE,
+      .is_promotion = true};
 
   output.append(move);
 
