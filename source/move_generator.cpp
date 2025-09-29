@@ -383,7 +383,7 @@ Bitboard Move_Generator::is_our_king_ring_attacked() {
   return mask;
 }
 
-void Move_Generator::generate_all_moves(std::vector<Chess_Move>& output) {
+void Move_Generator::generate_all_moves(Chess_Move_List& output) {
   const PIECE_COLOR moving_side = m_chess_board.get_side_to_move();
 
   const Bitboard check_mask = generate_check_mask();

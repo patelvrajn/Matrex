@@ -1,5 +1,4 @@
 #include <memory>
-#include <vector>
 
 #include "attacks.hpp"
 #include "chess_board.hpp"
@@ -20,7 +19,7 @@ class Move_Generator {
 
   void set_chess_board(const Chess_Board& cb);
 
-  void generate_all_moves(std::vector<Chess_Move>& output);
+  void generate_all_moves(Chess_Move_List& output);
 
  private:
   Chess_Board m_chess_board;
@@ -47,56 +46,56 @@ class Move_Generator {
 
   inline void generate_pawn_promotions(const Square& source_square,
                                        const Square& target_square,
-                                       std::vector<Chess_Move>& output);
+                                       Chess_Move_List& output);
 
   template <PIECE_COLOR moving_side>
   inline void generate_single_push_promotion_pawn_moves(
       const Bitboard& pinned, const Bitboard& check_mask,
-      std::vector<Chess_Move>& output);
+      Chess_Move_List& output);
 
   template <PIECE_COLOR moving_side>
   inline void generate_single_push_non_promotion_pawn_moves(
       const Bitboard& pinned, const Bitboard& check_mask,
-      std::vector<Chess_Move>& output);
+      Chess_Move_List& output);
 
   template <PIECE_COLOR moving_side>
   inline void generate_double_push_pawn_moves(const Bitboard& pinned,
                                               const Bitboard& check_mask,
-                                              std::vector<Chess_Move>& output);
+                                              Chess_Move_List& output);
 
   template <PIECE_COLOR moving_side>
   inline void generate_en_passant_captures(const Bitboard& pinned,
                                            const Bitboard& check_mask,
-                                           std::vector<Chess_Move>& output);
+                                           Chess_Move_List& output);
 
   template <PIECE_COLOR moving_side>
   inline void generate_non_promotion_pawn_captures(
       const Bitboard& pinned, const Bitboard& check_mask,
-      std::vector<Chess_Move>& output);
+      Chess_Move_List& output);
 
   template <PIECE_COLOR moving_side>
   inline void generate_promotion_pawn_captures(const Bitboard& pinned,
                                                const Bitboard& check_mask,
-                                               std::vector<Chess_Move>& output);
+                                               Chess_Move_List& output);
 
   template <PIECE_COLOR moving_side, PIECES moving_piece>
   inline void generate_minor_and_major_piece_moves(
       const Bitboard& pinned, const Bitboard& check_mask,
-      std::vector<Chess_Move>& output);
+      Chess_Move_List& output);
 
   template <PIECE_COLOR moving_side>
-  inline void generate_king_moves(std::vector<Chess_Move>& output);
+  inline void generate_king_moves(Chess_Move_List& output);
 
-  inline void generate_white_short_castle_move(std::vector<Chess_Move>& output);
-  inline void generate_white_long_castle_move(std::vector<Chess_Move>& output);
+  inline void generate_white_short_castle_move(Chess_Move_List& output);
+  inline void generate_white_long_castle_move(Chess_Move_List& output);
 
-  inline void generate_black_short_castle_move(std::vector<Chess_Move>& output);
-  inline void generate_black_long_castle_move(std::vector<Chess_Move>& output);
+  inline void generate_black_short_castle_move(Chess_Move_List& output);
+  inline void generate_black_long_castle_move(Chess_Move_List& output);
 };
 
 inline void Move_Generator::generate_pawn_promotions(
     const Square& source_square, const Square& target_square,
-    std::vector<Chess_Move>& output) {
+    Chess_Move_List& output) {
   // Pawn to knight promotion
   Chess_Move move = {.source_square = (ESQUARE)source_square.get_index(),
                      .destination_square = (ESQUARE)target_square.get_index(),
@@ -113,25 +112,25 @@ inline void Move_Generator::generate_pawn_promotions(
                      .en_passant_victim_square = ESQUARE::NO_SQUARE,
                      .is_promotion = true};
 
-  output.push_back(move);
+  output.append(move);
 
   // Pawn to bishop promotion.
   move.promoted_piece = PIECES::BISHOP;
-  output.push_back(move);
+  output.append(move);
 
   // Pawn to rook promotion.
   move.promoted_piece = PIECES::ROOK;
-  output.push_back(move);
+  output.append(move);
 
   // Pawn to queen promotion.
   move.promoted_piece = PIECES::QUEEN;
-  output.push_back(move);
+  output.append(move);
 }
 
 template <PIECE_COLOR moving_side>
 inline void Move_Generator::generate_single_push_promotion_pawn_moves(
     const Bitboard& pinned, const Bitboard& check_mask,
-    std::vector<Chess_Move>& output) {
+    Chess_Move_List& output) {
   const Bitboard pawns =
       m_chess_board.get_piece_occupancies(moving_side, PIECES::PAWN);
 
@@ -163,7 +162,7 @@ inline void Move_Generator::generate_single_push_promotion_pawn_moves(
 template <PIECE_COLOR moving_side>
 inline void Move_Generator::generate_single_push_non_promotion_pawn_moves(
     const Bitboard& pinned, const Bitboard& check_mask,
-    std::vector<Chess_Move>& output) {
+    Chess_Move_List& output) {
   const Bitboard pawns =
       m_chess_board.get_piece_occupancies(moving_side, PIECES::PAWN);
 
@@ -206,7 +205,7 @@ inline void Move_Generator::generate_single_push_non_promotion_pawn_moves(
           .en_passant_victim_square = ESQUARE::NO_SQUARE,
           .is_promotion = false};
 
-      output.push_back(move);
+      output.append(move);
     }
   }
 }
@@ -214,7 +213,7 @@ inline void Move_Generator::generate_single_push_non_promotion_pawn_moves(
 template <PIECE_COLOR moving_side>
 inline void Move_Generator::generate_double_push_pawn_moves(
     const Bitboard& pinned, const Bitboard& check_mask,
-    std::vector<Chess_Move>& output) {
+    Chess_Move_List& output) {
   const Bitboard pawns =
       m_chess_board.get_piece_occupancies(moving_side, PIECES::PAWN);
 
@@ -254,7 +253,7 @@ inline void Move_Generator::generate_double_push_pawn_moves(
           .en_passant_victim_square = ESQUARE::NO_SQUARE,
           .is_promotion = false};
 
-      output.push_back(move);
+      output.append(move);
     }
   }
 }
@@ -262,7 +261,7 @@ inline void Move_Generator::generate_double_push_pawn_moves(
 template <PIECE_COLOR moving_side>
 inline void Move_Generator::generate_en_passant_captures(
     const Bitboard& pinned, const Bitboard& check_mask,
-    std::vector<Chess_Move>& output) {
+    Chess_Move_List& output) {
   Attacks a;
 
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
@@ -308,7 +307,7 @@ inline void Move_Generator::generate_en_passant_captures(
                                     .get_index()),
             .is_promotion = false};
 
-        output.push_back(move);
+        output.append(move);
       }
     }
   }
@@ -317,7 +316,7 @@ inline void Move_Generator::generate_en_passant_captures(
 template <PIECE_COLOR moving_side>
 inline void Move_Generator::generate_non_promotion_pawn_captures(
     const Bitboard& pinned, const Bitboard& check_mask,
-    std::vector<Chess_Move>& output) {
+    Chess_Move_List& output) {
   Attacks a;
 
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
@@ -359,7 +358,7 @@ inline void Move_Generator::generate_non_promotion_pawn_captures(
           .en_passant_victim_square = ESQUARE::NO_SQUARE,
           .is_promotion = false};
 
-      output.push_back(move);
+      output.append(move);
     }
   }
 }
@@ -367,7 +366,7 @@ inline void Move_Generator::generate_non_promotion_pawn_captures(
 template <PIECE_COLOR moving_side>
 inline void Move_Generator::generate_promotion_pawn_captures(
     const Bitboard& pinned, const Bitboard& check_mask,
-    std::vector<Chess_Move>& output) {
+    Chess_Move_List& output) {
   Attacks a;
 
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
@@ -396,7 +395,7 @@ inline void Move_Generator::generate_promotion_pawn_captures(
 template <PIECE_COLOR moving_side, PIECES moving_piece>
 inline void Move_Generator::generate_minor_and_major_piece_moves(
     const Bitboard& pinned, const Bitboard& check_mask,
-    std::vector<Chess_Move>& output) {
+    Chess_Move_List& output) {
   Attacks a;
 
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
@@ -450,14 +449,14 @@ inline void Move_Generator::generate_minor_and_major_piece_moves(
           .en_passant_victim_square = ESQUARE::NO_SQUARE,
           .is_promotion = false};
 
-      output.push_back(move);
+      output.append(move);
     }
   }
 }
 
 template <PIECE_COLOR moving_side>
 inline void Move_Generator::generate_king_moves(
-    std::vector<Chess_Move>& output) {
+    Chess_Move_List& output) {
   Attacks a;
 
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
@@ -491,12 +490,12 @@ inline void Move_Generator::generate_king_moves(
         .en_passant_victim_square = ESQUARE::NO_SQUARE,
         .is_promotion = false};
 
-    output.push_back(move);
+    output.append(move);
   }
 }
 
 inline void Move_Generator::generate_white_short_castle_move(
-    std::vector<Chess_Move>& output) {
+    Chess_Move_List& output) {
   const Bitboard black_occupancies =
       m_chess_board.get_color_occupancies(PIECE_COLOR::BLACK);
 
@@ -533,12 +532,12 @@ inline void Move_Generator::generate_white_short_castle_move(
                              .en_passant_victim_square = ESQUARE::NO_SQUARE,
                              .is_promotion = false};
 
-    output.push_back(move);
+    output.append(move);
   }
 }
 
 inline void Move_Generator::generate_white_long_castle_move(
-    std::vector<Chess_Move>& output) {
+    Chess_Move_List& output) {
   const Bitboard black_occupancies =
       m_chess_board.get_color_occupancies(PIECE_COLOR::BLACK);
 
@@ -575,12 +574,12 @@ inline void Move_Generator::generate_white_long_castle_move(
                              .en_passant_victim_square = ESQUARE::NO_SQUARE,
                              .is_promotion = false};
 
-    output.push_back(move);
+    output.append(move);
   }
 }
 
 inline void Move_Generator::generate_black_short_castle_move(
-    std::vector<Chess_Move>& output) {
+    Chess_Move_List& output) {
   const Bitboard white_occupancies =
       m_chess_board.get_color_occupancies(PIECE_COLOR::WHITE);
 
@@ -617,12 +616,12 @@ inline void Move_Generator::generate_black_short_castle_move(
                              .en_passant_victim_square = ESQUARE::NO_SQUARE,
                              .is_promotion = false};
 
-    output.push_back(move);
+    output.append(move);
   }
 }
 
 inline void Move_Generator::generate_black_long_castle_move(
-    std::vector<Chess_Move>& output) {
+    Chess_Move_List& output) {
   const Bitboard white_occupancies =
       m_chess_board.get_color_occupancies(PIECE_COLOR::WHITE);
 
@@ -659,6 +658,6 @@ inline void Move_Generator::generate_black_long_castle_move(
                              .en_passant_victim_square = ESQUARE::NO_SQUARE,
                              .is_promotion = false};
 
-    output.push_back(move);
+    output.append(move);
   }
 }
