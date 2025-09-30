@@ -97,8 +97,10 @@ Bitboard Move_Generator::generate_check_mask() {
   // pawn move generator will allow the en passant capture specifically.
   const Square checker_square = Square(checkers.get_index_of_high_lsb());
 
-  if (m_chess_board.get_en_passant_victim_square() == checker_square) {
-    m_enpassantable_checker = true;
+  if (m_chess_board.get_en_passant_square().get_index() != ESQUARE::NO_SQUARE) {
+    if (m_chess_board.get_en_passant_victim_square() == checker_square) {
+      m_enpassantable_checker = true;
+    }
   }
 
   return (Bitboard(checkers.get_between_squares_mask(our_king_square,
