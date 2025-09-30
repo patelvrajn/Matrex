@@ -5,10 +5,6 @@
 Move_Generator::Move_Generator(const Chess_Board& cb)
     : m_chess_board(cb), m_enpassantable_checker(false) {}
 
-void Move_Generator::set_chess_board(const Chess_Board& cb) {
-  m_chess_board = cb;
-}
-
 // Function: generate_check_mask
 // Purpose: Creates a "check mask" bitboard used during move generation.
 //          - If no check: all moves are legal (mask = all 1's).

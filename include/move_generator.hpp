@@ -17,12 +17,10 @@ class Move_Generator {
  public:
   Move_Generator(const Chess_Board& cb);
 
-  void set_chess_board(const Chess_Board& cb);
-
   void generate_all_moves(Chess_Move_List& output);
 
  private:
-  Chess_Board m_chess_board;
+  const Chess_Board& m_chess_board;
 
   bool m_enpassantable_checker;
 
