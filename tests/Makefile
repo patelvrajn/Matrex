@@ -34,8 +34,6 @@ CXXFLAGS = \
 	        -Wextra \
 	        -Wpedantic \
 		      -fpie \
-		      -fsanitize=leak,address,undefined \
-					-fno-omit-frame-pointer \
 	        -pie \
 		      -I ../include \
 		      -I /usr/local/include/gtest/
