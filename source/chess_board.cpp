@@ -185,82 +185,18 @@ void Chess_Board::pretty_print() const {
 
 std::pair<PIECE_COLOR, PIECES> Chess_Board::what_piece_is_on_square(
     const Square& s) const {
-  uint8_t white_value =
-      ((1 + PIECES::PAWN) *
-       ((m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::PAWN] >> s.get_index())
-            .get_board() &
-        1)) +
-      ((1 + PIECES::KNIGHT) *
-       ((m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::KNIGHT] >> s.get_index())
-            .get_board() &
-        1)) +
-      ((1 + PIECES::BISHOP) *
-       ((m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::BISHOP] >> s.get_index())
-            .get_board() &
-        1)) +
-      ((1 + PIECES::ROOK) *
-       ((m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::ROOK] >> s.get_index())
-            .get_board() &
-        1)) +
-      ((1 + PIECES::QUEEN) *
-       ((m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::QUEEN] >> s.get_index())
-            .get_board() &
-        1)) +
-      ((1 + PIECES::KING) *
-       ((m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::KING] >> s.get_index())
-            .get_board() &
-        1));
+  const Bitboard square_bb = Bitboard(s.get_mask());
 
-  PIECES white_piece =
-      (PIECES)(((PIECES)((white_value - 1) * (white_value != 0))) +
-               (PIECES::NO_PIECE * (white_value == 0)));
+  for (uint8_t color; color <= PIECE_COLOR::BLACK; color++) {
+    for (uint8_t piece; piece <= PIECES::KING; piece++) {
+      if ((get_piece_occupancies((PIECE_COLOR)color, (PIECES)piece) &
+           square_bb) != 0) {
+        return {(PIECE_COLOR)color, (PIECES)piece};
+      }
+    }
+  }
 
-  uint8_t black_value =
-      ((1 + PIECES::PAWN) *
-       ((m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::PAWN] >> s.get_index())
-            .get_board() &
-        1)) +
-      ((1 + PIECES::KNIGHT) *
-       ((m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KNIGHT] >> s.get_index())
-            .get_board() &
-        1)) +
-      ((1 + PIECES::BISHOP) *
-       ((m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::BISHOP] >> s.get_index())
-            .get_board() &
-        1)) +
-      ((1 + PIECES::ROOK) *
-       ((m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::ROOK] >> s.get_index())
-            .get_board() &
-        1)) +
-      ((1 + PIECES::QUEEN) *
-       ((m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::QUEEN] >> s.get_index())
-            .get_board() &
-        1)) +
-      ((1 + PIECES::KING) *
-       ((m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KING] >> s.get_index())
-            .get_board() &
-        1));
-
-  PIECES black_piece =
-      (PIECES)(((PIECES)((black_value - 1) * (black_value != 0))) +
-               (PIECES::NO_PIECE * (black_value == 0)));
-
-  PIECE_COLOR return_color =
-      (PIECE_COLOR)((PIECE_COLOR::NO_COLOR *
-                     ((black_piece == NO_PIECE) &
-                      (white_piece == NO_PIECE))) +  // If no pieces are on the
-                                                     // square, return no color.
-                    (PIECE_COLOR::BLACK *
-                     (black_piece !=
-                      NO_PIECE)));  // If there is a black piece, return black.
-                                    // Otherwise, return white.
-
-  PIECES return_piece =
-      (PIECES)((PIECES::NO_PIECE * (return_color == NO_COLOR)) +
-               (white_piece * (return_color == PIECE_COLOR::WHITE)) +
-               (black_piece * (return_color == PIECE_COLOR::BLACK)));
-
-  return {return_color, return_piece};
+  return {PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE};
 }
 
 Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move) {
