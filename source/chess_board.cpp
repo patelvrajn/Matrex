@@ -187,8 +187,8 @@ std::pair<PIECE_COLOR, PIECES> Chess_Board::what_piece_is_on_square(
     const Square& s) const {
   const Bitboard square_bb = Bitboard(s.get_mask());
 
-  for (uint8_t color; color <= PIECE_COLOR::BLACK; color++) {
-    for (uint8_t piece; piece <= PIECES::KING; piece++) {
+  for (uint8_t color = 0; color <= PIECE_COLOR::BLACK; color++) {
+    for (uint8_t piece = 0; piece <= PIECES::KING; piece++) {
       if ((get_piece_occupancies((PIECE_COLOR)color, (PIECES)piece) &
            square_bb) != 0) {
         return {(PIECE_COLOR)color, (PIECES)piece};
