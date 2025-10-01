@@ -70,16 +70,16 @@ class Bitboard {
  private:
   uint64_t m_board;
 
-  static bool m_are_masks_initialized;
-
   static std::array<std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
                     NUM_OF_SQUARES_ON_CHESS_BOARD>
       m_between_squares_masks;
 
-  uint64_t generate_between_squares_mask(const Square& a,
-                                         const Square& b) const;
+  static uint64_t generate_between_squares_mask(const Square& a,
+                                                const Square& b);
 
-  void init_between_squares_masks();
+  static std::array<std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
+                    NUM_OF_SQUARES_ON_CHESS_BOARD>
+  init_between_squares_masks();
 
   static std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> m_rank_masks;
   static std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> m_file_masks;
@@ -87,15 +87,15 @@ class Bitboard {
   static std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
       m_antidiagonal_masks;
 
-  void init_geometry_masks();
+  static std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_rank_masks();
+  static std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_file_masks();
+  static std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
+  init_diagonal_masks();
+  static std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
+  init_antidiagonal_masks();
 };
 
-inline Bitboard::Bitboard(uint64_t board) : m_board(board) {
-  if (!m_are_masks_initialized) {
-    init_geometry_masks();
-    init_between_squares_masks();
-  }
-}
+inline Bitboard::Bitboard(uint64_t board) : m_board(board) {}
 
 inline bool Bitboard::operator==(const Bitboard& other) const {
   return (this->m_board == other.m_board);
