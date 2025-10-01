@@ -22,8 +22,6 @@ PROJECT_NAME = matrex
 CXX      = g++
 CXXFLAGS = \
 		      -g \
-			    --coverage \
-			    -fprofile-abs-path \
 		      -std=c++23 \
 		      -pthread \
 	        -O3 \
