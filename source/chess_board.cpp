@@ -223,15 +223,61 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move) {
     m_state.enpassant_square = ESQUARE::NO_SQUARE;
   }
 
-  if (move.is_short_castling || move.is_long_castling) {
-    // Castling rights are removed when the king moves.
+  // If either side castles or moves their king, the respective side loses all
+  // castling rights.
+  if ((move.is_short_castling || move.is_long_castling) ||
+      (move.moving_piece == PIECES::KING)) {
     if (m_state.side_to_move == PIECE_COLOR::WHITE) {
-      m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::B_KINGSIDE |
-                                   CASTLING_RIGHTS_FLAGS::B_QUEENSIDE);
-    } else {
       m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::W_KINGSIDE |
                                    CASTLING_RIGHTS_FLAGS::W_QUEENSIDE);
+    } else {
+      m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::B_KINGSIDE |
+                                   CASTLING_RIGHTS_FLAGS::B_QUEENSIDE);
     }
+  }
+
+  // If white moves their A1 rook or it is captured by black, white loses
+  // queenside castling rights.
+  if (((m_state.side_to_move == PIECE_COLOR::WHITE) &&
+       (move.moving_piece == PIECES::ROOK) &&
+       (move.source_square == ESQUARE::A1)) ||
+      ((m_state.side_to_move == PIECE_COLOR::BLACK) &&
+       (move.captured_piece == PIECES::ROOK) &&
+       (move.destination_square == ESQUARE::A1))) {
+    m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::W_QUEENSIDE);
+  }
+
+  // If white moves their H1 rook or it is captured by black, white loses
+  // kingside castling rights.
+  if (((m_state.side_to_move == PIECE_COLOR::WHITE) &&
+       (move.moving_piece == PIECES::ROOK) &&
+       (move.source_square == ESQUARE::H1)) ||
+      ((m_state.side_to_move == PIECE_COLOR::BLACK) &&
+       (move.captured_piece == PIECES::ROOK) &&
+       (move.destination_square == ESQUARE::H1))) {
+    m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::W_KINGSIDE);
+  }
+
+  // If black moves their A8 rook or it is captured by white, black loses
+  // queenside castling rights.
+  if (((m_state.side_to_move == PIECE_COLOR::BLACK) &&
+       (move.moving_piece == PIECES::ROOK) &&
+       (move.source_square == ESQUARE::A8)) ||
+      ((m_state.side_to_move == PIECE_COLOR::WHITE) &&
+       (move.captured_piece == PIECES::ROOK) &&
+       (move.destination_square == ESQUARE::A8))) {
+    m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::B_QUEENSIDE);
+  }
+
+  // If black moves their H8 rook or it is captured by white, black loses
+  // kingside castling rights.
+  if (((m_state.side_to_move == PIECE_COLOR::BLACK) &&
+       (move.moving_piece == PIECES::ROOK) &&
+       (move.source_square == ESQUARE::H8)) ||
+      ((m_state.side_to_move == PIECE_COLOR::WHITE) &&
+       (move.captured_piece == PIECES::ROOK) &&
+       (move.destination_square == ESQUARE::H8))) {
+    m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::B_KINGSIDE);
   }
 
   m_state.side_to_move = (PIECE_COLOR)((~m_state.side_to_move) & 0x1);
