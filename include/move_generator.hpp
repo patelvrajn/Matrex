@@ -321,7 +321,7 @@ inline void Move_Generator::generate_en_passant_captures(
                 PIECES::NO_PIECE,  // Yes we capture a PIECES::PAWN but this
                                    // becomes a hinderance when writing the
                                    // calculate next board state function.
-            .is_capture = true,
+            .is_capture = false,   // Same hindereance here as explained above.
             .is_short_castling = false,
             .is_long_castling = false,
             .castling_rook_source_square = ESQUARE::NO_SQUARE,

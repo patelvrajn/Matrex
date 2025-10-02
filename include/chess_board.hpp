@@ -85,11 +85,56 @@ class Chess_Board {
   void place_pieces_from_fen(const std::string& rank_description,
                              uint8_t length_of_description, uint8_t rank);
 
-  void calculate_next_board_state(
-      PIECE_COLOR moving_side, PIECES moving_piece, Square source_square,
-      Square target_square,
-      std::pair<PIECE_COLOR, PIECES> who_is_on_target_square,
-      PIECES promotion_piece, bool is_en_passant,
-      Square en_passant_captured_pawn_square, bool is_castling,
-      Square rook_source_square, Square rook_target_square);
+  inline void calculate_next_board_state(PIECE_COLOR moving_side,
+                                         const Chess_Move& move);
 };
+
+inline void Chess_Board::calculate_next_board_state(PIECE_COLOR moving_side,
+                                                    const Chess_Move& move) {
+  const PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
+  const Bitboard src_mask = Square(move.source_square).get_mask();
+  const Bitboard dst_mask = Square(move.destination_square).get_mask();
+
+  // Handle captured piece.
+  if (move.is_capture) {
+    m_piece_bitboards[opposing_side][move.captured_piece] ^= dst_mask;
+    m_color_occupancy_bitboards[opposing_side] ^= dst_mask;
+  }
+
+  // Handle En Passant.
+  if (move.is_en_passant) {
+    const Bitboard en_passant_mask =
+        Square(move.en_passant_victim_square).get_mask();
+    m_piece_bitboards[opposing_side][PIECES::PAWN] ^= en_passant_mask;
+    m_color_occupancy_bitboards[opposing_side] ^= en_passant_mask;
+  }
+
+  // Moving piece source square
+  m_piece_bitboards[moving_side][move.moving_piece] ^= src_mask;
+  m_color_occupancy_bitboards[moving_side] ^= src_mask;
+
+  // Moving piece target square if not a pawn promotion
+  if (!move.is_promotion) {
+    m_piece_bitboards[moving_side][move.moving_piece] ^= dst_mask;
+    m_color_occupancy_bitboards[moving_side] ^= dst_mask;
+  }
+  // Moving piece target square if there is a promotion
+  else {
+    m_piece_bitboards[moving_side][move.promoted_piece] ^= dst_mask;
+    m_color_occupancy_bitboards[moving_side] ^= dst_mask;
+  }
+
+  // Handle rook movement if castling
+  if (move.is_short_castling || move.is_long_castling) {
+    const Bitboard rook_src_mask =
+        Square(move.castling_rook_source_square).get_mask();
+    const Bitboard rook_dst_mask =
+        Square(move.castling_rook_destination_square).get_mask();
+
+    m_piece_bitboards[moving_side][PIECES::ROOK] ^= rook_src_mask;
+    m_piece_bitboards[moving_side][PIECES::ROOK] ^= rook_dst_mask;
+
+    m_color_occupancy_bitboards[moving_side] ^= rook_src_mask;
+    m_color_occupancy_bitboards[moving_side] ^= rook_dst_mask;
+  }
+}
