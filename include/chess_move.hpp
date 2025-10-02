@@ -40,7 +40,7 @@ struct Chess_Move {
               << "\tis_double_pawn_push: " << is_double_pawn_push << "\n"
               << "\tis_en_passant: " << is_en_passant << "\n"
               << "\tEn Passsant Victim Square: "
-              << SQUARE_STRINGS[castling_rook_destination_square] << "\n"
+              << SQUARE_STRINGS[en_passant_victim_square] << "\n"
               << "\tis_promotion: " << is_promotion << std::endl;
   }
 
