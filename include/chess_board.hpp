@@ -13,11 +13,17 @@ enum CASTLING_RIGHTS_FLAGS {
   B_QUEENSIDE = 8
 };
 
+struct Castling_Rooks {
+  Square queenside;
+  Square kingside;
+};
+
 struct chess_board_state {
   PIECE_COLOR side_to_move : 2;  // Needs 2 bits because of NO_COLOR
   ESQUARE enpassant_square : 7;  // Needs 7 bits because of NO_SQUARE
   uint8_t castling_rights : 4;
   uint8_t half_move_clock : 6;  // Doesn't go past 50 so 6 bits.
+  std::array<Castling_Rooks, NUM_OF_PLAYERS> castling_rooks;
   uint64_t full_move_count;
 
   bool operator==(const chess_board_state& other) const {
