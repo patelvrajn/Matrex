@@ -363,19 +363,51 @@ void Chess_Board::set_from_fen(const std::string& fen) {
 
   // Loop through castling characters (KQkq), set appropriate flags
   for (uint8_t idx = 0; idx < castling_rights_length; idx++) {
-    switch (castling_rights[idx]) {
-      case 'K':
-        m_state.castling_rights |= CASTLING_RIGHTS_FLAGS::W_KINGSIDE;
-        break;
-      case 'Q':
-        m_state.castling_rights |= CASTLING_RIGHTS_FLAGS::W_QUEENSIDE;
-        break;
-      case 'k':
-        m_state.castling_rights |= CASTLING_RIGHTS_FLAGS::B_KINGSIDE;
-        break;
-      case 'q':
-        m_state.castling_rights |= CASTLING_RIGHTS_FLAGS::B_QUEENSIDE;
-        break;
+    if ((castling_rights[idx] >= 'A') && (castling_rights[idx] <= 'H')) {
+      const uint8_t rook_file = castling_rights[idx] - 'A';
+
+      if (rook_file < get_king_square(PIECE_COLOR::WHITE).get_file()) {
+        m_state.castling_rooks[PIECE_COLOR::WHITE].queenside =
+            Square(0, rook_file);
+      } else {
+        m_state.castling_rooks[PIECE_COLOR::WHITE].kingside =
+            Square(0, rook_file);
+      }
+
+    } else if ((castling_rights[idx] >= 'a') && (castling_rights[idx] <= 'h')) {
+      const uint8_t rook_file = castling_rights[idx] - 'a';
+
+      if (rook_file < get_king_square(PIECE_COLOR::BLACK).get_file()) {
+        m_state.castling_rooks[PIECE_COLOR::BLACK].queenside =
+            Square((NUM_OF_RANKS_ON_CHESS_BOARD - 1), rook_file);
+      } else {
+        m_state.castling_rooks[PIECE_COLOR::BLACK].kingside =
+            Square((NUM_OF_RANKS_ON_CHESS_BOARD - 1), rook_file);
+      }
+
+    } else {
+      switch (castling_rights[idx]) {
+        case 'K':
+          m_state.castling_rights |= CASTLING_RIGHTS_FLAGS::W_KINGSIDE;
+          m_state.castling_rooks[PIECE_COLOR::WHITE].kingside =
+              Square(ESQUARE::H1);
+          break;
+        case 'Q':
+          m_state.castling_rights |= CASTLING_RIGHTS_FLAGS::W_QUEENSIDE;
+          m_state.castling_rooks[PIECE_COLOR::WHITE].queenside =
+              Square(ESQUARE::A1);
+          break;
+        case 'k':
+          m_state.castling_rights |= CASTLING_RIGHTS_FLAGS::B_KINGSIDE;
+          m_state.castling_rooks[PIECE_COLOR::BLACK].kingside =
+              Square(ESQUARE::H8);
+          break;
+        case 'q':
+          m_state.castling_rights |= CASTLING_RIGHTS_FLAGS::B_QUEENSIDE;
+          m_state.castling_rooks[PIECE_COLOR::BLACK].queenside =
+              Square(ESQUARE::A8);
+          break;
+      }
     }
   }
 
