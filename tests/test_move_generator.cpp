@@ -55,8 +55,8 @@ TEST(move_generator_tests, perft_test_suite) {
           std::stoull(leaf_node_count_string);
 
       Timer t;
-      uint64_t perft_count = perft(cb, perft_depth);
-      uint64_t time_taken = t.stop();
+      const uint64_t perft_count = perft(cb, perft_depth);
+      const uint64_t time_taken = t.stop();
 
       EXPECT_EQ(perft_count, perft_leaf_node_count);
 
