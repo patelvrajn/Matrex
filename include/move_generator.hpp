@@ -8,10 +8,16 @@ const Bitboard FIRST_RANK(18374686479671623680ULL);
 const Bitboard SECOND_RANK(71776119061217280ULL);
 const Bitboard SEVENTH_RANK(65280ULL);
 const Bitboard EIGHTH_RANK(255ULL);
-const Bitboard WHITE_SHORT_CASTLE_SQUARES(6917529027641081856ULL);
-const Bitboard WHITE_LONG_CASTLE_SQUARES(1008806316530991104ULL);
-const Bitboard BLACK_SHORT_CASTLE_SQUARES(96ULL);
-const Bitboard BLACK_LONG_CASTLE_SQUARES(14ULL);
+
+const std::array<std::array<Square, NUM_OF_CASTLING_TYPES>, NUM_OF_PLAYERS>
+    CASTLING_KING_DESTINATION_SQUARES = {
+        {{Square(ESQUARE::G1), Square(ESQUARE::C1)},
+         {Square(ESQUARE::G8), Square(ESQUARE::C8)}}};
+
+const std::array<std::array<Square, NUM_OF_CASTLING_TYPES>, NUM_OF_PLAYERS>
+    CASTLING_ROOK_DESTINATION_SQUARES = {
+        {{Square(ESQUARE::F1), Square(ESQUARE::D1)},
+         {Square(ESQUARE::F8), Square(ESQUARE::D8)}}};
 
 class Move_Generator {
  public:
@@ -26,6 +32,7 @@ class Move_Generator {
 
   Bitboard generate_check_mask();
   Bitboard generate_pinned() const;
+  bool is_pinned(const Bitboard& pinned, const Square& source_square) const;
   Bitboard get_pin_mask(const Bitboard& pinned,
                         const Square& source_square) const;
   Bitboard attackers_to_square(const Square& s,
@@ -86,11 +93,9 @@ class Move_Generator {
   template <PIECE_COLOR moving_side>
   inline void generate_king_moves(Chess_Move_List& output);
 
-  inline void generate_white_short_castle_move(Chess_Move_List& output);
-  inline void generate_white_long_castle_move(Chess_Move_List& output);
-
-  inline void generate_black_short_castle_move(Chess_Move_List& output);
-  inline void generate_black_long_castle_move(Chess_Move_List& output);
+  template <PIECE_COLOR moving_side, CASTLING_TYPE castle_type>
+  inline void generate_castling_moves(const Bitboard& pinned,
+                                      Chess_Move_List& output);
 };
 
 inline void Move_Generator::generate_pawn_promotions(
@@ -518,170 +523,119 @@ inline void Move_Generator::generate_king_moves(Chess_Move_List& output) {
   }
 }
 
-inline void Move_Generator::generate_white_short_castle_move(
-    Chess_Move_List& output) {
-  const Bitboard black_occupancies =
-      m_chess_board.get_color_occupancies(PIECE_COLOR::BLACK);
+// A generalized function to generate legal castling moves in both standard
+// chess and Fischer Random chess.
+template <PIECE_COLOR moving_side, CASTLING_TYPE castle_type>
+inline void Move_Generator::generate_castling_moves(const Bitboard& pinned,
+                                                    Chess_Move_List& output) {
+  bool has_castling_rights;
 
-  const Square king_square = m_chess_board.get_king_square(PIECE_COLOR::WHITE);
-
-  const bool are_white_short_castle_squares_empty = {
-      ((~m_chess_board.get_both_color_occupancies()) &
-       WHITE_SHORT_CASTLE_SQUARES) == WHITE_SHORT_CASTLE_SQUARES};
-  const bool is_f1_square_safe =
-      ((attackers_to_square(Square(ESQUARE::F1)) & black_occupancies)
-           .get_board() == 0);
-  const bool is_g1_square_safe =
-      ((attackers_to_square(Square(ESQUARE::G1)) & black_occupancies)
-           .get_board() == 0);
-  const bool are_white_short_castle_squares_safe =
-      is_f1_square_safe && is_g1_square_safe;
-  const bool is_white_king_not_in_check =
-      ((attackers_to_square(king_square) & black_occupancies).get_board() == 0);
-  if (m_chess_board.does_white_have_short_castle_rights() &&
-      are_white_short_castle_squares_empty &&
-      are_white_short_castle_squares_safe && is_white_king_not_in_check) {
-    const Chess_Move move = {.source_square = ESQUARE::E1,
-                             .destination_square = ESQUARE::G1,
-                             .moving_piece = PIECES::KING,
-                             .promoted_piece = PIECES::NO_PIECE,
-                             .captured_piece = PIECES::NO_PIECE,
-                             .is_capture = false,
-                             .is_short_castling = true,
-                             .is_long_castling = false,
-                             .castling_rook_source_square = ESQUARE::H1,
-                             .castling_rook_destination_square = ESQUARE::F1,
-                             .is_double_pawn_push = false,
-                             .is_en_passant = false,
-                             .en_passant_victim_square = ESQUARE::NO_SQUARE,
-                             .is_promotion = false};
-
-    output.append(move);
+  if constexpr ((moving_side == PIECE_COLOR::WHITE) &&
+                (castle_type == CASTLING_TYPE::KINGSIDE)) {
+    has_castling_rights = m_chess_board.does_white_have_short_castle_rights();
+  } else if constexpr ((moving_side == PIECE_COLOR::WHITE) &&
+                       (castle_type == CASTLING_TYPE::QUEENSIDE)) {
+    has_castling_rights = m_chess_board.does_white_have_long_castle_rights();
+  } else if constexpr ((moving_side == PIECE_COLOR::BLACK) &&
+                       (castle_type == CASTLING_TYPE::KINGSIDE)) {
+    has_castling_rights = m_chess_board.does_black_have_short_castle_rights();
+  } else if constexpr ((moving_side == PIECE_COLOR::BLACK) &&
+                       (castle_type == CASTLING_TYPE::QUEENSIDE)) {
+    has_castling_rights = m_chess_board.does_black_have_long_castle_rights();
   }
-}
 
-inline void Move_Generator::generate_white_long_castle_move(
-    Chess_Move_List& output) {
-  const Bitboard black_occupancies =
-      m_chess_board.get_color_occupancies(PIECE_COLOR::BLACK);
+  if (has_castling_rights) {
+    constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
 
-  const Square king_square = m_chess_board.get_king_square(PIECE_COLOR::WHITE);
+    const Bitboard enemy_occupancies =
+        m_chess_board.get_color_occupancies(opposing_side);
 
-  const bool are_white_long_castle_squares_empty =
-      (((~m_chess_board.get_both_color_occupancies()) &
-        WHITE_LONG_CASTLE_SQUARES) == WHITE_LONG_CASTLE_SQUARES);
-  const bool is_c1_square_safe =
-      ((attackers_to_square(Square(ESQUARE::C1)) & black_occupancies)
-           .get_board() == 0);
-  const bool is_d1_square_safe =
-      ((attackers_to_square(Square(ESQUARE::D1)) & black_occupancies)
-           .get_board() == 0);
-  const bool are_white_long_castle_squares_safe =
-      is_c1_square_safe && is_d1_square_safe;
-  const bool is_white_king_not_in_check =
-      ((attackers_to_square(king_square) & black_occupancies).get_board() == 0);
-  if (m_chess_board.does_white_have_long_castle_rights() &&
-      are_white_long_castle_squares_empty &&
-      are_white_long_castle_squares_safe && is_white_king_not_in_check) {
-    const Chess_Move move = {.source_square = ESQUARE::E1,
-                             .destination_square = ESQUARE::C1,
-                             .moving_piece = PIECES::KING,
-                             .promoted_piece = PIECES::NO_PIECE,
-                             .captured_piece = PIECES::NO_PIECE,
-                             .is_capture = false,
-                             .is_short_castling = false,
-                             .is_long_castling = true,
-                             .castling_rook_source_square = ESQUARE::A1,
-                             .castling_rook_destination_square = ESQUARE::D1,
-                             .is_double_pawn_push = false,
-                             .is_en_passant = false,
-                             .en_passant_victim_square = ESQUARE::NO_SQUARE,
-                             .is_promotion = false};
+    const Bitboard both_occupancies =
+        m_chess_board.get_both_color_occupancies();
 
-    output.append(move);
-  }
-}
+    const Square king_source_square =
+        m_chess_board.get_king_square(moving_side);
 
-inline void Move_Generator::generate_black_short_castle_move(
-    Chess_Move_List& output) {
-  const Bitboard white_occupancies =
-      m_chess_board.get_color_occupancies(PIECE_COLOR::WHITE);
+    const Square rook_source_square =
+        m_chess_board.get_castling_rook_source_square(moving_side, castle_type);
 
-  const Square king_square = m_chess_board.get_king_square(PIECE_COLOR::BLACK);
+    // Are squares between the moving side's king's source square to destination
+    // square (excluding source square, including destination square, excluding
+    // the rook's (the rook being castled with) square) empty? Also, if the
+    // destination square is the same as the source square ensure this is
+    // counted as an empty square thus, we use the following XOR trick:
+    // (both_occupancies ^ king_source_square.get_mask()).
+    const Square king_destination_square =
+        CASTLING_KING_DESTINATION_SQUARES[moving_side][castle_type];
 
-  const bool are_black_short_castle_squares_empty = {
-      ((~m_chess_board.get_both_color_occupancies()) &
-       BLACK_SHORT_CASTLE_SQUARES) == BLACK_SHORT_CASTLE_SQUARES};
-  const bool is_f8_square_safe =
-      ((attackers_to_square(Square(ESQUARE::F8)) & white_occupancies)
-           .get_board() == 0);
-  const bool is_g8_square_safe =
-      ((attackers_to_square(Square(ESQUARE::G8)) & white_occupancies)
-           .get_board() == 0);
-  const bool are_black_short_castle_squares_safe =
-      is_f8_square_safe && is_g8_square_safe;
-  const bool is_black_king_not_in_check =
-      ((attackers_to_square(king_square) & white_occupancies).get_board() == 0);
-  if (m_chess_board.does_black_have_short_castle_rights() &&
-      are_black_short_castle_squares_empty &&
-      are_black_short_castle_squares_safe && is_black_king_not_in_check) {
-    const Chess_Move move = {.source_square = ESQUARE::E8,
-                             .destination_square = ESQUARE::G8,
-                             .moving_piece = PIECES::KING,
-                             .promoted_piece = PIECES::NO_PIECE,
-                             .captured_piece = PIECES::NO_PIECE,
-                             .is_capture = false,
-                             .is_short_castling = true,
-                             .is_long_castling = false,
-                             .castling_rook_source_square = ESQUARE::H8,
-                             .castling_rook_destination_square = ESQUARE::F8,
-                             .is_double_pawn_push = false,
-                             .is_en_passant = false,
-                             .en_passant_victim_square = ESQUARE::NO_SQUARE,
-                             .is_promotion = false};
+    const Bitboard king_should_be_empty_squares =
+        ((Bitboard::get_between_squares_mask(king_source_square,
+                                             king_destination_square) |
+          king_destination_square.get_mask()) &
+         (~rook_source_square.get_mask()));
 
-    output.append(move);
-  }
-}
+    bool is_king_squares_empty =
+        ((king_should_be_empty_squares &
+          (both_occupancies ^ king_source_square.get_mask())) == 0);
 
-inline void Move_Generator::generate_black_long_castle_move(
-    Chess_Move_List& output) {
-  const Bitboard white_occupancies =
-      m_chess_board.get_color_occupancies(PIECE_COLOR::WHITE);
+    // Are squares between the moving side's rook's (the rook being castled
+    // with) source square to destination square (excluding source square,
+    // including destination square, excluding the moving side's king's square)
+    // empty? Just like with the king, ensure that if the destination square and
+    // source square are the same then it counts an empty square, a similar XOR
+    // trick is used here. Additionally, in Fischer Random Chess it is possible
+    // to pin a castling rook to the friendly king in this case, castling is not
+    // allowed.
+    const Square rook_destination_square =
+        CASTLING_ROOK_DESTINATION_SQUARES[moving_side][castle_type];
 
-  const Square king_square = m_chess_board.get_king_square(PIECE_COLOR::BLACK);
+    const Bitboard rook_should_be_empty_squares =
+        ((Bitboard::get_between_squares_mask(rook_source_square,
+                                             rook_destination_square) |
+          rook_destination_square.get_mask()) &
+         (~king_source_square.get_mask()));
 
-  const bool are_black_long_castle_squares_empty =
-      (((~m_chess_board.get_both_color_occupancies()) &
-        BLACK_LONG_CASTLE_SQUARES) == BLACK_LONG_CASTLE_SQUARES);
-  const bool is_c8_square_safe =
-      ((attackers_to_square(Square(ESQUARE::C8)) & white_occupancies)
-           .get_board() == 0);
-  const bool is_d8_square_safe =
-      ((attackers_to_square(Square(ESQUARE::D8)) & white_occupancies)
-           .get_board() == 0);
-  const bool are_black_long_castle_squares_safe =
-      is_c8_square_safe && is_d8_square_safe;
-  const bool is_black_king_not_in_check =
-      ((attackers_to_square(king_square) & white_occupancies).get_board() == 0);
-  if (m_chess_board.does_black_have_long_castle_rights() &&
-      are_black_long_castle_squares_empty &&
-      are_black_long_castle_squares_safe && is_black_king_not_in_check) {
-    const Chess_Move move = {.source_square = ESQUARE::E8,
-                             .destination_square = ESQUARE::C8,
-                             .moving_piece = PIECES::KING,
-                             .promoted_piece = PIECES::NO_PIECE,
-                             .captured_piece = PIECES::NO_PIECE,
-                             .is_capture = false,
-                             .is_short_castling = false,
-                             .is_long_castling = true,
-                             .castling_rook_source_square = ESQUARE::A8,
-                             .castling_rook_destination_square = ESQUARE::D8,
-                             .is_double_pawn_push = false,
-                             .is_en_passant = false,
-                             .en_passant_victim_square = ESQUARE::NO_SQUARE,
-                             .is_promotion = false};
+    bool is_rook_squares_empty =
+        ((rook_should_be_empty_squares &
+          (both_occupancies ^ rook_source_square.get_mask())) == 0);
 
-    output.append(move);
+    bool is_rook_pinned = is_pinned(pinned, rook_source_square);
+
+    // Is the path from the king's source square to destination square
+    // (including source & destination square) not attacked?
+    const Bitboard king_should_be_not_attacked_squares =
+        Bitboard::get_between_squares_mask(king_source_square,
+                                           king_destination_square) |
+        king_source_square.get_mask() | king_destination_square.get_mask();
+
+    bool is_king_safe = true;
+    for (const Square& s : king_should_be_not_attacked_squares) {
+      const bool is_square_safe =
+          ((attackers_to_square(s) & enemy_occupancies).get_board() == 0);
+      is_king_safe = (is_king_safe && is_square_safe);
+    }
+
+    if (is_king_squares_empty && is_rook_squares_empty && is_king_safe &&
+        (!is_rook_pinned)) {
+      const Chess_Move move = {
+          .source_square = (ESQUARE)king_source_square.get_index(),
+          .destination_square = (ESQUARE)king_destination_square.get_index(),
+          .moving_piece = PIECES::KING,
+          .promoted_piece = PIECES::NO_PIECE,
+          .captured_piece = PIECES::NO_PIECE,
+          .is_capture = false,
+          .is_short_castling = (castle_type == CASTLING_TYPE::KINGSIDE),
+          .is_long_castling = (castle_type == CASTLING_TYPE::QUEENSIDE),
+          .castling_rook_source_square =
+              (ESQUARE)rook_source_square.get_index(),
+          .castling_rook_destination_square =
+              (ESQUARE)rook_destination_square.get_index(),
+          .is_double_pawn_push = false,
+          .is_en_passant = false,
+          .en_passant_victim_square = ESQUARE::NO_SQUARE,
+          .is_promotion = false};
+
+      output.append(move);
+    }
   }
 }

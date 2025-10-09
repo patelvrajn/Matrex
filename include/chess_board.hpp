@@ -6,6 +6,10 @@
 #include "chess_move.hpp"
 #include "globals.hpp"
 
+constexpr uint8_t NUM_OF_CASTLING_TYPES = 2;
+
+enum CASTLING_TYPE { KINGSIDE, QUEENSIDE };
+
 enum CASTLING_RIGHTS_FLAGS {
   W_KINGSIDE = 1,
   W_QUEENSIDE = 2,
@@ -73,6 +77,9 @@ class Chess_Board {
   bool does_black_have_short_castle_rights() const;
 
   bool does_black_have_long_castle_rights() const;
+
+  Square get_castling_rook_source_square(PIECE_COLOR color,
+                                         CASTLING_TYPE castle_type) const;
 
   Undo_Chess_Move make_move(const Chess_Move& move);
 

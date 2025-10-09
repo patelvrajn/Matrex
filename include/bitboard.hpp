@@ -42,7 +42,7 @@ class Bitboard {
   int8_t get_index_of_high_lsb() const;
   int8_t get_index_of_high_msb() const;
 
-  uint64_t get_between_squares_mask(const Square& a, const Square& b) const;
+  static Bitboard get_between_squares_mask(const Square& a, const Square& b);
 
   static Bitboard get_rank_mask(const Square& s);
   static Bitboard get_file_mask(const Square& s);

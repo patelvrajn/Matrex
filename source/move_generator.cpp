@@ -180,6 +180,11 @@ Bitboard Move_Generator::generate_pinned() const {
   return pinned;
 }
 
+bool Move_Generator::is_pinned(const Bitboard& pinned,
+                               const Square& source_square) const {
+  return ((pinned & Bitboard(source_square.get_mask())).get_board() != 0);
+}
+
 Bitboard Move_Generator::get_pin_mask(const Bitboard& pinned,
                                       const Square& source_square) const {
   // Get which side is moving
@@ -187,10 +192,7 @@ Bitboard Move_Generator::get_pin_mask(const Bitboard& pinned,
 
   const Square our_king_square = m_chess_board.get_king_square(our_side);
 
-  bool is_pinned =
-      ((pinned & Bitboard(source_square.get_mask())).get_board() != 0);
-
-  if (is_pinned) {
+  if (is_pinned(pinned, source_square)) {
     return Bitboard::get_infinite_ray(our_king_square, source_square);
   } else {
     return Bitboard((uint64_t)-1);
@@ -421,8 +423,10 @@ void Move_Generator::generate_all_moves(Chess_Move_List& output) {
     generate_minor_and_major_piece_moves<PIECE_COLOR::WHITE, PIECES::QUEEN>(
         pinned, check_mask, output);
     generate_king_moves<PIECE_COLOR::WHITE>(output);
-    generate_white_short_castle_move(output);
-    generate_white_long_castle_move(output);
+    generate_castling_moves<PIECE_COLOR::WHITE, CASTLING_TYPE::KINGSIDE>(
+        pinned, output);
+    generate_castling_moves<PIECE_COLOR::WHITE, CASTLING_TYPE::QUEENSIDE>(
+        pinned, output);
   } else {
     generate_single_push_promotion_pawn_moves<PIECE_COLOR::BLACK>(
         pinned, check_mask, output);
@@ -445,7 +449,9 @@ void Move_Generator::generate_all_moves(Chess_Move_List& output) {
     generate_minor_and_major_piece_moves<PIECE_COLOR::BLACK, PIECES::QUEEN>(
         pinned, check_mask, output);
     generate_king_moves<PIECE_COLOR::BLACK>(output);
-    generate_black_short_castle_move(output);
-    generate_black_long_castle_move(output);
+    generate_castling_moves<PIECE_COLOR::BLACK, CASTLING_TYPE::KINGSIDE>(
+        pinned, output);
+    generate_castling_moves<PIECE_COLOR::BLACK, CASTLING_TYPE::QUEENSIDE>(
+        pinned, output);
   }
 }

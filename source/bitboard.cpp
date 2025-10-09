@@ -135,9 +135,8 @@ int8_t Bitboard::get_index_of_high_msb() const {
   return ((NUM_OF_SQUARES_ON_CHESS_BOARD - 1) - std::countl_zero(m_board));
 }
 
-uint64_t Bitboard::get_between_squares_mask(const Square& a,
-                                            const Square& b) const {
-  return m_between_squares_masks[a.get_index()][b.get_index()];
+Bitboard Bitboard::get_between_squares_mask(const Square& a, const Square& b) {
+  return Bitboard(m_between_squares_masks[a.get_index()][b.get_index()]);
 }
 
 uint64_t Bitboard::generate_between_squares_mask(const Square& a,
