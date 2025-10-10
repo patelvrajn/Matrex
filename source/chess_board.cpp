@@ -216,6 +216,16 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move) {
 
   calculate_next_board_state(m_state.side_to_move, move);
 
+  if ((move.moving_piece == PIECES::PAWN) || (move.is_capture)) {
+    m_state.half_move_clock = 0;
+  } else {
+    m_state.half_move_clock = m_state.half_move_clock + 1;
+  }
+
+  if (m_state.side_to_move == PIECE_COLOR::BLACK) {
+    m_state.full_move_count = m_state.full_move_count + 1;
+  }
+
   if (move.is_double_pawn_push) {
     if (m_state.side_to_move == PIECE_COLOR::WHITE) {
       m_state.enpassant_square = ESQUARE(move.destination_square + 8);
@@ -312,6 +322,10 @@ void Chess_Board::undo_move(Undo_Chess_Move undo_move) {
   PIECE_COLOR opposing_side = (PIECE_COLOR)((~m_state.side_to_move) & 0x1);
 
   calculate_next_board_state(opposing_side, undo_move.move);
+
+  if (opposing_side == PIECE_COLOR::BLACK) {
+    m_state.full_move_count = m_state.full_move_count - 1;
+  }
 
   m_state.side_to_move = opposing_side;
 }
