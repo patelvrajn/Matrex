@@ -26,7 +26,7 @@ uint64_t perft(Chess_Board& board, uint64_t depth) {
   return nodes;
 }
 
-uint64_t divide_perft(Chess_Board& board, uint64_t depth) {
+uint64_t divide_perft(Chess_Board& board, uint64_t depth, bool is_frc) {
   Move_Generator mg(board);
   Chess_Move_List moves;
   mg.generate_all_moves(moves);
@@ -39,28 +39,8 @@ uint64_t divide_perft(Chess_Board& board, uint64_t depth) {
     uint64_t child_nodes = perft(board, (depth - 1));
     nodes += child_nodes;
 
-    std::string promotion_string = "";
-
-    switch (move.promoted_piece) {
-      case (PIECES::KNIGHT):
-        promotion_string = "n";
-        break;
-      case (PIECES::BISHOP):
-        promotion_string = "b";
-        break;
-      case (PIECES::ROOK):
-        promotion_string = "r";
-        break;
-      case (PIECES::QUEEN):
-        promotion_string = "q";
-        break;
-      default:
-        promotion_string = "";
-    }
-
-    std::cout << SQUARE_STRINGS[move.source_square]
-              << SQUARE_STRINGS[move.destination_square] << promotion_string
-              << " - " << child_nodes << std::endl;
+    std::cout << move.to_coordinate_notation(is_frc) << " - " << child_nodes
+              << std::endl;
 
     board.undo_move(undo);
   }

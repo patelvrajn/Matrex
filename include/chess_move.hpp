@@ -24,6 +24,38 @@ struct Chess_Move {
   ESQUARE en_passant_victim_square : 7;
   bool is_promotion : 1;
 
+  std::string to_coordinate_notation(bool is_frc) const {
+    std::string source_square_str = SQUARE_STRINGS[source_square];
+    std::string destination_square_str = "";
+
+    if ((is_short_castling || is_long_castling) && is_frc) {
+      destination_square_str = SQUARE_STRINGS[castling_rook_source_square];
+    } else {
+      destination_square_str = SQUARE_STRINGS[destination_square];
+    }
+
+    std::string promotion_string = "";
+
+    switch (promoted_piece) {
+      case (PIECES::KNIGHT):
+        promotion_string = "n";
+        break;
+      case (PIECES::BISHOP):
+        promotion_string = "b";
+        break;
+      case (PIECES::ROOK):
+        promotion_string = "r";
+        break;
+      case (PIECES::QUEEN):
+        promotion_string = "q";
+        break;
+      default:
+        promotion_string = "";
+    }
+
+    return (source_square_str + destination_square_str + promotion_string);
+  }
+
   void pretty_print() const {
     std::cout << "Move (" << SQUARE_STRINGS[source_square] << " to "
               << SQUARE_STRINGS[destination_square] << "):" << std::endl;
@@ -78,6 +110,10 @@ class Chess_Move_List {
 
   const Chess_Move* begin() const;
   const Chess_Move* end() const;
+
+  const Chess_Move* find(Chess_Move move) const;
+
+  uint16_t get_max_index() const;
 
  private:
   uint16_t m_max_index;
