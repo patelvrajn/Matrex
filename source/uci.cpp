@@ -115,9 +115,6 @@ void UCI::handle_go(const std::string& arguments) {
         std::stoull(subcommand_first_argument_str);
   }
 
-  // fastchess wants an info score... statement - not part of specification.
-  // Placeholder 0 score statement until an actual search and evaluate is
-  // implemented.
   std::cout << "info score cp 0" << std::endl;
 
   std::cout << "bestmove "
