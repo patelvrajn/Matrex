@@ -1,1 +1,1 @@
-fastchess -rounds 50000 -repeat -sprt elo0=0 elo1=5 alpha=0.01 beta=0.01 model=bayesian -variant standard -each tc=5+1 -engine cmd=./source/matrex_base name=base -engine cmd=./source/matrex_altered name=altered -pgnout file=san -recover
+fastchess -rounds 50000 -repeat -sprt elo0=0 elo1=10 alpha=0.01 beta=0.01 model=bayesian -variant standard -each tc=5+1 -engine cmd=./source/matrex_base name=base -engine cmd=./source/matrex_altered name=altered -pgnout file=san -recover
