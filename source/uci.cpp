@@ -35,6 +35,8 @@ void UCI::loop() {
     HANDLE_COMMAND(uci)
     HANDLE_COMMAND(ucinewgame)
     HANDLE_COMMAND(isready)
+
+#undef HANDLE_COMMAND
   }
 }
 
@@ -115,10 +117,14 @@ void UCI::handle_go(const std::string& arguments) {
         std::stoull(subcommand_first_argument_str);
   }
 
-  std::cout << "info score cp 0" << std::endl;
+  Search_Engine search(m_chess_board);
+  Search_Engine_Result search_result =
+      search.negamax(5);  // Fixed depth for now...
+
+  std::cout << "info score cp " << search_result.second.to_int() << std::endl;
 
   std::cout << "bestmove "
-            << random_legal_move(m_chess_board).to_coordinate_notation(m_is_frc)
+            << search_result.first.to_coordinate_notation(m_is_frc)
             << std::endl;
 }
 

@@ -12,3 +12,7 @@ const Chess_Move* Chess_Move_List::find(Chess_Move move) const {
 }
 
 uint16_t Chess_Move_List::get_max_index() const { return m_max_index; }
+
+Chess_Move& Chess_Move_List::operator[](uint16_t index) {
+  return m_list[index];
+}
