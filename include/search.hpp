@@ -1,7 +1,10 @@
 #pragma once
 
+#include <deque>
+
 #include "chess_board.hpp"
 #include "chess_move.hpp"
+#include "move_generator.hpp"
 #include "score.hpp"
 
 typedef std::pair<Chess_Move, Score> Search_Engine_Result;
@@ -41,4 +44,65 @@ class Search_Engine {
 
  private:
   Chess_Board m_chess_board;
+
+  inline void leaf_node_treatment(std::deque<Game_Tree_Node>* nodes, Score s,
+                                  double& current_depth, double parent,
+                                  GAME_TREE_SEARCH_DIRECTION& search_direction);
+  template <double DEPTH_FLOOR>
+  inline Score get_mate_score(const Move_Generator& mg, double current_depth);
 };
+
+template <double DEPTH_FLOOR>
+inline Score Search_Engine::get_mate_score(const Move_Generator& mg,
+                                           double current_depth) {
+  Score mate_score;
+
+  // The side to move is in check and has no legal moves means they are in a
+  // losing mating net specifically a checkmate at this depth.
+  if (mg.is_side_to_move_in_check()) {
+    mate_score = Score::from_int((double)ESCORE::LOSING_MATE_MIN +
+                                 (current_depth - DEPTH_FLOOR));
+  } else {
+    mate_score = Score::from_int((double)ESCORE::DRAW);  // Stalemate.
+  }
+
+  return mate_score;
+}
+
+inline void Search_Engine::leaf_node_treatment(
+    std::deque<Game_Tree_Node>* nodes, Score s, double& current_depth,
+    double parent, GAME_TREE_SEARCH_DIRECTION& search_direction) {
+  // Negate the given score it in order to compare and equate it against the
+  // parent's scores.
+  Score leaf_score = -s;
+
+#define NODES_DEQUE (*nodes)
+#define PARENT_NODE NODES_DEQUE[parent]
+#define CHILD_NODE NODES_DEQUE[current_depth + 1]
+#define CURRENT_NODE NODES_DEQUE[current_depth]
+
+  // Update parent's best score and best move.
+  if (leaf_score > PARENT_NODE.best_score) {
+    PARENT_NODE.best_score = leaf_score;
+    uint16_t move_index = PARENT_NODE.current_child_index;
+    PARENT_NODE.best_move = PARENT_NODE.children[move_index];
+  }
+
+  // Since every level of the game tree is always from the maximizer's POV in
+  // negamax alpha is always updated (like in minimax where the maximizer
+  // updates alpha) to the maximum value. Beta updates implicitly because we
+  // swap alpha and beta every level.
+  if (PARENT_NODE.alpha < leaf_score) {
+    PARENT_NODE.alpha = leaf_score;
+  }
+
+  // Go up from the leaf node, undoing its move first, and continue depth-first.
+  m_chess_board.undo_move(CURRENT_NODE.undo_move);
+  search_direction = UP;
+  current_depth = parent;
+
+#undef NODES_DEQUE
+#undef PARENT_NODE
+#undef CHILD_NODE
+#undef CURRENT_NODE
+}

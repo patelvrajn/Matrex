@@ -37,6 +37,18 @@ Score Score::from_int(int16_t i) {
 
   const uint16_t abs_i = std::abs(i);
 
+  if (i == ESCORE::NEGATIVE_INFINITY) {
+    return_score.m_fields.value = abs_i;
+    return_score.m_fields.mate = 0;
+    return return_score;
+  }
+
+  if (i == ESCORE::POSITIVE_INFINITY) {
+    return_score.m_fields.value = abs_i;
+    return_score.m_fields.mate = 0;
+    return return_score;
+  }
+
   if (abs_i >= ESCORE::WINNING_MATE_MIN) {  // Mating evaluation.
 
     return_score.m_fields.mate = 1;

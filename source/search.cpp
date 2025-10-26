@@ -1,9 +1,6 @@
 #include "search.hpp"
 
-#include <deque>
-
 #include "evaluate.hpp"
-#include "move_generator.hpp"
 
 Search_Engine::Search_Engine(const Chess_Board& cb) { m_chess_board = cb; }
 
@@ -48,12 +45,22 @@ Search_Engine_Result Search_Engine::negamax(double target_depth) {
     // We only reach the down state if we have reached an unexplored node in the
     // game tree.
     if (search_direction == DOWN) {
+      // Generate all moves in the current position.
+      Move_Generator mg(m_chess_board);
+      Chess_Move_List moves;
+      mg.generate_all_moves(moves);
+
       // We are at a node that is a parent.
-      if ((current_depth - 1) < target_depth) {
-        // Generate all moves in the current position.
-        Move_Generator mg(m_chess_board);
-        Chess_Move_List moves;
-        mg.generate_all_moves(moves);
+      if ((current_depth - DEPTH_FLOOR) < target_depth) {
+        // We have reached a node with no legal moves for the current side to
+        // play. It is either checkmate or stalemate. Treat this node as a leaf
+        // node.
+        if (moves.get_max_index() == 0) {
+          Score s = get_mate_score<DEPTH_FLOOR>(mg, current_depth);
+          leaf_node_treatment(nodes, s, current_depth, parent,
+                              search_direction);
+          continue;
+        }
 
         // Initialize this parent's attributes.
         CURRENT_NODE.children = moves;
@@ -76,31 +83,20 @@ Search_Engine_Result Search_Engine::negamax(double target_depth) {
 
         // Reached a leaf node.
       } else {
-        // Evaluate the leaf node's chess board and negate it in order to
-        // compare and equate it against the parent's scores.
-        Evaluator e(m_chess_board);
-        Score leaf_score = -e.evaluate();
+        Score leaf_score;
 
-        // Update parent's best score and best move.
-        if (leaf_score > PARENT_NODE.best_score) {
-          PARENT_NODE.best_score = leaf_score;
-          uint16_t move_index = PARENT_NODE.current_child_index;
-          PARENT_NODE.best_move = PARENT_NODE.children[move_index];
+        // We have reached a node with no legal moves for the current side to
+        // play. It is either checkmate or stalemate.
+        if (moves.get_max_index() == 0) {
+          leaf_score = get_mate_score<DEPTH_FLOOR>(mg, current_depth);
+          // Not a checkmate or a stalemate, evaluate the leaf node normally.
+        } else {
+          Evaluator e(m_chess_board);
+          leaf_score = e.evaluate();
         }
 
-        // Since every level of the game tree is always from the maximizer's POV
-        // in negamax alpha is always updated (like in minimax where the
-        // maximizer updates alpha) to the maximum value. Beta updates
-        // implicitly because we swap alpha and beta every level.
-        if (PARENT_NODE.alpha < leaf_score) {
-          PARENT_NODE.alpha = leaf_score;
-        }
-
-        // Go up from the leaf node, undoing its move first, and continue
-        // depth-first.
-        m_chess_board.undo_move(CURRENT_NODE.undo_move);
-        search_direction = UP;
-        current_depth = parent;
+        leaf_node_treatment(nodes, leaf_score, current_depth, parent,
+                            search_direction);
       }
     } else if (search_direction == UP) {
       // When alpha is greater than or equal to beta, a beta cutoff (fail-high)

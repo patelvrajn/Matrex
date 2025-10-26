@@ -11,14 +11,18 @@
 // Sign is Negative && Mating Bit Unset = Friendly player has disadvantage
 // (value > 0) or is drawing (value = 0).
 
+constexpr int16_t MAXIMUM_PLYS_TO_MATE = 128;
+
 enum ESCORE : int16_t {
+  NEGATIVE_INFINITY = -8191,  // -(2^13 - 1); Evaluation should never be this.
+  LOSING_MATE_MIN = NEGATIVE_INFINITY + 1,
+  LOSING_MATE_MAX = LOSING_MATE_MIN + MAXIMUM_PLYS_TO_MATE,
+  EVALUATION_MIN = LOSING_MATE_MAX + 1,  // Non-mating minimum evaluation
   DRAW = 0,
-  NEGATIVE_INFINITY = -8191,  // -(2^13 - 1)
-  POSITIVE_INFINITY = 8191,   // +(2^13 - 1)
-  WINNING_MATE_MIN = 16383,   // ((2^13 - 1) * 2) + 1
-  WINNING_MATE_MAX = 32767,   // MAX(int16)
-  LOSING_MATE_MAX = -16383,   // ((-(2^13 - 1)) * 2) - 1
-  LOSING_MATE_MIN = -32768,   // MIN(int16)
+  POSITIVE_INFINITY = -NEGATIVE_INFINITY,  // Evaluation should never be this.
+  WINNING_MATE_MAX = POSITIVE_INFINITY - 1,
+  WINNING_MATE_MIN = WINNING_MATE_MAX - MAXIMUM_PLYS_TO_MATE,
+  EVALUATION_MAX = WINNING_MATE_MIN - 1,  // Non-mating maximum evaluation
 };
 
 struct Score_Fields {
