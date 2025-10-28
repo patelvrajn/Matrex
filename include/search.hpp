@@ -7,6 +7,9 @@
 #include "move_generator.hpp"
 #include "score.hpp"
 
+// 5898.5 is the theoritical maximum number of moves (2-ply) in a chess game.
+constexpr uint16_t MAX_SEARCH_DEPTH = (5899 * NUM_OF_PLAYERS);
+
 typedef std::pair<Chess_Move, Score> Search_Engine_Result;
 
 enum GAME_TREE_SEARCH_DIRECTION { UP, DOWN };
@@ -40,38 +43,38 @@ class Search_Engine {
  public:
   Search_Engine(const Chess_Board& cb);
 
-  Search_Engine_Result negamax(double depth);
+  Search_Engine_Result negamax(uint16_t depth);
 
  private:
   Chess_Board m_chess_board;
 
   inline void leaf_node_treatment(std::deque<Game_Tree_Node>* nodes, Score s,
-                                  double& current_depth, double parent,
+                                  uint16_t& current_depth, uint16_t parent,
                                   GAME_TREE_SEARCH_DIRECTION& search_direction);
-  template <double DEPTH_FLOOR>
-  inline Score get_mate_score(const Move_Generator& mg, double current_depth);
+  template <uint16_t DEPTH_FLOOR>
+  inline Score get_mate_score(const Move_Generator& mg, uint16_t current_depth);
 };
 
-template <double DEPTH_FLOOR>
+template <uint16_t DEPTH_FLOOR>
 inline Score Search_Engine::get_mate_score(const Move_Generator& mg,
-                                           double current_depth) {
+                                           uint16_t current_depth) {
   Score mate_score;
 
   // The side to move is in check and has no legal moves means they are in a
   // losing mating net specifically a checkmate at this depth.
   if (mg.is_side_to_move_in_check()) {
-    mate_score = Score::from_int((double)ESCORE::LOSING_MATE_MIN +
+    mate_score = Score::from_int(ESCORE::LOSING_MATE_MIN +
                                  (current_depth - DEPTH_FLOOR));
   } else {
-    mate_score = Score::from_int((double)ESCORE::DRAW);  // Stalemate.
+    mate_score = Score::from_int(ESCORE::DRAW);  // Stalemate.
   }
 
   return mate_score;
 }
 
 inline void Search_Engine::leaf_node_treatment(
-    std::deque<Game_Tree_Node>* nodes, Score s, double& current_depth,
-    double parent, GAME_TREE_SEARCH_DIRECTION& search_direction) {
+    std::deque<Game_Tree_Node>* nodes, Score s, uint16_t& current_depth,
+    uint16_t parent, GAME_TREE_SEARCH_DIRECTION& search_direction) {
   // Negate the given score it in order to compare and equate it against the
   // parent's scores.
   Score leaf_score = -s;

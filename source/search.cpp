@@ -4,7 +4,7 @@
 
 Search_Engine::Search_Engine(const Chess_Board& cb) { m_chess_board = cb; }
 
-Search_Engine_Result Search_Engine::negamax(double target_depth) {
+Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
   // If the target depth is just the root node - only return an evaluation of
   // the chess board.
   if (target_depth == 0) {
@@ -26,11 +26,11 @@ Search_Engine_Result Search_Engine::negamax(double target_depth) {
   nodes->emplace_back();
 
   // Because we pushed the parent of depth 0 into nodes, start at depth 1.
-  constexpr double DEPTH_FLOOR = 1;
-  double current_depth = DEPTH_FLOOR;
+  constexpr uint16_t DEPTH_FLOOR = 1;
+  uint16_t current_depth = DEPTH_FLOOR;
 
   while (true) {
-    double parent = current_depth - 1;
+    uint16_t parent = current_depth - 1;
 
     // If nodes does not have node at the current depth, push a node.
     if (current_depth == nodes->size()) {
@@ -38,7 +38,7 @@ Search_Engine_Result Search_Engine::negamax(double target_depth) {
     }
 
     // If nodes does not have a child node at the current depth, push a node.
-    if ((current_depth + 1) == nodes->size()) {
+    if ((current_depth + 1) == ((uint16_t)nodes->size())) {
       nodes->emplace_back();
     }
 
