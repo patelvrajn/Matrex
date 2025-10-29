@@ -13,8 +13,31 @@ TEST(negamax, mating) {
     cb.set_from_fen(std::string(FENS[fen_idx]));
     Search_Engine search(cb);
     const uint16_t distance_to_mate = (NUM_OF_PLAYERS * (fen_idx + 1));
-    Search_Engine_Result search_result = search.negamax(distance_to_mate);
+    const Search_Engine_Result search_result = search.negamax(distance_to_mate);
     EXPECT_EQ(search_result.second.to_int(),
               (ESCORE::WINNING_MATE_MAX - (distance_to_mate - 1)));
   }
+}
+
+TEST(negamax, consistent_scoring) {
+  constexpr uint16_t SEARCH_DEPTH = 5;
+
+  Chess_Board cb;
+  cb.set_from_fen(
+      "r1bq1rk1/ppp2ppp/2n1p3/b2p4/3PnB2/P1N1P3/1PP2PPP/1K1RQBNR b - - 2 9");
+
+  Search_Engine first_search(cb);
+  const Search_Engine_Result first_search_result =
+      first_search.negamax(SEARCH_DEPTH);
+
+  cb.make_move(first_search_result.first);
+
+  Search_Engine second_search(cb);
+  const Search_Engine_Result second_search_result =
+      second_search.negamax(SEARCH_DEPTH - 1);
+
+  // The score from the first search made at depth D must be the negated score
+  // of a second search (made after making the best move) made at depth (D-1).
+  ASSERT_EQ(first_search_result.second.to_int(),
+            -second_search_result.second.to_int());
 }
