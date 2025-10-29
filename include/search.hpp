@@ -48,7 +48,7 @@ class Search_Engine {
  private:
   Chess_Board m_chess_board;
 
-  inline void leaf_node_treatment(std::deque<Game_Tree_Node>* nodes, Score s,
+  inline void leaf_node_treatment(Game_Tree_Node* nodes, Score s,
                                   uint16_t& current_depth, uint16_t parent,
                                   GAME_TREE_SEARCH_DIRECTION& search_direction);
   template <uint16_t DEPTH_FLOOR>
@@ -73,16 +73,15 @@ inline Score Search_Engine::get_mate_score(const Move_Generator& mg,
 }
 
 inline void Search_Engine::leaf_node_treatment(
-    std::deque<Game_Tree_Node>* nodes, Score s, uint16_t& current_depth,
-    uint16_t parent, GAME_TREE_SEARCH_DIRECTION& search_direction) {
+    Game_Tree_Node* nodes, Score s, uint16_t& current_depth, uint16_t parent,
+    GAME_TREE_SEARCH_DIRECTION& search_direction) {
   // Negate the given score it in order to compare and equate it against the
   // parent's scores.
   Score leaf_score = -s;
 
-#define NODES_DEQUE (*nodes)
-#define PARENT_NODE NODES_DEQUE[parent]
-#define CHILD_NODE NODES_DEQUE[current_depth + 1]
-#define CURRENT_NODE NODES_DEQUE[current_depth]
+#define PARENT_NODE nodes[parent]
+#define CHILD_NODE nodes[current_depth + 1]
+#define CURRENT_NODE nodes[current_depth]
 
   // Update parent's best score and best move.
   if (leaf_score > PARENT_NODE.best_score) {
@@ -104,7 +103,6 @@ inline void Search_Engine::leaf_node_treatment(
   search_direction = UP;
   current_depth = parent;
 
-#undef NODES_DEQUE
 #undef PARENT_NODE
 #undef CHILD_NODE
 #undef CURRENT_NODE

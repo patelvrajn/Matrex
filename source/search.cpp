@@ -14,33 +14,20 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
 
   GAME_TREE_SEARCH_DIRECTION search_direction = DOWN;
 
-  std::deque<Game_Tree_Node>* nodes = new std::deque<Game_Tree_Node>();
+  // Create a fixed sized array of size (target_depth + 1). The +1 because the
+  // first node, node[0] will act as the parent of the root of the game tree.
+  Game_Tree_Node* nodes = new Game_Tree_Node[(target_depth + 1)];
 
-#define NODES_DEQUE (*nodes)
-#define PARENT_NODE NODES_DEQUE[parent]
-#define CHILD_NODE NODES_DEQUE[current_depth + 1]
-#define CURRENT_NODE NODES_DEQUE[current_depth]
+#define PARENT_NODE nodes[parent]
+#define CHILD_NODE nodes[current_depth + 1]
+#define CURRENT_NODE nodes[current_depth]
 
-  // Push an initial node to be the parent of node at depth = 0. Note, now when
-  // indexing nodes the index is (depth + 1).
-  nodes->emplace_back();
-
-  // Because we pushed the parent of depth 0 into nodes, start at depth 1.
+  // Because we created the parent of the root as nodes[0], start at depth 1.
   constexpr uint16_t DEPTH_FLOOR = 1;
   uint16_t current_depth = DEPTH_FLOOR;
 
   while (true) {
     uint16_t parent = current_depth - 1;
-
-    // If nodes does not have node at the current depth, push a node.
-    if (current_depth == nodes->size()) {
-      nodes->emplace_back();
-    }
-
-    // If nodes does not have a child node at the current depth, push a node.
-    if ((current_depth + 1) == ((uint16_t)nodes->size())) {
-      nodes->emplace_back();
-    }
 
     // We only reach the down state if we have reached an unexplored node in the
     // game tree.
@@ -173,10 +160,8 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
     }
   }
 
-  return {NODES_DEQUE[DEPTH_FLOOR].best_move,
-          NODES_DEQUE[DEPTH_FLOOR].best_score};
+  return {nodes[DEPTH_FLOOR].best_move, nodes[DEPTH_FLOOR].best_score};
 
-#undef NODES_DEQUE
 #undef PARENT_NODE
 #undef CHILD_NODE
 #undef CURRENT_NODE
