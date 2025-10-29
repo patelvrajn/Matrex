@@ -1,34 +1,36 @@
+#pragma once
+
 #include <memory>
 
 #include "attacks.hpp"
 #include "chess_board.hpp"
 #include "chess_move.hpp"
 
-const Bitboard FIRST_RANK(18374686479671623680ULL);
-const Bitboard SECOND_RANK(71776119061217280ULL);
-const Bitboard SEVENTH_RANK(65280ULL);
-const Bitboard EIGHTH_RANK(255ULL);
+extern const Bitboard FIRST_RANK;
+extern const Bitboard SECOND_RANK;
+extern const Bitboard SEVENTH_RANK;
+extern const Bitboard EIGHTH_RANK;
 
-const std::array<std::array<Square, NUM_OF_CASTLING_TYPES>, NUM_OF_PLAYERS>
-    CASTLING_KING_DESTINATION_SQUARES = {
-        {{Square(ESQUARE::G1), Square(ESQUARE::C1)},
-         {Square(ESQUARE::G8), Square(ESQUARE::C8)}}};
+extern const std::array<std::array<Square, NUM_OF_CASTLING_TYPES>,
+                        NUM_OF_PLAYERS>
+    CASTLING_KING_DESTINATION_SQUARES;
 
-const std::array<std::array<Square, NUM_OF_CASTLING_TYPES>, NUM_OF_PLAYERS>
-    CASTLING_ROOK_DESTINATION_SQUARES = {
-        {{Square(ESQUARE::F1), Square(ESQUARE::D1)},
-         {Square(ESQUARE::F8), Square(ESQUARE::D8)}}};
+extern const std::array<std::array<Square, NUM_OF_CASTLING_TYPES>,
+                        NUM_OF_PLAYERS>
+    CASTLING_ROOK_DESTINATION_SQUARES;
 
 class Move_Generator {
  public:
   Move_Generator(const Chess_Board& cb);
 
   void generate_all_moves(Chess_Move_List& output);
+  bool is_side_to_move_in_check() const;
 
  private:
   const Chess_Board& m_chess_board;
 
   bool m_enpassantable_checker;
+  bool m_side_to_move_in_check;
 
   Bitboard generate_check_mask();
   Bitboard generate_pinned() const;

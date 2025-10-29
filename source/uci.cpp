@@ -35,14 +35,16 @@ void UCI::loop() {
     HANDLE_COMMAND(uci)
     HANDLE_COMMAND(ucinewgame)
     HANDLE_COMMAND(isready)
+
+#undef HANDLE_COMMAND
   }
 }
 
 void UCI::handle_position(const std::string& arguments) {
   const std::size_t first_space_idx = arguments.find_first_of(" ");
-  const std::string fen_or_startpos = arguments.substr(0, first_space_idx);
+  const std::string subcommand = arguments.substr(0, first_space_idx);
 
-  if (fen_or_startpos == "startpos") {
+  if (subcommand == "startpos") {
     m_chess_board.set_from_fen(std::string(START_POSITION_FEN));
 
     const std::size_t end_of_moves_keyword_index =
@@ -56,7 +58,7 @@ void UCI::handle_position(const std::string& arguments) {
     }
   }
 
-  if (fen_or_startpos == "fen") {
+  if (subcommand == "fen") {
     constexpr uint8_t SPACES_IN_A_FEN = 5;
 
     std::size_t fen_space_index =
@@ -92,6 +94,10 @@ void UCI::handle_position(const std::string& arguments) {
       make_moves_from_string(moves_str, m_is_frc);
     }
   }
+
+  if (subcommand == "print") {  // Not part of specification.
+    m_chess_board.pretty_print();
+  }
 }
 
 void UCI::handle_go(const std::string& arguments) {
@@ -115,10 +121,14 @@ void UCI::handle_go(const std::string& arguments) {
         std::stoull(subcommand_first_argument_str);
   }
 
-  std::cout << "info score cp 0" << std::endl;
+  Search_Engine search(m_chess_board);
+  Search_Engine_Result search_result =
+      search.negamax(5);  // Fixed depth for now...
+
+  std::cout << "info score cp " << search_result.second.to_int() << std::endl;
 
   std::cout << "bestmove "
-            << random_legal_move(m_chess_board).to_coordinate_notation(m_is_frc)
+            << search_result.first.to_coordinate_notation(m_is_frc)
             << std::endl;
 }
 

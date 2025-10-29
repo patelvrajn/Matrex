@@ -2,8 +2,25 @@
 
 #include <iostream>
 
+const Bitboard FIRST_RANK = Bitboard(18374686479671623680ULL);
+const Bitboard SECOND_RANK = Bitboard(71776119061217280ULL);
+const Bitboard SEVENTH_RANK = Bitboard(65280ULL);
+const Bitboard EIGHTH_RANK = Bitboard(255ULL);
+
+const std::array<std::array<Square, NUM_OF_CASTLING_TYPES>, NUM_OF_PLAYERS>
+    CASTLING_KING_DESTINATION_SQUARES = {
+        {{Square(ESQUARE::G1), Square(ESQUARE::C1)},
+         {Square(ESQUARE::G8), Square(ESQUARE::C8)}}};
+
+const std::array<std::array<Square, NUM_OF_CASTLING_TYPES>, NUM_OF_PLAYERS>
+    CASTLING_ROOK_DESTINATION_SQUARES = {
+        {{Square(ESQUARE::F1), Square(ESQUARE::D1)},
+         {Square(ESQUARE::F8), Square(ESQUARE::D8)}}};
+
 Move_Generator::Move_Generator(const Chess_Board& cb)
-    : m_chess_board(cb), m_enpassantable_checker(false) {}
+    : m_chess_board(cb),
+      m_enpassantable_checker(false),
+      m_side_to_move_in_check(false) {}
 
 // Function: generate_check_mask
 // Purpose: Creates a "check mask" bitboard used during move generation.
@@ -68,6 +85,9 @@ Bitboard Move_Generator::generate_check_mask() {
   // return a mask of all 1s (~0ULL), meaning all moves are legal.
   if (checkers == Bitboard(0)) {
     return Bitboard(~0ULL);
+  } else {
+    // Checkers is not empty, side to move is in check.
+    m_side_to_move_in_check = true;
   }
 
   // --- Case 2: Double check detection ---
@@ -106,6 +126,10 @@ Bitboard Move_Generator::generate_check_mask() {
   return (Bitboard(checkers.get_between_squares_mask(our_king_square,
                                                      checker_square)) |
           checkers);
+}
+
+bool Move_Generator::is_side_to_move_in_check() const {
+  return m_side_to_move_in_check;
 }
 
 Bitboard Move_Generator::generate_pinned() const {

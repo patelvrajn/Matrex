@@ -115,6 +115,8 @@ class Chess_Move_List {
 
   uint16_t get_max_index() const;
 
+  Chess_Move& operator[](uint16_t index);
+
  private:
   uint16_t m_max_index;
   std::array<Chess_Move, MAXIMUM_NUM_OF_MOVES_IN_A_POSITION> m_list;
