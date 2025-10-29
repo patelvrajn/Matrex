@@ -2,7 +2,7 @@
 
 Evaluator::Evaluator(const Chess_Board& cb) : m_chess_board(cb) {}
 
-Score Evaluator::evaluate() {
+Score Evaluator::evaluate() const {
   PIECE_COLOR moving_side = m_chess_board.get_side_to_move();
 
   if (moving_side == PIECE_COLOR::WHITE) {

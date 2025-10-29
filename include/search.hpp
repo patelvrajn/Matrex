@@ -77,7 +77,7 @@ inline void Search_Engine::leaf_node_treatment(
     GAME_TREE_SEARCH_DIRECTION& search_direction) {
   // Negate the given score it in order to compare and equate it against the
   // parent's scores.
-  Score leaf_score = -s;
+  const Score leaf_score = -s;
 
 #define PARENT_NODE nodes[parent]
 #define CHILD_NODE nodes[current_depth + 1]
@@ -86,7 +86,7 @@ inline void Search_Engine::leaf_node_treatment(
   // Update parent's best score and best move.
   if (leaf_score > PARENT_NODE.best_score) {
     PARENT_NODE.best_score = leaf_score;
-    uint16_t move_index = PARENT_NODE.current_child_index;
+    const uint16_t move_index = PARENT_NODE.current_child_index;
     PARENT_NODE.best_move = PARENT_NODE.children[move_index];
   }
 

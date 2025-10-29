@@ -9,17 +9,17 @@ class Evaluator {
  public:
   Evaluator(const Chess_Board& cb);
 
-  Score evaluate();
+  Score evaluate() const;
 
   template <PIECE_COLOR moving_side>
-  inline Score material_score();
+  inline Score material_score() const;
 
  private:
   const Chess_Board& m_chess_board;
 };
 
 template <PIECE_COLOR moving_side>
-inline Score Evaluator::material_score() {
+inline Score Evaluator::material_score() const {
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
 
   Score return_value;

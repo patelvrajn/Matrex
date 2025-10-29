@@ -8,7 +8,7 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
   // If the target depth is just the root node - only return an evaluation of
   // the chess board.
   if (target_depth == 0) {
-    Evaluator e(m_chess_board);
+    const Evaluator e(m_chess_board);
     return {Chess_Move(), e.evaluate()};
   }
 
@@ -43,7 +43,7 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
         // play. It is either checkmate or stalemate. Treat this node as a leaf
         // node.
         if (moves.get_max_index() == 0) {
-          Score s = get_mate_score<DEPTH_FLOOR>(mg, current_depth);
+          const Score s = get_mate_score<DEPTH_FLOOR>(mg, current_depth);
           leaf_node_treatment(nodes, s, current_depth, parent,
                               search_direction);
           continue;
@@ -63,7 +63,7 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
         // Make the first child's move, storing the undo move structure in the
         // child node for any time we go back up a level in the game tree from
         // the child, and keep going down until we reach a leaf (depth-first).
-        uint16_t move_index = CURRENT_NODE.current_child_index;
+        const uint16_t move_index = CURRENT_NODE.current_child_index;
         CHILD_NODE.undo_move =
             m_chess_board.make_move(CURRENT_NODE.children[move_index]);
         current_depth = current_depth + 1;
@@ -78,7 +78,7 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
           leaf_score = get_mate_score<DEPTH_FLOOR>(mg, current_depth);
           // Not a checkmate or a stalemate, evaluate the leaf node normally.
         } else {
-          Evaluator e(m_chess_board);
+          const Evaluator e(m_chess_board);
           leaf_score = e.evaluate();
         }
 
@@ -125,12 +125,12 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
       if (CURRENT_NODE.out_of_moves()) {
         // Get the best score for this node and negate it in order to compare
         // and equate it against the parent's scores.
-        Score best_score = -CURRENT_NODE.best_score;
+        const Score best_score = -CURRENT_NODE.best_score;
 
         // Update the best score of the parent based on this child's best score.
         if (best_score > PARENT_NODE.best_score) {
           PARENT_NODE.best_score = best_score;
-          uint16_t move_index = PARENT_NODE.current_child_index;
+          const uint16_t move_index = PARENT_NODE.current_child_index;
           PARENT_NODE.best_move = PARENT_NODE.children[move_index];
         }
 
@@ -153,7 +153,7 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
 
       // Else, look at other children of this parent and move down to that
       // child.
-      Chess_Move next_move = CURRENT_NODE.get_next_move();
+      const Chess_Move next_move = CURRENT_NODE.get_next_move();
       CHILD_NODE.undo_move = m_chess_board.make_move(next_move);
       search_direction = DOWN;
       current_depth = current_depth + 1;
