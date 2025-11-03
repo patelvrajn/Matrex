@@ -123,7 +123,7 @@ void UCI::handle_go(const std::string& arguments) {
 
   Search_Engine search(m_chess_board);
   Search_Engine_Result search_result =
-      search.negamax(5);  // Fixed depth for now...
+      search.negamax(7);  // Fixed depth for now...
 
   std::cout << "info score cp " << search_result.second.to_int() << std::endl;
 

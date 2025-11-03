@@ -5,6 +5,7 @@
 #include "chess_board.hpp"
 #include "chess_move.hpp"
 #include "move_generator.hpp"
+#include "move_ordering.hpp"
 #include "score.hpp"
 
 // 5898.5 is the theoritical maximum number of moves (2-ply) in a chess game.
@@ -47,22 +48,23 @@ class Search_Engine {
 
  private:
   Chess_Board m_chess_board;
+  uint64_t m_num_of_nodes_searched;
 
   inline void leaf_node_treatment(Game_Tree_Node* nodes, Score s,
                                   uint16_t& current_depth, uint16_t parent,
                                   GAME_TREE_SEARCH_DIRECTION& search_direction);
   template <uint16_t DEPTH_FLOOR>
-  inline Score get_mate_score(const Move_Generator& mg, uint16_t current_depth);
+  inline Score get_mate_score(const Move_Ordering& mo, uint16_t current_depth);
 };
 
 template <uint16_t DEPTH_FLOOR>
-inline Score Search_Engine::get_mate_score(const Move_Generator& mg,
+inline Score Search_Engine::get_mate_score(const Move_Ordering& mo,
                                            uint16_t current_depth) {
   Score mate_score;
 
   // The side to move is in check and has no legal moves means they are in a
   // losing mating net specifically a checkmate at this depth.
-  if (mg.is_side_to_move_in_check()) {
+  if (mo.is_side_to_move_in_check()) {
     mate_score = Score::from_int(ESCORE::LOSING_MATE_MIN +
                                  (current_depth - DEPTH_FLOOR));
   } else {

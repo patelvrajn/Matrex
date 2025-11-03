@@ -2,7 +2,8 @@
 
 #include "evaluate.hpp"
 
-Search_Engine::Search_Engine(const Chess_Board& cb) { m_chess_board = cb; }
+Search_Engine::Search_Engine(const Chess_Board& cb)
+    : m_chess_board(cb), m_num_of_nodes_searched(0) {}
 
 Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
   // If the target depth is just the root node - only return an evaluation of
@@ -32,10 +33,12 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
     // We only reach the down state if we have reached an unexplored node in the
     // game tree.
     if (search_direction == DOWN) {
-      // Generate all moves in the current position.
-      Move_Generator mg(m_chess_board);
-      Chess_Move_List moves;
-      mg.generate_all_moves(moves);
+      // Count the number of nodes searched.
+      m_num_of_nodes_searched++;
+
+      // Generate all sorted moves in the current position.
+      Move_Ordering mo(m_chess_board);
+      Chess_Move_List moves = mo.get_sorted_moves();
 
       // We are at a node that is a parent.
       if ((current_depth - DEPTH_FLOOR) < target_depth) {
@@ -43,7 +46,7 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
         // play. It is either checkmate or stalemate. Treat this node as a leaf
         // node.
         if (moves.get_max_index() == 0) {
-          const Score s = get_mate_score<DEPTH_FLOOR>(mg, current_depth);
+          const Score s = get_mate_score<DEPTH_FLOOR>(mo, current_depth);
           leaf_node_treatment(nodes, s, current_depth, parent,
                               search_direction);
           continue;
@@ -75,7 +78,7 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
         // We have reached a node with no legal moves for the current side to
         // play. It is either checkmate or stalemate.
         if (moves.get_max_index() == 0) {
-          leaf_score = get_mate_score<DEPTH_FLOOR>(mg, current_depth);
+          leaf_score = get_mate_score<DEPTH_FLOOR>(mo, current_depth);
           // Not a checkmate or a stalemate, evaluate the leaf node normally.
         } else {
           const Evaluator e(m_chess_board);
