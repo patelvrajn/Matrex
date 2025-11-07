@@ -2,7 +2,14 @@
 
 #include "evaluate.hpp"
 
-Search_Engine::Search_Engine(const Chess_Board& cb) { m_chess_board = cb; }
+Search_Engine::Search_Engine(const Chess_Board& cb,
+                             const Search_Constraints& constraints)
+    : m_chess_board(cb),
+      m_constraints(constraints),
+      m_my_side(cb.get_side_to_move()),
+      m_timer_expired_during_search(false) {}
+
+Search_Engine_Result Search_Engine::search() { return iterative_deepening(); }
 
 Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
   // If the target depth is just the root node - only return an evaluation of
@@ -27,11 +34,22 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
   uint16_t current_depth = DEPTH_FLOOR;
 
   while (true) {
+    m_timer_expired_during_search = m_timer.is_search_time_expired(
+        m_constraints.time_controls[m_my_side].time_remaining,
+        m_constraints.time_controls[m_my_side].increment);
+
     uint16_t parent = current_depth - 1;
 
     // We only reach the down state if we have reached an unexplored node in the
     // game tree.
     if (search_direction == DOWN) {
+      // Time is up, do not do anything - just go back up the tree which will
+      // propagate the best score so far back up the tree.
+      if (m_timer_expired_during_search) {
+        search_direction = UP;
+        continue;
+      }
+
       // Generate all moves in the current position.
       Move_Generator mg(m_chess_board);
       Chess_Move_List moves;
@@ -121,8 +139,14 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
         continue;
       }
 
-      // This parent does not have anymore children to process.
-      if (CURRENT_NODE.out_of_moves()) {
+      // This parent does not have anymore children to process or we are out of
+      // time and can't process anymore children.
+      if (CURRENT_NODE.out_of_moves() || m_timer_expired_during_search) {
+        // If the depth as reached the root, search is done.
+        if (current_depth <= DEPTH_FLOOR) {
+          break;
+        }
+
         // Get the best score for this node and negate it in order to compare
         // and equate it against the parent's scores.
         const Score best_score = -CURRENT_NODE.best_score;
@@ -140,12 +164,8 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
           PARENT_NODE.alpha = best_score;
         }
 
-        // If the depth as reached the root, search is done otherwise, continue
-        // up the tree looking for branches that haven't been evaluated in
-        // depth-first order.
-        if (current_depth <= DEPTH_FLOOR) {
-          break;
-        }
+        // Continue up the tree looking for branches that haven't been evaluated
+        // in depth-first order.
         m_chess_board.undo_move(CURRENT_NODE.undo_move);
         current_depth = parent;
         continue;
@@ -165,4 +185,26 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
 #undef PARENT_NODE
 #undef CHILD_NODE
 #undef CURRENT_NODE
+}
+
+Search_Engine_Result Search_Engine::iterative_deepening() {
+  // Declare the best search result obtained.
+  Search_Engine_Result best;
+
+  // Iteratively increment the negamax search depth and start the search timer.
+  m_timer.start();
+  for (uint16_t current_depth = 1; current_depth < MAX_SEARCH_DEPTH;
+       current_depth++) {
+    Search_Engine_Result result = negamax(current_depth);
+    // Only update best search result if the timer didn't expire during the
+    // search. Otherwise, time has expired, break out of iterative deepening
+    // loop.
+    if (!m_timer_expired_during_search) {
+      best = result;
+    } else {
+      break;
+    }
+  }
+
+  return best;
 }

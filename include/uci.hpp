@@ -3,11 +3,7 @@
 #include <string>
 
 #include "chess_board.hpp"
-
-struct Time_Control {
-  uint64_t time_remaining;
-  uint64_t increment;
-};
+#include "search.hpp"
 
 class UCI {
  public:
@@ -20,7 +16,7 @@ class UCI {
 
   bool m_is_frc;
 
-  std::array<Time_Control, NUM_OF_PLAYERS> m_time_controls;
+  Search_Constraints m_search_constraints;
 
   // UCI commands
   void handle_position(const std::string& arguments);
