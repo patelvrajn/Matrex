@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "chess_board.hpp"
 #include "search.hpp"
@@ -28,4 +29,6 @@ class UCI {
 
   // Helpers
   void make_moves_from_string(const std::string& moves_str, bool is_frc);
+  std::unique_ptr<std::vector<std::string>> split_string(
+      std::string s, const std::string& delimiter);
 };
