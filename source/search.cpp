@@ -51,6 +51,7 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
       // Time is up, do not do anything - just go back up the tree which will
       // propagate the best score so far back up the tree.
       if (m_timer_expired_during_search) {
+        current_depth = parent;
         search_direction = UP;
         continue;
       }
