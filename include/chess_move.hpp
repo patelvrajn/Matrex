@@ -77,7 +77,8 @@ struct Chess_Move {
               << "\tis_en_passant: " << is_en_passant << "\n"
               << "\tEn Passsant Victim Square: "
               << SQUARE_STRINGS[en_passant_victim_square] << "\n"
-              << "\tis_promotion: " << is_promotion << std::endl;
+              << "\tis_promotion: " << is_promotion << "\n"
+              << "\tScore: " << score << std::endl;
   }
 
   bool is_same_move(const Chess_Move& m) const {
