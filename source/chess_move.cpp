@@ -17,7 +17,5 @@ Chess_Move& Chess_Move_List::operator[](uint16_t index) {
 
 // Sort moves according to their score in non-ascending order.
 void Chess_Move_List::sort() {
-  std::stable_sort(begin(), end(), [](Chess_Move a, Chess_Move b) {
-    return a.score > b.score;
-  });
+  std::stable_sort(begin(), end(), std::greater<Chess_Move>());
 }
