@@ -58,11 +58,6 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
       // Count the number of nodes searched.
       m_num_of_nodes_searched++;
 
-      // Generate all moves in the current position.
-      Move_Generator mg(m_chess_board);
-      Chess_Move_List moves;
-      mg.generate_all_moves(moves);
-
       // Generate all sorted moves in the current position.
       Move_Ordering mo(m_chess_board);
       Chess_Move_List moves = mo.get_sorted_moves();
