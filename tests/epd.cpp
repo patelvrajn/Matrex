@@ -58,7 +58,7 @@ void epd_perft_test(std::string filepath) {
 
       Timer t;
       const uint64_t perft_count = perft(cb, perft_depth);
-      const uint64_t time_taken = t.stop();
+      const uint64_t time_taken = t.elapsed();
 
       ASSERT_EQ(perft_count, expected_perft_count);
 
