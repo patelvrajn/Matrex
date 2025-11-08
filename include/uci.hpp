@@ -1,13 +1,10 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "chess_board.hpp"
-
-struct Time_Control {
-  uint64_t time_remaining;
-  uint64_t increment;
-};
+#include "search.hpp"
 
 class UCI {
  public:
@@ -20,7 +17,7 @@ class UCI {
 
   bool m_is_frc;
 
-  std::array<Time_Control, NUM_OF_PLAYERS> m_time_controls;
+  Search_Constraints m_search_constraints;
 
   // UCI commands
   void handle_position(const std::string& arguments);
@@ -32,4 +29,6 @@ class UCI {
 
   // Helpers
   void make_moves_from_string(const std::string& moves_str, bool is_frc);
+  std::unique_ptr<std::vector<std::string>> split_string(
+      std::string s, const std::string& delimiter);
 };

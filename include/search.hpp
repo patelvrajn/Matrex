@@ -1,15 +1,25 @@
 #pragma once
 
-#include <deque>
+#include <array>
 
 #include "chess_board.hpp"
 #include "chess_move.hpp"
 #include "move_generator.hpp"
 #include "move_ordering.hpp"
 #include "score.hpp"
+#include "timer.hpp"
 
 // 5898.5 is the theoritical maximum number of moves (2-ply) in a chess game.
 constexpr uint16_t MAX_SEARCH_DEPTH = (5899 * NUM_OF_PLAYERS);
+
+struct Time_Control {
+  uint64_t time_remaining;
+  uint64_t increment;
+};
+
+struct Search_Constraints {
+  std::array<Time_Control, NUM_OF_PLAYERS> time_controls;
+};
 
 typedef std::pair<Chess_Move, Score> Search_Engine_Result;
 
@@ -26,7 +36,7 @@ struct Game_Tree_Node {
 
   Game_Tree_Node()
       : current_child_index(0),
-        best_score(Score()),
+        best_score(Score(ESCORE::NEGATIVE_INFINITY)),
         alpha(Score(ESCORE::NEGATIVE_INFINITY)),
         beta(Score(ESCORE::POSITIVE_INFINITY)) {}
 
@@ -42,13 +52,20 @@ struct Game_Tree_Node {
 
 class Search_Engine {
  public:
-  Search_Engine(const Chess_Board& cb);
+  Search_Engine(const Chess_Board& cb, const Search_Constraints& constraints);
 
+  Search_Engine_Result search();
   Search_Engine_Result negamax(uint16_t depth);
 
  private:
   Chess_Board m_chess_board;
+  Search_Constraints m_constraints;
+  PIECE_COLOR m_my_side;
+  Timer m_timer;
+  bool m_timer_expired_during_search;
   uint64_t m_num_of_nodes_searched;
+
+  Search_Engine_Result iterative_deepening();
 
   inline void leaf_node_treatment(Game_Tree_Node* nodes, Score s,
                                   uint16_t& current_depth, uint16_t parent,

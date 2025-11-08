@@ -4,7 +4,6 @@
 #include <sstream>
 
 #include "move_generator.hpp"
-#include "search.hpp"
 
 UCI::UCI() : m_is_frc(false) {}
 
@@ -101,29 +100,32 @@ void UCI::handle_position(const std::string& arguments) {
 }
 
 void UCI::handle_go(const std::string& arguments) {
-  const std::size_t first_space_idx = arguments.find_first_of(" ");
-  const std::string subcommand = arguments.substr(0, first_space_idx);
+  auto tokens = split_string(arguments, " ");
 
-  const std::string subcommand_first_argument_str =
-      arguments.substr(first_space_idx + 1);
+  for (std::size_t index = 0; index < tokens->size(); index++) {
+    const std::string subcommand = tokens->at(index);
 
-  if (subcommand == "wtime") {
-    m_time_controls[PIECE_COLOR::WHITE].time_remaining =
-        std::stoull(subcommand_first_argument_str);
-  } else if (subcommand == "btime") {
-    m_time_controls[PIECE_COLOR::BLACK].time_remaining =
-        std::stoull(subcommand_first_argument_str);
-  } else if (subcommand == "winc") {
-    m_time_controls[PIECE_COLOR::WHITE].increment =
-        std::stoull(subcommand_first_argument_str);
-  } else if (subcommand == "binc") {
-    m_time_controls[PIECE_COLOR::BLACK].increment =
-        std::stoull(subcommand_first_argument_str);
+    if (subcommand == "wtime") {
+      index++;
+      m_search_constraints.time_controls[PIECE_COLOR::WHITE].time_remaining =
+          std::stoull(tokens->at(index));
+    } else if (subcommand == "btime") {
+      index++;
+      m_search_constraints.time_controls[PIECE_COLOR::BLACK].time_remaining =
+          std::stoull(tokens->at(index));
+    } else if (subcommand == "winc") {
+      index++;
+      m_search_constraints.time_controls[PIECE_COLOR::WHITE].increment =
+          std::stoull(tokens->at(index));
+    } else if (subcommand == "binc") {
+      index++;
+      m_search_constraints.time_controls[PIECE_COLOR::BLACK].increment =
+          std::stoull(tokens->at(index));
+    }
   }
 
-  Search_Engine search(m_chess_board);
-  Search_Engine_Result search_result =
-      search.negamax(7);  // Fixed depth for now...
+  Search_Engine search(m_chess_board, m_search_constraints);
+  Search_Engine_Result search_result = search.search();
 
   std::cout << "info score cp " << search_result.second.to_int() << std::endl;
 
@@ -162,4 +164,21 @@ void UCI::make_moves_from_string(const std::string& moves_str, bool is_frc) {
       }
     }
   }
+}
+
+std::unique_ptr<std::vector<std::string>> UCI::split_string(
+    std::string s, const std::string& delimiter) {
+  std::unique_ptr<std::vector<std::string>> tokens =
+      std::make_unique<std::vector<std::string>>();
+  std::size_t position = 0;
+  std::string token;
+
+  while ((position = s.find(delimiter)) != std::string::npos) {
+    token = s.substr(0, position);
+    tokens->push_back(token);
+    s.erase(0, position + delimiter.length());
+  }
+  tokens->push_back(s);
+
+  return tokens;
 }
