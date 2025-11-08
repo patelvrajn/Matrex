@@ -54,6 +54,7 @@ class Search_Engine {
   Search_Engine(const Chess_Board& cb, const Search_Constraints& constraints);
 
   Search_Engine_Result search();
+  Search_Engine_Result negamax(uint16_t depth);
 
  private:
   Chess_Board m_chess_board;
@@ -62,7 +63,6 @@ class Search_Engine {
   Timer m_timer;
   bool m_timer_expired_during_search;
 
-  Search_Engine_Result negamax(uint16_t depth);
   Search_Engine_Result iterative_deepening();
 
   inline void leaf_node_treatment(Game_Tree_Node* nodes, Score s,
