@@ -21,9 +21,13 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
 
   GAME_TREE_SEARCH_DIRECTION search_direction = DOWN;
 
-  // Create a fixed sized array of size (target_depth + 1). The +1 because the
-  // first node, node[0] will act as the parent of the root of the game tree.
-  Game_Tree_Node* nodes = new Game_Tree_Node[(target_depth + 1)];
+  // Create a fixed sized array of size (target_depth + 2). The +2 because the
+  // first node, node[0] will act as the parent of the root of the game tree and
+  // under the condition ((current_depth - DEPTH_FLOOR) < target_depth) which is
+  // equivalent to current_depth <= target_depth (given they are integers), we
+  // access the child of target_depth i.e. (target_depth + 1) so we need an
+  // array sized from 0...(target_depth + 1).
+  Game_Tree_Node* nodes = new Game_Tree_Node[(target_depth + 2)];
 
 #define PARENT_NODE nodes[parent]
 #define CHILD_NODE nodes[current_depth + 1]
