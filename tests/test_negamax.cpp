@@ -9,9 +9,16 @@ TEST(negamax, mating) {
 
   Chess_Board cb;
 
+  // Arbitrary search constraints.
+  Search_Constraints constraints;
+  constraints.time_controls[PIECE_COLOR::WHITE].time_remaining = 150000;
+  constraints.time_controls[PIECE_COLOR::WHITE].increment = 1500;
+  constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 150000;
+  constraints.time_controls[PIECE_COLOR::BLACK].increment = 1500;
+
   for (uint8_t fen_idx = 0; fen_idx < 3; fen_idx++) {
     cb.set_from_fen(std::string(FENS[fen_idx]));
-    Search_Engine search(cb);
+    Search_Engine search(cb, constraints);
     const uint16_t distance_to_mate = (NUM_OF_PLAYERS * (fen_idx + 1));
     const Search_Engine_Result search_result = search.negamax(distance_to_mate);
     EXPECT_EQ(search_result.second.to_int(),
@@ -22,17 +29,24 @@ TEST(negamax, mating) {
 TEST(negamax, consistent_scoring) {
   constexpr uint16_t SEARCH_DEPTH = 5;
 
+  // Arbitrary search constraints.
+  Search_Constraints constraints;
+  constraints.time_controls[PIECE_COLOR::WHITE].time_remaining = 150000;
+  constraints.time_controls[PIECE_COLOR::WHITE].increment = 1500;
+  constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 150000;
+  constraints.time_controls[PIECE_COLOR::BLACK].increment = 1500;
+
   Chess_Board cb;
   cb.set_from_fen(
       "r1bq1rk1/ppp2ppp/2n1p3/b2p4/3PnB2/P1N1P3/1PP2PPP/1K1RQBNR b - - 2 9");
 
-  Search_Engine first_search(cb);
+  Search_Engine first_search(cb, constraints);
   const Search_Engine_Result first_search_result =
       first_search.negamax(SEARCH_DEPTH);
 
   cb.make_move(first_search_result.first);
 
-  Search_Engine second_search(cb);
+  Search_Engine second_search(cb, constraints);
   const Search_Engine_Result second_search_result =
       second_search.negamax(SEARCH_DEPTH - 1);
 
