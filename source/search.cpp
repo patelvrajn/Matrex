@@ -7,7 +7,8 @@ Search_Engine::Search_Engine(const Chess_Board& cb,
     : m_chess_board(cb),
       m_constraints(constraints),
       m_my_side(cb.get_side_to_move()),
-      m_timer_expired_during_search(false) {}
+      m_timer_expired_during_search(false),
+      m_num_of_nodes_searched(0) {}
 
 Search_Engine_Result Search_Engine::search() { return iterative_deepening(); }
 
@@ -50,14 +51,17 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
       // Time is up, do not do anything - just go back up the tree which will
       // propagate the best score so far back up the tree.
       if (m_timer_expired_during_search) {
+        current_depth = parent;
         search_direction = UP;
         continue;
       }
 
-      // Generate all moves in the current position.
-      Move_Generator mg(m_chess_board);
-      Chess_Move_List moves;
-      mg.generate_all_moves(moves);
+      // Count the number of nodes searched.
+      m_num_of_nodes_searched++;
+
+      // Generate all sorted moves in the current position.
+      Move_Ordering mo(m_chess_board);
+      Chess_Move_List moves = mo.get_sorted_moves();
 
       // We are at a node that is a parent.
       if ((current_depth - DEPTH_FLOOR) < target_depth) {
@@ -65,7 +69,7 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
         // play. It is either checkmate or stalemate. Treat this node as a leaf
         // node.
         if (moves.get_max_index() == 0) {
-          const Score s = get_mate_score<DEPTH_FLOOR>(mg, current_depth);
+          const Score s = get_mate_score<DEPTH_FLOOR>(mo, current_depth);
           leaf_node_treatment(nodes, s, current_depth, parent,
                               search_direction);
           continue;
@@ -97,7 +101,7 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
         // We have reached a node with no legal moves for the current side to
         // play. It is either checkmate or stalemate.
         if (moves.get_max_index() == 0) {
-          leaf_score = get_mate_score<DEPTH_FLOOR>(mg, current_depth);
+          leaf_score = get_mate_score<DEPTH_FLOOR>(mo, current_depth);
           // Not a checkmate or a stalemate, evaluate the leaf node normally.
         } else {
           const Evaluator e(m_chess_board);

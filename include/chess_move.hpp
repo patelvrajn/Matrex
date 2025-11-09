@@ -4,9 +4,12 @@
 #include <iostream>
 
 #include "globals.hpp"
+#include "score.hpp"
 #include "square.hpp"
 
 constexpr uint16_t MAXIMUM_NUM_OF_MOVES_IN_A_POSITION = 256;
+
+typedef uint16_t Move_Score;  // Not the same as a search evaluation score.
 
 struct Chess_Move {
   ESQUARE source_square : 7;
@@ -23,6 +26,7 @@ struct Chess_Move {
   bool is_en_passant : 1;
   ESQUARE en_passant_victim_square : 7;
   bool is_promotion : 1;
+  Move_Score score = 0;
 
   std::string to_coordinate_notation(bool is_frc) const {
     std::string source_square_str = SQUARE_STRINGS[source_square];
@@ -73,10 +77,11 @@ struct Chess_Move {
               << "\tis_en_passant: " << is_en_passant << "\n"
               << "\tEn Passsant Victim Square: "
               << SQUARE_STRINGS[en_passant_victim_square] << "\n"
-              << "\tis_promotion: " << is_promotion << std::endl;
+              << "\tis_promotion: " << is_promotion << "\n"
+              << "\tScore: " << score << std::endl;
   }
 
-  bool operator==(const Chess_Move& m) const {
+  bool is_same_move(const Chess_Move& m) const {
     return (m.source_square == source_square) &&
            (m.destination_square == destination_square) &&
            (m.moving_piece == moving_piece) &&
@@ -93,6 +98,10 @@ struct Chess_Move {
            (m.en_passant_victim_square == en_passant_victim_square) &&
            (m.is_promotion == is_promotion);
   }
+
+  inline auto operator<=>(const Chess_Move& other) const {
+    return (score <=> other.score);
+  }
 };
 
 struct Undo_Chess_Move {
@@ -108,14 +117,14 @@ class Chess_Move_List {
 
   inline void append(const Chess_Move& move);
 
-  const Chess_Move* begin() const;
-  const Chess_Move* end() const;
-
-  const Chess_Move* find(Chess_Move move) const;
+  Chess_Move* begin() const;
+  Chess_Move* end() const;
 
   uint16_t get_max_index() const;
 
   Chess_Move& operator[](uint16_t index);
+
+  void sort();
 
  private:
   uint16_t m_max_index;

@@ -5,6 +5,7 @@
 #include "chess_board.hpp"
 #include "chess_move.hpp"
 #include "move_generator.hpp"
+#include "move_ordering.hpp"
 #include "score.hpp"
 #include "timer.hpp"
 
@@ -62,6 +63,7 @@ class Search_Engine {
   PIECE_COLOR m_my_side;
   Timer m_timer;
   bool m_timer_expired_during_search;
+  uint64_t m_num_of_nodes_searched;
 
   Search_Engine_Result iterative_deepening();
 
@@ -69,17 +71,17 @@ class Search_Engine {
                                   uint16_t& current_depth, uint16_t parent,
                                   GAME_TREE_SEARCH_DIRECTION& search_direction);
   template <uint16_t DEPTH_FLOOR>
-  inline Score get_mate_score(const Move_Generator& mg, uint16_t current_depth);
+  inline Score get_mate_score(const Move_Ordering& mo, uint16_t current_depth);
 };
 
 template <uint16_t DEPTH_FLOOR>
-inline Score Search_Engine::get_mate_score(const Move_Generator& mg,
+inline Score Search_Engine::get_mate_score(const Move_Ordering& mo,
                                            uint16_t current_depth) {
   Score mate_score;
 
   // The side to move is in check and has no legal moves means they are in a
   // losing mating net specifically a checkmate at this depth.
-  if (mg.is_side_to_move_in_check()) {
+  if (mo.is_side_to_move_in_check()) {
     mate_score = Score::from_int(ESCORE::LOSING_MATE_MIN +
                                  (current_depth - DEPTH_FLOOR));
   } else {
