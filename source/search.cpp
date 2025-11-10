@@ -61,6 +61,7 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
 
       // Generate all sorted moves in the current position.
       Move_Ordering mo(m_chess_board);
+      mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
       Chess_Move_List moves = mo.get_sorted_moves();
 
       // We are at a node that is a parent.

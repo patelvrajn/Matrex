@@ -14,7 +14,7 @@ uint64_t perft(Chess_Board& board, uint64_t depth) {
     return 1ULL;
   }
 
-  mg.generate_all_moves(moves);
+  mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves);
   for (const auto& move : moves) {
     Undo_Chess_Move undo = board.make_move(move);
 
@@ -29,7 +29,7 @@ uint64_t perft(Chess_Board& board, uint64_t depth) {
 uint64_t divide_perft(Chess_Board& board, uint64_t depth, bool is_frc) {
   Move_Generator mg(board);
   Chess_Move_List moves;
-  mg.generate_all_moves(moves);
+  mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves);
 
   uint64_t nodes = 0;
 

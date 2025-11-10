@@ -19,11 +19,15 @@ extern const std::array<std::array<Square, NUM_OF_CASTLING_TYPES>,
                         NUM_OF_PLAYERS>
     CASTLING_ROOK_DESTINATION_SQUARES;
 
+enum MOVE_GENERATION_TYPE { ALL, TACTICAL, QUIET };
+
 class Move_Generator {
  public:
   Move_Generator(const Chess_Board& cb);
 
+  template <MOVE_GENERATION_TYPE gen_type>
   void generate_all_moves(Chess_Move_List& output);
+
   bool is_side_to_move_in_check() const;
 
  private:
@@ -87,12 +91,13 @@ class Move_Generator {
                                                const Bitboard& check_mask,
                                                Chess_Move_List& output);
 
-  template <PIECE_COLOR moving_side, PIECES moving_piece>
+  template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side,
+            PIECES moving_piece>
   inline void generate_minor_and_major_piece_moves(const Bitboard& pinned,
                                                    const Bitboard& check_mask,
                                                    Chess_Move_List& output);
 
-  template <PIECE_COLOR moving_side>
+  template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
   inline void generate_king_moves(Chess_Move_List& output);
 
   template <PIECE_COLOR moving_side, CASTLING_TYPE castle_type>
@@ -424,7 +429,8 @@ inline void Move_Generator::generate_promotion_pawn_captures(
   }
 }
 
-template <PIECE_COLOR moving_side, PIECES moving_piece>
+template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side,
+          PIECES moving_piece>
 inline void Move_Generator::generate_minor_and_major_piece_moves(
     const Bitboard& pinned, const Bitboard& check_mask,
     Chess_Move_List& output) {
@@ -435,9 +441,20 @@ inline void Move_Generator::generate_minor_and_major_piece_moves(
   const Bitboard both_color_occupancies =
       m_chess_board.get_both_color_occupancies();
 
-  const Bitboard enemy_or_empty =
-      m_chess_board.get_color_occupancies(opposing_side) |
-      (~(both_color_occupancies));
+  Bitboard enemy_or_empty;
+
+  if constexpr (gen_type == MOVE_GENERATION_TYPE::TACTICAL) {
+    enemy_or_empty = m_chess_board.get_color_occupancies(opposing_side);
+  }
+
+  if constexpr (gen_type == MOVE_GENERATION_TYPE::QUIET) {
+    enemy_or_empty = (~(both_color_occupancies));
+  }
+
+  if constexpr (gen_type == MOVE_GENERATION_TYPE::ALL) {
+    enemy_or_empty = m_chess_board.get_color_occupancies(opposing_side) |
+                     (~(both_color_occupancies));
+  }
 
   const Bitboard piece_occupancies =
       m_chess_board.get_piece_occupancies(moving_side, moving_piece);
@@ -486,15 +503,29 @@ inline void Move_Generator::generate_minor_and_major_piece_moves(
   }
 }
 
-template <PIECE_COLOR moving_side>
+template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
 inline void Move_Generator::generate_king_moves(Chess_Move_List& output) {
   Attacks a;
 
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
 
-  const Bitboard enemy_or_empty =
-      m_chess_board.get_color_occupancies(opposing_side) |
-      (~(m_chess_board.get_both_color_occupancies()));
+  const Bitboard both_color_occupancies =
+      m_chess_board.get_both_color_occupancies();
+
+  Bitboard enemy_or_empty;
+
+  if constexpr (gen_type == MOVE_GENERATION_TYPE::TACTICAL) {
+    enemy_or_empty = m_chess_board.get_color_occupancies(opposing_side);
+  }
+
+  if constexpr (gen_type == MOVE_GENERATION_TYPE::QUIET) {
+    enemy_or_empty = (~(both_color_occupancies));
+  }
+
+  if constexpr (gen_type == MOVE_GENERATION_TYPE::ALL) {
+    enemy_or_empty = m_chess_board.get_color_occupancies(opposing_side) |
+                     (~(both_color_occupancies));
+  }
 
   const Square king_square = m_chess_board.get_king_square(moving_side);
 
@@ -639,5 +670,110 @@ inline void Move_Generator::generate_castling_moves(const Bitboard& pinned,
 
       output.append(move);
     }
+  }
+}
+
+template <MOVE_GENERATION_TYPE gen_type>
+void Move_Generator::generate_all_moves(Chess_Move_List& output) {
+  const PIECE_COLOR moving_side = m_chess_board.get_side_to_move();
+
+  const Bitboard check_mask = generate_check_mask();
+  const Bitboard pinned = generate_pinned();
+
+  if (moving_side == PIECE_COLOR::WHITE) {
+    /***************************************************************************
+     * TACTICAL MOVE GENERATION
+     ***************************************************************************/
+    if constexpr ((gen_type == MOVE_GENERATION_TYPE::ALL) ||
+                  (gen_type == MOVE_GENERATION_TYPE::TACTICAL)) {
+      generate_single_push_promotion_pawn_moves<PIECE_COLOR::WHITE>(
+          pinned, check_mask, output);
+      generate_en_passant_captures<PIECE_COLOR::WHITE>(pinned, check_mask,
+                                                       output);
+      generate_non_promotion_pawn_captures<PIECE_COLOR::WHITE>(
+          pinned, check_mask, output);
+      generate_promotion_pawn_captures<PIECE_COLOR::WHITE>(pinned, check_mask,
+                                                           output);
+    }
+
+    /***************************************************************************
+     * QUIET MOVE GENERATION
+     ***************************************************************************/
+    if constexpr ((gen_type == MOVE_GENERATION_TYPE::ALL) ||
+                  (gen_type == MOVE_GENERATION_TYPE::QUIET)) {
+      generate_single_push_non_promotion_pawn_moves<PIECE_COLOR::WHITE>(
+          pinned, check_mask, output);
+      generate_double_push_pawn_moves<PIECE_COLOR::WHITE>(pinned, check_mask,
+                                                          output);
+      generate_castling_moves<PIECE_COLOR::WHITE, CASTLING_TYPE::KINGSIDE>(
+          pinned, output);
+      generate_castling_moves<PIECE_COLOR::WHITE, CASTLING_TYPE::QUEENSIDE>(
+          pinned, output);
+    }
+
+    /***************************************************************************
+     * GENERAL MOVE GENERATION
+     ***************************************************************************/
+    generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::WHITE,
+                                         PIECES::KNIGHT>(pinned, check_mask,
+                                                         output);
+    generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::WHITE,
+                                         PIECES::BISHOP>(pinned, check_mask,
+                                                         output);
+    generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::WHITE,
+                                         PIECES::ROOK>(pinned, check_mask,
+                                                       output);
+    generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::WHITE,
+                                         PIECES::QUEEN>(pinned, check_mask,
+                                                        output);
+    generate_king_moves<gen_type, PIECE_COLOR::WHITE>(output);
+
+  } else {
+    /***************************************************************************
+     * TACTICAL MOVE GENERATION
+     ***************************************************************************/
+    if constexpr ((gen_type == MOVE_GENERATION_TYPE::ALL) ||
+                  (gen_type == MOVE_GENERATION_TYPE::TACTICAL)) {
+      generate_single_push_promotion_pawn_moves<PIECE_COLOR::BLACK>(
+          pinned, check_mask, output);
+      generate_en_passant_captures<PIECE_COLOR::BLACK>(pinned, check_mask,
+                                                       output);
+      generate_non_promotion_pawn_captures<PIECE_COLOR::BLACK>(
+          pinned, check_mask, output);
+      generate_promotion_pawn_captures<PIECE_COLOR::BLACK>(pinned, check_mask,
+                                                           output);
+    }
+
+    /***************************************************************************
+     * QUIET MOVE GENERATION
+     ***************************************************************************/
+    if constexpr ((gen_type == MOVE_GENERATION_TYPE::ALL) ||
+                  (gen_type == MOVE_GENERATION_TYPE::QUIET)) {
+      generate_single_push_non_promotion_pawn_moves<PIECE_COLOR::BLACK>(
+          pinned, check_mask, output);
+      generate_double_push_pawn_moves<PIECE_COLOR::BLACK>(pinned, check_mask,
+                                                          output);
+      generate_castling_moves<PIECE_COLOR::BLACK, CASTLING_TYPE::KINGSIDE>(
+          pinned, output);
+      generate_castling_moves<PIECE_COLOR::BLACK, CASTLING_TYPE::QUEENSIDE>(
+          pinned, output);
+    }
+
+    /***************************************************************************
+     * GENERAL MOVE GENERATION
+     ***************************************************************************/
+    generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::BLACK,
+                                         PIECES::KNIGHT>(pinned, check_mask,
+                                                         output);
+    generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::BLACK,
+                                         PIECES::BISHOP>(pinned, check_mask,
+                                                         output);
+    generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::BLACK,
+                                         PIECES::ROOK>(pinned, check_mask,
+                                                       output);
+    generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::BLACK,
+                                         PIECES::QUEEN>(pinned, check_mask,
+                                                        output);
+    generate_king_moves<gen_type, PIECE_COLOR::BLACK>(output);
   }
 }
