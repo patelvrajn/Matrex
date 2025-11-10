@@ -9,8 +9,12 @@
 #include "score.hpp"
 #include "timer.hpp"
 
-// 5898.5 is the theoritical maximum number of moves (2-ply) in a chess game.
-constexpr uint16_t MAX_SEARCH_DEPTH = (5899 * NUM_OF_PLAYERS);
+// 5898.5 is the theoretical maximum number of moves (2-ply) in a chess game.
+constexpr uint16_t THEORETICAL_MAX_SEARCH_DEPTH = (5899 * NUM_OF_PLAYERS);
+
+// Realistically, the search depth of the engine will never go beyond this
+// depth.
+constexpr uint16_t SEARCH_DEPTH_SOFT_LIMITATION = 256;
 
 struct Time_Control {
   uint64_t time_remaining;
@@ -41,7 +45,7 @@ struct Game_Tree_Node {
         beta(Score(ESCORE::POSITIVE_INFINITY)) {}
 
   bool out_of_moves() const {
-    return (current_child_index >= (children.get_max_index() - 1));
+    return (current_child_index >= children.get_max_index());
   }
 
   Chess_Move get_next_move() {
@@ -65,6 +69,8 @@ class Search_Engine {
   bool m_timer_expired_during_search;
   uint64_t m_num_of_nodes_searched;
 
+  Search_Engine_Result quiescence(Score alpha, Score beta,
+                                  uint16_t depth_from_negamax);
   Search_Engine_Result iterative_deepening();
 
   inline void leaf_node_treatment(Game_Tree_Node* nodes, Score s,
