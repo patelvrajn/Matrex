@@ -254,7 +254,11 @@ Search_Engine_Result Search_Engine::quiescence(Score alpha, Score beta,
 
       // Generate sorted tactical moves in the current position.
       Move_Ordering mo(m_chess_board);
-      mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>();
+      if (mo.is_side_to_move_in_check()) {
+        mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
+      } else {
+        mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>();
+      }
       Chess_Move_List moves = mo.get_sorted_moves();
 
       // We have reached a node with no legal moves for the current side to

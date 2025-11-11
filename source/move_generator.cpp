@@ -128,7 +128,8 @@ Bitboard Move_Generator::generate_check_mask() {
           checkers);
 }
 
-bool Move_Generator::is_side_to_move_in_check() const {
+bool Move_Generator::is_side_to_move_in_check() {
+  generate_check_mask();
   return m_side_to_move_in_check;
 }
 

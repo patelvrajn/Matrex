@@ -28,7 +28,7 @@ class Move_Generator {
   template <MOVE_GENERATION_TYPE gen_type>
   void generate_all_moves(Chess_Move_List& output);
 
-  bool is_side_to_move_in_check() const;
+  bool is_side_to_move_in_check();
 
  private:
   const Chess_Board& m_chess_board;

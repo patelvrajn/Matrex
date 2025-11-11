@@ -25,7 +25,6 @@ class Move_Ordering {
   const Chess_Board& m_chess_board;
   Chess_Move_List m_move_list;
   static mvv_lva_array m_mvv_lva_array;
-  bool m_side_to_move_in_check;
 
   static mvv_lva_array generate_mvv_lva_array();
   void mvv_lva_scorer();
@@ -35,5 +34,4 @@ template <MOVE_GENERATION_TYPE move_gen_type>
 void Move_Ordering::generate_moves() {
   Move_Generator mg(m_chess_board);
   mg.generate_all_moves<move_gen_type>(m_move_list);
-  m_side_to_move_in_check = mg.is_side_to_move_in_check();
 }
