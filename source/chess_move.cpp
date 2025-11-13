@@ -6,7 +6,7 @@ Chess_Move_List::Chess_Move_List() : m_max_index(-1) {}
 
 Chess_Move* Chess_Move_List::begin() const { return (Chess_Move*)&m_list[0]; }
 Chess_Move* Chess_Move_List::end() const {
-  return (Chess_Move*)&m_list[m_max_index];
+  return (Chess_Move*)&m_list[m_max_index + 1];
 }
 
 int16_t Chess_Move_List::get_max_index() const { return m_max_index; }

@@ -51,6 +51,10 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
       // Time is up, do not do anything - just go back up the tree which will
       // propagate the best score so far back up the tree.
       if (m_timer_expired_during_search) {
+        if (current_depth <= DEPTH_FLOOR) {
+          break;
+        }
+        m_chess_board.undo_move(CURRENT_NODE.undo_move);
         current_depth = parent;
         search_direction = UP;
         continue;
@@ -71,6 +75,12 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
         // node.
         if (moves.get_max_index() == -1) {
           const Score s = get_mate_score<DEPTH_FLOOR>(mo, current_depth);
+          if (current_depth <= DEPTH_FLOOR) {
+            Search_Engine_Result return_value = {nodes[DEPTH_FLOOR].best_move,
+                                                 s};
+            delete[] nodes;
+            return return_value;
+          }
           leaf_node_treatment(nodes, s, current_depth, parent,
                               search_direction);
           continue;
@@ -139,9 +149,7 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
       // (Credit to Tobi/toanth in the Engine Programming Discord)
       const bool is_prune_time = CURRENT_NODE.alpha >= CURRENT_NODE.beta;
       if (is_prune_time) {
-        if (current_depth <=
-            DEPTH_FLOOR) {  // Can occur if alpha reaches infinity and beta
-                            // doesn't find a better minimum.
+        if (current_depth <= DEPTH_FLOOR) {
           break;
         }
         m_chess_board.undo_move(CURRENT_NODE.undo_move);
@@ -190,7 +198,12 @@ Search_Engine_Result Search_Engine::negamax(uint16_t target_depth) {
     }
   }
 
-  return {nodes[DEPTH_FLOOR].best_move, nodes[DEPTH_FLOOR].best_score};
+  Search_Engine_Result return_value = {nodes[DEPTH_FLOOR].best_move,
+                                       nodes[DEPTH_FLOOR].best_score};
+
+  delete[] nodes;
+
+  return return_value;
 
 #undef PARENT_NODE
 #undef CHILD_NODE
@@ -216,7 +229,7 @@ Search_Engine_Result Search_Engine::quiescence(Score alpha, Score beta,
 
   GAME_TREE_SEARCH_DIRECTION search_direction = DOWN;
 
-  Game_Tree_Node* nodes = new Game_Tree_Node[(TARGET_DEPTH + 2)];
+  Game_Tree_Node nodes[(TARGET_DEPTH + 2)];
 
   // The parent of our root node inherits the alpha and beta parameters - so
   // that the root's alpha and beta are correct.
@@ -232,29 +245,20 @@ Search_Engine_Result Search_Engine::quiescence(Score alpha, Score beta,
   uint16_t current_depth = DEPTH_FLOOR;
 
   while (true) {
-    m_timer_expired_during_search = m_timer.is_search_time_expired(
-        m_constraints.time_controls[m_my_side].time_remaining,
-        m_constraints.time_controls[m_my_side].increment);
-
     uint16_t parent = current_depth - 1;
 
     // We only reach the down state if we have reached an unexplored node in the
     // game tree.
     if (search_direction == DOWN) {
-      // Time is up, do not do anything - just go back up the tree which will
-      // propagate the best score so far back up the tree.
-      if (m_timer_expired_during_search) {
-        current_depth = parent;
-        search_direction = UP;
-        continue;
-      }
-
       // Count the number of nodes searched.
       m_num_of_nodes_searched++;
 
-      // Generate sorted tactical moves in the current position.
+      // Generate sorted tactical moves in the current position if not in check,
+      // if in check, we need all moves because it is not guaranteed that at
+      // least one tactical move is a check evasion move.
       Move_Ordering mo(m_chess_board);
-      if (mo.is_side_to_move_in_check()) {
+      const bool is_side_to_move_in_check = mo.is_side_to_move_in_check();
+      if (is_side_to_move_in_check) {
         mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
       } else {
         mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>();
@@ -268,6 +272,9 @@ Search_Engine_Result Search_Engine::quiescence(Score alpha, Score beta,
       if (moves.get_max_index() == -1) {
         const Score s = get_mate_score<DEPTH_FLOOR>(
             mo, (depth_from_negamax + current_depth));
+        if (current_depth <= DEPTH_FLOOR) {
+          return {nodes[DEPTH_FLOOR].best_move, s};
+        }
         leaf_node_treatment(nodes, s, current_depth, parent, search_direction);
         continue;
       }
@@ -288,18 +295,24 @@ Search_Engine_Result Search_Engine::quiescence(Score alpha, Score beta,
       Score evaluation = e.evaluate();
 
       // If the evaluation is greater than or equal to this node's beta, prune
-      // this node by going up the tree.
-      const bool is_prune_time = evaluation >= CURRENT_NODE.beta;
-      if (is_prune_time) {
-        m_chess_board.undo_move(CURRENT_NODE.undo_move);
-        current_depth = parent;
-        search_direction = UP;
-        continue;
-      }
+      // this node by going up the tree. Do this only when not in check
+      // (heuristic known to gain elo).
+      if (!is_side_to_move_in_check) {
+        const bool is_prune_time = evaluation >= CURRENT_NODE.beta;
+        if (is_prune_time) {
+          if (current_depth <= DEPTH_FLOOR) {
+            return {nodes[DEPTH_FLOOR].best_move, evaluation};
+          }
+          m_chess_board.undo_move(CURRENT_NODE.undo_move);
+          current_depth = parent;
+          search_direction = UP;
+          continue;
+        }
 
-      // Update this node's alpha based on the evaluation.
-      if (evaluation > CURRENT_NODE.alpha) {
-        CURRENT_NODE.alpha = evaluation;
+        // Update this node's alpha based on the evaluation.
+        if (evaluation > CURRENT_NODE.alpha) {
+          CURRENT_NODE.alpha = evaluation;
+        }
       }
 
       // Make the first child's move, storing the undo move structure in the
@@ -316,9 +329,7 @@ Search_Engine_Result Search_Engine::quiescence(Score alpha, Score beta,
       // the tree and continue searching nodes in depth-first order.
       const bool is_prune_time = CURRENT_NODE.alpha >= CURRENT_NODE.beta;
       if (is_prune_time) {
-        if (current_depth <=
-            DEPTH_FLOOR) {  // Can occur if alpha reaches infinity and beta
-                            // doesn't find a better minimum.
+        if (current_depth <= DEPTH_FLOOR) {
           break;
         }
         m_chess_board.undo_move(CURRENT_NODE.undo_move);
@@ -328,7 +339,7 @@ Search_Engine_Result Search_Engine::quiescence(Score alpha, Score beta,
 
       // This parent does not have anymore children to process or we are out of
       // time and can't process anymore children.
-      if (CURRENT_NODE.out_of_moves() || m_timer_expired_during_search) {
+      if (CURRENT_NODE.out_of_moves()) {
         // If the depth as reached the root, search is done.
         if (current_depth <= DEPTH_FLOOR) {
           break;

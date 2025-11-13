@@ -132,6 +132,6 @@ class Chess_Move_List {
 };
 
 inline void Chess_Move_List::append(const Chess_Move& move) {
-  m_list[m_max_index] = move;
   m_max_index++;
+  m_list[m_max_index] = move;
 }

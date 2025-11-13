@@ -4,12 +4,12 @@
 #include "chess_move.hpp"
 #include "move_generator.hpp"
 
-constexpr uint64_t MVV_LVA_ATTACKER_VALUES[] = {10, 20, 30, 40, 50, 60};
+constexpr Move_Score MVV_LVA_ATTACKER_VALUES[] = {10, 20, 30, 40, 50, 60};
 
 // Attacker: Pawn, Knight, Bishop, Rook, Queen, King
 // Victims: Pawn, Knight, Bishop, Rook, Queen
 // mvv_lva_array[attacker][victim]
-typedef std::array<std::array<uint64_t, (PIECES::QUEEN + 1)>,
+typedef std::array<std::array<Move_Score, (PIECES::QUEEN + 1)>,
                    (PIECES::KING + 1)>
     mvv_lva_array;
 
