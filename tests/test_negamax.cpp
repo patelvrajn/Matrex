@@ -11,9 +11,9 @@ TEST(negamax, mating) {
 
   // Arbitrary search constraints.
   Search_Constraints constraints;
-  constraints.time_controls[PIECE_COLOR::WHITE].time_remaining = 150000;
+  constraints.time_controls[PIECE_COLOR::WHITE].time_remaining = 150000000;
   constraints.time_controls[PIECE_COLOR::WHITE].increment = 1500;
-  constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 150000;
+  constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 150000000;
   constraints.time_controls[PIECE_COLOR::BLACK].increment = 1500;
 
   for (uint8_t fen_idx = 0; fen_idx < 3; fen_idx++) {
@@ -31,9 +31,9 @@ TEST(negamax, consistent_scoring) {
 
   // Arbitrary search constraints.
   Search_Constraints constraints;
-  constraints.time_controls[PIECE_COLOR::WHITE].time_remaining = 150000;
+  constraints.time_controls[PIECE_COLOR::WHITE].time_remaining = 150000000;
   constraints.time_controls[PIECE_COLOR::WHITE].increment = 1500;
-  constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 150000;
+  constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 150000000;
   constraints.time_controls[PIECE_COLOR::BLACK].increment = 1500;
 
   Chess_Board cb;
