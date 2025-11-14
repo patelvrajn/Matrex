@@ -266,16 +266,32 @@ Search_Engine_Result Search_Engine::quiescence(Score alpha, Score beta,
       Chess_Move_List moves = mo.get_sorted_moves();
 
       // We have reached a node with no legal moves for the current side to
-      // play. It is either checkmate or stalemate. Treat this node as a leaf
-      // node. In addition, when we retrieve the mate score, the depth that
-      // negamax searched to must be added on.
-      if (moves.get_max_index() == -1) {
+      // play and they are in check thus, it is checkmate. We cannot detect
+      // stalemates efficiently in quiescence. Treat this node as a leaf node.
+      // In addition, when we retrieve the mate score, the depth that negamax
+      // searched to must be added on.
+      if ((moves.get_max_index() == -1) && is_side_to_move_in_check) {
         const Score s = get_mate_score<DEPTH_FLOOR>(
             mo, (depth_from_negamax + current_depth));
         if (current_depth <= DEPTH_FLOOR) {
           return {nodes[DEPTH_FLOOR].best_move, s};
         }
         leaf_node_treatment(nodes, s, current_depth, parent, search_direction);
+        continue;
+      }
+
+      // Evaluate all new positions.
+      const Evaluator e(m_chess_board);
+      Score evaluation = e.evaluate();
+
+      // No tactical moves - just evaluate the position and treat this as a
+      // leaf node.
+      if ((moves.get_max_index() == -1) && (!is_side_to_move_in_check)) {
+        if (current_depth <= DEPTH_FLOOR) {
+          return {nodes[DEPTH_FLOOR].best_move, evaluation};
+        }
+        leaf_node_treatment(nodes, evaluation, current_depth, parent,
+                            search_direction);
         continue;
       }
 
@@ -289,10 +305,6 @@ Search_Engine_Result Search_Engine::quiescence(Score alpha, Score beta,
       // inherited alpha and beta.
       CURRENT_NODE.alpha = -PARENT_NODE.beta;
       CURRENT_NODE.beta = -PARENT_NODE.alpha;
-
-      // Evaluate all new positions.
-      const Evaluator e(m_chess_board);
-      Score evaluation = e.evaluate();
 
       // If the evaluation is greater than or equal to this node's beta, prune
       // this node by going up the tree. Do this only when not in check
