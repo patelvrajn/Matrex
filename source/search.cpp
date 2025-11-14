@@ -325,6 +325,11 @@ Search_Engine_Result Search_Engine::quiescence(Score alpha, Score beta,
         if (evaluation > CURRENT_NODE.alpha) {
           CURRENT_NODE.alpha = evaluation;
         }
+
+        // Update this node's best score based on the evaluation.
+        if (evaluation > CURRENT_NODE.best_score) {
+          CURRENT_NODE.best_score = evaluation;
+        }
       }
 
       // Make the first child's move, storing the undo move structure in the
