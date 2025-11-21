@@ -29,6 +29,7 @@ class Search_Engine {
 
   Search_Engine_Result search();
   Search_Engine_Result negamax(Chess_Board& position, uint16_t depth,
+                               uint16_t ply = 0,
                                Score alpha = Score(ESCORE::NEGATIVE_INFINITY),
                                Score beta = Score(ESCORE::POSITIVE_INFINITY));
 
@@ -42,20 +43,17 @@ class Search_Engine {
 
   Search_Engine_Result iterative_deepening();
 
-  template <uint16_t DEPTH_FLOOR>
-  inline Score get_mate_score(const Move_Ordering& mo, uint16_t current_depth);
+  inline Score get_mate_score(const Move_Ordering& mo, uint16_t ply);
 };
 
-template <uint16_t DEPTH_FLOOR>
 inline Score Search_Engine::get_mate_score(const Move_Ordering& mo,
-                                           uint16_t current_depth) {
+                                           uint16_t ply) {
   Score mate_score;
 
   // The side to move is in check and has no legal moves means they are in a
   // losing mating net specifically a checkmate at this depth.
   if (mo.is_side_to_move_in_check()) {
-    mate_score = Score::from_int(ESCORE::LOSING_MATE_MIN +
-                                 (current_depth - DEPTH_FLOOR));
+    mate_score = Score::from_int(ESCORE::LOSING_MATE_MIN + ply);
   } else {
     mate_score = Score::from_int(ESCORE::DRAW);  // Stalemate.
   }

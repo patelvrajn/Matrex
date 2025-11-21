@@ -13,17 +13,23 @@ Search_Engine::Search_Engine(const Chess_Board& cb,
 Search_Engine_Result Search_Engine::search() { return iterative_deepening(); }
 
 Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
-                                            uint16_t depth, Score alpha,
-                                            Score beta) {
+                                            uint16_t depth, uint16_t ply,
+                                            Score alpha, Score beta) {
+  Move_Ordering mo(position);
+  Chess_Move_List& moves = mo.get_sorted_moves();
+
+  // No legal moves available, return the appropriate mate or draw score.
+  if (moves.get_max_index() == -1) {
+    const Score mate_score = get_mate_score(mo, ply);
+    return {Chess_Move(), mate_score};
+  }
+
   // Base case: if depth is 0, evaluate the position and return the score. Note,
   // that no best move is propagated up in this case.
   if (depth == 0) {
     const Evaluator e(position);
     return {Chess_Move(), e.evaluate()};
   }
-
-  Move_Ordering mo(position);
-  Chess_Move_List& moves = mo.get_sorted_moves();
 
   Chess_Move best_move = Chess_Move();
   Score best_score = Score(ESCORE::NEGATIVE_INFINITY);
@@ -33,7 +39,7 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
     // to compare it's score to the parent's scores (alpha, evaluation, etc).
     const Undo_Chess_Move undo_move = position.make_move(move);
     const Search_Engine_Result child_result =
-        negamax(position, (depth - 1), -beta, -alpha);
+        negamax(position, (depth - 1), (ply + 1), -beta, -alpha);
     const Score child_score = -child_result.second;
     position.undo_move(undo_move);
 
@@ -41,6 +47,14 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
     // nodes in negamax are looking to maximize their alpha value.
     if (child_score > alpha) {
       alpha = child_score;
+    }
+
+    // Update the best score and best move found so far at this node even if
+    // the child is expected to cause pruning because the information that this
+    // node caused a beta cutoff is still needed for the parent node's move.
+    if (child_score > best_score) {
+      best_score = child_score;
+      best_move = move;
     }
 
     // When alpha of the parent becomes greater than or equal to beta, a beta
@@ -68,13 +82,6 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
     // (Credit to Tobi/toanth in the Engine Programming Discord)
     if (alpha >= beta) {
       break;
-    }
-
-    // Update the best score and best move found so far at this node if no
-    // pruning occurs.
-    if (child_score > best_score) {
-      best_score = child_score;
-      best_move = move;
     }
   }
 
