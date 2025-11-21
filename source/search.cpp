@@ -25,10 +25,22 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
   }
 
   // Base case: if depth is 0, evaluate the position and return the score. Note,
-  // that no best move is propagated up in this case.
+  // that no best move is selected in this case.
   if (depth == 0) {
     const Evaluator e(position);
     return {Chess_Move(), e.evaluate()};
+  }
+
+  // Check if time has expired during the search.
+  m_timer_expired_during_search = m_timer.is_search_time_expired(
+      m_constraints.time_controls[m_my_side].time_remaining,
+      m_constraints.time_controls[m_my_side].increment);
+
+  // When time expires return beta because it will just be alpha of the parent
+  // as the child score and this way it doesn't affect the best move of the
+  // parent.
+  if (m_timer_expired_during_search) {
+    return {moves[0], beta};
   }
 
   Chess_Move best_move = Chess_Move();
