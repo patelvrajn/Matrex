@@ -10,11 +10,16 @@ Search_Engine::Search_Engine(const Chess_Board& cb,
       m_timer_expired_during_search(false),
       m_num_of_nodes_searched(0) {}
 
-Search_Engine_Result Search_Engine::search() { return iterative_deepening(); }
+Search_Engine_Result Search_Engine::search() {
+  m_num_of_nodes_searched = 0;
+  return iterative_deepening();
+}
 
 Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
                                             uint16_t depth, uint16_t ply,
                                             Score alpha, Score beta) {
+  m_num_of_nodes_searched++;
+
   Move_Ordering mo(position);
   Chess_Move_List& moves = mo.get_sorted_moves();
 
