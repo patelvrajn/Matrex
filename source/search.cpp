@@ -21,6 +21,7 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
   m_num_of_nodes_searched++;
 
   Move_Ordering mo(position);
+  mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
   Chess_Move_List& moves = mo.get_sorted_moves();
 
   // No legal moves available, return the appropriate mate or draw score.
