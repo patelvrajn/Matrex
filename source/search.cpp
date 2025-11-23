@@ -18,24 +18,23 @@ Search_Engine_Result Search_Engine::search() {
 Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
                                             uint16_t depth, uint16_t ply,
                                             Score alpha, Score beta) {
-  m_num_of_nodes_searched++;
-
   Move_Ordering mo(position);
   mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
   Chess_Move_List& moves = mo.get_sorted_moves();
 
   // No legal moves available, return the appropriate mate or draw score.
   if (moves.get_max_index() == -1) {
+    m_num_of_nodes_searched++;
     const Score mate_score = get_mate_score(mo, ply);
     return {Chess_Move(), mate_score};
   }
 
-  // Base case: if depth is 0, evaluate the position and return the score. Note,
-  // that no best move is selected in this case.
+  // Base case: if depth is 0, perform quiescence search.
   if (depth == 0) {
-    const Evaluator e(position);
-    return {Chess_Move(), e.evaluate()};
+    return quiescence(position, ply, alpha, beta);
   }
+
+  m_num_of_nodes_searched++;
 
   // Check if time has expired during the search.
   m_timer_expired_during_search = m_timer.is_search_time_expired(
@@ -98,6 +97,92 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
     //  thus, the equal sign eliminates further cases of futile work.
     //
     // (Credit to Tobi/toanth in the Engine Programming Discord)
+    if (alpha >= beta) {
+      break;
+    }
+  }
+
+  return {best_move, best_score};
+}
+
+// This function implements quiescence search. The idea of quiescence search is
+// to avoid the horizon effect - the concept that a depth-limited search will
+// be insufficient to play out the consequences of available tactical moves. The
+// difference between quiescence search and basic negamax search is the
+// following:
+//    1. Stand pat score - we are statically evaluating every node (because we
+//    need a way to escape the infinite search without having to go through all
+//    the moves - if we only evaluated leaf nodes like Negamax we would need to
+//    create the entire tree) while looking for cutoffs.
+//    2. Only tactical moves are generated every iteration unless we are in
+//    check.
+//    3. There is no depth limit.
+Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
+                                               uint16_t ply, Score alpha,
+                                               Score beta) {
+  m_num_of_nodes_searched++;
+
+  // Generate sorted tactical moves in the current position if not in check, if
+  // in check, we need all moves because it is not guaranteed that at least one
+  // tactical move is a check evasion move.
+  Move_Ordering mo(position);
+  const bool is_side_to_move_in_check = mo.is_side_to_move_in_check();
+  if (is_side_to_move_in_check) {
+    mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
+  } else {
+    mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>();
+  }
+  Chess_Move_List& moves = mo.get_sorted_moves();
+
+  // No moves and in check - return mate score.
+  if ((moves.get_max_index() == -1) && is_side_to_move_in_check) {
+    const Score mate_score = get_mate_score(mo, ply);
+    return {Chess_Move(), mate_score};
+  }
+
+  // Stand pat evaluation.
+  const Evaluator e(position);
+  const Score stand_pat = e.evaluate();
+
+  // No tactical moves - return the static evaluation (stand pat).
+  if ((moves.get_max_index() == -1) && (!is_side_to_move_in_check)) {
+    return {Chess_Move(), stand_pat};
+  }
+
+  Score best_score = stand_pat;
+  Chess_Move best_move = Chess_Move();
+
+  // Update alpha if the stand pat score is greater than alpha.
+  if (best_score > alpha) {
+    alpha = best_score;
+  }
+
+  // Alpha-beta pruning based on stand pat score.
+  if (alpha >= beta) {
+    return {best_move, best_score};
+  }
+
+  for (const Chess_Move& move : moves) {
+    // Explore the child move's subtree for it's evaluation. Negate the result
+    // to compare it's score to the parent's scores (alpha, evaluation, etc).
+    const Undo_Chess_Move undo_move = position.make_move(move);
+    const Search_Engine_Result child_result =
+        quiescence(position, (ply + 1), -beta, -alpha);
+    const Score child_score = -child_result.second;
+    position.undo_move(undo_move);
+
+    // Update best score and best move based on child's score.
+    if (child_score > best_score) {
+      best_score = child_score;
+      best_move = move;
+    }
+
+    // Update alpha if the child's score is better than the alpha.
+    if (child_score > alpha) {
+      alpha = best_score;
+    }
+
+    // Alpha-beta pruning based on child's score.
     if (alpha >= beta) {
       break;
     }
