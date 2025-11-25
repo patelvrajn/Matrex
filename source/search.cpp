@@ -149,17 +149,21 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     return {Chess_Move(), stand_pat};
   }
 
-  Score best_score = stand_pat;
+  Score best_score = Score(ESCORE::NEGATIVE_INFINITY);
   Chess_Move best_move = Chess_Move();
 
-  // Update alpha if the stand pat score is greater than alpha.
-  if (best_score > alpha) {
-    alpha = best_score;
-  }
+  if (!is_side_to_move_in_check) {  // Heuristic
+    best_score = stand_pat;
 
-  // Alpha-beta pruning based on stand pat score.
-  if (alpha >= beta) {
-    return {best_move, best_score};
+    // Update alpha if the stand pat score is greater than alpha.
+    if (best_score > alpha) {
+      alpha = best_score;
+    }
+
+    // Alpha-beta pruning based on stand pat score.
+    if (alpha >= beta) {
+      return {best_move, best_score};
+    }
   }
 
   for (const Chess_Move& move : moves) {
