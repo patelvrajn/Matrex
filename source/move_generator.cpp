@@ -128,7 +128,8 @@ Bitboard Move_Generator::generate_check_mask() {
           checkers);
 }
 
-bool Move_Generator::is_side_to_move_in_check() const {
+bool Move_Generator::is_side_to_move_in_check() {
+  generate_check_mask();
   return m_side_to_move_in_check;
 }
 
@@ -417,65 +418,4 @@ Bitboard Move_Generator::is_our_king_ring_attacked() {
   // Done: return the mask of all attacked king-ring squares
   // ------------------------------------------------------
   return mask;
-}
-
-void Move_Generator::generate_all_moves(Chess_Move_List& output) {
-  const PIECE_COLOR moving_side = m_chess_board.get_side_to_move();
-
-  const Bitboard check_mask = generate_check_mask();
-  const Bitboard pinned = generate_pinned();
-
-  if (moving_side == PIECE_COLOR::WHITE) {
-    generate_single_push_promotion_pawn_moves<PIECE_COLOR::WHITE>(
-        pinned, check_mask, output);
-    generate_single_push_non_promotion_pawn_moves<PIECE_COLOR::WHITE>(
-        pinned, check_mask, output);
-    generate_double_push_pawn_moves<PIECE_COLOR::WHITE>(pinned, check_mask,
-                                                        output);
-    generate_en_passant_captures<PIECE_COLOR::WHITE>(pinned, check_mask,
-                                                     output);
-    generate_non_promotion_pawn_captures<PIECE_COLOR::WHITE>(pinned, check_mask,
-                                                             output);
-    generate_promotion_pawn_captures<PIECE_COLOR::WHITE>(pinned, check_mask,
-                                                         output);
-    generate_minor_and_major_piece_moves<PIECE_COLOR::WHITE, PIECES::KNIGHT>(
-        pinned, check_mask, output);
-    generate_minor_and_major_piece_moves<PIECE_COLOR::WHITE, PIECES::BISHOP>(
-        pinned, check_mask, output);
-    generate_minor_and_major_piece_moves<PIECE_COLOR::WHITE, PIECES::ROOK>(
-        pinned, check_mask, output);
-    generate_minor_and_major_piece_moves<PIECE_COLOR::WHITE, PIECES::QUEEN>(
-        pinned, check_mask, output);
-    generate_king_moves<PIECE_COLOR::WHITE>(output);
-    generate_castling_moves<PIECE_COLOR::WHITE, CASTLING_TYPE::KINGSIDE>(
-        pinned, output);
-    generate_castling_moves<PIECE_COLOR::WHITE, CASTLING_TYPE::QUEENSIDE>(
-        pinned, output);
-  } else {
-    generate_single_push_promotion_pawn_moves<PIECE_COLOR::BLACK>(
-        pinned, check_mask, output);
-    generate_single_push_non_promotion_pawn_moves<PIECE_COLOR::BLACK>(
-        pinned, check_mask, output);
-    generate_double_push_pawn_moves<PIECE_COLOR::BLACK>(pinned, check_mask,
-                                                        output);
-    generate_en_passant_captures<PIECE_COLOR::BLACK>(pinned, check_mask,
-                                                     output);
-    generate_non_promotion_pawn_captures<PIECE_COLOR::BLACK>(pinned, check_mask,
-                                                             output);
-    generate_promotion_pawn_captures<PIECE_COLOR::BLACK>(pinned, check_mask,
-                                                         output);
-    generate_minor_and_major_piece_moves<PIECE_COLOR::BLACK, PIECES::KNIGHT>(
-        pinned, check_mask, output);
-    generate_minor_and_major_piece_moves<PIECE_COLOR::BLACK, PIECES::BISHOP>(
-        pinned, check_mask, output);
-    generate_minor_and_major_piece_moves<PIECE_COLOR::BLACK, PIECES::ROOK>(
-        pinned, check_mask, output);
-    generate_minor_and_major_piece_moves<PIECE_COLOR::BLACK, PIECES::QUEEN>(
-        pinned, check_mask, output);
-    generate_king_moves<PIECE_COLOR::BLACK>(output);
-    generate_castling_moves<PIECE_COLOR::BLACK, CASTLING_TYPE::KINGSIDE>(
-        pinned, output);
-    generate_castling_moves<PIECE_COLOR::BLACK, CASTLING_TYPE::QUEENSIDE>(
-        pinned, output);
-  }
 }

@@ -41,6 +41,8 @@ class Search_Engine {
   bool m_timer_expired_during_search;
   uint64_t m_num_of_nodes_searched;
 
+  Search_Engine_Result quiescence(Chess_Board& position, uint16_t ply,
+                                  Score alpha, Score beta);
   Search_Engine_Result iterative_deepening();
 
   inline Score get_mate_score(const Move_Ordering& mo, uint16_t ply);

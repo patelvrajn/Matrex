@@ -155,7 +155,7 @@ void UCI::make_moves_from_string(const std::string& moves_str, bool is_frc) {
   while (iss >> move_str) {  // Loop over space seperated moves string.
     Move_Generator mg(m_chess_board);
     Chess_Move_List moves;
-    mg.generate_all_moves(moves);
+    mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves);
 
     for (const auto& move : moves) {
       if (move_str == move.to_coordinate_notation(is_frc)) {

@@ -1,15 +1,9 @@
 #include "move_ordering.hpp"
 
-#include "move_generator.hpp"
-
 mvv_lva_array Move_Ordering::m_mvv_lva_array =
     Move_Ordering::generate_mvv_lva_array();
 
-Move_Ordering::Move_Ordering(const Chess_Board& cb) : m_chess_board(cb) {
-  Move_Generator mg(m_chess_board);
-  mg.generate_all_moves(m_move_list);
-  m_side_to_move_in_check = mg.is_side_to_move_in_check();
-}
+Move_Ordering::Move_Ordering(const Chess_Board& cb) : m_chess_board(cb) {}
 
 Chess_Move_List& Move_Ordering::get_sorted_moves() {
   if (m_move_list.get_max_index() != -1) {
@@ -49,5 +43,6 @@ void Move_Ordering::mvv_lva_scorer() {
 }
 
 bool Move_Ordering::is_side_to_move_in_check() const {
-  return m_side_to_move_in_check;
+  Move_Generator mg(m_chess_board);
+  return mg.is_side_to_move_in_check();
 }
