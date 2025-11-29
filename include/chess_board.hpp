@@ -79,6 +79,8 @@ class Chess_Board {
 
   void undo_move(Undo_Chess_Move undo_move);
 
+  Zobrist_Hash get_zobrist_hash() const;
+
   bool operator==(const Chess_Board& other) const;
 
  private:

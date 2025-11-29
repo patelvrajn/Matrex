@@ -4,6 +4,8 @@
 #include "score.hpp"
 #include "zobrist_hash.hpp"
 
+#define PARTIAL_ZOBRIST_MASK 0xFFFF
+
 enum class Score_Bound_Type : uint8_t { EXACT, LOWER_BOUND, UPPER_BOUND };
 
 struct Transposition_Table_Entry {
@@ -28,6 +30,8 @@ class Transposition_Table {
   void write(const Zobrist_Hash hash, const Transposition_Table_Entry& entry);
 
   void clear();
+
+  static uint16_t get_partial_zobrist(const Zobrist_Hash hash);
 
  private:
   Transposition_Table_Entry* m_table;

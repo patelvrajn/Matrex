@@ -1,7 +1,5 @@
 #include "transposition_table.hpp"
 
-#define PARTIAL_ZOBRIST_MASK 0xFFFF
-
 Transposition_Table::Transposition_Table(const uint64_t size_in_mib)
     : m_table(nullptr), m_size(0) {
   resize(size_in_mib);
@@ -49,4 +47,8 @@ void Transposition_Table::clear() {
   for (uint64_t i = 0; i < m_size; ++i) {
     m_table[i] = Transposition_Table_Entry{};
   }
+}
+
+uint16_t Transposition_Table::get_partial_zobrist(const Zobrist_Hash hash) {
+  return static_cast<uint16_t>(hash.get_hash_value() & PARTIAL_ZOBRIST_MASK);
 }

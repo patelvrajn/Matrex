@@ -319,6 +319,8 @@ void Chess_Board::undo_move(Undo_Chess_Move undo_move) {
   m_zobrist_hash.flip_side_to_move();
 }
 
+Zobrist_Hash Chess_Board::get_zobrist_hash() const { return m_zobrist_hash; }
+
 void Chess_Board::set_from_fen(const std::string& fen) {
   // Nuke the board: wipe every piece and occupancy bitboard like the
   // apocalypse.

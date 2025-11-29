@@ -18,6 +18,25 @@ Search_Engine_Result Search_Engine::search() {
 Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
                                             uint16_t depth, uint16_t ply,
                                             Score alpha, Score beta) {
+  const Zobrist_Hash position_z_hash = position.get_zobrist_hash();
+  Transposition_Table_Entry transposition_table_entry;
+  const bool did_transposition_table_hit =
+      m_transposition_table.read(position_z_hash, transposition_table_entry);
+
+  // Transposition table cutoff - use the stored best move and score if it
+  // satisfies the conditions.
+  if (should_use_transposition_table_score(did_transposition_table_hit, depth,
+                                           transposition_table_entry, alpha,
+                                           beta)) {
+    return {transposition_table_entry.best_move,
+            transposition_table_entry.score};
+  }
+
+  // Assume that the score bound for a position's score to be stored in the
+  // transposition table is an upper bound (or <= alpha) until we find out
+  // otherwise.
+  Score_Bound_Type score_bound = Score_Bound_Type::UPPER_BOUND;
+
   Move_Ordering mo(position);
   mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
   Chess_Move_List& moves = mo.get_sorted_moves();
@@ -26,6 +45,20 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
   if (moves.get_max_index() == -1) {
     m_num_of_nodes_searched++;
     const Score mate_score = get_mate_score(mo, ply);
+
+    // Cache the position's mate evaluation in the transposition table.
+    transposition_table_entry = {
+        .partial_zobrist =
+            Transposition_Table::get_partial_zobrist(position_z_hash),
+        .age = 0,
+        .best_move = Chess_Move(),  // No best move in mate positions.
+        .score = mate_score,
+        .depth = depth,
+        .score_bound =
+            Score_Bound_Type::EXACT,  // Mate scores are always exact.
+    };
+    m_transposition_table.write(position_z_hash, transposition_table_entry);
+
     return {Chess_Move(), mate_score};
   }
 
@@ -55,14 +88,19 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
     // Explore the child move's subtree for it's evaluation. Negate the result
     // to compare it's score to the parent's scores (alpha, evaluation, etc).
     const Undo_Chess_Move undo_move = position.make_move(move);
+    m_transposition_table.prefetch(position_z_hash);
     const Search_Engine_Result child_result =
         negamax(position, (depth - 1), (ply + 1), -beta, -alpha);
     const Score child_score = -child_result.second;
     position.undo_move(undo_move);
 
     // Update alpha if the child's score is better than the current alpha. All
-    // nodes in negamax are looking to maximize their alpha value.
+    // nodes in negamax are looking to maximize their alpha value. If the score
+    // is greater than alpha and assuming it doesn't cause a beta cutoff, then
+    // the score is exact because it falls between the invariant;
+    // alpha < score < beta.
     if (child_score > alpha) {
+      score_bound = Score_Bound_Type::EXACT;
       alpha = child_score;
     }
 
@@ -97,10 +135,26 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
     //  thus, the equal sign eliminates further cases of futile work.
     //
     // (Credit to Tobi/toanth in the Engine Programming Discord)
+    //
+    // When the pruning condition is met, the score is a lower bound on what the
+    // score could of been if the other children were not pruned.
     if (alpha >= beta) {
+      score_bound = Score_Bound_Type::LOWER_BOUND;
       break;
     }
   }
+
+  // Cache the position's best move and evaluation in the transposition table.
+  transposition_table_entry = {
+      .partial_zobrist =
+          Transposition_Table::get_partial_zobrist(position_z_hash),
+      .age = 0,
+      .best_move = best_move,
+      .score = best_score,
+      .depth = depth,
+      .score_bound = score_bound,
+  };
+  m_transposition_table.write(position_z_hash, transposition_table_entry);
 
   return {best_move, best_score};
 }
@@ -120,6 +174,26 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
 Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
                                                uint16_t ply, Score alpha,
                                                Score beta) {
+  const Zobrist_Hash position_z_hash = position.get_zobrist_hash();
+  Transposition_Table_Entry transposition_table_entry;
+  const bool did_transposition_table_hit =
+      m_transposition_table.read(position_z_hash, transposition_table_entry);
+
+  // Transposition table cutoff - use the stored best move and score if it
+  // satisfies the conditions. Note, quiescence search is a zero depth search -
+  // it doesn't search all moves to depth.
+  if (should_use_transposition_table_score(did_transposition_table_hit, 0,
+                                           transposition_table_entry, alpha,
+                                           beta)) {
+    return {transposition_table_entry.best_move,
+            transposition_table_entry.score};
+  }
+
+  // Assume that the score bound for a position's score to be stored in the
+  // transposition table is an upper bound (or <= alpha) until we find out
+  // otherwise.
+  Score_Bound_Type score_bound = Score_Bound_Type::UPPER_BOUND;
+
   m_num_of_nodes_searched++;
 
   // Generate sorted tactical moves in the current position if not in check, if
@@ -134,18 +208,53 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
   }
   Chess_Move_List& moves = mo.get_sorted_moves();
 
-  // No moves and in check - return mate score.
+  // No moves and in check - return mate score. Note, we don't handle stalemates
+  // in quiescence search.
   if ((moves.get_max_index() == -1) && is_side_to_move_in_check) {
     const Score mate_score = get_mate_score(mo, ply);
+
+    // Cache the position's mate evaluation in the transposition table.
+    transposition_table_entry = {
+        .partial_zobrist =
+            Transposition_Table::get_partial_zobrist(position_z_hash),
+        .age = 0,
+        .best_move = Chess_Move(),  // No best move in mate positions.
+        .score = mate_score,
+        .depth = 0,
+        .score_bound =
+            Score_Bound_Type::EXACT,  // Mate scores are always exact.
+    };
+    m_transposition_table.write(position_z_hash, transposition_table_entry);
+
     return {Chess_Move(), mate_score};
   }
 
-  // Stand pat evaluation.
   const Evaluator e(position);
-  const Score stand_pat = e.evaluate();
+  Score stand_pat = e.evaluate();
+
+  // Update stand pat evaluation based on a transposition table hit which would
+  // most likely be based on a deeper search.
+  if (should_use_transposition_table_score(did_transposition_table_hit, 0,
+                                           transposition_table_entry,
+                                           stand_pat)) {
+    stand_pat = transposition_table_entry.score;
+  }
 
   // No tactical moves - return the static evaluation (stand pat).
   if ((moves.get_max_index() == -1) && (!is_side_to_move_in_check)) {
+    // Cache the position's mate evaluation in the transposition table.
+    transposition_table_entry = {
+        .partial_zobrist =
+            Transposition_Table::get_partial_zobrist(position_z_hash),
+        .age = 0,
+        .best_move = Chess_Move(),  // No best move.
+        .score = stand_pat,
+        .depth = 0,
+        .score_bound =
+            Score_Bound_Type::EXACT,  // Static evaluations are always exact.
+    };
+    m_transposition_table.write(position_z_hash, transposition_table_entry);
+
     return {Chess_Move(), stand_pat};
   }
 
@@ -153,15 +262,31 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
   Chess_Move best_move = Chess_Move();
 
   if (!is_side_to_move_in_check) {  // Heuristic
+
     best_score = stand_pat;
 
     // Update alpha if the stand pat score is greater than alpha.
     if (best_score > alpha) {
+      score_bound = Score_Bound_Type::EXACT;
       alpha = best_score;
     }
 
     // Alpha-beta pruning based on stand pat score.
     if (alpha >= beta) {
+      // Cache the position's mate evaluation in the transposition table.
+      transposition_table_entry = {
+          .partial_zobrist =
+              Transposition_Table::get_partial_zobrist(position_z_hash),
+          .age = 0,
+          .best_move = best_move,
+          .score = best_score,
+          .depth = 0,
+          .score_bound =
+              Score_Bound_Type::LOWER_BOUND,  // Scores at beta cutoffs are
+                                              // always lower bounds.
+      };
+      m_transposition_table.write(position_z_hash, transposition_table_entry);
+
       return {best_move, best_score};
     }
   }
@@ -183,14 +308,28 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
 
     // Update alpha if the child's score is better than the alpha.
     if (child_score > alpha) {
+      score_bound = Score_Bound_Type::EXACT;
       alpha = best_score;
     }
 
     // Alpha-beta pruning based on child's score.
     if (alpha >= beta) {
+      score_bound = Score_Bound_Type::LOWER_BOUND;
       break;
     }
   }
+
+  // Cache the position's best move and evaluation in the transposition table.
+  transposition_table_entry = {
+      .partial_zobrist =
+          Transposition_Table::get_partial_zobrist(position_z_hash),
+      .age = 0,
+      .best_move = best_move,
+      .score = best_score,
+      .depth = 0,
+      .score_bound = score_bound,
+  };
+  m_transposition_table.write(position_z_hash, transposition_table_entry);
 
   return {best_move, best_score};
 }
