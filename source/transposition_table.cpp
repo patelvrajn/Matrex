@@ -33,6 +33,7 @@ bool Transposition_Table::read(const Zobrist_Hash hash,
     output = m_table[index];
     return true;
   } else {
+    output = Transposition_Table_Entry{};
     return false;
   }
 }

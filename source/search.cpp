@@ -37,7 +37,7 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
   // otherwise.
   Score_Bound_Type score_bound = Score_Bound_Type::UPPER_BOUND;
 
-  Move_Ordering mo(position);
+  Move_Ordering mo(position, transposition_table_entry.best_move);
   mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
   Chess_Move_List& moves = mo.get_sorted_moves();
 
@@ -199,7 +199,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
   // Generate sorted tactical moves in the current position if not in check, if
   // in check, we need all moves because it is not guaranteed that at least one
   // tactical move is a check evasion move.
-  Move_Ordering mo(position);
+  Move_Ordering mo(position, transposition_table_entry.best_move);
   const bool is_side_to_move_in_check = mo.is_side_to_move_in_check();
   if (is_side_to_move_in_check) {
     mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
