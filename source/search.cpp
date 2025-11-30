@@ -2,16 +2,20 @@
 
 #include "evaluate.hpp"
 
-Search_Engine::Search_Engine(const Chess_Board& cb,
-                             const Search_Constraints& constraints)
-    : m_chess_board(cb),
-      m_constraints(constraints),
-      m_my_side(cb.get_side_to_move()),
-      m_timer_expired_during_search(false),
-      m_num_of_nodes_searched(0) {}
+Search_Engine::Search_Engine()
+    : m_timer_expired_during_search(false), m_num_of_nodes_searched(0) {}
 
-Search_Engine_Result Search_Engine::search() {
+void Search_Engine::new_game() { m_transposition_table.clear(); }
+
+Search_Engine_Result Search_Engine::search(
+    const Chess_Board& cb, const Search_Constraints& constraints) {
+  m_chess_board = cb;
+  m_transposition_table.resize(constraints.transposition_table_size);
+  m_constraints = constraints;
+  m_my_side = cb.get_side_to_move();
   m_num_of_nodes_searched = 0;
+  m_timer_expired_during_search = false;
+
   return iterative_deepening();
 }
 

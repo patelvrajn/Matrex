@@ -9,7 +9,13 @@ Transposition_Table::Transposition_Table(const uint64_t size_in_mib)
 void Transposition_Table::resize(const uint64_t size_in_mib) {
   constexpr uint64_t SIZE_OF_ENTRY = sizeof(Transposition_Table_Entry);
   uint64_t size_in_bytes = size_in_mib * 1024 * 1024;
-  m_size = size_in_bytes / SIZE_OF_ENTRY;
+  uint64_t new_size = size_in_bytes / SIZE_OF_ENTRY;
+
+  if (new_size == m_size) {
+    return;
+  }
+
+  m_size = new_size;
 
   if (m_table != nullptr) {
     delete[] m_table;

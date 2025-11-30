@@ -6,6 +6,8 @@
 
 #define PARTIAL_ZOBRIST_MASK 0xFFFF
 
+constexpr uint64_t DEFAULT_TRANSPOSITION_TABLE_SIZE = 64;  // MiB
+
 enum class Score_Bound_Type : uint8_t { EXACT, LOWER_BOUND, UPPER_BOUND };
 
 struct Transposition_Table_Entry {
@@ -19,7 +21,8 @@ struct Transposition_Table_Entry {
 
 class Transposition_Table {
  public:
-  explicit Transposition_Table(const uint64_t size_in_mib);
+  explicit Transposition_Table(
+      const uint64_t size_in_mib = DEFAULT_TRANSPOSITION_TABLE_SIZE);
 
   void resize(const uint64_t size_in_mib);
 

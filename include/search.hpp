@@ -20,15 +20,18 @@ struct Time_Control {
 
 struct Search_Constraints {
   std::array<Time_Control, NUM_OF_PLAYERS> time_controls;
+  uint64_t transposition_table_size;
 };
 
 typedef std::pair<Chess_Move, Score> Search_Engine_Result;
 
 class Search_Engine {
  public:
-  Search_Engine(const Chess_Board& cb, const Search_Constraints& constraints);
+  Search_Engine();
 
-  Search_Engine_Result search();
+  void new_game();
+  Search_Engine_Result search(const Chess_Board& cb,
+                              const Search_Constraints& constraints);
   Search_Engine_Result negamax(Chess_Board& position, uint16_t depth,
                                uint16_t ply = 0,
                                Score alpha = Score(ESCORE::NEGATIVE_INFINITY),
