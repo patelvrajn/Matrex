@@ -30,7 +30,6 @@ class UCI {
   void handle_setoption(const std::string& arguments);
 
   // Helpers
-  void make_moves_from_string(const std::string& moves_str, bool is_frc);
   std::unique_ptr<std::vector<std::string>> split_string(
       std::string s, const std::string& delimiter);
 };

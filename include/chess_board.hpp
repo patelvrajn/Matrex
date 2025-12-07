@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <sstream>
+#include <string>
 
 #include "bitboard.hpp"
 #include "chess_move.hpp"
@@ -78,6 +80,8 @@ class Chess_Board {
   Undo_Chess_Move make_move(const Chess_Move& move);
 
   void undo_move(Undo_Chess_Move undo_move);
+
+  void make_moves_from_string(const std::string& moves_str, bool is_frc);
 
   Zobrist_Hash get_zobrist_hash() const;
 

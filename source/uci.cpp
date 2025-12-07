@@ -54,7 +54,7 @@ void UCI::handle_position(const std::string& arguments) {
       const std::string moves_str =
           arguments.substr(end_of_moves_keyword_index + 1);
 
-      make_moves_from_string(moves_str, m_is_frc);
+      m_chess_board.make_moves_from_string(moves_str, m_is_frc);
     }
   }
 
@@ -91,7 +91,7 @@ void UCI::handle_position(const std::string& arguments) {
       const std::string moves_str =
           arguments.substr(end_of_moves_keyword_index + 1);
 
-      make_moves_from_string(moves_str, m_is_frc);
+      m_chess_board.make_moves_from_string(moves_str, m_is_frc);
     }
   }
 
@@ -152,25 +152,6 @@ void UCI::handle_ucinewgame(const std::string&) {
 
 void UCI::handle_isready(const std::string&) {
   std::cout << "readyok" << std::endl;
-}
-
-void UCI::make_moves_from_string(const std::string& moves_str, bool is_frc) {
-  std::istringstream iss(moves_str);
-
-  std::string move_str;
-
-  while (iss >> move_str) {  // Loop over space seperated moves string.
-    Move_Generator mg(m_chess_board);
-    Chess_Move_List moves;
-    mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves);
-
-    for (const auto& move : moves) {
-      if (move_str == move.to_coordinate_notation(is_frc)) {
-        m_chess_board.make_move(move);
-        break;
-      }
-    }
-  }
 }
 
 void UCI::handle_setoption(const std::string& arguments) {

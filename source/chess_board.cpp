@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include "move_generator.hpp"
+
 Chess_Board::Chess_Board() {
   m_state.castling_rights =
       CASTLING_RIGHTS_FLAGS::W_KINGSIDE | CASTLING_RIGHTS_FLAGS::W_QUEENSIDE |
@@ -317,6 +319,26 @@ void Chess_Board::undo_move(Undo_Chess_Move undo_move) {
 
   m_state.side_to_move = opposing_side;
   m_zobrist_hash.flip_side_to_move();
+}
+
+void Chess_Board::make_moves_from_string(const std::string& moves_str,
+                                         bool is_frc) {
+  std::istringstream iss(moves_str);
+
+  std::string move_str;
+
+  while (iss >> move_str) {  // Loop over space seperated moves string.
+    Move_Generator mg(*this);
+    Chess_Move_List moves;
+    mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves);
+
+    for (const auto& move : moves) {
+      if (move_str == move.to_coordinate_notation(is_frc)) {
+        make_move(move);
+        break;
+      }
+    }
+  }
 }
 
 Zobrist_Hash Chess_Board::get_zobrist_hash() const { return m_zobrist_hash; }
