@@ -32,10 +32,6 @@ class Search_Engine {
   void new_game();
   Search_Engine_Result search(const Chess_Board& cb,
                               const Search_Constraints& constraints);
-  Search_Engine_Result negamax(Chess_Board& position, uint16_t depth,
-                               uint16_t ply = 0,
-                               Score alpha = Score(ESCORE::NEGATIVE_INFINITY),
-                               Score beta = Score(ESCORE::POSITIVE_INFINITY));
 
  private:
   Chess_Board m_chess_board;
@@ -46,6 +42,10 @@ class Search_Engine {
   bool m_timer_expired_during_search;
   uint64_t m_num_of_nodes_searched;
 
+  Search_Engine_Result negamax(Chess_Board& position, uint16_t depth,
+                               uint16_t ply = 0,
+                               Score alpha = Score(ESCORE::NEGATIVE_INFINITY),
+                               Score beta = Score(ESCORE::POSITIVE_INFINITY));
   Search_Engine_Result quiescence(Chess_Board& position, uint16_t ply,
                                   Score alpha, Score beta);
   Search_Engine_Result iterative_deepening();
