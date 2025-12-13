@@ -26,7 +26,6 @@ CXXFLAGS = \
 	        -Wall \
 	        -Wextra \
 	        -Wpedantic \
-					-fsanitize=leak,address,undefined \
 		      -fpie \
 	        -pie \
 		      -I ../include
