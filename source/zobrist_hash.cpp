@@ -41,7 +41,8 @@ Zobrist_Hash_Keys Zobrist_Hash::initialize_hash_keys() {
     }
   }
 
-  for (uint8_t square = 0; square < NUM_OF_SQUARES_ON_CHESS_BOARD; square++) {
+  for (uint8_t square = 0; square < (NUM_OF_SQUARES_ON_CHESS_BOARD + 1);
+       square++) {
     keys.en_passant[square] = dist(rng);
   }
 

@@ -16,6 +16,7 @@ Chess_Board::Chess_Board() {
   m_color_occupancy_bitboards = {};
   m_zobrist_hash = Zobrist_Hash();
   m_zobrist_hash.update_castling_rights(m_state.castling_rights);
+  m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
 }
 
 Bitboard Chess_Board::get_both_color_occupancies() const {
@@ -194,21 +195,17 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move) {
     m_state.full_move_count = m_state.full_move_count + 1;
   }
 
-  const ESQUARE previous_enpassant_square = m_state.enpassant_square;
+  m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
   if (move.is_double_pawn_push) {
     if (m_state.side_to_move == PIECE_COLOR::WHITE) {
       m_state.enpassant_square = ESQUARE(move.destination_square + 8);
     } else {
       m_state.enpassant_square = ESQUARE(move.destination_square - 8);
     }
-    if (previous_enpassant_square != ESQUARE::NO_SQUARE) {
-      m_zobrist_hash.update_en_passant_square(
-          Square(previous_enpassant_square));
-    }
-    m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
   } else {
     m_state.enpassant_square = ESQUARE::NO_SQUARE;
   }
+  m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
 
   const uint8_t previous_castling_rights = m_state.castling_rights;
 
@@ -297,9 +294,7 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move) {
 
 void Chess_Board::undo_move(Undo_Chess_Move undo_move) {
   m_zobrist_hash.update_castling_rights(m_state.castling_rights);
-  if (m_state.enpassant_square != ESQUARE::NO_SQUARE) {
-    m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
-  }
+  m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
 
   m_state.castling_rights = undo_move.castling_rights;
   m_state.half_move_clock = undo_move.half_move_clock;
@@ -307,9 +302,7 @@ void Chess_Board::undo_move(Undo_Chess_Move undo_move) {
   PIECE_COLOR opposing_side = (PIECE_COLOR)((~m_state.side_to_move) & 0x1);
 
   m_zobrist_hash.update_castling_rights(m_state.castling_rights);
-  if (m_state.enpassant_square != ESQUARE::NO_SQUARE) {
-    m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
-  }
+  m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
 
   calculate_next_board_state(opposing_side, undo_move.move);
 
@@ -492,11 +485,11 @@ void Chess_Board::set_from_fen(const std::string& fen) {
         NUM_OF_RANKS_ON_CHESS_BOARD - (enpassant_square[1] - '0');
     const Square s(rank, file);
     m_state.enpassant_square = (ESQUARE)s.get_index();
-    m_zobrist_hash.update_en_passant_square(m_state.enpassant_square);
   } else {
     // "-" means no en passant available
     m_state.enpassant_square = ESQUARE::NO_SQUARE;
   }
+  m_zobrist_hash.update_en_passant_square(m_state.enpassant_square);
 
   // Halfmove clock parsing (for 50-move rule)
   const uint8_t half_move_clock_start_pos =

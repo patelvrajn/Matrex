@@ -11,7 +11,7 @@ struct Zobrist_Hash_Keys {
                         NUM_OF_UNIQUE_PIECES_PER_PLAYER>,
              NUM_OF_PLAYERS>
       pieces;
-  std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> en_passant;
+  std::array<uint64_t, (NUM_OF_SQUARES_ON_CHESS_BOARD + 1)> en_passant;
   std::array<uint64_t, 16> castling_rights;
   uint64_t black_to_move;
 };
