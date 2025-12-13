@@ -4,7 +4,9 @@
 #include "score.hpp"
 #include "zobrist_hash.hpp"
 
-#define PARTIAL_ZOBRIST_MASK 0xFFFF
+constexpr uint64_t PARTIAL_ZOBRIST_MASK = 0xFFFF;
+constexpr uint64_t LEMIRE_INDEX_MASK = 0xFFFFFFFFFFFF0000;
+constexpr uint64_t LEMIRE_INDEX_SHIFT = 16;
 
 constexpr uint64_t DEFAULT_TRANSPOSITION_TABLE_SIZE = 64;  // MiB
 
@@ -25,6 +27,8 @@ class Transposition_Table {
       const uint64_t size_in_mib = DEFAULT_TRANSPOSITION_TABLE_SIZE);
 
   void resize(const uint64_t size_in_mib);
+
+  uint64_t get_lemire_index(const Zobrist_Hash hash) const;
 
   void prefetch(const Zobrist_Hash hash);
 
