@@ -11,7 +11,7 @@ Move_Ordering::Move_Ordering(const Chess_Board& cb, const Chess_Move& hash_move)
 Chess_Move_List& Move_Ordering::get_sorted_moves() {
   if (m_move_list.get_max_index() != -1) {
     mvv_lva_scorer();
-    hash_move_scorer();
+    // hash_move_scorer();
     m_move_list.sort();
   }
   return m_move_list;
