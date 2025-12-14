@@ -299,6 +299,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     // Explore the child move's subtree for it's evaluation. Negate the result
     // to compare it's score to the parent's scores (alpha, evaluation, etc).
     const Undo_Chess_Move undo_move = position.make_move(move);
+    m_transposition_table.prefetch(position.get_zobrist_hash());
     const Search_Engine_Result child_result =
         quiescence(position, (ply + 1), -beta, -alpha);
     const Score child_score = -child_result.second;
