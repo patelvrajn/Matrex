@@ -148,17 +148,20 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
     }
   }
 
-  // Cache the position's best move and evaluation in the transposition table.
-  transposition_table_entry = {
-      .partial_zobrist =
-          Transposition_Table::get_partial_zobrist(position_z_hash),
-      .age = 0,
-      .best_move = best_move,
-      .score = best_score,
-      .depth = depth,
-      .score_bound = score_bound,
-  };
-  m_transposition_table.write(position_z_hash, transposition_table_entry);
+  // Cache the position's best move and evaluation in the transposition table if
+  // time has not expired during the search.
+  if (!m_timer_expired_during_search) {
+    transposition_table_entry = {
+        .partial_zobrist =
+            Transposition_Table::get_partial_zobrist(position_z_hash),
+        .age = 0,
+        .best_move = best_move,
+        .score = best_score,
+        .depth = depth,
+        .score_bound = score_bound,
+    };
+    m_transposition_table.write(position_z_hash, transposition_table_entry);
+  }
 
   return {best_move, best_score};
 }
