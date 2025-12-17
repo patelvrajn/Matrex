@@ -5,7 +5,6 @@
 #include "zobrist_hash.hpp"
 
 constexpr uint64_t PARTIAL_ZOBRIST_MASK = 0xFFFF;
-constexpr uint64_t LEMIRE_INDEX_MASK = 0xFFFFFFFFFFFF0000;
 constexpr uint64_t LEMIRE_INDEX_SHIFT = 16;
 
 constexpr uint64_t DEFAULT_TRANSPOSITION_TABLE_SIZE = 64;  // MiB

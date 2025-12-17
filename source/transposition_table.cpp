@@ -31,9 +31,8 @@ void Transposition_Table::resize(const uint64_t size_in_mib) {
 // distribution than using the lower bits - reduces collisions.
 uint64_t Transposition_Table::get_lemire_index(const Zobrist_Hash hash) const {
   __uint128_t product =
-      (static_cast<__uint128_t>((hash.get_hash_value() & LEMIRE_INDEX_MASK) >>
-                                LEMIRE_INDEX_SHIFT) *
-       static_cast<__uint128_t>(m_size));
+      (static_cast<__uint128_t>((hash.get_hash_value() >> LEMIRE_INDEX_SHIFT) *
+                                static_cast<__uint128_t>(m_size)));
   return static_cast<uint64_t>(product >> 64);
 }
 
