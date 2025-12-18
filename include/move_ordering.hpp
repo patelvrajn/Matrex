@@ -15,7 +15,7 @@ typedef std::array<std::array<Move_Score, (PIECES::QUEEN + 1)>,
 
 class Move_Ordering {
  public:
-  Move_Ordering(const Chess_Board& cb);
+  Move_Ordering(const Chess_Board& cb, const Chess_Move& hash_move);
   Chess_Move_List& get_sorted_moves();
   bool is_side_to_move_in_check() const;
 
@@ -26,9 +26,11 @@ class Move_Ordering {
   const Chess_Board& m_chess_board;
   Chess_Move_List m_move_list;
   static mvv_lva_array m_mvv_lva_array;
+  Chess_Move m_hash_move;
 
   static mvv_lva_array generate_mvv_lva_array();
   void mvv_lva_scorer();
+  void hash_move_scorer();
 };
 
 template <MOVE_GENERATION_TYPE move_gen_type>

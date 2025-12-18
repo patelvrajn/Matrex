@@ -1,13 +1,17 @@
 #include "move_ordering.hpp"
 
+#include <limits>
+
 mvv_lva_array Move_Ordering::m_mvv_lva_array =
     Move_Ordering::generate_mvv_lva_array();
 
-Move_Ordering::Move_Ordering(const Chess_Board& cb) : m_chess_board(cb) {}
+Move_Ordering::Move_Ordering(const Chess_Board& cb, const Chess_Move& hash_move)
+    : m_chess_board(cb), m_hash_move(hash_move) {}
 
 Chess_Move_List& Move_Ordering::get_sorted_moves() {
   if (m_move_list.get_max_index() != -1) {
     mvv_lva_scorer();
+    // hash_move_scorer();
     m_move_list.sort();
   }
   return m_move_list;
@@ -38,6 +42,17 @@ void Move_Ordering::mvv_lva_scorer() {
     // as the victim, both are pawns.
     if (move.is_en_passant) {
       move.score = m_mvv_lva_array[move.moving_piece][move.moving_piece];
+    }
+  }
+}
+
+void Move_Ordering::hash_move_scorer() {
+  for (Chess_Move& move : m_move_list) {
+    // For the hash move, give it the maximum score to ensure it is sorted to
+    // the front. If the hash move is not found, it won't be scored (e.g. if
+    // move is Chess_Move()).
+    if (move.is_same_move(m_hash_move)) {
+      move.score = std::numeric_limits<Move_Score>::max();
     }
   }
 }

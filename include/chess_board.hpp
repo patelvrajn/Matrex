@@ -1,10 +1,13 @@
 #pragma once
 
 #include <array>
+#include <sstream>
+#include <string>
 
 #include "bitboard.hpp"
 #include "chess_move.hpp"
 #include "globals.hpp"
+#include "zobrist_hash.hpp"
 
 constexpr uint8_t NUM_OF_CASTLING_TYPES = 2;
 
@@ -43,13 +46,6 @@ class Chess_Board {
  public:
   Chess_Board();
 
-  Chess_Board(const Bitboard& w_pawn_bb, const Bitboard& w_knight_bb,
-              const Bitboard& w_bishop_bb, const Bitboard& w_rook_bb,
-              const Bitboard& w_queen_bb, const Bitboard& w_king_bb,
-              const Bitboard& b_pawn_bb, const Bitboard& b_knight_bb,
-              const Bitboard& b_bishop_bb, const Bitboard& b_rook_bb,
-              const Bitboard& b_queen_bb, const Bitboard& b_king_bb);
-
   void pretty_print() const;
 
   std::pair<PIECE_COLOR, PIECES> what_piece_is_on_square(const Square& s) const;
@@ -85,6 +81,10 @@ class Chess_Board {
 
   void undo_move(Undo_Chess_Move undo_move);
 
+  void make_moves_from_string(const std::string& moves_str, bool is_frc);
+
+  Zobrist_Hash get_zobrist_hash() const;
+
   bool operator==(const Chess_Board& other) const;
 
  private:
@@ -94,6 +94,8 @@ class Chess_Board {
   std::array<Bitboard, NUM_OF_PLAYERS> m_color_occupancy_bitboards;
 
   chess_board_state m_state;
+
+  Zobrist_Hash m_zobrist_hash;
 
   void place_pieces_from_fen(const std::string& rank_description,
                              uint8_t length_of_description, uint8_t rank);
@@ -112,6 +114,9 @@ inline void Chess_Board::calculate_next_board_state(PIECE_COLOR moving_side,
   if (move.is_capture) {
     m_piece_bitboards[opposing_side][move.captured_piece] ^= dst_mask;
     m_color_occupancy_bitboards[opposing_side] ^= dst_mask;
+
+    m_zobrist_hash.update_piece(opposing_side, move.captured_piece,
+                                Square(move.destination_square));
   }
 
   // Handle En Passant.
@@ -120,21 +125,33 @@ inline void Chess_Board::calculate_next_board_state(PIECE_COLOR moving_side,
         Square(move.en_passant_victim_square).get_mask();
     m_piece_bitboards[opposing_side][PIECES::PAWN] ^= en_passant_mask;
     m_color_occupancy_bitboards[opposing_side] ^= en_passant_mask;
+
+    m_zobrist_hash.update_piece(opposing_side, PIECES::PAWN,
+                                Square(move.en_passant_victim_square));
   }
 
   // Moving piece source square
   m_piece_bitboards[moving_side][move.moving_piece] ^= src_mask;
   m_color_occupancy_bitboards[moving_side] ^= src_mask;
 
+  m_zobrist_hash.update_piece(moving_side, move.moving_piece,
+                              Square(move.source_square));
+
   // Moving piece target square if not a pawn promotion
   if (!move.is_promotion) {
     m_piece_bitboards[moving_side][move.moving_piece] ^= dst_mask;
     m_color_occupancy_bitboards[moving_side] ^= dst_mask;
+
+    m_zobrist_hash.update_piece(moving_side, move.moving_piece,
+                                Square(move.destination_square));
   }
   // Moving piece target square if there is a promotion
   else {
     m_piece_bitboards[moving_side][move.promoted_piece] ^= dst_mask;
     m_color_occupancy_bitboards[moving_side] ^= dst_mask;
+
+    m_zobrist_hash.update_piece(moving_side, move.promoted_piece,
+                                Square(move.destination_square));
   }
 
   // Handle rook movement if castling
@@ -149,5 +166,10 @@ inline void Chess_Board::calculate_next_board_state(PIECE_COLOR moving_side,
 
     m_color_occupancy_bitboards[moving_side] ^= rook_src_mask;
     m_color_occupancy_bitboards[moving_side] ^= rook_dst_mask;
+
+    m_zobrist_hash.update_piece(moving_side, PIECES::ROOK,
+                                Square(move.castling_rook_source_square));
+    m_zobrist_hash.update_piece(moving_side, PIECES::ROOK,
+                                Square(move.castling_rook_destination_square));
   }
 }

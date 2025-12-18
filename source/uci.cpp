@@ -34,6 +34,7 @@ void UCI::loop() {
     HANDLE_COMMAND(uci)
     HANDLE_COMMAND(ucinewgame)
     HANDLE_COMMAND(isready)
+    HANDLE_COMMAND(setoption)
 
 #undef HANDLE_COMMAND
   }
@@ -53,7 +54,7 @@ void UCI::handle_position(const std::string& arguments) {
       const std::string moves_str =
           arguments.substr(end_of_moves_keyword_index + 1);
 
-      make_moves_from_string(moves_str, m_is_frc);
+      m_chess_board.make_moves_from_string(moves_str, m_is_frc);
     }
   }
 
@@ -90,7 +91,7 @@ void UCI::handle_position(const std::string& arguments) {
       const std::string moves_str =
           arguments.substr(end_of_moves_keyword_index + 1);
 
-      make_moves_from_string(moves_str, m_is_frc);
+      m_chess_board.make_moves_from_string(moves_str, m_is_frc);
     }
   }
 
@@ -124,8 +125,8 @@ void UCI::handle_go(const std::string& arguments) {
     }
   }
 
-  Search_Engine search(m_chess_board, m_search_constraints);
-  Search_Engine_Result search_result = search.search();
+  Search_Engine_Result search_result =
+      m_search_engine.search(m_chess_board, m_search_constraints);
 
   std::cout << "info score cp " << search_result.second.to_int() << std::endl;
 
@@ -138,31 +139,41 @@ void UCI::handle_quit(const std::string&) { exit(0); }
 
 void UCI::handle_uci(const std::string&) {
   std::cout << "id name " << ENGINE_NAME << " " << ENGINE_VERSION << std::endl;
+  std::cout << "option name Hash type spin default "
+            << DEFAULT_TRANSPOSITION_TABLE_SIZE << " min 1 max 1024"
+            << std::endl;
   std::cout << "uciok" << std::endl;
 }
 
-void UCI::handle_ucinewgame(const std::string&) { return; }
+void UCI::handle_ucinewgame(const std::string&) {
+  m_search_engine.new_game();
+  return;
+}
 
 void UCI::handle_isready(const std::string&) {
   std::cout << "readyok" << std::endl;
 }
 
-void UCI::make_moves_from_string(const std::string& moves_str, bool is_frc) {
-  std::istringstream iss(moves_str);
+void UCI::handle_setoption(const std::string& arguments) {
+  auto tokens = split_string(arguments, " ");
 
-  std::string move_str;
+  std::size_t current_index = 0;
 
-  while (iss >> move_str) {  // Loop over space seperated moves string.
-    Move_Generator mg(m_chess_board);
-    Chess_Move_List moves;
-    mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves);
+  while (current_index < tokens->size()) {
+    if (tokens->at(current_index) == "name") {
+      current_index++;
 
-    for (const auto& move : moves) {
-      if (move_str == move.to_coordinate_notation(is_frc)) {
-        m_chess_board.make_move(move);
-        break;
+      std::string option_name = tokens->at(current_index);
+
+      if (option_name == "Hash") {
+        current_index += 2;  // Skip "Hash" and "value"
+
+        m_search_constraints.transposition_table_size =
+            std::stoull(tokens->at(current_index));
       }
     }
+
+    current_index++;
   }
 }
 
