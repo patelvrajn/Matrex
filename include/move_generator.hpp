@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "attacks.hpp"
 #include "chess_board.hpp"
@@ -20,6 +21,40 @@ extern const std::array<std::array<Square, NUM_OF_CASTLING_TYPES>,
     CASTLING_ROOK_DESTINATION_SQUARES;
 
 enum MOVE_GENERATION_TYPE { ALL, TACTICAL, QUIET };
+
+struct Moves_Bitboard {
+  PIECES piece;
+  Square square;
+  Bitboard bitboard;
+};
+
+class Moves_Bitboard_Matrix {
+ public:
+  Moves_Bitboard_Matrix();
+
+  void set_move(PIECE_COLOR color, PIECES piece, Square piece_square,
+                Square move_square);
+
+  bool get_moves_bitboards(PIECE_COLOR color, PIECES piece, Square piece_square,
+                           Moves_Bitboard& output) const;
+
+  bool get_piece_moves_bitboards(
+      PIECE_COLOR color, PIECES piece,
+      std::vector<const Moves_Bitboard&>& output) const;
+
+ private:
+  std::array<int8_t, NUM_OF_PLAYERS> m_max_indices;
+  std::array<std::array<std::array<int8_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
+                        NUM_OF_UNIQUE_PIECES_PER_PLAYER>,
+             NUM_OF_PLAYERS>
+      m_index_mappings;
+  std::array<std::array<uint16_t, NUM_OF_UNIQUE_PIECES_PER_PLAYER>,
+             NUM_OF_PLAYERS>
+      m_piece_index_masks;
+  std::array<std::array<Moves_Bitboard, NUM_OF_PIECES_PER_PLAYER>,
+             NUM_OF_PLAYERS>
+      m_matrix;
+};
 
 class Move_Generator {
  public:
