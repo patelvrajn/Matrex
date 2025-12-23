@@ -38,9 +38,8 @@ class Moves_Bitboard_Matrix {
   bool get_moves_bitboards(PIECE_COLOR color, PIECES piece, Square piece_square,
                            Moves_Bitboard& output) const;
 
-  bool get_piece_moves_bitboards(
-      PIECE_COLOR color, PIECES piece,
-      std::vector<const Moves_Bitboard&>& output) const;
+  bool get_piece_moves_bitboards(PIECE_COLOR color, PIECES piece,
+                                 std::vector<Moves_Bitboard>& output) const;
 
  private:
   std::array<int8_t, NUM_OF_PLAYERS> m_max_indices;
@@ -61,7 +60,8 @@ class Move_Generator {
   Move_Generator(const Chess_Board& cb);
 
   template <MOVE_GENERATION_TYPE gen_type>
-  void generate_all_moves(Chess_Move_List& output);
+  void generate_all_moves(Chess_Move_List& output,
+                          Moves_Bitboard_Matrix& matrix_output);
 
   bool is_side_to_move_in_check();
 
@@ -94,55 +94,58 @@ class Move_Generator {
 
   inline void generate_pawn_promotions(const Square& source_square,
                                        const Square& target_square,
-                                       Chess_Move_List& output);
+                                       Chess_Move_List& output,
+                                       Moves_Bitboard_Matrix& matrix_output);
 
   template <PIECE_COLOR moving_side>
   inline void generate_single_push_promotion_pawn_moves(
       const Bitboard& pinned, const Bitboard& check_mask,
-      Chess_Move_List& output);
+      Chess_Move_List& output, Moves_Bitboard_Matrix& matrix_output);
 
   template <PIECE_COLOR moving_side>
   inline void generate_single_push_non_promotion_pawn_moves(
       const Bitboard& pinned, const Bitboard& check_mask,
-      Chess_Move_List& output);
+      Chess_Move_List& output, Moves_Bitboard_Matrix& matrix_output);
 
   template <PIECE_COLOR moving_side>
-  inline void generate_double_push_pawn_moves(const Bitboard& pinned,
-                                              const Bitboard& check_mask,
-                                              Chess_Move_List& output);
+  inline void generate_double_push_pawn_moves(
+      const Bitboard& pinned, const Bitboard& check_mask,
+      Chess_Move_List& output, Moves_Bitboard_Matrix& matrix_output);
 
   template <PIECE_COLOR moving_side>
-  inline void generate_en_passant_captures(const Bitboard& pinned,
-                                           const Bitboard& check_mask,
-                                           Chess_Move_List& output);
+  inline void generate_en_passant_captures(
+      const Bitboard& pinned, const Bitboard& check_mask,
+      Chess_Move_List& output, Moves_Bitboard_Matrix& matrix_output);
 
   template <PIECE_COLOR moving_side>
-  inline void generate_non_promotion_pawn_captures(const Bitboard& pinned,
-                                                   const Bitboard& check_mask,
-                                                   Chess_Move_List& output);
+  inline void generate_non_promotion_pawn_captures(
+      const Bitboard& pinned, const Bitboard& check_mask,
+      Chess_Move_List& output, Moves_Bitboard_Matrix& matrix_output);
 
   template <PIECE_COLOR moving_side>
-  inline void generate_promotion_pawn_captures(const Bitboard& pinned,
-                                               const Bitboard& check_mask,
-                                               Chess_Move_List& output);
+  inline void generate_promotion_pawn_captures(
+      const Bitboard& pinned, const Bitboard& check_mask,
+      Chess_Move_List& output, Moves_Bitboard_Matrix& matrix_output);
 
   template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side,
             PIECES moving_piece>
-  inline void generate_minor_and_major_piece_moves(const Bitboard& pinned,
-                                                   const Bitboard& check_mask,
-                                                   Chess_Move_List& output);
+  inline void generate_minor_and_major_piece_moves(
+      const Bitboard& pinned, const Bitboard& check_mask,
+      Chess_Move_List& output, Moves_Bitboard_Matrix& matrix_output);
 
   template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
-  inline void generate_king_moves(Chess_Move_List& output);
+  inline void generate_king_moves(Chess_Move_List& output,
+                                  Moves_Bitboard_Matrix& matrix_output);
 
   template <PIECE_COLOR moving_side, CASTLING_TYPE castle_type>
   inline void generate_castling_moves(const Bitboard& pinned,
-                                      Chess_Move_List& output);
+                                      Chess_Move_List& output,
+                                      Moves_Bitboard_Matrix& matrix_output);
 };
 
 inline void Move_Generator::generate_pawn_promotions(
     const Square& source_square, const Square& destination_square,
-    Chess_Move_List& output) {
+    Chess_Move_List& output, Moves_Bitboard_Matrix& matrix_output) {
   const auto who_is_on_destination_square =
       m_chess_board.what_piece_is_on_square(destination_square);
 
@@ -163,6 +166,8 @@ inline void Move_Generator::generate_pawn_promotions(
       .en_passant_victim_square = ESQUARE::NO_SQUARE,
       .is_promotion = true};
 
+  matrix_output.set_move(m_chess_board.get_side_to_move(), PIECES::PAWN,
+                         source_square, destination_square);
   output.append(move);
 
   // Pawn to bishop promotion.
@@ -180,8 +185,8 @@ inline void Move_Generator::generate_pawn_promotions(
 
 template <PIECE_COLOR moving_side>
 inline void Move_Generator::generate_single_push_promotion_pawn_moves(
-    const Bitboard& pinned, const Bitboard& check_mask,
-    Chess_Move_List& output) {
+    const Bitboard& pinned, const Bitboard& check_mask, Chess_Move_List& output,
+    Moves_Bitboard_Matrix& matrix_output) {
   const Bitboard pawns =
       m_chess_board.get_piece_occupancies(moving_side, PIECES::PAWN);
 
@@ -205,15 +210,16 @@ inline void Move_Generator::generate_single_push_promotion_pawn_moves(
         Bitboard(destination_square.get_mask()) & check_mask & pin_mask;
 
     if (pawn_moves != 0) {
-      generate_pawn_promotions(source_square, destination_square, output);
+      generate_pawn_promotions(source_square, destination_square, output,
+                               matrix_output);
     }
   }
 }
 
 template <PIECE_COLOR moving_side>
 inline void Move_Generator::generate_single_push_non_promotion_pawn_moves(
-    const Bitboard& pinned, const Bitboard& check_mask,
-    Chess_Move_List& output) {
+    const Bitboard& pinned, const Bitboard& check_mask, Chess_Move_List& output,
+    Moves_Bitboard_Matrix& matrix_output) {
   const Bitboard pawns =
       m_chess_board.get_piece_occupancies(moving_side, PIECES::PAWN);
 
@@ -256,6 +262,8 @@ inline void Move_Generator::generate_single_push_non_promotion_pawn_moves(
           .en_passant_victim_square = ESQUARE::NO_SQUARE,
           .is_promotion = false};
 
+      matrix_output.set_move(moving_side, PIECES::PAWN, source_square,
+                             destination_square);
       output.append(move);
     }
   }
@@ -263,8 +271,8 @@ inline void Move_Generator::generate_single_push_non_promotion_pawn_moves(
 
 template <PIECE_COLOR moving_side>
 inline void Move_Generator::generate_double_push_pawn_moves(
-    const Bitboard& pinned, const Bitboard& check_mask,
-    Chess_Move_List& output) {
+    const Bitboard& pinned, const Bitboard& check_mask, Chess_Move_List& output,
+    Moves_Bitboard_Matrix& matrix_output) {
   const Bitboard pawns =
       m_chess_board.get_piece_occupancies(moving_side, PIECES::PAWN);
 
@@ -304,6 +312,8 @@ inline void Move_Generator::generate_double_push_pawn_moves(
           .en_passant_victim_square = ESQUARE::NO_SQUARE,
           .is_promotion = false};
 
+      matrix_output.set_move(moving_side, PIECES::PAWN, source_square,
+                             destination_square);
       output.append(move);
     }
   }
@@ -311,8 +321,8 @@ inline void Move_Generator::generate_double_push_pawn_moves(
 
 template <PIECE_COLOR moving_side>
 inline void Move_Generator::generate_en_passant_captures(
-    const Bitboard& pinned, const Bitboard& check_mask,
-    Chess_Move_List& output) {
+    const Bitboard& pinned, const Bitboard& check_mask, Chess_Move_List& output,
+    Moves_Bitboard_Matrix& matrix_output) {
   Attacks a;
 
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
@@ -379,6 +389,8 @@ inline void Move_Generator::generate_en_passant_captures(
                 (ESQUARE)en_passant_victim_square.get_index(),
             .is_promotion = false};
 
+        matrix_output.set_move(moving_side, PIECES::PAWN, source_square,
+                               en_passant_square);
         output.append(move);
       }
     }
@@ -387,8 +399,8 @@ inline void Move_Generator::generate_en_passant_captures(
 
 template <PIECE_COLOR moving_side>
 inline void Move_Generator::generate_non_promotion_pawn_captures(
-    const Bitboard& pinned, const Bitboard& check_mask,
-    Chess_Move_List& output) {
+    const Bitboard& pinned, const Bitboard& check_mask, Chess_Move_List& output,
+    Moves_Bitboard_Matrix& matrix_output) {
   Attacks a;
 
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
@@ -430,6 +442,8 @@ inline void Move_Generator::generate_non_promotion_pawn_captures(
           .en_passant_victim_square = ESQUARE::NO_SQUARE,
           .is_promotion = false};
 
+      matrix_output.set_move(moving_side, PIECES::PAWN, source_square,
+                             destination_square);
       output.append(move);
     }
   }
@@ -437,8 +451,8 @@ inline void Move_Generator::generate_non_promotion_pawn_captures(
 
 template <PIECE_COLOR moving_side>
 inline void Move_Generator::generate_promotion_pawn_captures(
-    const Bitboard& pinned, const Bitboard& check_mask,
-    Chess_Move_List& output) {
+    const Bitboard& pinned, const Bitboard& check_mask, Chess_Move_List& output,
+    Moves_Bitboard_Matrix& matrix_output) {
   Attacks a;
 
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
@@ -459,7 +473,8 @@ inline void Move_Generator::generate_promotion_pawn_captures(
                                                  : pawn_attacks & FIRST_RANK;
 
     for (const Square& destination_square : promotable_pawn_attacks) {
-      generate_pawn_promotions(source_square, destination_square, output);
+      generate_pawn_promotions(source_square, destination_square, output,
+                               matrix_output);
     }
   }
 }
@@ -467,8 +482,8 @@ inline void Move_Generator::generate_promotion_pawn_captures(
 template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side,
           PIECES moving_piece>
 inline void Move_Generator::generate_minor_and_major_piece_moves(
-    const Bitboard& pinned, const Bitboard& check_mask,
-    Chess_Move_List& output) {
+    const Bitboard& pinned, const Bitboard& check_mask, Chess_Move_List& output,
+    Moves_Bitboard_Matrix& matrix_output) {
   Attacks a;
 
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
@@ -533,13 +548,16 @@ inline void Move_Generator::generate_minor_and_major_piece_moves(
           .en_passant_victim_square = ESQUARE::NO_SQUARE,
           .is_promotion = false};
 
+      matrix_output.set_move(moving_side, moving_piece, source_square,
+                             destination_square);
       output.append(move);
     }
   }
 }
 
 template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
-inline void Move_Generator::generate_king_moves(Chess_Move_List& output) {
+inline void Move_Generator::generate_king_moves(
+    Chess_Move_List& output, Moves_Bitboard_Matrix& matrix_output) {
   Attacks a;
 
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
@@ -587,6 +605,8 @@ inline void Move_Generator::generate_king_moves(Chess_Move_List& output) {
         .en_passant_victim_square = ESQUARE::NO_SQUARE,
         .is_promotion = false};
 
+    matrix_output.set_move(moving_side, PIECES::KING, king_square,
+                           destination_square);
     output.append(move);
   }
 }
@@ -594,8 +614,9 @@ inline void Move_Generator::generate_king_moves(Chess_Move_List& output) {
 // A generalized function to generate legal castling moves in both standard
 // chess and Fischer Random chess.
 template <PIECE_COLOR moving_side, CASTLING_TYPE castle_type>
-inline void Move_Generator::generate_castling_moves(const Bitboard& pinned,
-                                                    Chess_Move_List& output) {
+inline void Move_Generator::generate_castling_moves(
+    const Bitboard& pinned, Chess_Move_List& output,
+    Moves_Bitboard_Matrix& matrix_output) {
   bool has_castling_rights;
 
   if constexpr ((moving_side == PIECE_COLOR::WHITE) &&
@@ -703,13 +724,18 @@ inline void Move_Generator::generate_castling_moves(const Bitboard& pinned,
           .en_passant_victim_square = ESQUARE::NO_SQUARE,
           .is_promotion = false};
 
+      matrix_output.set_move(moving_side, PIECES::KING, king_source_square,
+                             king_destination_square);
+      matrix_output.set_move(moving_side, PIECES::ROOK, rook_source_square,
+                             rook_destination_square);
       output.append(move);
     }
   }
 }
 
 template <MOVE_GENERATION_TYPE gen_type>
-void Move_Generator::generate_all_moves(Chess_Move_List& output) {
+void Move_Generator::generate_all_moves(Chess_Move_List& output,
+                                        Moves_Bitboard_Matrix& matrix_output) {
   const PIECE_COLOR moving_side = m_chess_board.get_side_to_move();
 
   const Bitboard check_mask = generate_check_mask();
@@ -722,13 +748,13 @@ void Move_Generator::generate_all_moves(Chess_Move_List& output) {
     if constexpr ((gen_type == MOVE_GENERATION_TYPE::ALL) ||
                   (gen_type == MOVE_GENERATION_TYPE::TACTICAL)) {
       generate_single_push_promotion_pawn_moves<PIECE_COLOR::WHITE>(
-          pinned, check_mask, output);
+          pinned, check_mask, output, matrix_output);
       generate_en_passant_captures<PIECE_COLOR::WHITE>(pinned, check_mask,
-                                                       output);
+                                                       output, matrix_output);
       generate_non_promotion_pawn_captures<PIECE_COLOR::WHITE>(
-          pinned, check_mask, output);
-      generate_promotion_pawn_captures<PIECE_COLOR::WHITE>(pinned, check_mask,
-                                                           output);
+          pinned, check_mask, output, matrix_output);
+      generate_promotion_pawn_captures<PIECE_COLOR::WHITE>(
+          pinned, check_mask, output, matrix_output);
     }
 
     /***************************************************************************
@@ -737,13 +763,13 @@ void Move_Generator::generate_all_moves(Chess_Move_List& output) {
     if constexpr ((gen_type == MOVE_GENERATION_TYPE::ALL) ||
                   (gen_type == MOVE_GENERATION_TYPE::QUIET)) {
       generate_single_push_non_promotion_pawn_moves<PIECE_COLOR::WHITE>(
-          pinned, check_mask, output);
-      generate_double_push_pawn_moves<PIECE_COLOR::WHITE>(pinned, check_mask,
-                                                          output);
+          pinned, check_mask, output, matrix_output);
+      generate_double_push_pawn_moves<PIECE_COLOR::WHITE>(
+          pinned, check_mask, output, matrix_output);
       generate_castling_moves<PIECE_COLOR::WHITE, CASTLING_TYPE::KINGSIDE>(
-          pinned, output);
+          pinned, output, matrix_output);
       generate_castling_moves<PIECE_COLOR::WHITE, CASTLING_TYPE::QUEENSIDE>(
-          pinned, output);
+          pinned, output, matrix_output);
     }
 
     /***************************************************************************
@@ -751,17 +777,17 @@ void Move_Generator::generate_all_moves(Chess_Move_List& output) {
      ***************************************************************************/
     generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::WHITE,
                                          PIECES::KNIGHT>(pinned, check_mask,
-                                                         output);
+                                                         output, matrix_output);
     generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::WHITE,
                                          PIECES::BISHOP>(pinned, check_mask,
-                                                         output);
+                                                         output, matrix_output);
     generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::WHITE,
                                          PIECES::ROOK>(pinned, check_mask,
-                                                       output);
+                                                       output, matrix_output);
     generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::WHITE,
                                          PIECES::QUEEN>(pinned, check_mask,
-                                                        output);
-    generate_king_moves<gen_type, PIECE_COLOR::WHITE>(output);
+                                                        output, matrix_output);
+    generate_king_moves<gen_type, PIECE_COLOR::WHITE>(output, matrix_output);
 
   } else {
     /***************************************************************************
@@ -770,13 +796,13 @@ void Move_Generator::generate_all_moves(Chess_Move_List& output) {
     if constexpr ((gen_type == MOVE_GENERATION_TYPE::ALL) ||
                   (gen_type == MOVE_GENERATION_TYPE::TACTICAL)) {
       generate_single_push_promotion_pawn_moves<PIECE_COLOR::BLACK>(
-          pinned, check_mask, output);
+          pinned, check_mask, output, matrix_output);
       generate_en_passant_captures<PIECE_COLOR::BLACK>(pinned, check_mask,
-                                                       output);
+                                                       output, matrix_output);
       generate_non_promotion_pawn_captures<PIECE_COLOR::BLACK>(
-          pinned, check_mask, output);
-      generate_promotion_pawn_captures<PIECE_COLOR::BLACK>(pinned, check_mask,
-                                                           output);
+          pinned, check_mask, output, matrix_output);
+      generate_promotion_pawn_captures<PIECE_COLOR::BLACK>(
+          pinned, check_mask, output, matrix_output);
     }
 
     /***************************************************************************
@@ -785,13 +811,13 @@ void Move_Generator::generate_all_moves(Chess_Move_List& output) {
     if constexpr ((gen_type == MOVE_GENERATION_TYPE::ALL) ||
                   (gen_type == MOVE_GENERATION_TYPE::QUIET)) {
       generate_single_push_non_promotion_pawn_moves<PIECE_COLOR::BLACK>(
-          pinned, check_mask, output);
-      generate_double_push_pawn_moves<PIECE_COLOR::BLACK>(pinned, check_mask,
-                                                          output);
+          pinned, check_mask, output, matrix_output);
+      generate_double_push_pawn_moves<PIECE_COLOR::BLACK>(
+          pinned, check_mask, output, matrix_output);
       generate_castling_moves<PIECE_COLOR::BLACK, CASTLING_TYPE::KINGSIDE>(
-          pinned, output);
+          pinned, output, matrix_output);
       generate_castling_moves<PIECE_COLOR::BLACK, CASTLING_TYPE::QUEENSIDE>(
-          pinned, output);
+          pinned, output, matrix_output);
     }
 
     /***************************************************************************
@@ -799,16 +825,16 @@ void Move_Generator::generate_all_moves(Chess_Move_List& output) {
      ***************************************************************************/
     generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::BLACK,
                                          PIECES::KNIGHT>(pinned, check_mask,
-                                                         output);
+                                                         output, matrix_output);
     generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::BLACK,
                                          PIECES::BISHOP>(pinned, check_mask,
-                                                         output);
+                                                         output, matrix_output);
     generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::BLACK,
                                          PIECES::ROOK>(pinned, check_mask,
-                                                       output);
+                                                       output, matrix_output);
     generate_minor_and_major_piece_moves<gen_type, PIECE_COLOR::BLACK,
                                          PIECES::QUEEN>(pinned, check_mask,
-                                                        output);
-    generate_king_moves<gen_type, PIECE_COLOR::BLACK>(output);
+                                                        output, matrix_output);
+    generate_king_moves<gen_type, PIECE_COLOR::BLACK>(output, matrix_output);
   }
 }

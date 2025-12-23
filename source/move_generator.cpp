@@ -58,7 +58,7 @@ bool Moves_Bitboard_Matrix::get_moves_bitboards(PIECE_COLOR color, PIECES piece,
 
 bool Moves_Bitboard_Matrix::get_piece_moves_bitboards(
     PIECE_COLOR color, PIECES piece,
-    std::vector<const Moves_Bitboard&>& output) const {
+    std::vector<Moves_Bitboard>& output) const {
   uint16_t piece_index_mask = m_piece_index_masks[color][piece];
 
   // No moves exist for that piece if the piece for that color exists.
