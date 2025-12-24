@@ -133,6 +133,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>();
   }
   Chess_Move_List& moves = mo.get_sorted_moves();
+  Moves_Bitboard_Matrix& matrix = mo.get_moves_matrix();
 
   // No moves and in check - return mate score.
   if ((moves.get_max_index() == -1) && is_side_to_move_in_check) {
@@ -141,7 +142,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
   }
 
   // Stand pat evaluation.
-  const Evaluator e(position);
+  const Evaluator e(position, matrix);
   const Score stand_pat = e.evaluate();
 
   // No tactical moves - return the static evaluation (stand pat).

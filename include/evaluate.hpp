@@ -1,13 +1,14 @@
 #pragma once
 
 #include "chess_board.hpp"
+#include "move_generator.hpp"
 #include "score.hpp"
 
 constexpr uint16_t PIECE_VALUES[] = {100, 300, 350, 500, 900};
 
 class Evaluator {
  public:
-  Evaluator(const Chess_Board& cb);
+  Evaluator(const Chess_Board& cb, const Moves_Bitboard_Matrix& matrix);
 
   Score evaluate() const;
 
@@ -16,6 +17,7 @@ class Evaluator {
 
  private:
   const Chess_Board& m_chess_board;
+  const Moves_Bitboard_Matrix& m_moves_matrix;
 };
 
 template <PIECE_COLOR moving_side>
