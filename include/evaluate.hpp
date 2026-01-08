@@ -6,6 +6,17 @@
 
 constexpr uint16_t PIECE_VALUES[] = {100, 300, 350, 500, 900};
 
+class Non_Linear_Response {
+ public:
+  Non_Linear_Response(uint64_t S_Parameter, uint64_t M_Parameter);
+  uint64_t value(uint64_t x);
+  uint64_t derivative(uint64_t x);
+
+ private:
+  uint64_t m_S_parameter;
+  uint64_t m_M_parameter;
+};
+
 class Evaluator {
  public:
   Evaluator(const Chess_Board& cb, const Moves_Bitboard_Matrix& matrix);
