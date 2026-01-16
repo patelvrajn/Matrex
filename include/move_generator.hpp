@@ -63,6 +63,10 @@ class Move_Generator {
   void generate_all_moves(Chess_Move_List& output,
                           Moves_Bitboard_Matrix& matrix_output);
 
+  template <MOVE_GENERATION_TYPE gen_type>
+  void generate_all_moves(PIECE_COLOR side, Chess_Move_List& output,
+                          Moves_Bitboard_Matrix& matrix_output);
+
   bool is_side_to_move_in_check();
 
  private:
@@ -773,12 +777,18 @@ inline void Move_Generator::generate_castling_moves(
 template <MOVE_GENERATION_TYPE gen_type>
 void Move_Generator::generate_all_moves(Chess_Move_List& output,
                                         Moves_Bitboard_Matrix& matrix_output) {
-  const PIECE_COLOR moving_side = m_chess_board.get_side_to_move();
+  const PIECE_COLOR side = m_chess_board.get_side_to_move();
+  generate_all_moves<gen_type>(side, output, matrix_output);
+}
 
+template <MOVE_GENERATION_TYPE gen_type>
+void Move_Generator::generate_all_moves(PIECE_COLOR side,
+                                        Chess_Move_List& output,
+                                        Moves_Bitboard_Matrix& matrix_output) {
   const Bitboard check_mask = generate_check_mask();
   const Bitboard pinned = generate_pinned();
 
-  if (moving_side == PIECE_COLOR::WHITE) {
+  if (side == PIECE_COLOR::WHITE) {
     /***************************************************************************
      * TACTICAL MOVE GENERATION
      ***************************************************************************/
