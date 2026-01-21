@@ -19,7 +19,9 @@ class Non_Linear_Response {
 
 class Evaluator {
  public:
-  Evaluator(const Chess_Board& cb, const Moves_Bitboard_Matrix& matrix);
+  Evaluator(const Chess_Board& cb,
+            const Moves_Bitboard_Matrix& moving_side_matrix,
+            const Moves_Bitboard_Matrix& opposing_side_matrix);
 
   Score evaluate() const;
 
@@ -28,7 +30,8 @@ class Evaluator {
 
  private:
   const Chess_Board& m_chess_board;
-  const Moves_Bitboard_Matrix& m_moves_matrix;
+  const Moves_Bitboard_Matrix& m_moving_side_matrix;
+  const Moves_Bitboard_Matrix& m_opposing_side_matrix;
 };
 
 template <PIECE_COLOR moving_side>

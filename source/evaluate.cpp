@@ -33,8 +33,12 @@ uint64_t Non_Linear_Response::derivative(uint64_t x) {
       ((a_prime * b * c) + (a * b_prime * c) + (a * b * c_prime)));
 }
 
-Evaluator::Evaluator(const Chess_Board& cb, const Moves_Bitboard_Matrix& matrix)
-    : m_chess_board(cb), m_moves_matrix(matrix) {}
+Evaluator::Evaluator(const Chess_Board& cb,
+                     const Moves_Bitboard_Matrix& moving_side_matrix,
+                     const Moves_Bitboard_Matrix& opposing_side_matrix)
+    : m_chess_board(cb),
+      m_moving_side_matrix(moving_side_matrix),
+      m_opposing_side_matrix(opposing_side_matrix) {}
 
 Score Evaluator::evaluate() const {
   PIECE_COLOR moving_side = m_chess_board.get_side_to_move();

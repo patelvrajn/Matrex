@@ -133,7 +133,16 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>();
   }
   Chess_Move_List& moves = mo.get_sorted_moves();
-  Moves_Bitboard_Matrix& matrix = mo.get_moves_matrix();
+  Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
+
+  // Generate moves matrix for the opposing side for evaluation purposes.
+  const PIECE_COLOR opposing_side =
+      (PIECE_COLOR)((~m_chess_board.get_side_to_move()) & 0x1);
+  Chess_Move_List not_used_moves_list;
+  Moves_Bitboard_Matrix opposing_side_matrix;
+  Move_Generator mg(m_chess_board);
+  mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
+      opposing_side, not_used_moves_list, opposing_side_matrix);
 
   // No moves and in check - return mate score.
   if ((moves.get_max_index() == -1) && is_side_to_move_in_check) {
@@ -142,7 +151,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
   }
 
   // Stand pat evaluation.
-  const Evaluator e(position, matrix);
+  const Evaluator e(position, moving_side_matrix, opposing_side_matrix);
   const Score stand_pat = e.evaluate();
 
   // No tactical moves - return the static evaluation (stand pat).
