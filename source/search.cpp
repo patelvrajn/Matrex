@@ -1,6 +1,7 @@
 #include "search.hpp"
 
 #include "evaluate.hpp"
+#include "evaluation_terms.hpp"
 
 Search_Engine::Search_Engine(const Chess_Board& cb,
                              const Search_Constraints& constraints)
@@ -151,7 +152,8 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
   }
 
   // Stand pat evaluation.
-  const Evaluator e(position, moving_side_matrix, opposing_side_matrix);
+  const Evaluator e(TUNED_EVALUATION_WEIGHTS, position, moving_side_matrix,
+                    opposing_side_matrix);
   const Score stand_pat = e.evaluate();
 
   // No tactical moves - return the static evaluation (stand pat).

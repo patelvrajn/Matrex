@@ -2,6 +2,20 @@
 
 #include <cmath>
 
+uint16_t& Evaluation_Weights::operator[](std::size_t index) {
+  if (index >= m_weight_ref_array.size) {
+    throw std::out_of_range("Index out of range in Evaluation_Weights");
+  }
+  return m_weight_ref_array.get_array()[index].value().get();
+}
+
+const uint16_t& Evaluation_Weights::operator[](std::size_t index) const {
+  if (index >= m_weight_ref_array.size) {
+    throw std::out_of_range("Index out of range in Evaluation_Weights");
+  }
+  return m_weight_ref_array.get_array()[index].value().get();
+}
+
 Non_Linear_Response::Non_Linear_Response(uint64_t S_Parameter,
                                          uint64_t M_Parameter)
     : m_S_parameter(S_Parameter), m_M_parameter(M_Parameter) {}
@@ -33,10 +47,11 @@ uint64_t Non_Linear_Response::derivative(uint64_t x) {
       ((a_prime * b * c) + (a * b_prime * c) + (a * b * c_prime)));
 }
 
-Evaluator::Evaluator(const Chess_Board& cb,
+Evaluator::Evaluator(const Evaluation_Weights& weights, const Chess_Board& cb,
                      const Moves_Bitboard_Matrix& moving_side_matrix,
                      const Moves_Bitboard_Matrix& opposing_side_matrix)
-    : m_chess_board(cb),
+    : m_weights(weights),
+      m_chess_board(cb),
       m_moving_side_matrix(moving_side_matrix),
       m_opposing_side_matrix(opposing_side_matrix) {}
 

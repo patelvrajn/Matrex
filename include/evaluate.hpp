@@ -4,7 +4,43 @@
 #include "move_generator.hpp"
 #include "score.hpp"
 
-constexpr uint16_t PIECE_VALUES[] = {100, 300, 350, 500, 900};
+class Evaluation_Weights {
+ public:
+  Evaluation_Weights(
+      multi_array<uint16_t, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
+          material_weights,
+      uint16_t diagonal_mobility_weight, uint16_t orthogonal_mobility_weight,
+      uint16_t knight_movement_mobility_weight,
+      uint16_t multi_movement_mobility_weight,
+      uint16_t backwards_movement_mobility_weight)
+      : material(material_weights),
+        diagonal_mobility(diagonal_mobility_weight),
+        orthogonal_mobility(orthogonal_mobility_weight),
+        knight_movement_mobility(knight_movement_mobility_weight),
+        multi_movement_mobility(multi_movement_mobility_weight),
+        backwards_movement_mobility(backwards_movement_mobility_weight),
+        m_weight_ref_array(material, diagonal_mobility, orthogonal_mobility,
+                           knight_movement_mobility, multi_movement_mobility,
+                           backwards_movement_mobility) {}
+
+  // Material weights.
+  multi_array<uint16_t, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)> material;
+
+  // Mobility weights.
+  uint16_t diagonal_mobility;
+  uint16_t orthogonal_mobility;
+  uint16_t knight_movement_mobility;
+  uint16_t multi_movement_mobility;
+  uint16_t backwards_movement_mobility;
+
+  uint16_t& operator[](std::size_t index);
+  const uint16_t& operator[](std::size_t index) const;
+
+ private:
+  Reference_Array<multi_array<uint16_t, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>,
+                  uint16_t, uint16_t, uint16_t, uint16_t, uint16_t>
+      m_weight_ref_array;
+};
 
 class Non_Linear_Response {
  public:
@@ -19,7 +55,7 @@ class Non_Linear_Response {
 
 class Evaluator {
  public:
-  Evaluator(const Chess_Board& cb,
+  Evaluator(const Evaluation_Weights& weights, const Chess_Board& cb,
             const Moves_Bitboard_Matrix& moving_side_matrix,
             const Moves_Bitboard_Matrix& opposing_side_matrix);
 
@@ -29,6 +65,7 @@ class Evaluator {
   inline Score material_score() const;
 
  private:
+  const Evaluation_Weights& m_weights;
   const Chess_Board& m_chess_board;
   const Moves_Bitboard_Matrix& m_moving_side_matrix;
   const Moves_Bitboard_Matrix& m_opposing_side_matrix;
@@ -42,11 +79,11 @@ inline Score Evaluator::material_score() const {
 
   for (uint8_t piece = PIECES::PAWN; piece <= PIECES::QUEEN; piece++) {
     return_value += Score::from_int(
-        PIECE_VALUES[piece] *
+        m_weights.material[piece] *
         m_chess_board.get_piece_occupancies(moving_side, (PIECES)piece)
             .high_bit_count());
     return_value -= Score::from_int(
-        PIECE_VALUES[piece] *
+        m_weights.material[piece] *
         m_chess_board.get_piece_occupancies(opposing_side, (PIECES)piece)
             .high_bit_count());
   }
