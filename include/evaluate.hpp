@@ -57,15 +57,55 @@ const T& Evaluation_Weights<T>::operator[](std::size_t index) const {
   return m_weight_ref_array.get_array()[index].value().get();
 }
 
+constexpr double NON_LINEAR_RESPONSE_EPSILON = 1e-8;
+constexpr double NON_LINEAR_RESPONSE_T = 1e6;
+
 class Non_Linear_Response {
  public:
-  Non_Linear_Response(uint64_t S_Parameter, uint64_t M_Parameter);
-  uint64_t value(uint64_t x);
-  uint64_t derivative(uint64_t x);
+  Non_Linear_Response(double h_plus_parameter, double h_minus_parameter,
+                      double z_parameter, double k_parameter,
+                      double q_plus_parameter, double q_minus_parameter,
+                      double r_plus_parameter, double r_minus_parameter,
+                      double g_plus_parameter, double g_minus_parameter);
+
+  double value(double F) const;
+
+  double partial_derivative_h_plus(double F) const;
+  double partial_derivative_h_minus(double F) const;
+  double partial_derivative_z(double F) const;
+  double partial_derivative_k(double F) const;
+  double partial_derivative_q_plus(double F) const;
+  double partial_derivative_q_minus(double F) const;
+  double partial_derivative_r_plus(double F) const;
+  double partial_derivative_r_minus(double F) const;
+  double partial_derivative_g_plus(double F) const;
+  double partial_derivative_g_minus(double F) const;
+  double partial_derivative_u(double F) const;
 
  private:
-  uint64_t m_S_parameter;
-  uint64_t m_M_parameter;
+  double m_h_plus_parameter;
+  double m_h_minus_parameter;
+  double m_z_parameter;
+  double m_k_parameter;
+  double m_q_plus_parameter;
+  double m_q_minus_parameter;
+  double m_r_plus_parameter;
+  double m_r_minus_parameter;
+  double m_g_plus_parameter;
+  double m_g_minus_parameter;
+
+  double calculate_u(double F) const;
+
+  double calculate_function_M(double x) const;
+  double calculate_function_G(double F) const;
+  double calculate_function_H(double F) const;
+  double calculate_function_S(double F) const;
+  double calculate_function_P_plus(double F) const;
+  double calculate_function_P_minus(double F) const;
+  double calculate_function_P(double F) const;
+  double calculate_function_B_plus(double F) const;
+  double calculate_function_B_minus(double F) const;
+  double calculate_function_B(double F) const;
 };
 
 template <typename T>
