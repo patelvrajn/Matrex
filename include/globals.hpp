@@ -145,20 +145,20 @@ void collect_refs(multi_array<T, N, Rest...>& arr, Array& out,
 // =============================================================================
 template <typename... Args>
 constexpr auto calculate_reference_array_size() {
-  // Compute total number of uint16_t elements at compile time
+  // Compute total number of elements at compile time
   constexpr std::size_t total =
       (element_count<std::remove_reference_t<Args>>::value + ...);
 
   return total;
 }
 
-template <typename... Args>
+template <typename T, typename... Args>
 auto make_reference_array(Args&... args) {
-  // Compute total number of uint16_t elements at compile time
+  // Compute total number of elements at compile time
   constexpr std::size_t total = calculate_reference_array_size<Args...>();
 
   // Fixed-size array of references
-  std::array<std::optional<std::reference_wrapper<uint16_t>>, total> result;
+  std::array<std::optional<std::reference_wrapper<T>>, total> result;
 
   // Current insertion index
   std::size_t index = 0;
@@ -172,17 +172,17 @@ auto make_reference_array(Args&... args) {
   return result;
 }
 
-template <typename... Args>
+template <typename T, typename... Args>
 class Reference_Array {
  public:
   static constexpr std::size_t size = calculate_reference_array_size<Args...>();
 
  private:
-  std::array<std::optional<std::reference_wrapper<uint16_t>>, size> refs;
+  std::array<std::optional<std::reference_wrapper<T>>, size> refs;
 
  public:
   explicit Reference_Array(Args&... args)
-      : refs(make_reference_array(args...)) {}
+      : refs(make_reference_array<T>(args...)) {}
 
   auto& get_array() { return refs; }
 
