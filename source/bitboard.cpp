@@ -135,6 +135,22 @@ int8_t Bitboard::get_index_of_high_msb() const {
   return ((NUM_OF_SQUARES_ON_CHESS_BOARD - 1) - std::countl_zero(m_board));
 }
 
+Bitboard Bitboard::get_backward_squares_mask(const Square& s,
+                                             PIECE_COLOR side) const {
+  Bitboard backward_squares_mask = *this;
+
+  for (const Square& square : *this) {
+    int8_t rank_diff = s.get_rank() - square.get_rank();
+    bool is_backward_move = (side == WHITE) ? (rank_diff < 0) : (rank_diff > 0);
+
+    if (!is_backward_move) {  // Unset all forward squares.
+      backward_squares_mask.unset_square(square);
+    }
+  }
+
+  return backward_squares_mask;
+}
+
 Bitboard Bitboard::get_between_squares_mask(const Square& a, const Square& b) {
   return Bitboard(m_between_squares_masks[a.get_index()][b.get_index()]);
 }

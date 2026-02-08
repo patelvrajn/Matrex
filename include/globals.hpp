@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <functional>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 
@@ -187,4 +188,20 @@ class Reference_Array {
   auto& get_array() { return refs; }
 
   const auto& get_array() const { return refs; }
+
+  template <typename U>  // Using U instead of T to allow get_index_of to accept
+                         // references of types derived from T like const T&
+                         std::size_t get_index_of(const U& ref) const {
+    const auto& arr = get_array();
+
+    for (std::size_t i = 0; i < size; ++i) {
+      // Identity compare (address), not value compare.
+      if (&arr[i].value().get() == &ref) {
+        return i;
+      }
+    }
+
+    throw std::out_of_range(
+        "Reference_Array::get_index_of: reference not found");
+  }
 };
