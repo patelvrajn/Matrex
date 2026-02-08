@@ -191,7 +191,7 @@ class Reference_Array {
 
   template <typename U>  // Using U instead of T to allow get_index_of to accept
                          // references of types derived from T like const T&
-                         std::size_t get_index_of(const U& ref) const {
+  std::size_t get_index_of(const U& ref) const {
     const auto& arr = get_array();
 
     for (std::size_t i = 0; i < size; ++i) {

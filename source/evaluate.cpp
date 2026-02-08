@@ -2,21 +2,18 @@
 
 #include <cmath>
 
-Non_Linear_Response::Non_Linear_Response(
-    double h_plus_parameter, double h_minus_parameter, double z_parameter,
-    double k_parameter, double q_plus_parameter, double q_minus_parameter,
-    double r_plus_parameter, double r_minus_parameter, double g_plus_parameter,
-    double g_minus_parameter)
-    : m_h_plus_parameter(h_plus_parameter),
-      m_h_minus_parameter(h_minus_parameter),
-      m_z_parameter(z_parameter),
-      m_k_parameter(k_parameter),
-      m_q_plus_parameter(q_plus_parameter),
-      m_q_minus_parameter(q_minus_parameter),
-      m_r_plus_parameter(r_plus_parameter),
-      m_r_minus_parameter(r_minus_parameter),
-      m_g_plus_parameter(g_plus_parameter),
-      m_g_minus_parameter(g_minus_parameter) {}
+template <typename T>
+Non_Linear_Response::Non_Linear_Response(NLR_Parameters<T> params)
+    : m_h_plus_parameter(static_cast<double>(params.h_plus)),
+      m_h_minus_parameter(static_cast<double>(params.h_minus)),
+      m_z_parameter(static_cast<double>(params.z)),
+      m_k_parameter(static_cast<double>(params.k)),
+      m_q_plus_parameter(static_cast<double>(params.q_plus)),
+      m_q_minus_parameter(static_cast<double>(params.q_minus)),
+      m_r_plus_parameter(static_cast<double>(params.r_plus)),
+      m_r_minus_parameter(static_cast<double>(params.r_minus)),
+      m_g_plus_parameter(static_cast<double>(params.g_plus)),
+      m_g_minus_parameter(static_cast<double>(params.g_minus)) {}
 
 double Non_Linear_Response::value(double F) const {
   const double H = calculate_function_H(F);

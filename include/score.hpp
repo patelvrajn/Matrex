@@ -37,6 +37,7 @@ class Score {
  public:
   Score();
   Score(int16_t evaluation);
+  Score(double evaluation);
   Score(Score_Fields fields);
 
   int16_t to_int() const;

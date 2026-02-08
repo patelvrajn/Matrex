@@ -1,6 +1,7 @@
 #include "score.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 Score::Score() : m_fields{.value = 0, .mate = 0, .sign = 0} {}
@@ -9,6 +10,9 @@ Score::Score(int16_t evaluation) {
   Score s = Score::from_int(evaluation);
   m_fields = s.m_fields;
 }
+
+Score::Score(double evaluation)
+    : Score(static_cast<int16_t>(std::lround(evaluation))) {}
 
 Score::Score(Score_Fields fields) { m_fields = fields; }
 
