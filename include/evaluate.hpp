@@ -317,6 +317,19 @@ class Non_Linear_Response {
 };
 
 template <typename T>
+Non_Linear_Response::Non_Linear_Response(NLR_Parameters<T> params)
+    : m_h_plus_parameter(static_cast<double>(params.h_plus)),
+      m_h_minus_parameter(static_cast<double>(params.h_minus)),
+      m_z_parameter(static_cast<double>(params.z)),
+      m_k_parameter(static_cast<double>(params.k)),
+      m_q_plus_parameter(static_cast<double>(params.q_plus)),
+      m_q_minus_parameter(static_cast<double>(params.q_minus)),
+      m_r_plus_parameter(static_cast<double>(params.r_plus)),
+      m_r_minus_parameter(static_cast<double>(params.r_minus)),
+      m_g_plus_parameter(static_cast<double>(params.g_plus)),
+      m_g_minus_parameter(static_cast<double>(params.g_minus)) {}
+
+template <typename T>
 class Evaluator {
  public:
   Evaluator(const Evaluation_Weights<T>& weights, const Chess_Board& cb,
