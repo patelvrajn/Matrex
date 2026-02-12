@@ -32,17 +32,17 @@ struct NLR_Parameters {  // NLR = Non-Linear Response
 template <typename T>
 class Evaluation_Weights {
   using Evaluation_Weights_Reference_Array = Reference_Array<
+      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
+      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
       T, multi_array<T, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>, T, T, T, T, T,
-      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
-      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
       T, T, T, T, T, T, T, T, T, T>;
 
  public:
   Evaluation_Weights()
-      : material{},
-        material_NLR_parameters{},
+      : material_NLR_parameters{},
+        material{},
         piece_mobility_NLR_parameters{},
         diagonal_mobility(T{}),
         orthogonal_mobility(T{}),
@@ -50,11 +50,11 @@ class Evaluation_Weights {
         multi_movement_mobility(T{}),
         backwards_movement_mobility(T{}),
         m_weight_ref_array(
-            material, NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::PAWN),
+            NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::PAWN),
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::KNIGHT),
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::BISHOP),
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::ROOK),
-            NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::QUEEN),
+            NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::QUEEN), material,
             NLR_ARRAY_FIELDS(piece_mobility_NLR_parameters, PIECES::PAWN),
             NLR_ARRAY_FIELDS(piece_mobility_NLR_parameters, PIECES::KNIGHT),
             NLR_ARRAY_FIELDS(piece_mobility_NLR_parameters, PIECES::BISHOP),
@@ -65,9 +65,9 @@ class Evaluation_Weights {
             multi_movement_mobility, backwards_movement_mobility) {}
 
   Evaluation_Weights(
-      multi_array<T, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)> material_weights,
       multi_array<NLR_Parameters<T>, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
           material_NLR_weights,
+      multi_array<T, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)> material_weights,
       multi_array<NLR_Parameters<T>, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
           piece_mobility_NLR_weights,
       T diagonal_mobility_weight, T orthogonal_mobility_weight,
@@ -485,8 +485,6 @@ inline Evaluation_Weights<T> Evaluator<T>::derivative_material_score() const {
 template <typename T>
 template <PIECE_COLOR moving_side>
 inline Score Evaluator<T>::mobility_score() const {
-  constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
-
   Attacks a;
   double mobility = 0;
 
