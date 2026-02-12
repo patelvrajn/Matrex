@@ -31,6 +31,14 @@ struct NLR_Parameters {  // NLR = Non-Linear Response
 
 template <typename T>
 class Evaluation_Weights {
+  using Evaluation_Weights_Reference_Array = Reference_Array<
+      T, multi_array<T, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>, T, T, T, T, T,
+      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
+      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
+      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
+      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
+      T, T, T, T, T, T, T, T, T, T>;
+
  public:
   Evaluation_Weights()
       : material{},
@@ -88,6 +96,16 @@ class Evaluation_Weights {
             diagonal_mobility, orthogonal_mobility, knight_movement_mobility,
             multi_movement_mobility, backwards_movement_mobility) {}
 
+  Evaluation_Weights(Evaluation_Weights_Reference_Array ref_array)
+      : Evaluation_Weights()  // default construct first
+  {
+    // Copy the values from ref_array to m_weight_ref_array not the references.
+    for (std::size_t i = 0; i < m_weight_ref_array.size; ++i) {
+      m_weight_ref_array.get_array()[i].value().get() =
+          ref_array.get_array()[i].value().get();
+    }
+  }
+
   // Material weights.
   multi_array<NLR_Parameters<T>, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
       material_NLR_parameters;
@@ -105,20 +123,25 @@ class Evaluation_Weights {
   T& operator[](std::size_t index);
   const T& operator[](std::size_t index) const;
 
+  // Arithmetic operators with another evaluation weights.
+  Evaluation_Weights operator+(const Evaluation_Weights& other) const;
+  Evaluation_Weights operator-(const Evaluation_Weights& other) const;
+  Evaluation_Weights operator/(const Evaluation_Weights& other) const;
+  Evaluation_Weights operator*(const Evaluation_Weights& other) const;
+
+  // Arithmetic operators with T.
+  Evaluation_Weights operator+(T value) const;
+  Evaluation_Weights operator-(T value) const;
+  Evaluation_Weights operator*(T value) const;
+  Evaluation_Weights operator/(T value) const;
+
   template <typename U>
   std::size_t get_index_of(const U& ref) const;
 
   std::size_t get_size() const;
 
  private:
-  Reference_Array<T, multi_array<T, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>, T,
-                  T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
-                  T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
-                  T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
-                  T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
-                  T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
-                  T, T, T, T, T, T, T, T, T>
-      m_weight_ref_array;
+  Evaluation_Weights_Reference_Array m_weight_ref_array;
 };
 
 template <typename T>
@@ -135,6 +158,102 @@ const T& Evaluation_Weights<T>::operator[](std::size_t index) const {
     throw std::out_of_range("Index out of range in Evaluation_Weights");
   }
   return m_weight_ref_array.get_array()[index].value().get();
+}
+
+template <typename T>
+Evaluation_Weights<T> Evaluation_Weights<T>::operator+(
+    const Evaluation_Weights& other) const {
+  Evaluation_Weights result;
+
+  for (std::size_t i = 0; i < m_weight_ref_array.size; ++i) {
+    result[i] = m_weight_ref_array.get_array()[i].value().get() +
+                other.m_weight_ref_array.get_array()[i].value().get();
+  }
+
+  return result;
+}
+
+template <typename T>
+Evaluation_Weights<T> Evaluation_Weights<T>::operator-(
+    const Evaluation_Weights& other) const {
+  Evaluation_Weights result;
+
+  for (std::size_t i = 0; i < m_weight_ref_array.size; ++i) {
+    result[i] = m_weight_ref_array.get_array()[i].value().get() -
+                other.m_weight_ref_array.get_array()[i].value().get();
+  }
+
+  return result;
+}
+
+template <typename T>
+Evaluation_Weights<T> Evaluation_Weights<T>::operator/(
+    const Evaluation_Weights& other) const {
+  Evaluation_Weights result;
+
+  for (std::size_t i = 0; i < m_weight_ref_array.size; ++i) {
+    result[i] = m_weight_ref_array.get_array()[i].value().get() /
+                other.m_weight_ref_array.get_array()[i].value().get();
+  }
+
+  return result;
+}
+
+template <typename T>
+Evaluation_Weights<T> Evaluation_Weights<T>::operator*(
+    const Evaluation_Weights& other) const {
+  Evaluation_Weights result;
+
+  for (std::size_t i = 0; i < m_weight_ref_array.size; ++i) {
+    result[i] = m_weight_ref_array.get_array()[i].value().get() *
+                other.m_weight_ref_array.get_array()[i].value().get();
+  }
+
+  return result;
+}
+
+template <typename T>
+Evaluation_Weights<T> Evaluation_Weights<T>::operator+(T value) const {
+  Evaluation_Weights result;
+
+  for (std::size_t i = 0; i < m_weight_ref_array.size; ++i) {
+    result[i] = m_weight_ref_array.get_array()[i].value().get() + value;
+  }
+
+  return result;
+}
+
+template <typename T>
+Evaluation_Weights<T> Evaluation_Weights<T>::operator-(T value) const {
+  Evaluation_Weights result;
+
+  for (std::size_t i = 0; i < m_weight_ref_array.size; ++i) {
+    result[i] = m_weight_ref_array.get_array()[i].value().get() - value;
+  }
+
+  return result;
+}
+
+template <typename T>
+Evaluation_Weights<T> Evaluation_Weights<T>::operator*(T value) const {
+  Evaluation_Weights result;
+
+  for (std::size_t i = 0; i < m_weight_ref_array.size; ++i) {
+    result[i] = m_weight_ref_array.get_array()[i].value().get() * value;
+  }
+
+  return result;
+}
+
+template <typename T>
+Evaluation_Weights<T> Evaluation_Weights<T>::operator/(T value) const {
+  Evaluation_Weights result;
+
+  for (std::size_t i = 0; i < m_weight_ref_array.size; ++i) {
+    result[i] = m_weight_ref_array.get_array()[i].value().get() / value;
+  }
+
+  return result;
 }
 
 // Example use case: weights.get_index_of(weights.diagonal_mobility);
