@@ -34,9 +34,9 @@ class Tuner {
   Dataset parse_dataset_file(std::ifstream& dataset_file);
 
   Evaluation_Weights<double> compute_gradient(
-      Evaluation_Weights<double>& weights);
+      const Evaluation_Weights<double>& weights);
 
-  double compute_loss(Evaluation_Weights<double>& weights);
+  double compute_loss(const Evaluation_Weights<double>& weights);
 
   double huber_loss(double a) const;
   double derivative_huber_loss(double a) const;

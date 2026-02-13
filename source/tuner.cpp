@@ -79,7 +79,7 @@ Dataset Tuner::parse_dataset_file(std::ifstream& dataset_file) {
 }
 
 Evaluation_Weights<double> Tuner::compute_gradient(
-    Evaluation_Weights<double>& weights) {
+    const Evaluation_Weights<double>& weights) {
   Evaluation_Weights<double> gradient;
 
   for (std::size_t j = 0; j < gradient.get_size(); j++) {
@@ -109,7 +109,7 @@ Evaluation_Weights<double> Tuner::compute_gradient(
 
       const double evaluation = static_cast<double>(e.evaluate().to_int());
       const double target_evaluation = m_dataset.scores[i];
-      const double error = evaluation - target_evaluation;
+      const double error = target_evaluation - sigmoid(evaluation);
       const double huber_loss_derivative = derivative_huber_loss(error);
       const double sigmoid_derivative = derivative_sigmoid(evaluation);
       const double evaluation_deriative = e.derivative_evaluate()[j];
@@ -128,7 +128,7 @@ Evaluation_Weights<double> Tuner::compute_gradient(
   return gradient;
 }
 
-double Tuner::compute_loss(Evaluation_Weights<double>& weights) {
+double Tuner::compute_loss(const Evaluation_Weights<double>& weights) {
   double loss = 0.0L;
   const std::size_t N = m_dataset.fens.size();
 
@@ -155,7 +155,7 @@ double Tuner::compute_loss(Evaluation_Weights<double>& weights) {
 
     const double evaluation = static_cast<double>(e.evaluate().to_int());
     const double target_evaluation = m_dataset.scores[i];
-    const double error = evaluation - target_evaluation;
+    const double error = target_evaluation - sigmoid(evaluation);
     loss += huber_loss(error);
   }
 
