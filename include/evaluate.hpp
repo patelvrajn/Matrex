@@ -96,15 +96,10 @@ class Evaluation_Weights {
             diagonal_mobility, orthogonal_mobility, knight_movement_mobility,
             multi_movement_mobility, backwards_movement_mobility) {}
 
-  Evaluation_Weights(Evaluation_Weights_Reference_Array ref_array)
-      : Evaluation_Weights()  // default construct first
-  {
-    // Copy the values from ref_array to m_weight_ref_array not the references.
-    for (std::size_t i = 0; i < m_weight_ref_array.size; ++i) {
-      m_weight_ref_array.get_array()[i].value().get() =
-          ref_array.get_array()[i].value().get();
-    }
-  }
+  Evaluation_Weights(const Evaluation_Weights& other);
+  Evaluation_Weights& operator=(const Evaluation_Weights& other);
+  Evaluation_Weights(Evaluation_Weights&& other) noexcept;
+  Evaluation_Weights& operator=(Evaluation_Weights&& other) noexcept;
 
   // Material weights.
   multi_array<NLR_Parameters<T>, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
@@ -149,6 +144,49 @@ class Evaluation_Weights {
 // Function prototype for non-member function.
 template <typename T>
 Evaluation_Weights<T> operator/(T scalar, const Evaluation_Weights<T>& weights);
+
+// Copy constructor: copy values not references - avoids dangling references
+// when other is a temporary object.
+template <typename T>
+Evaluation_Weights<T>::Evaluation_Weights(const Evaluation_Weights& other)
+    : Evaluation_Weights() {  // default-construct: zero + build
+                              // m_weight_ref_array of references of this
+                              // object's weights
+  for (std::size_t i = 0; i < get_size(); ++i) {
+    (*this)[i] = other[i];
+  }
+}
+
+template <typename T>
+Evaluation_Weights<T>& Evaluation_Weights<T>::operator=(
+    const Evaluation_Weights& other) {
+  if (this == &other) return *this;
+
+  for (std::size_t i = 0; i < get_size(); ++i) {
+    (*this)[i] = other[i];
+  }
+  return *this;
+}
+
+// Move constructor - same as copy constructor
+template <typename T>
+Evaluation_Weights<T>::Evaluation_Weights(Evaluation_Weights&& other) noexcept
+    : Evaluation_Weights() {
+  for (std::size_t i = 0; i < get_size(); ++i) {
+    (*this)[i] = other[i];
+  }
+}
+
+template <typename T>
+Evaluation_Weights<T>& Evaluation_Weights<T>::operator=(
+    Evaluation_Weights&& other) noexcept {
+  if (this == &other) return *this;
+
+  for (std::size_t i = 0; i < get_size(); ++i) {
+    (*this)[i] = other[i];
+  }
+  return *this;
+}
 
 template <typename T>
 T& Evaluation_Weights<T>::operator[](std::size_t index) {
