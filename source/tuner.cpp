@@ -11,28 +11,28 @@ Evaluation_Weights<double> Tuner::tune() {
   Evaluation_Weights<double> first_moment;
   Evaluation_Weights<double> second_moment;
 
-  for (uint64_t t = 0; t < TUNER_ITERATIONS; t++) {
+  for (uint64_t t = 1; t <= TUNER_ITERATIONS; t++) {
     // Calculate gradient
     Evaluation_Weights<double> gradient = compute_gradient(weights);
 
     // First moment calculation
     first_moment = (first_moment * TUNER_DECAY_FACTOR) +
-                   (gradient * (1 - TUNER_DECAY_FACTOR));
+                   (gradient * (1.0L - TUNER_DECAY_FACTOR));
 
     // Second moment calculation
-    second_moment =
-        (second_moment * TUNER_NU) + ((gradient * gradient) * (1 - TUNER_NU));
+    second_moment = (second_moment * TUNER_NU) +
+                    ((gradient * gradient) * (1.0L - TUNER_NU));
 
     // Bias-corrected first moment calculation
     Evaluation_Weights<double> first_moment_corrected =
         ((first_moment * TUNER_DECAY_FACTOR) /
-         (1 - std::pow(TUNER_DECAY_FACTOR, (t + 1)))) +
-        ((gradient * (1 - TUNER_DECAY_FACTOR)) /
-         (1 - std::pow(TUNER_DECAY_FACTOR, t)));
+         (1.0L - std::pow(TUNER_DECAY_FACTOR, (t + 1)))) +
+        ((gradient * (1.0L - TUNER_DECAY_FACTOR)) /
+         (1.0L - std::pow(TUNER_DECAY_FACTOR, t)));
 
     // Bias-corrected second moment calculation
     Evaluation_Weights<double> second_moment_corrected =
-        (second_moment * TUNER_NU) / (1 - std::pow(TUNER_NU, t));
+        (second_moment * TUNER_NU) / (1.0L - std::pow(TUNER_NU, t));
 
     // Parameter update
     weights = weights - ((TUNER_LEARNING_RATE /
@@ -42,7 +42,7 @@ Evaluation_Weights<double> Tuner::tune() {
     // Compute this iteration's loss.
     double loss = compute_loss(weights);
 
-    m_log << "[INFO] Iteration " << (t + 1) << ": Loss = " << loss << std::endl;
+    m_log << "[INFO] Iteration " << t << ": Loss = " << loss << std::endl;
   }
 
   return weights;
@@ -72,7 +72,8 @@ Dataset Tuner::parse_dataset_file(std::ifstream& dataset_file) {
     }
   }
 
-  m_log << "[INFO] Finished parsing dataset file." << std::endl;
+  m_log << "[INFO] Finished parsing dataset file of "
+        << returned_dataset.fens.size() << " entries." << std::endl;
 
   return returned_dataset;
 }
@@ -129,7 +130,7 @@ Evaluation_Weights<double> Tuner::compute_gradient(
 
 double Tuner::compute_loss(Evaluation_Weights<double>& weights) {
   double loss = 0.0L;
-  std::size_t N = m_dataset.fens.size();
+  const std::size_t N = m_dataset.fens.size();
 
   for (std::size_t i = 0; i < N; i++) {
     Chess_Board cb;
