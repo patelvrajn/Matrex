@@ -135,6 +135,8 @@ class Evaluation_Weights {
   Evaluation_Weights operator*(T value) const;
   Evaluation_Weights operator/(T value) const;
 
+  Evaluation_Weights sqrt() const;
+
   template <typename U>
   std::size_t get_index_of(const U& ref) const;
 
@@ -143,6 +145,10 @@ class Evaluation_Weights {
  private:
   Evaluation_Weights_Reference_Array m_weight_ref_array;
 };
+
+// Function prototype for non-member function.
+template <typename T>
+Evaluation_Weights<T> operator/(T scalar, const Evaluation_Weights<T>& weights);
 
 template <typename T>
 T& Evaluation_Weights<T>::operator[](std::size_t index) {
@@ -251,6 +257,30 @@ Evaluation_Weights<T> Evaluation_Weights<T>::operator/(T value) const {
 
   for (std::size_t i = 0; i < m_weight_ref_array.size; ++i) {
     result[i] = m_weight_ref_array.get_array()[i].value().get() / value;
+  }
+
+  return result;
+}
+
+template <typename T>
+Evaluation_Weights<T> operator/(T scalar,
+                                const Evaluation_Weights<T>& weights) {
+  Evaluation_Weights<T> result;
+
+  for (std::size_t i = 0; i < result.get_size(); ++i) {
+    result[i] = scalar / weights[i];
+  }
+
+  return result;
+}
+
+template <typename T>
+Evaluation_Weights<T> Evaluation_Weights<T>::sqrt() const {
+  Evaluation_Weights result;
+
+  for (std::size_t i = 0; i < m_weight_ref_array.size; ++i) {
+    result[i] = static_cast<T>(
+        std::sqrt(m_weight_ref_array.get_array()[i].value().get()));
   }
 
   return result;
@@ -413,7 +443,7 @@ template <PIECE_COLOR moving_side>
 inline Score Evaluator<T>::material_score() const {
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
 
-  double return_value;
+  double return_value = 0.0L;
 
   for (uint8_t piece = PIECES::PAWN; piece <= PIECES::QUEEN; piece++) {
     T material_difference = 0;
@@ -547,8 +577,6 @@ inline Score Evaluator<T>::mobility_score() const {
 template <typename T>
 template <PIECE_COLOR moving_side>
 inline Evaluation_Weights<T> Evaluator<T>::derivative_mobility_score() const {
-  constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
-
   Attacks a;
   Evaluation_Weights<T> derivative_weights;
 
@@ -566,7 +594,6 @@ inline Evaluation_Weights<T> Evaluator<T>::derivative_mobility_score() const {
     std::vector<Moves_Bitboard> moving_side_moves_bitboards;
     m_moving_side_matrix.get_piece_moves_bitboards(moving_side, (PIECES)piece,
                                                    moving_side_moves_bitboards);
-    Score moving_side_piece_mobility_score = Score::from_int(0);
     for (Moves_Bitboard& mb : moving_side_moves_bitboards) {
       const uint16_t diagonal_movements =
           (mb.bitboard &
