@@ -114,10 +114,15 @@ Evaluation_Weights<double> Tuner::compute_gradient(
       Evaluator e(weights, cb, moving_side_matrix, opposing_side_matrix);
 
       const double evaluation = e.evaluate_template_typed();
+      const double evaluation_white =
+          (cb.get_side_to_move() == PIECE_COLOR::WHITE)
+              ? evaluation
+              : -evaluation;  // Convert side-to-move's evaluation to white's
+                              // perspective.
       const double target_evaluation = m_dataset.scores[i];
-      const double error = target_evaluation - sigmoid(evaluation);
+      const double error = target_evaluation - sigmoid(evaluation_white);
       const double huber_loss_derivative = derivative_huber_loss(error);
-      const double sigmoid_derivative = derivative_sigmoid(evaluation);
+      const double sigmoid_derivative = derivative_sigmoid(evaluation_white);
       const double evaluation_deriative = e.derivative_evaluate()[j];
 
       L_data_wj +=
@@ -160,8 +165,13 @@ double Tuner::compute_loss(const Evaluation_Weights<double>& weights) {
     Evaluator e(weights, cb, moving_side_matrix, opposing_side_matrix);
 
     const double evaluation = e.evaluate_template_typed();
+    const double evaluation_white =
+        (cb.get_side_to_move() == PIECE_COLOR::WHITE)
+            ? evaluation
+            : -evaluation;  // Convert side-to-move's evaluation to white's
+                            // perspective.
     const double target_evaluation = m_dataset.scores[i];
-    const double error = target_evaluation - sigmoid(evaluation);
+    const double error = target_evaluation - sigmoid(evaluation_white);
     loss += huber_loss(error);
   }
 
