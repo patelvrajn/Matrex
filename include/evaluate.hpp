@@ -417,17 +417,18 @@ class Evaluator {
             const Moves_Bitboard_Matrix& moving_side_matrix,
             const Moves_Bitboard_Matrix& opposing_side_matrix);
 
+  T evaluate_template_typed() const;
   Score evaluate() const;
   Evaluation_Weights<T> derivative_evaluate() const;
 
   template <PIECE_COLOR moving_side>
-  inline Score material_score() const;
+  inline T material_score() const;
 
   template <PIECE_COLOR moving_side>
   inline Evaluation_Weights<T> derivative_material_score() const;
 
   template <PIECE_COLOR moving_side>
-  inline Score mobility_score() const;
+  inline T mobility_score() const;
 
   template <PIECE_COLOR moving_side>
   inline Evaluation_Weights<T> derivative_mobility_score() const;
@@ -450,11 +451,11 @@ Evaluator<T>::Evaluator(const Evaluation_Weights<T>& weights,
       m_opposing_side_matrix(opposing_side_matrix) {}
 
 template <typename T>
-Score Evaluator<T>::evaluate() const {
+T Evaluator<T>::evaluate_template_typed() const {
   PIECE_COLOR moving_side = m_chess_board.get_side_to_move();
 
-  Score material;
-  Score mobility;
+  T material;
+  T mobility;
 
   if (moving_side == PIECE_COLOR::WHITE) {
     material = material_score<PIECE_COLOR::WHITE>();
@@ -464,9 +465,14 @@ Score Evaluator<T>::evaluate() const {
     mobility = mobility_score<PIECE_COLOR::BLACK>();
   }
 
-  Score evaluation = material + mobility;
+  T evaluation = material + mobility;
 
   return evaluation;
+}
+
+template <typename T>
+Score Evaluator<T>::evaluate() const {
+  return Score(evaluate_template_typed());
 }
 
 template <typename T>
@@ -491,7 +497,7 @@ Evaluation_Weights<T> Evaluator<T>::derivative_evaluate() const {
 
 template <typename T>
 template <PIECE_COLOR moving_side>
-inline Score Evaluator<T>::material_score() const {
+inline T Evaluator<T>::material_score() const {
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
 
   double return_value = 0.0L;
@@ -512,7 +518,7 @@ inline Score Evaluator<T>::material_score() const {
     return_value += non_linear_material;
   }
 
-  return Score(return_value);
+  return static_cast<T>(return_value);
 }
 
 template <typename T>
@@ -578,7 +584,7 @@ inline Evaluation_Weights<T> Evaluator<T>::derivative_material_score() const {
 
 template <typename T>
 template <PIECE_COLOR moving_side>
-inline Score Evaluator<T>::mobility_score() const {
+inline T Evaluator<T>::mobility_score() const {
   Attacks a;
   double mobility = 0;
 
@@ -622,7 +628,7 @@ inline Score Evaluator<T>::mobility_score() const {
             .value(moving_side_piece_mobility);
   }
 
-  return Score(mobility);
+  return static_cast<T>(mobility);
 }
 
 template <typename T>

@@ -113,7 +113,7 @@ Evaluation_Weights<double> Tuner::compute_gradient(
 
       Evaluator e(weights, cb, moving_side_matrix, opposing_side_matrix);
 
-      const double evaluation = static_cast<double>(e.evaluate().to_int());
+      const double evaluation = e.evaluate_template_typed();
       const double target_evaluation = m_dataset.scores[i];
       const double error = target_evaluation - sigmoid(evaluation);
       const double huber_loss_derivative = derivative_huber_loss(error);
@@ -159,7 +159,7 @@ double Tuner::compute_loss(const Evaluation_Weights<double>& weights) {
 
     Evaluator e(weights, cb, moving_side_matrix, opposing_side_matrix);
 
-    const double evaluation = static_cast<double>(e.evaluate().to_int());
+    const double evaluation = e.evaluate_template_typed();
     const double target_evaluation = m_dataset.scores[i];
     const double error = target_evaluation - sigmoid(evaluation);
     loss += huber_loss(error);
