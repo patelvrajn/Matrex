@@ -115,8 +115,8 @@ Score Score::operator+(const Score& other) const {
     return Score::from_int(std::max(this_int, other_int));
   } else {
     int16_t sum = this_int + other_int;
-    return std::clamp(sum, (int16_t)ESCORE::NEGATIVE_INFINITY,
-                      (int16_t)ESCORE::POSITIVE_INFINITY);
+    return Score(std::clamp(sum, (int16_t)ESCORE::NEGATIVE_INFINITY,
+                            (int16_t)ESCORE::POSITIVE_INFINITY));
   }
 }
 
@@ -128,8 +128,8 @@ Score Score::operator-(const Score& other) const {
     return Score::from_int(std::min(this_int, other_int));
   } else {
     int16_t difference = this_int - other_int;
-    return std::clamp(difference, (int16_t)ESCORE::NEGATIVE_INFINITY,
-                      (int16_t)ESCORE::POSITIVE_INFINITY);
+    return Score(std::clamp(difference, (int16_t)ESCORE::NEGATIVE_INFINITY,
+                            (int16_t)ESCORE::POSITIVE_INFINITY));
   }
 }
 

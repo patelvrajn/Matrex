@@ -36,8 +36,8 @@ struct Score_Fields {
 class Score {
  public:
   Score();
-  Score(int16_t evaluation);
-  Score(double evaluation);
+  explicit Score(int16_t evaluation);
+  explicit Score(double evaluation);
   Score(Score_Fields fields);
 
   int16_t to_int() const;
