@@ -132,6 +132,10 @@ class Evaluation_Weights {
 
   Evaluation_Weights sqrt() const;
 
+  template <typename W>
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const Evaluation_Weights<W>& weights);
+
   template <typename U>
   std::size_t get_index_of(const U& ref) const;
 
@@ -322,6 +326,15 @@ Evaluation_Weights<T> Evaluation_Weights<T>::sqrt() const {
   }
 
   return result;
+}
+
+template <typename W>
+std::ostream& operator<<(std::ostream& os,
+                         const Evaluation_Weights<W>& weights) {
+  for (std::size_t i = 0; i < weights.get_size(); ++i) {
+    os << i << ": " << weights[i] << std::endl;
+  }
+  return os;
 }
 
 // Example use case: weights.get_index_of(weights.diagonal_mobility);

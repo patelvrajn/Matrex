@@ -8,6 +8,7 @@
 
 constexpr uint64_t TUNER_ITERATIONS = 10000;
 
+constexpr double TUNER_WEIGHTS_INITIALIZATION_VALUE = 1;
 constexpr double TUNER_DECAY_FACTOR = 0.975;
 constexpr double TUNER_LEARNING_RATE = 0.002;
 constexpr double TUNER_NU = 0.999;

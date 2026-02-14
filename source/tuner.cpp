@@ -8,12 +8,16 @@ Tuner::Tuner(std::ostream& logging, std::ifstream& dataset,
 
 Evaluation_Weights<double> Tuner::tune() {
   Evaluation_Weights<double> weights;
+  weights = weights + TUNER_WEIGHTS_INITIALIZATION_VALUE;
   Evaluation_Weights<double> first_moment;
   Evaluation_Weights<double> second_moment;
 
   for (uint64_t t = 1; t <= TUNER_ITERATIONS; t++) {
     // Calculate gradient
     Evaluation_Weights<double> gradient = compute_gradient(weights);
+
+    m_log << "[INFO] Gradient at iteration " << t << ":" << std::endl
+          << gradient;
 
     // First moment calculation
     first_moment = (first_moment * TUNER_DECAY_FACTOR) +
@@ -41,6 +45,8 @@ Evaluation_Weights<double> Tuner::tune() {
 
     // Compute this iteration's loss.
     double loss = compute_loss(weights);
+
+    m_log << "[INFO] Weights at iteration " << t << ":" << std::endl << weights;
 
     m_log << "[INFO] Iteration " << t << ": Loss = " << loss << std::endl;
   }
