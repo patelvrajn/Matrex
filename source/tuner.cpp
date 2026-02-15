@@ -12,50 +12,58 @@ Evaluation_Weights<double> Tuner::tune() {
   Evaluation_Weights<double> first_moment;
   Evaluation_Weights<double> second_moment;
 
-  for (uint64_t t = 1; t <= TUNER_ITERATIONS; t++) {
-    // Calculate gradient
-    Evaluation_Weights<double> gradient = compute_gradient(weights);
+  uint64_t t = 1;  // NADAM's timestep
 
-    m_log << "[INFO] Gradient at iteration " << t << ":" << std::endl
-          << gradient;
+  for (uint64_t epoch = 1; epoch <= TUNER_NUMBER_OF_EPOCHS; epoch++) {
+    for (const Mini_Batch& mini_batch : m_dataset.mini_batches) {
+      // Calculate gradient
+      Evaluation_Weights<double> gradient =
+          compute_gradient(weights, mini_batch);
 
-    // First moment calculation
-    first_moment = (first_moment * TUNER_DECAY_FACTOR) +
-                   (gradient * (1.0L - TUNER_DECAY_FACTOR));
+      m_log << "[INFO] Gradient at timestep " << t << ":" << std::endl
+            << gradient;
 
-    // Second moment calculation
-    second_moment = (second_moment * TUNER_NU) +
-                    ((gradient * gradient) * (1.0L - TUNER_NU));
+      // First moment calculation
+      first_moment = (first_moment * TUNER_DECAY_FACTOR) +
+                     (gradient * (1.0L - TUNER_DECAY_FACTOR));
 
-    // Bias-corrected first moment calculation
-    Evaluation_Weights<double> first_moment_corrected =
-        ((first_moment * TUNER_DECAY_FACTOR) /
-         (1.0L - std::pow(TUNER_DECAY_FACTOR, (t + 1)))) +
-        ((gradient * (1.0L - TUNER_DECAY_FACTOR)) /
-         (1.0L - std::pow(TUNER_DECAY_FACTOR, t)));
+      // Second moment calculation
+      second_moment = (second_moment * TUNER_NU) +
+                      ((gradient * gradient) * (1.0L - TUNER_NU));
 
-    // Bias-corrected second moment calculation
-    Evaluation_Weights<double> second_moment_corrected =
-        (second_moment * TUNER_NU) / (1.0L - std::pow(TUNER_NU, t));
+      // Bias-corrected first moment calculation
+      Evaluation_Weights<double> first_moment_corrected =
+          ((first_moment * TUNER_DECAY_FACTOR) /
+           (1.0L - std::pow(TUNER_DECAY_FACTOR, (t + 1)))) +
+          ((gradient * (1.0L - TUNER_DECAY_FACTOR)) /
+           (1.0L - std::pow(TUNER_DECAY_FACTOR, t)));
 
-    // Parameter update
-    weights = weights - ((TUNER_LEARNING_RATE /
-                          (second_moment_corrected + TUNER_EPSILON).sqrt()) *
-                         first_moment_corrected);
+      // Bias-corrected second moment calculation
+      Evaluation_Weights<double> second_moment_corrected =
+          (second_moment * TUNER_NU) / (1.0L - std::pow(TUNER_NU, t));
 
-    // Compute this iteration's loss.
+      // Parameter update
+      weights = weights - ((TUNER_LEARNING_RATE /
+                            (second_moment_corrected + TUNER_EPSILON).sqrt()) *
+                           first_moment_corrected);
+
+      m_log << "[INFO] Weights at timestep " << t << ":" << std::endl
+            << weights;
+
+      t++;
+    }
+
+    // Compute this epoch's loss.
     double loss = compute_loss(weights);
 
-    m_log << "[INFO] Weights at iteration " << t << ":" << std::endl << weights;
-
-    m_log << "[INFO] Iteration " << t << ": Loss = " << loss << std::endl;
+    m_log << "[INFO] Epoch " << epoch << ": Loss = " << loss << std::endl;
   }
 
   return weights;
 }
 
 Dataset Tuner::parse_dataset_file(std::ifstream& dataset_file) {
-  Dataset returned_dataset;
+  Mini_Batch aggregate_batch;
 
   m_log << "[INFO] Starting to parse dataset file." << std::endl;
 
@@ -91,37 +99,62 @@ Dataset Tuner::parse_dataset_file(std::ifstream& dataset_file) {
       m_log << "[INFO] Parsed (FEN, score) pair: (\"" << fen << "\", " << score
             << ")" << std::endl;
 
-      returned_dataset.boards.push_back(cb);
-      returned_dataset.scores.push_back(score);
-      returned_dataset.moving_side_matrices.push_back(moving_side_matrix);
-      returned_dataset.opposing_side_matrices.push_back(opposing_side_matrix);
+      aggregate_batch.boards.push_back(cb);
+      aggregate_batch.scores.push_back(score);
+      aggregate_batch.moving_side_matrices.push_back(moving_side_matrix);
+      aggregate_batch.opposing_side_matrices.push_back(opposing_side_matrix);
     }
   }
 
   m_log << "[INFO] Finished parsing dataset file of "
-        << returned_dataset.boards.size() << " entries." << std::endl;
+        << aggregate_batch.boards.size() << " entries." << std::endl;
+
+  Dataset returned_dataset;
+
+  // Now that we have the size of the entire dataset, split the aggregate batch
+  // into mini-batches of size at most TUNER_MINI_BATCH_SIZE.
+  for (std::size_t i = 0; i < aggregate_batch.boards.size();
+       i += TUNER_MINI_BATCH_SIZE) {
+    Mini_Batch mini_batch;
+
+    for (std::size_t j = i;
+         (j < (i + TUNER_MINI_BATCH_SIZE) && j < aggregate_batch.boards.size());
+         j++) {
+      mini_batch.boards.push_back(aggregate_batch.boards[j]);
+      mini_batch.scores.push_back(aggregate_batch.scores[j]);
+      mini_batch.moving_side_matrices.push_back(
+          aggregate_batch.moving_side_matrices[j]);
+      mini_batch.opposing_side_matrices.push_back(
+          aggregate_batch.opposing_side_matrices[j]);
+    }
+
+    returned_dataset.mini_batches.push_back(mini_batch);
+  }
+
+  returned_dataset.size = aggregate_batch.boards.size();
 
   return returned_dataset;
 }
 
 Evaluation_Weights<double> Tuner::compute_gradient(
-    const Evaluation_Weights<double>& weights) {
+    const Evaluation_Weights<double>& weights, const Mini_Batch& mini_batch) {
   Evaluation_Weights<double> gradient;
 
-  std::size_t N = m_dataset.boards.size();
+  std::size_t N = mini_batch.boards.size();
 
   for (std::size_t i = 0; i < N; i++) {
-    Evaluator e(weights, m_dataset.boards[i], m_dataset.moving_side_matrices[i],
-                m_dataset.opposing_side_matrices[i]);
+    Evaluator e(weights, mini_batch.boards[i],
+                mini_batch.moving_side_matrices[i],
+                mini_batch.opposing_side_matrices[i]);
 
     const double sign =
-        (m_dataset.boards[i].get_side_to_move() == PIECE_COLOR::WHITE) ? 1.0L
-                                                                       : -1.0L;
+        (mini_batch.boards[i].get_side_to_move() == PIECE_COLOR::WHITE) ? 1.0L
+                                                                        : -1.0L;
     const double evaluation = e.evaluate_template_typed();
     const double evaluation_white =
         sign * evaluation;  // Convert side-to-move's evaluation to white's
                             // perspective.
-    const double target_evaluation = m_dataset.scores[i];
+    const double target_evaluation = mini_batch.scores[i];
     const double error = target_evaluation - sigmoid(evaluation_white);
     const double huber_loss_derivative = derivative_huber_loss(error);
     const double sigmoid_derivative = derivative_sigmoid(evaluation_white);
@@ -140,22 +173,26 @@ Evaluation_Weights<double> Tuner::compute_gradient(
 
 double Tuner::compute_loss(const Evaluation_Weights<double>& weights) {
   double loss = 0.0L;
-  const std::size_t N = m_dataset.boards.size();
+  const std::size_t N = m_dataset.size;
 
-  for (std::size_t i = 0; i < N; i++) {
-    Evaluator e(weights, m_dataset.boards[i], m_dataset.moving_side_matrices[i],
-                m_dataset.opposing_side_matrices[i]);
+  for (const Mini_Batch& mini_batch : m_dataset.mini_batches) {
+    for (std::size_t i = 0; i < mini_batch.boards.size(); i++) {
+      Evaluator e(weights, mini_batch.boards[i],
+                  mini_batch.moving_side_matrices[i],
+                  mini_batch.opposing_side_matrices[i]);
 
-    const double sign =
-        (m_dataset.boards[i].get_side_to_move() == PIECE_COLOR::WHITE) ? 1.0L
-                                                                       : -1.0L;
-    const double evaluation = e.evaluate_template_typed();
-    const double evaluation_white =
-        sign * evaluation;  // Convert side-to-move's evaluation to white's
-                            // perspective.
-    const double target_evaluation = m_dataset.scores[i];
-    const double error = target_evaluation - sigmoid(evaluation_white);
-    loss += huber_loss(error);
+      const double sign =
+          (mini_batch.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)
+              ? 1.0L
+              : -1.0L;
+      const double evaluation = e.evaluate_template_typed();
+      const double evaluation_white =
+          sign * evaluation;  // Convert side-to-move's evaluation to white's
+                              // perspective.
+      const double target_evaluation = mini_batch.scores[i];
+      const double error = target_evaluation - sigmoid(evaluation_white);
+      loss += huber_loss(error);
+    }
   }
 
   loss = loss / static_cast<double>(N);

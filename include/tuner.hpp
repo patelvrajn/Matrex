@@ -6,7 +6,8 @@
 
 #include "evaluate.hpp"
 
-constexpr uint64_t TUNER_ITERATIONS = 10000;
+constexpr uint64_t TUNER_NUMBER_OF_EPOCHS = 1000;
+constexpr uint64_t TUNER_MINI_BATCH_SIZE = 16384;
 
 constexpr double TUNER_WEIGHTS_INITIALIZATION_VALUE = 1;
 constexpr double TUNER_DECAY_FACTOR = 0.975;
@@ -17,11 +18,16 @@ constexpr double TUNER_HUBER_LOSS_GAMMA = 0.25;
 constexpr double TUNER_SIGMOID_K = 0.00029;
 constexpr double TUNER_REGULARIZATION_LAMBDA = 1e-4;
 
-struct Dataset {
+struct Mini_Batch {
   std::vector<Chess_Board> boards;
   std::vector<double> scores;
   std::vector<Moves_Bitboard_Matrix> moving_side_matrices;
   std::vector<Moves_Bitboard_Matrix> opposing_side_matrices;
+};
+
+struct Dataset {
+  std::vector<Mini_Batch> mini_batches;
+  std::size_t size;
 };
 
 class Tuner {
@@ -37,7 +43,7 @@ class Tuner {
   Dataset parse_dataset_file(std::ifstream& dataset_file);
 
   Evaluation_Weights<double> compute_gradient(
-      const Evaluation_Weights<double>& weights);
+      const Evaluation_Weights<double>& weights, const Mini_Batch& mini_batch);
 
   double compute_loss(const Evaluation_Weights<double>& weights);
 
