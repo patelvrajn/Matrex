@@ -108,39 +108,32 @@ Evaluation_Weights<double> Tuner::compute_gradient(
     const Evaluation_Weights<double>& weights) {
   Evaluation_Weights<double> gradient;
 
-  for (std::size_t j = 0; j < gradient.get_size(); j++) {
-    double L_data_wj = 0.0L;
-    std::size_t N = m_dataset.boards.size();
+  std::size_t N = m_dataset.boards.size();
 
-    for (std::size_t i = 0; i < N; i++) {
-      Evaluator e(weights, m_dataset.boards[i],
-                  m_dataset.moving_side_matrices[i],
-                  m_dataset.opposing_side_matrices[i]);
+  for (std::size_t i = 0; i < N; i++) {
+    Evaluator e(weights, m_dataset.boards[i], m_dataset.moving_side_matrices[i],
+                m_dataset.opposing_side_matrices[i]);
 
-      const double sign =
-          (m_dataset.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)
-              ? 1.0L
-              : -1.0L;
-      const double evaluation = e.evaluate_template_typed();
-      const double evaluation_white =
-          sign * evaluation;  // Convert side-to-move's evaluation to white's
-                              // perspective.
-      const double target_evaluation = m_dataset.scores[i];
-      const double error = target_evaluation - sigmoid(evaluation_white);
-      const double huber_loss_derivative = derivative_huber_loss(error);
-      const double sigmoid_derivative = derivative_sigmoid(evaluation_white);
-      const double evaluation_deriative = sign * e.derivative_evaluate()[j];
+    const double sign =
+        (m_dataset.boards[i].get_side_to_move() == PIECE_COLOR::WHITE) ? 1.0L
+                                                                       : -1.0L;
+    const double evaluation = e.evaluate_template_typed();
+    const double evaluation_white =
+        sign * evaluation;  // Convert side-to-move's evaluation to white's
+                            // perspective.
+    const double target_evaluation = m_dataset.scores[i];
+    const double error = target_evaluation - sigmoid(evaluation_white);
+    const double huber_loss_derivative = derivative_huber_loss(error);
+    const double sigmoid_derivative = derivative_sigmoid(evaluation_white);
+    const Evaluation_Weights<double> evaluation_deriative =
+        (e.derivative_evaluate() * sign);
 
-      L_data_wj +=
-          (huber_loss_derivative * sigmoid_derivative * evaluation_deriative);
-    }
-
-    L_data_wj = L_data_wj / static_cast<double>(N);
-
-    const double L_reg_wj = 2.0L * TUNER_REGULARIZATION_LAMBDA * weights[j];
-
-    gradient[j] = L_data_wj + L_reg_wj;
+    gradient = gradient + (evaluation_deriative *
+                           (huber_loss_derivative * sigmoid_derivative));
   }
+
+  gradient = gradient / static_cast<double>(N);
+  gradient = gradient + (weights * (2.0 * TUNER_REGULARIZATION_LAMBDA));
 
   return gradient;
 }
