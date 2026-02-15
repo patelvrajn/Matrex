@@ -117,17 +117,19 @@ Evaluation_Weights<double> Tuner::compute_gradient(
                   m_dataset.moving_side_matrices[i],
                   m_dataset.opposing_side_matrices[i]);
 
+      const double sign =
+          (m_dataset.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)
+              ? 1.0L
+              : -1.0L;
       const double evaluation = e.evaluate_template_typed();
       const double evaluation_white =
-          (m_dataset.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)
-              ? evaluation
-              : -evaluation;  // Convert side-to-move's evaluation to white's
+          sign * evaluation;  // Convert side-to-move's evaluation to white's
                               // perspective.
       const double target_evaluation = m_dataset.scores[i];
       const double error = target_evaluation - sigmoid(evaluation_white);
       const double huber_loss_derivative = derivative_huber_loss(error);
       const double sigmoid_derivative = derivative_sigmoid(evaluation_white);
-      const double evaluation_deriative = e.derivative_evaluate()[j];
+      const double evaluation_deriative = sign * e.derivative_evaluate()[j];
 
       L_data_wj +=
           (huber_loss_derivative * sigmoid_derivative * evaluation_deriative);
@@ -151,11 +153,12 @@ double Tuner::compute_loss(const Evaluation_Weights<double>& weights) {
     Evaluator e(weights, m_dataset.boards[i], m_dataset.moving_side_matrices[i],
                 m_dataset.opposing_side_matrices[i]);
 
+    const double sign =
+        (m_dataset.boards[i].get_side_to_move() == PIECE_COLOR::WHITE) ? 1.0L
+                                                                       : -1.0L;
     const double evaluation = e.evaluate_template_typed();
     const double evaluation_white =
-        (m_dataset.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)
-            ? evaluation
-            : -evaluation;  // Convert side-to-move's evaluation to white's
+        sign * evaluation;  // Convert side-to-move's evaluation to white's
                             // perspective.
     const double target_evaluation = m_dataset.scores[i];
     const double error = target_evaluation - sigmoid(evaluation_white);
