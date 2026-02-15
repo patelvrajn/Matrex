@@ -18,8 +18,10 @@ constexpr double TUNER_SIGMOID_K = 0.00029;
 constexpr double TUNER_REGULARIZATION_LAMBDA = 1e-4;
 
 struct Dataset {
-  std::vector<std::string> fens;
+  std::vector<Chess_Board> boards;
   std::vector<double> scores;
+  std::vector<Moves_Bitboard_Matrix> moving_side_matrices;
+  std::vector<Moves_Bitboard_Matrix> opposing_side_matrices;
 };
 
 class Tuner {

@@ -70,31 +70,8 @@ Dataset Tuner::parse_dataset_file(std::ifstream& dataset_file) {
           (last_space_pos + 2),
           MAX_SCORE_STRING_LENGTH));  // +2 to skip space and opening bracket
 
-      m_log << "[INFO] Parsed (FEN, score) pair: (\"" << fen << "\", " << score
-            << ")" << std::endl;
-
-      returned_dataset.fens.push_back(fen);
-      returned_dataset.scores.push_back(score);
-    }
-  }
-
-  m_log << "[INFO] Finished parsing dataset file of "
-        << returned_dataset.fens.size() << " entries." << std::endl;
-
-  return returned_dataset;
-}
-
-Evaluation_Weights<double> Tuner::compute_gradient(
-    const Evaluation_Weights<double>& weights) {
-  Evaluation_Weights<double> gradient;
-
-  for (std::size_t j = 0; j < gradient.get_size(); j++) {
-    double L_data_wj = 0.0L;
-    std::size_t N = m_dataset.fens.size();
-
-    for (std::size_t i = 0; i < N; i++) {
       Chess_Board cb;
-      cb.set_from_fen(m_dataset.fens[i]);
+      cb.set_from_fen(fen);
 
       const PIECE_COLOR moving_side = cb.get_side_to_move();
       Chess_Move_List moving_side_moves_list;
@@ -111,11 +88,38 @@ Evaluation_Weights<double> Tuner::compute_gradient(
       mg_opposing_side.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
           opposing_side, opposing_side_moves_list, opposing_side_matrix);
 
-      Evaluator e(weights, cb, moving_side_matrix, opposing_side_matrix);
+      m_log << "[INFO] Parsed (FEN, score) pair: (\"" << fen << "\", " << score
+            << ")" << std::endl;
+
+      returned_dataset.boards.push_back(cb);
+      returned_dataset.scores.push_back(score);
+      returned_dataset.moving_side_matrices.push_back(moving_side_matrix);
+      returned_dataset.opposing_side_matrices.push_back(opposing_side_matrix);
+    }
+  }
+
+  m_log << "[INFO] Finished parsing dataset file of "
+        << returned_dataset.boards.size() << " entries." << std::endl;
+
+  return returned_dataset;
+}
+
+Evaluation_Weights<double> Tuner::compute_gradient(
+    const Evaluation_Weights<double>& weights) {
+  Evaluation_Weights<double> gradient;
+
+  for (std::size_t j = 0; j < gradient.get_size(); j++) {
+    double L_data_wj = 0.0L;
+    std::size_t N = m_dataset.boards.size();
+
+    for (std::size_t i = 0; i < N; i++) {
+      Evaluator e(weights, m_dataset.boards[i],
+                  m_dataset.moving_side_matrices[i],
+                  m_dataset.opposing_side_matrices[i]);
 
       const double evaluation = e.evaluate_template_typed();
       const double evaluation_white =
-          (cb.get_side_to_move() == PIECE_COLOR::WHITE)
+          (m_dataset.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)
               ? evaluation
               : -evaluation;  // Convert side-to-move's evaluation to white's
                               // perspective.
@@ -141,32 +145,15 @@ Evaluation_Weights<double> Tuner::compute_gradient(
 
 double Tuner::compute_loss(const Evaluation_Weights<double>& weights) {
   double loss = 0.0L;
-  const std::size_t N = m_dataset.fens.size();
+  const std::size_t N = m_dataset.boards.size();
 
   for (std::size_t i = 0; i < N; i++) {
-    Chess_Board cb;
-    cb.set_from_fen(m_dataset.fens[i]);
-
-    const PIECE_COLOR moving_side = cb.get_side_to_move();
-    Chess_Move_List moving_side_moves_list;
-    Moves_Bitboard_Matrix moving_side_matrix;
-    Move_Generator mg_moving_side(cb);
-    mg_moving_side.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
-        moving_side, moving_side_moves_list, moving_side_matrix);
-
-    const PIECE_COLOR opposing_side =
-        (PIECE_COLOR)((~cb.get_side_to_move()) & 0x1);
-    Chess_Move_List opposing_side_moves_list;
-    Moves_Bitboard_Matrix opposing_side_matrix;
-    Move_Generator mg_opposing_side(cb);
-    mg_opposing_side.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
-        opposing_side, opposing_side_moves_list, opposing_side_matrix);
-
-    Evaluator e(weights, cb, moving_side_matrix, opposing_side_matrix);
+    Evaluator e(weights, m_dataset.boards[i], m_dataset.moving_side_matrices[i],
+                m_dataset.opposing_side_matrices[i]);
 
     const double evaluation = e.evaluate_template_typed();
     const double evaluation_white =
-        (cb.get_side_to_move() == PIECE_COLOR::WHITE)
+        (m_dataset.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)
             ? evaluation
             : -evaluation;  // Convert side-to-move's evaluation to white's
                             // perspective.
