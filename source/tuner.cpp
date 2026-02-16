@@ -6,9 +6,38 @@ Tuner::Tuner(std::ostream& logging, std::ifstream& dataset,
   m_dataset = parse_dataset_file(dataset);
 }
 
-Evaluation_Weights<double> Tuner::tune() {
+Evaluation_Weights<double> Tuner::init_weights() {
   Evaluation_Weights<double> weights;
   weights = weights + TUNER_WEIGHTS_INITIALIZATION_VALUE;
+
+  NLR_Parameters<double> init_nlr = {.h_plus = 30.0L,
+                                     .h_minus = 30.0L,
+                                     .z = 1.0L,
+                                     .k = 1.0L,
+                                     .q_plus = 0.25L,
+                                     .q_minus = 0.25L,
+                                     .r_plus = -1.0L,
+                                     .r_minus = -1.0L,
+                                     .g_plus = 1.0L,
+                                     .g_minus = 1.0L};
+
+  weights.material_NLR_parameters = {init_nlr, init_nlr, init_nlr, init_nlr,
+                                     init_nlr};
+  weights.material = {100.0L, 300.0L, 350.0L, 500.0L, 900.0L};
+
+  weights.piece_mobility_NLR_parameters = {init_nlr, init_nlr, init_nlr,
+                                           init_nlr, init_nlr, init_nlr};
+  weights.diagonal_mobility = 30.0L;
+  weights.orthogonal_mobility = 24.0L;
+  weights.knight_movement_mobility = 40.0L;
+  weights.multi_movement_mobility = 150.0L;
+  weights.backwards_movement_mobility = 25.0L;
+
+  return weights;
+}
+
+Evaluation_Weights<double> Tuner::tune() {
+  Evaluation_Weights<double> weights = init_weights();
   Evaluation_Weights<double> first_moment;
   Evaluation_Weights<double> second_moment;
 

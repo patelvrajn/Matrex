@@ -44,6 +44,8 @@ class Tuner {
   Dataset m_dataset;
   std::ofstream& m_output;
 
+  Evaluation_Weights<double> init_weights();
+
   Dataset parse_dataset_file(std::ifstream& dataset_file);
 
   Tuner_Eval_Params compute_eval_params(const Mini_Batch& mini_batch);
