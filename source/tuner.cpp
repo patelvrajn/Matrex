@@ -20,8 +20,8 @@ Evaluation_Weights<double> Tuner::tune() {
       Evaluation_Weights<double> gradient =
           compute_gradient(weights, mini_batch);
 
-      m_log << "[INFO] Gradient at timestep " << t << ":" << std::endl
-            << gradient;
+      m_log << "[INFO] Gradient at timestep " << t << "; " << gradient
+            << std::endl;
 
       // First moment calculation
       first_moment = (first_moment * TUNER_DECAY_FACTOR) +
@@ -47,8 +47,8 @@ Evaluation_Weights<double> Tuner::tune() {
                             (second_moment_corrected + TUNER_EPSILON).sqrt()) *
                            first_moment_corrected);
 
-      m_log << "[INFO] Weights at timestep " << t << ":" << std::endl
-            << weights;
+      m_log << "[INFO] Weights at timestep " << t << "; " << weights
+            << std::endl;
 
       t++;
     }
@@ -78,78 +78,90 @@ Dataset Tuner::parse_dataset_file(std::ifstream& dataset_file) {
           (last_space_pos + 2),
           MAX_SCORE_STRING_LENGTH));  // +2 to skip space and opening bracket
 
-      Chess_Board cb;
-      cb.set_from_fen(fen);
-
-      const PIECE_COLOR moving_side = cb.get_side_to_move();
-      Chess_Move_List moving_side_moves_list;
-      Moves_Bitboard_Matrix moving_side_matrix;
-      Move_Generator mg_moving_side(cb);
-      mg_moving_side.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
-          moving_side, moving_side_moves_list, moving_side_matrix);
-
-      const PIECE_COLOR opposing_side =
-          (PIECE_COLOR)((~cb.get_side_to_move()) & 0x1);
-      Chess_Move_List opposing_side_moves_list;
-      Moves_Bitboard_Matrix opposing_side_matrix;
-      Move_Generator mg_opposing_side(cb);
-      mg_opposing_side.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
-          opposing_side, opposing_side_moves_list, opposing_side_matrix);
-
       m_log << "[INFO] Parsed (FEN, score) pair: (\"" << fen << "\", " << score
             << ")" << std::endl;
 
-      aggregate_batch.boards.push_back(cb);
+      aggregate_batch.fens.push_back(fen);
       aggregate_batch.scores.push_back(score);
-      aggregate_batch.moving_side_matrices.push_back(moving_side_matrix);
-      aggregate_batch.opposing_side_matrices.push_back(opposing_side_matrix);
     }
   }
 
   m_log << "[INFO] Finished parsing dataset file of "
-        << aggregate_batch.boards.size() << " entries." << std::endl;
+        << aggregate_batch.fens.size() << " entries." << std::endl;
 
   Dataset returned_dataset;
 
   // Now that we have the size of the entire dataset, split the aggregate batch
   // into mini-batches of size at most TUNER_MINI_BATCH_SIZE.
-  for (std::size_t i = 0; i < aggregate_batch.boards.size();
+  for (std::size_t i = 0; i < aggregate_batch.fens.size();
        i += TUNER_MINI_BATCH_SIZE) {
     Mini_Batch mini_batch;
 
     for (std::size_t j = i;
-         (j < (i + TUNER_MINI_BATCH_SIZE) && j < aggregate_batch.boards.size());
+         (j < (i + TUNER_MINI_BATCH_SIZE) && j < aggregate_batch.fens.size());
          j++) {
-      mini_batch.boards.push_back(aggregate_batch.boards[j]);
+      mini_batch.fens.push_back(aggregate_batch.fens[j]);
       mini_batch.scores.push_back(aggregate_batch.scores[j]);
-      mini_batch.moving_side_matrices.push_back(
-          aggregate_batch.moving_side_matrices[j]);
-      mini_batch.opposing_side_matrices.push_back(
-          aggregate_batch.opposing_side_matrices[j]);
     }
 
     returned_dataset.mini_batches.push_back(mini_batch);
   }
 
-  returned_dataset.size = aggregate_batch.boards.size();
+  returned_dataset.size = aggregate_batch.fens.size();
 
   return returned_dataset;
+}
+
+Tuner_Eval_Params Tuner::compute_eval_params(const Mini_Batch& mini_batch) {
+  Tuner_Eval_Params return_value;
+  return_value.boards.reserve(mini_batch.fens.size());
+  return_value.moving_side_matrices.reserve(mini_batch.fens.size());
+  return_value.opposing_side_matrices.reserve(mini_batch.fens.size());
+
+  for (std::size_t i = 0; i < mini_batch.fens.size(); i++) {
+    Chess_Board cb;
+    cb.set_from_fen(mini_batch.fens[i]);
+
+    const PIECE_COLOR moving_side = cb.get_side_to_move();
+    Chess_Move_List moving_side_moves_list;
+    Moves_Bitboard_Matrix moving_side_matrix;
+    Move_Generator mg_moving_side(cb);
+    mg_moving_side.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
+        moving_side, moving_side_moves_list, moving_side_matrix);
+
+    const PIECE_COLOR opposing_side =
+        (PIECE_COLOR)((~cb.get_side_to_move()) & 0x1);
+    Chess_Move_List opposing_side_moves_list;
+    Moves_Bitboard_Matrix opposing_side_matrix;
+    Move_Generator mg_opposing_side(cb);
+    mg_opposing_side.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
+        opposing_side, opposing_side_moves_list, opposing_side_matrix);
+
+    return_value.boards.push_back(cb);
+    return_value.moving_side_matrices.push_back(moving_side_matrix);
+    return_value.opposing_side_matrices.push_back(opposing_side_matrix);
+  }
+
+  return return_value;
 }
 
 Evaluation_Weights<double> Tuner::compute_gradient(
     const Evaluation_Weights<double>& weights, const Mini_Batch& mini_batch) {
   Evaluation_Weights<double> gradient;
 
-  std::size_t N = mini_batch.boards.size();
+  std::size_t N = mini_batch.fens.size();
+
+  Tuner_Eval_Params eval_params = compute_eval_params(mini_batch);
 
   for (std::size_t i = 0; i < N; i++) {
-    Evaluator e(weights, mini_batch.boards[i],
-                mini_batch.moving_side_matrices[i],
-                mini_batch.opposing_side_matrices[i]);
+    Evaluator e(weights, eval_params.boards[i],
+                eval_params.moving_side_matrices[i],
+                eval_params.opposing_side_matrices[i]);
 
     const double sign =
-        (mini_batch.boards[i].get_side_to_move() == PIECE_COLOR::WHITE) ? 1.0L
-                                                                        : -1.0L;
+        (eval_params.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)
+            ? 1.0L
+            : -1.0L;
     const double evaluation = e.evaluate_template_typed();
     const double evaluation_white =
         sign * evaluation;  // Convert side-to-move's evaluation to white's
@@ -176,13 +188,15 @@ double Tuner::compute_loss(const Evaluation_Weights<double>& weights) {
   const std::size_t N = m_dataset.size;
 
   for (const Mini_Batch& mini_batch : m_dataset.mini_batches) {
-    for (std::size_t i = 0; i < mini_batch.boards.size(); i++) {
-      Evaluator e(weights, mini_batch.boards[i],
-                  mini_batch.moving_side_matrices[i],
-                  mini_batch.opposing_side_matrices[i]);
+    Tuner_Eval_Params eval_params = compute_eval_params(mini_batch);
+
+    for (std::size_t i = 0; i < mini_batch.fens.size(); i++) {
+      Evaluator e(weights, eval_params.boards[i],
+                  eval_params.moving_side_matrices[i],
+                  eval_params.opposing_side_matrices[i]);
 
       const double sign =
-          (mini_batch.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)
+          (eval_params.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)
               ? 1.0L
               : -1.0L;
       const double evaluation = e.evaluate_template_typed();

@@ -331,9 +331,15 @@ Evaluation_Weights<T> Evaluation_Weights<T>::sqrt() const {
 template <typename W>
 std::ostream& operator<<(std::ostream& os,
                          const Evaluation_Weights<W>& weights) {
+  os << "{";
   for (std::size_t i = 0; i < weights.get_size(); ++i) {
-    os << i << ": " << weights[i] << std::endl;
+    if (i != (weights.get_size() - 1)) {
+      os << weights[i] << ", ";
+    } else {
+      os << weights[i];
+    }
   }
+  os << "}";
   return os;
 }
 

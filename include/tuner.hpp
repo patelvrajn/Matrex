@@ -19,15 +19,19 @@ constexpr double TUNER_SIGMOID_K = 0.00029;
 constexpr double TUNER_REGULARIZATION_LAMBDA = 1e-4;
 
 struct Mini_Batch {
-  std::vector<Chess_Board> boards;
+  std::vector<std::string> fens;
   std::vector<double> scores;
-  std::vector<Moves_Bitboard_Matrix> moving_side_matrices;
-  std::vector<Moves_Bitboard_Matrix> opposing_side_matrices;
 };
 
 struct Dataset {
   std::vector<Mini_Batch> mini_batches;
   std::size_t size;
+};
+
+struct Tuner_Eval_Params {
+  std::vector<Chess_Board> boards;
+  std::vector<Moves_Bitboard_Matrix> moving_side_matrices;
+  std::vector<Moves_Bitboard_Matrix> opposing_side_matrices;
 };
 
 class Tuner {
@@ -41,6 +45,8 @@ class Tuner {
   std::ofstream& m_output;
 
   Dataset parse_dataset_file(std::ifstream& dataset_file);
+
+  Tuner_Eval_Params compute_eval_params(const Mini_Batch& mini_batch);
 
   Evaluation_Weights<double> compute_gradient(
       const Evaluation_Weights<double>& weights, const Mini_Batch& mini_batch);
