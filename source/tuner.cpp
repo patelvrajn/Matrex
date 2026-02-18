@@ -1,9 +1,14 @@
 #include "tuner.hpp"
 
+#include <iomanip>
+
 Tuner::Tuner(std::ostream& logging, std::ifstream& dataset,
              std::ofstream& output)
     : m_log(logging), m_output(output) {
   m_dataset = parse_dataset_file(dataset);
+
+  m_log << std::setprecision(8);
+  m_output << std::setprecision(8);
 }
 
 Evaluation_Weights<double> Tuner::init_weights() {
@@ -207,7 +212,7 @@ Evaluation_Weights<double> Tuner::compute_gradient(
   }
 
   gradient = gradient / static_cast<double>(N);
-  gradient = gradient + (weights * (2.0 * TUNER_REGULARIZATION_LAMBDA));
+  gradient = gradient + (weights * (2.0L * TUNER_REGULARIZATION_LAMBDA));
 
   return gradient;
 }
@@ -240,15 +245,108 @@ double Tuner::compute_loss(const Evaluation_Weights<double>& weights) {
 
   loss = loss / static_cast<double>(N);
 
+  m_log << "[INFO] Evaluation-based loss is " << loss << std::endl;
+
   double regularization = 0.0L;
 
   for (std::size_t j = 0; j < weights.get_size(); j++) {
     regularization += (weights[j] * weights[j]);
   }
 
-  loss += (TUNER_REGULARIZATION_LAMBDA * regularization);
+  regularization *= TUNER_REGULARIZATION_LAMBDA;
+
+  m_log << "[INFO] Regularization-based loss is " << regularization
+        << std::endl;
+
+  loss += regularization;
 
   return loss;
+}
+
+void Tuner::print_element_as_cpp(std::ofstream& ofs, double scalar) {
+  ofs << scalar;
+}
+
+void Tuner::print_element_as_cpp(std::ofstream& ofs,
+                                 const NLR_Parameters<double>& nlr) {
+  ofs << "NLR_Parameters<double>{" << ".h_plus = " << nlr.h_plus
+      << ", .h_minus = " << nlr.h_minus << ", .z = " << nlr.z
+      << ", .k = " << nlr.k << ", .q_plus = " << nlr.q_plus
+      << ", .q_minus = " << nlr.q_minus << ", .r_plus = " << nlr.r_plus
+      << ", .r_minus = " << nlr.r_minus << ", .g_plus = " << nlr.g_plus
+      << ", .g_minus = " << nlr.g_minus << "}";
+}
+
+template <typename T, std::size_t N>
+void Tuner::print_multi_array_as_cpp(std::ofstream& ofs,
+                                     const multi_array<T, N>& arr) {
+  ofs << "{";
+  for (std::size_t i = 0; i < N; i++) {
+    print_element_as_cpp(ofs, arr[i]);
+    if (i != (N - 1)) {
+      ofs << ", ";
+    }
+  }
+  ofs << "}";
+}
+
+template <typename T, std::size_t N, std::size_t... Rest>
+void Tuner::print_multi_array_as_cpp(std::ofstream& ofs,
+                                     const multi_array<T, N, Rest...>& arr) {
+  ofs << "{";
+  for (std::size_t i = 0; i < N; i++) {
+    print_multi_array_as_cpp(ofs, arr[i]);
+    if (i != (N - 1)) {
+      ofs << ", ";
+    }
+  }
+  ofs << "}";
+}
+
+void Tuner::print_header_file(const Evaluation_Weights<double>& weights) {
+  // Includes
+  m_output << "#pragma once" << std::endl << std::endl;
+  m_output << "#include \"evaluate.hpp\"" << std::endl;
+  m_output << "#include \"globals.hpp\"" << std::endl << std::endl;
+
+  // Material
+  m_output
+      << "constexpr multi_array<NLR_Parameters<double>, "
+         "(NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)> TUNED_MATERIAL_NLR_WEIGHTS = ";
+  print_multi_array_as_cpp(m_output, weights.material_NLR_parameters);
+  m_output << ";" << std::endl;
+  m_output << "constexpr multi_array<double, (NUM_OF_UNIQUE_PIECES_PER_PLAYER "
+              "- 1)> TUNED_MATERIAL_WEIGHTS = ";
+  print_multi_array_as_cpp(m_output, weights.material);
+  m_output << ";" << std::endl;
+
+  // Mobility
+  m_output
+      << "constexpr multi_array<NLR_Parameters<double>, "
+         "NUM_OF_UNIQUE_PIECES_PER_PLAYER> TUNED_PIECE_MOBILITY_NLR_WEIGHTS = ";
+  print_multi_array_as_cpp(m_output, weights.piece_mobility_NLR_parameters);
+  m_output << ";" << std::endl;
+  m_output << "constexpr double TUNED_DIAGONAL_MOBILITY_WEIGHT = "
+           << weights.diagonal_mobility << ";" << std::endl;
+  m_output << "constexpr double TUNED_ORTHOGONAL_MOBILITY_WEIGHT = "
+           << weights.orthogonal_mobility << ";" << std::endl;
+  m_output << "constexpr double TUNED_KNIGHT_MOVEMENT_MOBILITY_WEIGHT = "
+           << weights.knight_movement_mobility << ";" << std::endl;
+  m_output << "constexpr double TUNED_MULTI_MOVEMENT_MOBILITY_WEIGHT = "
+           << weights.multi_movement_mobility << ";" << std::endl;
+  m_output << "constexpr double TUNED_BACKWARDS_MOVEMENT_MOBILITY_WEIGHT = "
+           << weights.backwards_movement_mobility << ";" << std::endl;
+
+  // Weights
+  m_output
+      << "const Evaluation_Weights<double> "
+         "TUNED_EVALUATION_WEIGHTS(TUNED_MATERIAL_NLR_WEIGHTS, "
+         "TUNED_MATERIAL_WEIGHTS, TUNED_PIECE_MOBILITY_NLR_WEIGHTS, "
+         "TUNED_DIAGONAL_MOBILITY_WEIGHT, TUNED_ORTHOGONAL_MOBILITY_WEIGHT, "
+         "TUNED_KNIGHT_MOVEMENT_MOBILITY_WEIGHT, "
+         "TUNED_MULTI_MOVEMENT_MOBILITY_WEIGHT, "
+         "TUNED_BACKWARDS_MOVEMENT_MOBILITY_WEIGHT);";
+  m_output.flush();
 }
 
 double Tuner::huber_loss(double a) const {

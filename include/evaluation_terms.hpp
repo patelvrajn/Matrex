@@ -1,3 +1,5 @@
+#pragma once
+
 #include "evaluate.hpp"
 #include "globals.hpp"
 

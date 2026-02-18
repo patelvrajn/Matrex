@@ -55,6 +55,20 @@ class Tuner {
 
   double compute_loss(const Evaluation_Weights<double>& weights);
 
+  void print_element_as_cpp(std::ofstream& ofs, double scalar);
+  void print_element_as_cpp(std::ofstream& ofs,
+                            const NLR_Parameters<double>& nlr);
+
+  template <typename T, std::size_t N>
+  void print_multi_array_as_cpp(std::ofstream& ofs,
+                                const multi_array<T, N>& arr);
+
+  template <typename T, std::size_t N, std::size_t... Rest>
+  void print_multi_array_as_cpp(std::ofstream& ofs,
+                                const multi_array<T, N, Rest...>& arr);
+
+  void print_header_file(const Evaluation_Weights<double>& weights);
+
   double huber_loss(double a) const;
   double derivative_huber_loss(double a) const;
 
