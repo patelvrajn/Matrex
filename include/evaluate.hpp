@@ -131,6 +131,7 @@ class Evaluation_Weights {
   Evaluation_Weights operator/(T value) const;
 
   Evaluation_Weights sqrt() const;
+  T magnitude() const;
 
   template <typename W>
   friend std::ostream& operator<<(std::ostream& os,
@@ -324,6 +325,19 @@ Evaluation_Weights<T> Evaluation_Weights<T>::sqrt() const {
     result[i] = static_cast<T>(
         std::sqrt(m_weight_ref_array.get_array()[i].value().get()));
   }
+
+  return result;
+}
+
+template <typename T>
+T Evaluation_Weights<T>::magnitude() const {
+  T result = 0;
+
+  for (std::size_t i = 0; i < (*this).get_size(); ++i) {
+    result += ((*this)[i] * (*this)[i]);
+  }
+
+  result = static_cast<T>(std::sqrt(result));
 
   return result;
 }

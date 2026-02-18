@@ -43,19 +43,31 @@ Evaluation_Weights<double> Tuner::init_weights() {
 
 Evaluation_Weights<double> Tuner::tune() {
   Evaluation_Weights<double> weights = init_weights();
+  Evaluation_Weights<double> best_weights = weights;
   Evaluation_Weights<double> first_moment;
   Evaluation_Weights<double> second_moment;
 
+  const std::size_t num_of_mini_batches = m_dataset.mini_batches.size();
+  const double max_data_loss = compute_max_data_loss();
+
+  m_log << "[INFO] There is " << num_of_mini_batches << " batches in 1 epoch."
+        << std::endl;
+  m_log << "[INFO] Maximum data loss for this dataset is: " << max_data_loss
+        << std::endl;
+
   uint64_t t = 1;  // NADAM's timestep
+  double previous_epoch_loss = compute_loss(best_weights);
+  uint8_t epoch_patience_count = 0;
+
+  m_log << "[INFO] Initial loss is " << previous_epoch_loss << std::endl;
 
   for (uint64_t epoch = 1; epoch <= TUNER_NUMBER_OF_EPOCHS; epoch++) {
+    double weight_update_magnitude_average = 0;
+
     for (const Mini_Batch& mini_batch : m_dataset.mini_batches) {
       // Calculate gradient
       Evaluation_Weights<double> gradient =
           compute_gradient(weights, mini_batch);
-
-      m_log << "[INFO] Gradient at timestep " << t << "; " << gradient
-            << std::endl;
 
       // First moment calculation
       first_moment = (first_moment * TUNER_DECAY_FACTOR) +
@@ -66,20 +78,28 @@ Evaluation_Weights<double> Tuner::tune() {
                       ((gradient * gradient) * (1.0L - TUNER_NU));
 
       // Bias-corrected first moment calculation
-      Evaluation_Weights<double> first_moment_corrected =
+      const Evaluation_Weights<double> first_moment_corrected =
           ((first_moment * TUNER_DECAY_FACTOR) /
            (1.0L - std::pow(TUNER_DECAY_FACTOR, (t + 1)))) +
           ((gradient * (1.0L - TUNER_DECAY_FACTOR)) /
            (1.0L - std::pow(TUNER_DECAY_FACTOR, t)));
 
       // Bias-corrected second moment calculation
-      Evaluation_Weights<double> second_moment_corrected =
+      const Evaluation_Weights<double> second_moment_corrected =
           (second_moment * TUNER_NU) / (1.0L - std::pow(TUNER_NU, t));
 
+      const Evaluation_Weights<double> weight_update =
+          ((TUNER_LEARNING_RATE /
+            (second_moment_corrected + TUNER_EPSILON).sqrt()) *
+           first_moment_corrected);
+      const double weight_update_magnitude = weight_update.magnitude();
+      weight_update_magnitude_average += weight_update_magnitude;
+
+      m_log << "[INFO] Weight update with magnitude " << weight_update_magnitude
+            << " at timestep " << t << "; " << weight_update << std::endl;
+
       // Parameter update
-      weights = weights - ((TUNER_LEARNING_RATE /
-                            (second_moment_corrected + TUNER_EPSILON).sqrt()) *
-                           first_moment_corrected);
+      weights = weights - weight_update;
 
       m_log << "[INFO] Weights at timestep " << t << "; " << weights
             << std::endl;
@@ -87,13 +107,41 @@ Evaluation_Weights<double> Tuner::tune() {
       t++;
     }
 
-    // Compute this epoch's loss.
-    double loss = compute_loss(weights);
+    weight_update_magnitude_average =
+        weight_update_magnitude_average / num_of_mini_batches;
 
-    m_log << "[INFO] Epoch " << epoch << ": Loss = " << loss << std::endl;
+    // Compute this epoch's loss and loss improvment.
+    const double loss = compute_loss(weights);
+    const double loss_improvement = previous_epoch_loss - loss;
+
+    m_log << "[INFO] Epoch " << epoch << ": Loss = " << loss
+          << "; Loss Improvement = " << loss_improvement
+          << "; Weight Update Average = " << weight_update_magnitude_average
+          << std::endl;
+
+    if ((loss_improvement < TUNER_LOSS_IMPROVEMENT_CUTOFF) &&
+        (weight_update_magnitude_average <
+         TUNER_WEIGHT_UPDATE_CUTOFF)) {  // Converged!
+      epoch_patience_count++;
+      if (epoch_patience_count == TUNER_PATIENCE) {
+        break;
+      }
+    } else {  // Not converged.
+      if (loss_improvement > 0) {
+        best_weights = weights;
+      }
+      epoch_patience_count = 0;
+    }
+
+    m_log << "[INFO] Epoch patience count = " << epoch_patience_count
+          << std::endl;
+
+    previous_epoch_loss = loss;
   }
 
-  return weights;
+  print_header_file(best_weights);
+
+  return best_weights;
 }
 
 Dataset Tuner::parse_dataset_file(std::ifstream& dataset_file) {
@@ -212,7 +260,16 @@ Evaluation_Weights<double> Tuner::compute_gradient(
   }
 
   gradient = gradient / static_cast<double>(N);
-  gradient = gradient + (weights * (2.0L * TUNER_REGULARIZATION_LAMBDA));
+
+  m_log << "[INFO] Data-based gradient is; " << gradient << std::endl;
+
+  const Evaluation_Weights<double> regularization =
+      (weights * (2.0L * TUNER_REGULARIZATION_LAMBDA));
+
+  m_log << "[INFO] Regularization-based gradient is; " << regularization
+        << std::endl;
+
+  gradient = gradient + regularization;
 
   return gradient;
 }
@@ -245,7 +302,7 @@ double Tuner::compute_loss(const Evaluation_Weights<double>& weights) {
 
   loss = loss / static_cast<double>(N);
 
-  m_log << "[INFO] Evaluation-based loss is " << loss << std::endl;
+  m_log << "[INFO] Data-based loss is " << loss << std::endl;
 
   double regularization = 0.0L;
 
@@ -261,6 +318,30 @@ double Tuner::compute_loss(const Evaluation_Weights<double>& weights) {
   loss += regularization;
 
   return loss;
+}
+
+double Tuner::compute_max_data_loss() {
+  std::size_t num_of_decisive_games = 0;
+  std::size_t num_of_draws = 0;
+
+  for (const Mini_Batch& mini_batch : m_dataset.mini_batches) {
+    for (std::size_t i = 0; i < mini_batch.fens.size(); i++) {
+      if (mini_batch.scores[i] != 0.5L) {
+        num_of_decisive_games++;
+      } else {
+        num_of_draws++;
+      }
+    }
+  }
+
+  const double loss_on_decisive = huber_loss(1.0L);
+  const double loss_on_draw = huber_loss(0.5L);
+
+  const double max_data_loss = ((num_of_decisive_games * loss_on_decisive) +
+                                (num_of_draws * loss_on_draw)) /
+                               m_dataset.size;
+
+  return max_data_loss;
 }
 
 void Tuner::print_element_as_cpp(std::ofstream& ofs, double scalar) {
