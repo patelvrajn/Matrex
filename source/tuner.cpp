@@ -3,10 +3,10 @@
 #include <iomanip>
 #include <random>
 
-Tuner::Tuner(std::ostream& logging, std::ifstream& dataset,
+Tuner::Tuner(std::ostream& logging, std::ifstream& dataset_file,
              std::ofstream& output)
     : m_log(logging), m_output(output) {
-  m_dataset = parse_dataset_file(dataset);
+  parse_dataset_file(dataset_file, m_training_dataset, m_validation_dataset);
 
   constexpr uint8_t DOUBLE_STD_OUT_PRECISION = 8;
 
@@ -65,19 +65,31 @@ Evaluation_Weights<double> Tuner::tune() {
   Evaluation_Weights<double> first_moment;
   Evaluation_Weights<double> second_moment;
 
-  const std::size_t num_of_mini_batches = m_dataset.mini_batches.size();
-  const double max_data_loss = compute_max_data_loss();
+  const std::size_t num_of_mini_batches =
+      m_training_dataset.mini_batches.size();
+  const double max_training_data_loss =
+      compute_max_data_loss(m_training_dataset);
+  const double max_validation_data_loss =
+      compute_max_data_loss(m_validation_dataset);
 
-  m_log << "[INFO] There is " << num_of_mini_batches << " batches in 1 epoch."
-        << std::endl;
-  m_log << "[INFO] Maximum data loss for this dataset is: " << max_data_loss
-        << std::endl;
+  m_log << "[INFO] There is " << num_of_mini_batches
+        << " batches in 1 training epoch." << std::endl;
+  m_log << "[INFO] Maximum data loss for the training dataset is: "
+        << max_training_data_loss << std::endl;
+  m_log << "[INFO] Maximum data loss for the validation dataset is: "
+        << max_validation_data_loss << std::endl;
 
   uint64_t t = 1;  // NADAM's timestep
-  double previous_epoch_loss = compute_loss(best_weights);
+  double previous_epoch_training_loss =
+      compute_loss(m_training_dataset, best_weights);
+  double previous_epoch_validation_loss =
+      compute_loss(m_validation_dataset, best_weights);
   uint8_t epoch_patience_count = 0;
 
-  m_log << "[INFO] Initial loss is " << previous_epoch_loss << std::endl;
+  m_log << "[INFO] Initial training dataset loss is "
+        << previous_epoch_training_loss << std::endl;
+  m_log << "[INFO] Initial validation dataset loss is "
+        << previous_epoch_validation_loss << std::endl;
 
   for (uint64_t epoch = 1; epoch <= TUNER_NUMBER_OF_EPOCHS; epoch++) {
     double weight_update_magnitude_average = 0;
@@ -94,10 +106,11 @@ Evaluation_Weights<double> Tuner::tune() {
     // will escape some local minima that are not minima across all mini-batches
     // (some depressions in the surface/local minima can be caused by noise in
     // the data of a particular mini-batch).
-    std::shuffle(m_dataset.mini_batches.begin(), m_dataset.mini_batches.end(),
+    std::shuffle(m_training_dataset.mini_batches.begin(),
+                 m_training_dataset.mini_batches.end(),
                  std::mt19937_64(std::random_device{}()));
 
-    for (const Mini_Batch& mini_batch : m_dataset.mini_batches) {
+    for (const Mini_Batch& mini_batch : m_training_dataset.mini_batches) {
       // Calculate gradient
       Evaluation_Weights<double> gradient =
           compute_gradient(weights, mini_batch);
@@ -143,16 +156,29 @@ Evaluation_Weights<double> Tuner::tune() {
     weight_update_magnitude_average =
         weight_update_magnitude_average / num_of_mini_batches;
 
-    // Compute this epoch's loss and loss improvment.
-    const double loss = compute_loss(weights);
-    const double loss_improvement = previous_epoch_loss - loss;
+    const double validation_loss = compute_loss(m_validation_dataset, weights);
+    const double validation_loss_percent =
+        100.0L * (validation_loss / max_validation_data_loss);
+    const double validation_loss_improvement =
+        previous_epoch_validation_loss - validation_loss;
 
-    m_log << "[INFO] Epoch " << epoch << ": Loss = " << loss
-          << "; Loss Improvement = " << loss_improvement
+    const double training_loss = compute_loss(m_training_dataset, weights);
+    const double training_loss_percent =
+        100.0L * (training_loss / max_training_data_loss);
+    const double training_loss_improvement =
+        previous_epoch_training_loss - training_loss;
+
+    m_log << "[INFO] Epoch " << epoch
+          << ": Validation Loss = " << validation_loss
+          << "; Validation Loss Improvement = " << validation_loss_improvement
+          << "; Validation Loss Percent = " << validation_loss_percent << "%"
+          << "; Training Loss = " << training_loss
+          << "; Training Loss Improvement = " << training_loss_improvement
+          << "; Training Loss Percent = " << training_loss_percent << "%"
           << "; Weight Update Average = " << weight_update_magnitude_average
           << std::endl;
 
-    if ((loss_improvement < TUNER_LOSS_IMPROVEMENT_CUTOFF) &&
+    if ((validation_loss_improvement < TUNER_LOSS_IMPROVEMENT_CUTOFF) &&
         (weight_update_magnitude_average <
          TUNER_WEIGHT_UPDATE_CUTOFF)) {  // Converged!
       epoch_patience_count++;
@@ -160,7 +186,7 @@ Evaluation_Weights<double> Tuner::tune() {
         break;
       }
     } else {  // Not converged.
-      if (loss_improvement > 0) {
+      if (validation_loss_improvement > 0) {
         best_weights = weights;
       }
       epoch_patience_count = 0;
@@ -169,7 +195,8 @@ Evaluation_Weights<double> Tuner::tune() {
     m_log << "[INFO] Epoch patience count = "
           << static_cast<uint64_t>(epoch_patience_count) << std::endl;
 
-    previous_epoch_loss = loss;
+    previous_epoch_training_loss = training_loss;
+    previous_epoch_validation_loss = validation_loss;
   }
 
   print_header_file(best_weights);
@@ -177,7 +204,9 @@ Evaluation_Weights<double> Tuner::tune() {
   return best_weights;
 }
 
-Dataset Tuner::parse_dataset_file(std::ifstream& dataset_file) {
+void Tuner::parse_dataset_file(std::ifstream& dataset_file,
+                               Dataset& training_dataset,
+                               Dataset& validation_dataset) {
   Mini_Batch aggregate_batch;
 
   m_log << "[INFO] Starting to parse dataset file." << std::endl;
@@ -205,6 +234,27 @@ Dataset Tuner::parse_dataset_file(std::ifstream& dataset_file) {
   m_log << "[INFO] Finished parsing dataset file of "
         << aggregate_batch.fens.size() << " entries." << std::endl;
 
+  std::size_t training_dataset_size = static_cast<std::size_t>(
+      (1.0L - TUNER_VALIDATION_SPLIT) *
+      static_cast<double>(aggregate_batch.fens.size()));
+
+  auto fens_split_it =
+      aggregate_batch.fens.begin() + (training_dataset_size - 1);
+  auto scores_split_it =
+      aggregate_batch.scores.begin() + (training_dataset_size - 1);
+
+  Mini_Batch training_aggregate_batch{
+      std::vector<std::string>(aggregate_batch.fens.begin(), fens_split_it),
+      std::vector<double>(aggregate_batch.scores.begin(), scores_split_it)};
+  Mini_Batch validation_aggregate_batch{
+      std::vector<std::string>(fens_split_it, aggregate_batch.fens.end()),
+      std::vector<double>(scores_split_it, aggregate_batch.scores.end())};
+
+  training_dataset = create_mini_batches(training_aggregate_batch);
+  validation_dataset = create_mini_batches(validation_aggregate_batch);
+}
+
+Dataset Tuner::create_mini_batches(const Mini_Batch& aggregate_batch) {
   Dataset returned_dataset;
 
   // Now that we have the size of the entire dataset, split the aggregate batch
@@ -308,11 +358,12 @@ Evaluation_Weights<double> Tuner::compute_gradient(
   return gradient;
 }
 
-double Tuner::compute_loss(const Evaluation_Weights<double>& weights) {
+double Tuner::compute_loss(const Dataset& d,
+                           const Evaluation_Weights<double>& weights) {
   double loss = 0.0L;
-  const std::size_t N = m_dataset.size;
+  const std::size_t N = d.size;
 
-  for (const Mini_Batch& mini_batch : m_dataset.mini_batches) {
+  for (const Mini_Batch& mini_batch : d.mini_batches) {
     Tuner_Eval_Params eval_params = compute_eval_params(mini_batch);
 
     for (std::size_t i = 0; i < mini_batch.fens.size(); i++) {
@@ -354,11 +405,11 @@ double Tuner::compute_loss(const Evaluation_Weights<double>& weights) {
   return loss;
 }
 
-double Tuner::compute_max_data_loss() {
+double Tuner::compute_max_data_loss(const Dataset& d) {
   std::size_t num_of_decisive_games = 0;
   std::size_t num_of_draws = 0;
 
-  for (const Mini_Batch& mini_batch : m_dataset.mini_batches) {
+  for (const Mini_Batch& mini_batch : d.mini_batches) {
     for (std::size_t i = 0; i < mini_batch.fens.size(); i++) {
       if (mini_batch.scores[i] != 0.5L) {
         num_of_decisive_games++;
@@ -373,7 +424,7 @@ double Tuner::compute_max_data_loss() {
 
   const double max_data_loss = ((num_of_decisive_games * loss_on_decisive) +
                                 (num_of_draws * loss_on_draw)) /
-                               m_dataset.size;
+                               static_cast<double>(d.size);
 
   return max_data_loss;
 }

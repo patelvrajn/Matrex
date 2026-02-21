@@ -8,6 +8,7 @@
 
 constexpr uint64_t TUNER_NUMBER_OF_EPOCHS = 1000;
 constexpr uint64_t TUNER_MINI_BATCH_SIZE = 16384;
+constexpr double TUNER_VALIDATION_SPLIT = 0.2;
 
 constexpr double TUNER_DECAY_FACTOR = 0.975;
 constexpr double TUNER_LEARNING_RATE = 0.01;
@@ -38,12 +39,14 @@ struct Tuner_Eval_Params {
 
 class Tuner {
  public:
-  Tuner(std::ostream& logging, std::ifstream& dataset, std::ofstream& output);
+  Tuner(std::ostream& logging, std::ifstream& dataset_file,
+        std::ofstream& output);
   Evaluation_Weights<double> tune();
 
  private:
   std::ostream& m_log;
-  Dataset m_dataset;
+  Dataset m_training_dataset;
+  Dataset m_validation_dataset;
   std::ofstream& m_output;
 
   double perturb(double mean);
@@ -51,16 +54,21 @@ class Tuner {
 
   Evaluation_Weights<double> init_weights();
 
-  Dataset parse_dataset_file(std::ifstream& dataset_file);
+  void parse_dataset_file(std::ifstream& dataset_file,
+                          Dataset& training_dataset,
+                          Dataset& validation_dataset);
+
+  Dataset create_mini_batches(const Mini_Batch& aggregate_batch);
 
   Tuner_Eval_Params compute_eval_params(const Mini_Batch& mini_batch);
 
   Evaluation_Weights<double> compute_gradient(
       const Evaluation_Weights<double>& weights, const Mini_Batch& mini_batch);
 
-  double compute_loss(const Evaluation_Weights<double>& weights);
+  double compute_loss(const Dataset& d,
+                      const Evaluation_Weights<double>& weights);
 
-  double compute_max_data_loss();
+  double compute_max_data_loss(const Dataset& d);
 
   void print_element_as_cpp(std::ofstream& ofs, double scalar);
   void print_element_as_cpp(std::ofstream& ofs,
