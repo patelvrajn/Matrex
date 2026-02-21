@@ -82,6 +82,21 @@ Evaluation_Weights<double> Tuner::tune() {
   for (uint64_t epoch = 1; epoch <= TUNER_NUMBER_OF_EPOCHS; epoch++) {
     double weight_update_magnitude_average = 0;
 
+    // Shuffling our mini batches diversifies the loss landscapes L_Xi (Xi
+    // being the mini batch i of a training set X - shuffling increases the
+    // number of unique sequences of error surfaces seen) that we traverse
+    // during each epoch, which helps escape local minima and improves
+    // generalization (there is no order of mini-batches being engrained in the
+    // learning). Note, that even though the mini-batches introduce a sequence
+    // of unique loss surfaces we are still able to converge because there will
+    // be enough similarity between the loss surfaces of different mini-batches
+    // for the optimization to make progress towards a minimum - noting that it
+    // will escape some local minima that are not minima across all mini-batches
+    // (some depressions in the surface/local minima can be caused by noise in
+    // the data of a particular mini-batch).
+    std::shuffle(m_dataset.mini_batches.begin(), m_dataset.mini_batches.end(),
+                 std::mt19937_64(std::random_device{}()));
+
     for (const Mini_Batch& mini_batch : m_dataset.mini_batches) {
       // Calculate gradient
       Evaluation_Weights<double> gradient =
