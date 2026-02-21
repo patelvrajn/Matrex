@@ -1,48 +1,66 @@
 #include "tuner.hpp"
 
 #include <iomanip>
+#include <random>
 
 Tuner::Tuner(std::ostream& logging, std::ifstream& dataset,
              std::ofstream& output)
     : m_log(logging), m_output(output) {
   m_dataset = parse_dataset_file(dataset);
 
-  m_log << std::setprecision(8);
-  m_output << std::setprecision(8);
+  constexpr uint8_t DOUBLE_STD_OUT_PRECISION = 8;
+
+  m_log << std::setprecision(DOUBLE_STD_OUT_PRECISION);
+  m_output << std::setprecision(DOUBLE_STD_OUT_PRECISION);
+}
+
+double Tuner::perturb(double mean) {
+  std::random_device rd;
+  std::mt19937_64 rng(rd());
+  constexpr double PERTURBATION_STD_DEV_FACTOR = 0.20;
+  std::normal_distribution<double> distribution(
+      mean, (PERTURBATION_STD_DEV_FACTOR * mean));
+  return distribution(rng);
+}
+
+NLR_Parameters<double> Tuner::random_nlr() {
+  return {.h_plus = perturb(30.0L),
+          .h_minus = perturb(30.0L),
+          .z = perturb(1.0L),
+          .k = perturb(1.0L),
+          .q_plus = perturb(0.25L),
+          .q_minus = perturb(0.25L),
+          .r_plus = perturb(-1.0L),
+          .r_minus = perturb(-1.0L),
+          .g_plus = perturb(1.0L),
+          .g_minus = perturb(1.0L)};
 }
 
 Evaluation_Weights<double> Tuner::init_weights() {
   Evaluation_Weights<double> weights;
-  weights = weights + TUNER_WEIGHTS_INITIALIZATION_VALUE;
 
-  NLR_Parameters<double> init_nlr = {.h_plus = 30.0L,
-                                     .h_minus = 30.0L,
-                                     .z = 1.0L,
-                                     .k = 1.0L,
-                                     .q_plus = 0.25L,
-                                     .q_minus = 0.25L,
-                                     .r_plus = -1.0L,
-                                     .r_minus = -1.0L,
-                                     .g_plus = 1.0L,
-                                     .g_minus = 1.0L};
+  weights.material_NLR_parameters = {random_nlr(), random_nlr(), random_nlr(),
+                                     random_nlr(), random_nlr()};
+  weights.material = {perturb(100.0L), perturb(300.0L), perturb(350.0L),
+                      perturb(500.0L), perturb(900.0L)};
 
-  weights.material_NLR_parameters = {init_nlr, init_nlr, init_nlr, init_nlr,
-                                     init_nlr};
-  weights.material = {100.0L, 300.0L, 350.0L, 500.0L, 900.0L};
-
-  weights.piece_mobility_NLR_parameters = {init_nlr, init_nlr, init_nlr,
-                                           init_nlr, init_nlr, init_nlr};
-  weights.diagonal_mobility = 30.0L;
-  weights.orthogonal_mobility = 24.0L;
-  weights.knight_movement_mobility = 40.0L;
-  weights.multi_movement_mobility = 150.0L;
-  weights.backwards_movement_mobility = 25.0L;
+  weights.piece_mobility_NLR_parameters = {random_nlr(), random_nlr(),
+                                           random_nlr(), random_nlr(),
+                                           random_nlr(), random_nlr()};
+  weights.diagonal_mobility = perturb(30.0L);
+  weights.orthogonal_mobility = perturb(24.0L);
+  weights.knight_movement_mobility = perturb(40.0L);
+  weights.multi_movement_mobility = perturb(150.0L);
+  weights.backwards_movement_mobility = perturb(25.0L);
 
   return weights;
 }
 
 Evaluation_Weights<double> Tuner::tune() {
   Evaluation_Weights<double> weights = init_weights();
+
+  m_log << "[INFO] Initial weights: " << weights << std::endl;
+
   Evaluation_Weights<double> best_weights = weights;
   Evaluation_Weights<double> first_moment;
   Evaluation_Weights<double> second_moment;
@@ -133,8 +151,8 @@ Evaluation_Weights<double> Tuner::tune() {
       epoch_patience_count = 0;
     }
 
-    m_log << "[INFO] Epoch patience count = " << epoch_patience_count
-          << std::endl;
+    m_log << "[INFO] Epoch patience count = "
+          << static_cast<uint64_t>(epoch_patience_count) << std::endl;
 
     previous_epoch_loss = loss;
   }
@@ -160,8 +178,9 @@ Dataset Tuner::parse_dataset_file(std::ifstream& dataset_file) {
           (last_space_pos + 2),
           MAX_SCORE_STRING_LENGTH));  // +2 to skip space and opening bracket
 
-      m_log << "[INFO] Parsed (FEN, score) pair: (\"" << fen << "\", " << score
-            << ")" << std::endl;
+      // m_log << "[INFO] Parsed (FEN, score) pair: (\"" << fen << "\", " <<
+      // score
+      //       << ")" << std::endl;
 
       aggregate_batch.fens.push_back(fen);
       aggregate_batch.scores.push_back(score);

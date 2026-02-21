@@ -9,17 +9,16 @@
 constexpr uint64_t TUNER_NUMBER_OF_EPOCHS = 1000;
 constexpr uint64_t TUNER_MINI_BATCH_SIZE = 16384;
 
-constexpr double TUNER_WEIGHTS_INITIALIZATION_VALUE = 1;
 constexpr double TUNER_DECAY_FACTOR = 0.975;
-constexpr double TUNER_LEARNING_RATE = 0.02;
+constexpr double TUNER_LEARNING_RATE = 0.01;
 constexpr double TUNER_NU = 0.999;
 constexpr double TUNER_EPSILON = 1e-8;
 constexpr double TUNER_HUBER_LOSS_GAMMA = 0.60;
 constexpr double TUNER_SIGMOID_K = 0.00029;
-constexpr double TUNER_REGULARIZATION_LAMBDA = 1e-6;
+constexpr double TUNER_REGULARIZATION_LAMBDA = 1e-9;
 constexpr double TUNER_LOSS_IMPROVEMENT_CUTOFF = 1e-6;
-constexpr double TUNER_WEIGHT_UPDATE_CUTOFF = 1e-6;
-constexpr uint8_t TUNER_PATIENCE = 3;
+constexpr double TUNER_WEIGHT_UPDATE_CUTOFF = 1e-4;
+constexpr uint8_t TUNER_PATIENCE = 7;
 
 struct Mini_Batch {
   std::vector<std::string> fens;
@@ -46,6 +45,9 @@ class Tuner {
   std::ostream& m_log;
   Dataset m_dataset;
   std::ofstream& m_output;
+
+  double perturb(double mean);
+  NLR_Parameters<double> random_nlr();
 
   Evaluation_Weights<double> init_weights();
 
