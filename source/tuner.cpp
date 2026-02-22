@@ -19,7 +19,7 @@ double Tuner::perturb(double mean) {
   std::mt19937_64 rng(rd());
   constexpr double PERTURBATION_STD_DEV_FACTOR = 0.20;
   std::normal_distribution<double> distribution(
-      mean, (PERTURBATION_STD_DEV_FACTOR * mean));
+      mean, std::abs(PERTURBATION_STD_DEV_FACTOR * mean));
   return distribution(rng);
 }
 

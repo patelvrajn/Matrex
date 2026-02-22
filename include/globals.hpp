@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <unordered_map>
 
 constexpr std::string_view ENGINE_NAME = "Matrex";
 constexpr std::string_view ENGINE_VERSION = "0.0.1";
@@ -179,29 +180,44 @@ class Reference_Array {
   static constexpr std::size_t size = calculate_reference_array_size<Args...>();
 
  private:
-  std::array<std::optional<std::reference_wrapper<T>>, size> refs;
+  std::array<std::optional<std::reference_wrapper<T>>, size> m_refs;
+  std::unordered_map<const void*, std::size_t> m_ref_to_index_map;
 
  public:
   explicit Reference_Array(Args&... args)
-      : refs(make_reference_array<T>(args...)) {}
+      : m_refs(make_reference_array<T>(args...)) {
+    m_ref_to_index_map.reserve(size);
 
-  auto& get_array() { return refs; }
+    for (std::size_t i = 0; i < size; i++) {
+      if (!m_refs[i].has_value()) {
+        continue;
+      }
 
-  const auto& get_array() const { return refs; }
+      const void* key = static_cast<const void*>(&m_refs[i].value().get());
+      auto [it, inserted] = m_ref_to_index_map.emplace(key, i);
+      if (!inserted) {
+        throw std::logic_error(
+            "Reference_Array constructor: Only unique references are allowed, "
+            "but a duplicate reference was found");
+      }
+    }
+  }
+
+  auto& get_array() { return m_refs; }
+
+  const auto& get_array() const { return m_refs; }
 
   template <typename U>  // Using U instead of T to allow get_index_of to accept
                          // references of types derived from T like const T&
   std::size_t get_index_of(const U& ref) const {
-    const auto& arr = get_array();
+    const void* key = static_cast<const void*>(&ref);
 
-    for (std::size_t i = 0; i < size; ++i) {
-      // Identity compare (address), not value compare.
-      if (&arr[i].value().get() == &ref) {
-        return i;
-      }
+    auto it = m_ref_to_index_map.find(key);
+    if (it == m_ref_to_index_map.end()) {
+      throw std::out_of_range(
+          "Reference_Array::get_index_of: reference not found");
     }
 
-    throw std::out_of_range(
-        "Reference_Array::get_index_of: reference not found");
+    return it->second;
   }
 };
