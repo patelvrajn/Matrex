@@ -234,6 +234,10 @@ void Tuner::parse_dataset_file(std::ifstream& dataset_file,
   m_log << "[INFO] Finished parsing dataset file of "
         << aggregate_batch.fens.size() << " entries." << std::endl;
 
+  if (aggregate_batch.fens.empty()) {
+    throw std::runtime_error("Dataset file is empty.");
+  }
+
   std::size_t training_dataset_size = static_cast<std::size_t>(
       (1.0L - TUNER_VALIDATION_SPLIT) *
       static_cast<double>(aggregate_batch.fens.size()));

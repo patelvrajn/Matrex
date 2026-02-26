@@ -453,6 +453,11 @@ class Evaluator {
   template <PIECE_COLOR moving_side>
   inline Evaluation_Weights<T> derivative_mobility_score() const;
 
+  // Helpers
+  template <PIECE_COLOR side>
+  inline T calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
+                                    PIECES piece) const;
+
  private:
   const Evaluation_Weights<T>& m_weights;
   const Chess_Board& m_chess_board;
@@ -605,47 +610,22 @@ inline Evaluation_Weights<T> Evaluator<T>::derivative_material_score() const {
 template <typename T>
 template <PIECE_COLOR moving_side>
 inline T Evaluator<T>::mobility_score() const {
-  Attacks a;
+  constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
+
   double mobility = 0;
 
   for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++) {
-    std::vector<Moves_Bitboard> moving_side_moves_bitboards;
-    m_moving_side_matrix.get_piece_moves_bitboards(moving_side, (PIECES)piece,
-                                                   moving_side_moves_bitboards);
-    T moving_side_piece_mobility = 0;
-    for (Moves_Bitboard& mb : moving_side_moves_bitboards) {
-      const Bitboard diagonal_movements =
-          mb.bitboard &
-          (a.get_bishop_attacks(mb.square,
-                                m_chess_board.get_both_color_occupancies()));
-      const Bitboard orthogonal_movements =
-          mb.bitboard &
-          (a.get_rook_attacks(mb.square,
-                              m_chess_board.get_both_color_occupancies()));
-      const Bitboard backward_movements =
-          mb.bitboard.get_backward_squares_mask(mb.square, moving_side);
+    const T moving_side_piece_mobility = calculate_piece_mobility<moving_side>(
+        m_moving_side_matrix, (PIECES)piece);
+    const T opposing_side_piece_mobility =
+        calculate_piece_mobility<opposing_side>(m_opposing_side_matrix,
+                                                (PIECES)piece);
+    const T piece_mobility_difference =
+        moving_side_piece_mobility - opposing_side_piece_mobility;
 
-      const T diagonal_mobility =
-          diagonal_movements.high_bit_count() * m_weights.diagonal_mobility;
-      const T orthogonal_mobility =
-          orthogonal_movements.high_bit_count() * m_weights.orthogonal_mobility;
-      const T backward_mobility = backward_movements.high_bit_count() *
-                                  m_weights.backwards_movement_mobility;
-      const T multi_movement_mobility =
-          ((diagonal_movements.high_bit_count() > 0) &&
-           (orthogonal_movements.high_bit_count() > 0)) *
-          m_weights.multi_movement_mobility;
-      const T knight_movements_mobility = mb.bitboard.high_bit_count() *
-                                          (piece == PIECES::KNIGHT) *
-                                          m_weights.knight_movement_mobility;
-
-      moving_side_piece_mobility +=
-          (diagonal_mobility + orthogonal_mobility + backward_mobility +
-           multi_movement_mobility + knight_movements_mobility);
-    }
     mobility +=
         Non_Linear_Response(m_weights.piece_mobility_NLR_parameters[piece])
-            .value(moving_side_piece_mobility);
+            .value(piece_mobility_difference);
   }
 
   return static_cast<T>(mobility);
@@ -654,15 +634,17 @@ inline T Evaluator<T>::mobility_score() const {
 template <typename T>
 template <PIECE_COLOR moving_side>
 inline Evaluation_Weights<T> Evaluator<T>::derivative_mobility_score() const {
+  constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
+
   Attacks a;
   Evaluation_Weights<T> derivative_weights;
 
   struct Counts {
-    uint16_t diagonal_movement = 0;
-    uint16_t orthogonal_movement = 0;
-    uint16_t knight_movement = 0;
-    uint16_t multi_movement = 0;
-    uint16_t backwards_movement = 0;
+    int16_t diagonal_movement = 0;
+    int16_t orthogonal_movement = 0;
+    int16_t knight_movement = 0;
+    int16_t multi_movement = 0;
+    int16_t backwards_movement = 0;
   };
 
   Counts piece_movement_counts[NUM_OF_UNIQUE_PIECES_PER_PLAYER];
@@ -685,7 +667,7 @@ inline Evaluation_Weights<T> Evaluator<T>::derivative_mobility_score() const {
       const uint16_t backward_movements =
           mb.bitboard.get_backward_squares_mask(mb.square, moving_side)
               .high_bit_count();
-      const uint16_t multi_movement_mobility_score =
+      const uint16_t multi_movement =
           ((diagonal_movements > 0) && (orthogonal_movements > 0));
       const uint16_t knight_movements =
           mb.bitboard.high_bit_count() * (piece == PIECES::KNIGHT);
@@ -693,9 +675,37 @@ inline Evaluation_Weights<T> Evaluator<T>::derivative_mobility_score() const {
       piece_movement_counts[piece].diagonal_movement += diagonal_movements;
       piece_movement_counts[piece].orthogonal_movement += orthogonal_movements;
       piece_movement_counts[piece].backwards_movement += backward_movements;
-      piece_movement_counts[piece].multi_movement +=
-          multi_movement_mobility_score;
+      piece_movement_counts[piece].multi_movement += multi_movement;
       piece_movement_counts[piece].knight_movement += knight_movements;
+    }
+
+    std::vector<Moves_Bitboard> opposing_side_moves_bitboards;
+    m_opposing_side_matrix.get_piece_moves_bitboards(
+        opposing_side, (PIECES)piece, opposing_side_moves_bitboards);
+    for (Moves_Bitboard& mb : opposing_side_moves_bitboards) {
+      const uint16_t diagonal_movements =
+          (mb.bitboard &
+           (a.get_bishop_attacks(mb.square,
+                                 m_chess_board.get_both_color_occupancies())))
+              .high_bit_count();
+      const uint16_t orthogonal_movements =
+          (mb.bitboard &
+           (a.get_rook_attacks(mb.square,
+                               m_chess_board.get_both_color_occupancies())))
+              .high_bit_count();
+      const uint16_t backward_movements =
+          mb.bitboard.get_backward_squares_mask(mb.square, opposing_side)
+              .high_bit_count();
+      const uint16_t multi_movement =
+          ((diagonal_movements > 0) && (orthogonal_movements > 0));
+      const uint16_t knight_movements =
+          mb.bitboard.high_bit_count() * (piece == PIECES::KNIGHT);
+
+      piece_movement_counts[piece].diagonal_movement -= diagonal_movements;
+      piece_movement_counts[piece].orthogonal_movement -= orthogonal_movements;
+      piece_movement_counts[piece].backwards_movement -= backward_movements;
+      piece_movement_counts[piece].multi_movement -= multi_movement;
+      piece_movement_counts[piece].knight_movement -= knight_movements;
     }
   }
 
@@ -1040,4 +1050,53 @@ inline Evaluation_Weights<T> Evaluator<T>::derivative_mobility_score() const {
   }
 
   return derivative_weights;
+}
+
+/*******************************************************************************
+ *
+ * HELPER FUNCTIONS FOR EVALUATOR
+ *
+ *******************************************************************************/
+
+template <typename T>
+template <PIECE_COLOR side>
+inline T Evaluator<T>::calculate_piece_mobility(
+    const Moves_Bitboard_Matrix& matrix, PIECES piece) const {
+  Attacks a;
+
+  std::vector<Moves_Bitboard> moves_bitboards;
+  matrix.get_piece_moves_bitboards(side, piece, moves_bitboards);
+  T piece_mobility = 0;
+  for (Moves_Bitboard& mb : moves_bitboards) {
+    const Bitboard diagonal_movements =
+        mb.bitboard &
+        (a.get_bishop_attacks(mb.square,
+                              m_chess_board.get_both_color_occupancies()));
+    const Bitboard orthogonal_movements =
+        mb.bitboard &
+        (a.get_rook_attacks(mb.square,
+                            m_chess_board.get_both_color_occupancies()));
+    const Bitboard backward_movements =
+        mb.bitboard.get_backward_squares_mask(mb.square, side);
+
+    const T diagonal_mobility =
+        diagonal_movements.high_bit_count() * m_weights.diagonal_mobility;
+    const T orthogonal_mobility =
+        orthogonal_movements.high_bit_count() * m_weights.orthogonal_mobility;
+    const T backward_mobility = backward_movements.high_bit_count() *
+                                m_weights.backwards_movement_mobility;
+    const T multi_movement_mobility =
+        ((diagonal_movements.high_bit_count() > 0) &&
+         (orthogonal_movements.high_bit_count() > 0)) *
+        m_weights.multi_movement_mobility;
+    const T knight_movements_mobility = mb.bitboard.high_bit_count() *
+                                        (piece == PIECES::KNIGHT) *
+                                        m_weights.knight_movement_mobility;
+
+    piece_mobility +=
+        (diagonal_mobility + orthogonal_mobility + backward_mobility +
+         multi_movement_mobility + knight_movements_mobility);
+  }
+
+  return piece_mobility;
 }

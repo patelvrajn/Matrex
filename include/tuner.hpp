@@ -11,7 +11,7 @@ constexpr uint64_t TUNER_MINI_BATCH_SIZE = 16384;
 constexpr double TUNER_VALIDATION_SPLIT = 0.2;
 
 constexpr double TUNER_DECAY_FACTOR = 0.975;
-constexpr double TUNER_LEARNING_RATE = 0.01;
+constexpr double TUNER_LEARNING_RATE = 0.002;
 constexpr double TUNER_NU = 0.999;
 constexpr double TUNER_EPSILON = 1e-8;
 constexpr double TUNER_HUBER_LOSS_GAMMA = 0.60;
