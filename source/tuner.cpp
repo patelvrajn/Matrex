@@ -149,8 +149,16 @@ Evaluation_Weights<double> Tuner::tune() {
       m_log << "[INFO] Weight update with magnitude " << weight_update_magnitude
             << " at timestep " << t << "; " << weight_update << std::endl;
 
+      const Evaluation_Weights<double> decoupled_weight_decay =
+          weights * TUNER_REGULARIZATION_LAMBDA;
+      const Evaluation_Weights<double> weight_decay_update =
+          decoupled_weight_decay * learning_rate;
+
+      m_log << "[INFO] Weight decay update at timestep " << t << "; "
+            << weight_decay_update << std::endl;
+
       // Parameter update
-      weights = weights - weight_update;
+      weights = weights - weight_update - weight_decay_update;
 
       m_log << "[INFO] Weights at timestep " << t << "; " << weights
             << std::endl;
@@ -375,16 +383,6 @@ Evaluation_Weights<double> Tuner::compute_gradient(
 
   gradient = gradient / static_cast<double>(N);
 
-  m_log << "[INFO] Data-based gradient is; " << gradient << std::endl;
-
-  const Evaluation_Weights<double> regularization =
-      (weights * (2.0L * TUNER_REGULARIZATION_LAMBDA));
-
-  m_log << "[INFO] Regularization-based gradient is; " << regularization
-        << std::endl;
-
-  gradient = gradient + regularization;
-
   return gradient;
 }
 
@@ -416,21 +414,6 @@ double Tuner::compute_loss(const Dataset& d,
   }
 
   loss = loss / static_cast<double>(N);
-
-  m_log << "[INFO] Data-based loss is " << loss << std::endl;
-
-  double regularization = 0.0L;
-
-  for (std::size_t j = 0; j < weights.get_size(); j++) {
-    regularization += (weights[j] * weights[j]);
-  }
-
-  regularization *= TUNER_REGULARIZATION_LAMBDA;
-
-  m_log << "[INFO] Regularization-based loss is " << regularization
-        << std::endl;
-
-  loss += regularization;
 
   return loss;
 }
