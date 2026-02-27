@@ -6,12 +6,20 @@
 
 #include "evaluate.hpp"
 
-constexpr uint64_t TUNER_NUMBER_OF_EPOCHS = 1000;
+constexpr uint64_t TUNER_MAX_EPOCHS = 30;
 constexpr uint64_t TUNER_MINI_BATCH_SIZE = 16384;
 constexpr double TUNER_VALIDATION_SPLIT = 0.2;
 
+constexpr uint64_t TUNER_LINEAR_LR_MAX_EPOCHS = 8;
+constexpr double TUNER_MIN_LINEAR_LR = 1e-3;
+constexpr double TUNER_MAX_LINEAR_LR = 1e-1;
+
+constexpr uint64_t TUNER_COSINE_LR_MAX_EPOCHS =
+    TUNER_MAX_EPOCHS - TUNER_LINEAR_LR_MAX_EPOCHS;
+constexpr double TUNER_MIN_COSINE_LR = 1e-7;
+constexpr double TUNER_MAX_COSINE_LR = TUNER_MAX_LINEAR_LR;
+
 constexpr double TUNER_DECAY_FACTOR = 0.975;
-constexpr double TUNER_LEARNING_RATE = 0.002;
 constexpr double TUNER_NU = 0.999;
 constexpr double TUNER_EPSILON = 1e-8;
 constexpr double TUNER_HUBER_LOSS_GAMMA = 0.60;
@@ -53,6 +61,8 @@ class Tuner {
   NLR_Parameters<double> random_nlr();
 
   Evaluation_Weights<double> init_weights();
+
+  double learning_rate_scheduler(uint64_t epoch) const;
 
   void parse_dataset_file(std::ifstream& dataset_file,
                           Dataset& training_dataset,

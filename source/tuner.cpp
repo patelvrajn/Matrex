@@ -1,6 +1,7 @@
 #include "tuner.hpp"
 
 #include <iomanip>
+#include <numbers>
 #include <random>
 
 Tuner::Tuner(std::ostream& logging, std::ifstream& dataset_file,
@@ -91,7 +92,7 @@ Evaluation_Weights<double> Tuner::tune() {
   m_log << "[INFO] Initial validation dataset loss is "
         << previous_epoch_validation_loss << std::endl;
 
-  for (uint64_t epoch = 1; epoch <= TUNER_NUMBER_OF_EPOCHS; epoch++) {
+  for (uint64_t epoch = 1; epoch <= TUNER_MAX_EPOCHS; epoch++) {
     double weight_update_magnitude_average = 0;
 
     // Shuffling our mini batches diversifies the loss landscapes L_Xi (Xi
@@ -109,6 +110,11 @@ Evaluation_Weights<double> Tuner::tune() {
     std::shuffle(m_training_dataset.mini_batches.begin(),
                  m_training_dataset.mini_batches.end(),
                  std::mt19937_64(std::random_device{}()));
+
+    double learning_rate = learning_rate_scheduler(epoch);
+
+    m_log << "[INFO] Learning rate for epoch " << epoch << " is "
+          << learning_rate << std::endl;
 
     for (const Mini_Batch& mini_batch : m_training_dataset.mini_batches) {
       // Calculate gradient
@@ -135,8 +141,7 @@ Evaluation_Weights<double> Tuner::tune() {
           (second_moment * TUNER_NU) / (1.0L - std::pow(TUNER_NU, t));
 
       const Evaluation_Weights<double> weight_update =
-          ((TUNER_LEARNING_RATE /
-            (second_moment_corrected + TUNER_EPSILON).sqrt()) *
+          ((learning_rate / (second_moment_corrected + TUNER_EPSILON).sqrt()) *
            first_moment_corrected);
       const double weight_update_magnitude = weight_update.magnitude();
       weight_update_magnitude_average += weight_update_magnitude;
@@ -202,6 +207,27 @@ Evaluation_Weights<double> Tuner::tune() {
   print_header_file(best_weights);
 
   return best_weights;
+}
+
+// OneCycleLR (Super-convergence)
+double Tuner::learning_rate_scheduler(uint64_t epoch) const {
+  if (epoch <= TUNER_LINEAR_LR_MAX_EPOCHS) {  // Linear rise phase
+    const double linear_lr =
+        TUNER_MIN_LINEAR_LR +
+        (((TUNER_MAX_LINEAR_LR - TUNER_MIN_LINEAR_LR) /
+          static_cast<double>(TUNER_LINEAR_LR_MAX_EPOCHS - 1)) *
+         static_cast<double>(epoch - 1));
+    return linear_lr;
+  } else {  // Cosine decay phase
+    const double cosine_lr =
+        TUNER_MIN_COSINE_LR +
+        (0.5L * (TUNER_MAX_COSINE_LR - TUNER_MIN_COSINE_LR) *
+         (1.0L + std::cos(std::numbers::pi_v<double> *
+                          (static_cast<double>(
+                               (epoch - TUNER_LINEAR_LR_MAX_EPOCHS) - 1) /
+                           (TUNER_COSINE_LR_MAX_EPOCHS - 1)))));
+    return cosine_lr;
+  }
 }
 
 void Tuner::parse_dataset_file(std::ifstream& dataset_file,
