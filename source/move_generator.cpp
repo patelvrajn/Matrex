@@ -1,5 +1,6 @@
 #include "move_generator.hpp"
 
+#include <algorithm>
 #include <iostream>
 
 const Bitboard FIRST_RANK = Bitboard(18374686479671623680ULL);
@@ -23,7 +24,13 @@ Move_Generator::Move_Generator(const Chess_Board& cb)
       m_side_to_move_in_check(false) {}
 
 Moves_Bitboard_Matrix::Moves_Bitboard_Matrix()
-    : m_index_mappings{-1}, m_piece_index_masks{}, m_matrix{} {}
+    : m_piece_index_masks{}, m_matrix{} {
+  std::fill(&m_max_indices[0], &m_max_indices[0] + sizeof(m_max_indices),
+            int8_t(-1));
+
+  std::fill(&m_index_mappings[0][0][0],
+            &m_index_mappings[0][0][0] + sizeof(m_index_mappings), int8_t(-1));
+}
 
 void Moves_Bitboard_Matrix::set_move(PIECE_COLOR color, PIECES piece,
                                      Square piece_square, Square move_square) {

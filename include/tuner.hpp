@@ -58,7 +58,7 @@ class Tuner {
   std::ofstream& m_output;
 
   double perturb(double mean);
-  NLR_Parameters<double> random_nlr();
+  NLR_Parameters<double> random_nlr(double h_mean);
 
   Evaluation_Weights<double> init_weights();
 

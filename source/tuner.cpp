@@ -24,9 +24,9 @@ double Tuner::perturb(double mean) {
   return distribution(rng);
 }
 
-NLR_Parameters<double> Tuner::random_nlr() {
-  return {.h_plus = perturb(30.0L),
-          .h_minus = perturb(30.0L),
+NLR_Parameters<double> Tuner::random_nlr(double h_mean) {
+  return {.h_plus = perturb(h_mean),
+          .h_minus = perturb(h_mean),
           .z = perturb(1.0L),
           .k = perturb(1.0L),
           .q_plus = perturb(0.25L),
@@ -40,14 +40,15 @@ NLR_Parameters<double> Tuner::random_nlr() {
 Evaluation_Weights<double> Tuner::init_weights() {
   Evaluation_Weights<double> weights;
 
-  weights.material_NLR_parameters = {random_nlr(), random_nlr(), random_nlr(),
-                                     random_nlr(), random_nlr()};
+  weights.material_NLR_parameters = {random_nlr(100.0L), random_nlr(100.0L),
+                                     random_nlr(100.0L), random_nlr(100.0L),
+                                     random_nlr(100.0L)};
   weights.material = {perturb(100.0L), perturb(300.0L), perturb(350.0L),
                       perturb(500.0L), perturb(900.0L)};
 
-  weights.piece_mobility_NLR_parameters = {random_nlr(), random_nlr(),
-                                           random_nlr(), random_nlr(),
-                                           random_nlr(), random_nlr()};
+  weights.piece_mobility_NLR_parameters = {
+      random_nlr(30.0L), random_nlr(30.0L), random_nlr(30.0L),
+      random_nlr(30.0L), random_nlr(30.0L), random_nlr(30.0L)};
   weights.diagonal_mobility = perturb(30.0L);
   weights.orthogonal_mobility = perturb(24.0L);
   weights.knight_movement_mobility = perturb(40.0L);
