@@ -138,10 +138,10 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
 
   // Generate moves matrix for the opposing side for evaluation purposes.
   const PIECE_COLOR opposing_side =
-      (PIECE_COLOR)((~m_chess_board.get_side_to_move()) & 0x1);
+      (PIECE_COLOR)((~position.get_side_to_move()) & 0x1);
   Chess_Move_List not_used_moves_list;
   Moves_Bitboard_Matrix opposing_side_matrix;
-  Move_Generator mg(m_chess_board);
+  Move_Generator mg(position);
   mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
       opposing_side, not_used_moves_list, opposing_side_matrix);
 
@@ -187,15 +187,15 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     const Score child_score = -child_result.second;
     position.undo_move(undo_move);
 
+    // Update alpha if the child's score is better than the alpha.
+    if (child_score > alpha) {
+      alpha = child_score;
+    }
+
     // Update best score and best move based on child's score.
     if (child_score > best_score) {
       best_score = child_score;
       best_move = move;
-    }
-
-    // Update alpha if the child's score is better than the alpha.
-    if (child_score > alpha) {
-      alpha = best_score;
     }
 
     // Alpha-beta pruning based on child's score.
