@@ -497,7 +497,11 @@ T Evaluator<T>::evaluate_template_typed() const {
 
 template <typename T>
 Score Evaluator<T>::evaluate() const {
-  return Score(evaluate_template_typed());
+  T evaluation = std::clamp(evaluate_template_typed(),
+                            static_cast<T>(ESCORE::EVALUATION_MIN),
+                            static_cast<T>(ESCORE::EVALUATION_MAX));
+  Score return_value = Score(evaluation);
+  return return_value;
 }
 
 template <typename T>
