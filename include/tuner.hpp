@@ -22,8 +22,13 @@ constexpr double TUNER_MAX_COSINE_LR = TUNER_MAX_LINEAR_LR;
 constexpr double TUNER_DECAY_FACTOR = 0.975;
 constexpr double TUNER_NU = 0.999;
 constexpr double TUNER_EPSILON = 1e-8;
-constexpr double TUNER_HUBER_LOSS_GAMMA = 0.60;
-constexpr double TUNER_SIGMOID_K = 0.00029;
+constexpr double TUNER_HUBER_LOSS_GAMMA = 0.80;
+// Sigmoid k-value controls the sensitivity of win-probability with respect to
+// evaluation. It sets how many evaluation points correspond to a meaningful
+// change in win-probability. The sigmoid function itself is not a clamp for the
+// evaluation but does affect the magnitude of evaluations. Note, that the
+// gradient of the loss surface is directly scaled by the k-value as well.
+constexpr double TUNER_SIGMOID_K = 0.002;
 constexpr double TUNER_REGULARIZATION_LAMBDA = 1e-3;
 constexpr double TUNER_LOSS_IMPROVEMENT_CUTOFF = 1e-6;
 constexpr double TUNER_WEIGHT_UPDATE_CUTOFF = 1e-4;
