@@ -555,7 +555,7 @@ template <PIECE_COLOR moving_side>
 inline Evaluation_Weights<T> Evaluator<T>::derivative_material_score() const {
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
 
-  Evaluation_Weights<T> grad = m_weights;
+  Evaluation_Weights<T> grad;
 
   for (uint8_t piece = PIECES::PAWN; piece <= PIECES::QUEEN; ++piece) {
     const int c_plus =

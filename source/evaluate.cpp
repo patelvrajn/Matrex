@@ -229,10 +229,9 @@ double Non_Linear_Response::calculate_function_G(double F) const {
 }
 
 double Non_Linear_Response::calculate_function_H(double F) const {
-  const double u = calculate_u(F);
-  const double first_term = calculate_function_G(u) * m_h_plus_parameter;
+  const double first_term = calculate_function_G(F) * m_h_plus_parameter;
   const double second_term =
-      (1 - calculate_function_G(u)) * m_h_minus_parameter;
+      (1 - calculate_function_G(F)) * m_h_minus_parameter;
   return (first_term + second_term);
 }
 
@@ -256,11 +255,10 @@ double Non_Linear_Response::calculate_function_P_minus(double F) const {
 }
 
 double Non_Linear_Response::calculate_function_P(double F) const {
-  const double u = calculate_u(F);
   const double first_term =
-      calculate_function_G(u) * calculate_function_P_plus(u);
+      calculate_function_G(F) * calculate_function_P_plus(F);
   const double second_term =
-      (1 - calculate_function_G(u)) * calculate_function_P_minus(u);
+      (1 - calculate_function_G(F)) * calculate_function_P_minus(F);
   return (first_term + second_term);
 }
 
@@ -281,10 +279,9 @@ double Non_Linear_Response::calculate_function_B_minus(double F) const {
 }
 
 double Non_Linear_Response::calculate_function_B(double F) const {
-  const double u = calculate_u(F);
   const double first_term =
-      calculate_function_G(u) * calculate_function_B_plus(u);
+      calculate_function_G(F) * calculate_function_B_plus(F);
   const double second_term =
-      (1 - calculate_function_G(u)) * calculate_function_B_minus(u);
+      (1 - calculate_function_G(F)) * calculate_function_B_minus(F);
   return (first_term + second_term);
 }
