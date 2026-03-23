@@ -53,11 +53,11 @@ class Search_Engine {
   inline Score get_mate_score(const Move_Ordering& mo, uint16_t ply);
   inline bool should_use_transposition_table_score(
       const bool is_hit, const uint16_t depth,
-      const Transposition_Table_Entry entry, const Score alpha,
+      const Transposition_Table_Entry& entry, const Score alpha,
       const Score beta);
   inline bool should_use_transposition_table_score(
       const bool is_hit, const uint16_t depth,
-      const Transposition_Table_Entry entry, const Score eval);
+      const Transposition_Table_Entry& entry, const Score eval);
 };
 
 inline Score Search_Engine::get_mate_score(const Move_Ordering& mo,
@@ -77,7 +77,7 @@ inline Score Search_Engine::get_mate_score(const Move_Ordering& mo,
 
 inline bool Search_Engine::should_use_transposition_table_score(
     const bool is_hit, const uint16_t depth,
-    const Transposition_Table_Entry entry, const Score alpha,
+    const Transposition_Table_Entry& entry, const Score alpha,
     const Score beta) {
   return is_hit && (depth <= entry.depth) &&
          ((entry.score_bound == Score_Bound_Type::EXACT) ||
@@ -89,7 +89,7 @@ inline bool Search_Engine::should_use_transposition_table_score(
 
 inline bool Search_Engine::should_use_transposition_table_score(
     const bool is_hit, const uint16_t depth,
-    const Transposition_Table_Entry entry, const Score eval) {
+    const Transposition_Table_Entry& entry, const Score eval) {
   return is_hit && (depth <= entry.depth) &&
          ((entry.score_bound == Score_Bound_Type::EXACT) ||
           (entry.score_bound == Score_Bound_Type::LOWER_BOUND &&
