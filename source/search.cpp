@@ -1,6 +1,7 @@
 #include "search.hpp"
 
 #include "evaluate.hpp"
+#include "evaluation_terms.hpp"
 
 Search_Engine::Search_Engine()
     : m_timer_expired_during_search(false), m_num_of_nodes_searched(0) {}
@@ -215,6 +216,16 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>();
   }
   Chess_Move_List& moves = mo.get_sorted_moves();
+  Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
+
+  // Generate moves matrix for the opposing side for evaluation purposes.
+  const PIECE_COLOR opposing_side =
+      (PIECE_COLOR)((~position.get_side_to_move()) & 0x1);
+  Chess_Move_List not_used_moves_list;
+  Moves_Bitboard_Matrix opposing_side_matrix;
+  Move_Generator mg(position);
+  mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
+      opposing_side, not_used_moves_list, opposing_side_matrix);
 
   // No moves and in check - return mate score. Note, we don't handle stalemates
   // in quiescence search.
@@ -237,8 +248,10 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     return {Chess_Move(), mate_score};
   }
 
-  const Evaluator e(position);
-  Score stand_pat = e.evaluate();
+  // Stand pat evaluation.
+  const Evaluator e(TUNED_EVALUATION_WEIGHTS, position, moving_side_matrix,
+                    opposing_side_matrix);
+  const Score stand_pat = e.evaluate();
 
   // Update stand pat evaluation based on a transposition table hit which would
   // most likely be based on a deeper search.
@@ -310,16 +323,16 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     const Score child_score = -child_result.second;
     position.undo_move(undo_move);
 
+    // Update alpha if the child's score is better than the alpha.
+    if (child_score > alpha) {
+      score_bound = Score_Bound_Type::EXACT;
+      alpha = child_score;
+    }
+
     // Update best score and best move based on child's score.
     if (child_score > best_score) {
       best_score = child_score;
       best_move = move;
-    }
-
-    // Update alpha if the child's score is better than the alpha.
-    if (child_score > alpha) {
-      score_bound = Score_Bound_Type::EXACT;
-      alpha = best_score;
     }
 
     // Alpha-beta pruning based on child's score.

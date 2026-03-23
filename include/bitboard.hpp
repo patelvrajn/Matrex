@@ -42,6 +42,8 @@ class Bitboard {
   int8_t get_index_of_high_lsb() const;
   int8_t get_index_of_high_msb() const;
 
+  Bitboard get_backward_squares_mask(const Square& s, PIECE_COLOR side) const;
+
   static Bitboard get_between_squares_mask(const Square& a, const Square& b);
 
   static Bitboard get_rank_mask(const Square& s);
