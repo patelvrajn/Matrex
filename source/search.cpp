@@ -1,6 +1,7 @@
 #include "search.hpp"
 
 #include "evaluate.hpp"
+#include "evaluation_terms.hpp"
 
 Search_Engine::Search_Engine(const Chess_Board& cb,
                              const Search_Constraints& constraints)
@@ -133,6 +134,16 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>();
   }
   Chess_Move_List& moves = mo.get_sorted_moves();
+  Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
+
+  // Generate moves matrix for the opposing side for evaluation purposes.
+  const PIECE_COLOR opposing_side =
+      (PIECE_COLOR)((~position.get_side_to_move()) & 0x1);
+  Chess_Move_List not_used_moves_list;
+  Moves_Bitboard_Matrix opposing_side_matrix;
+  Move_Generator mg(position);
+  mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
+      opposing_side, not_used_moves_list, opposing_side_matrix);
 
   // No moves and in check - return mate score.
   if ((moves.get_max_index() == -1) && is_side_to_move_in_check) {
@@ -141,7 +152,8 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
   }
 
   // Stand pat evaluation.
-  const Evaluator e(position);
+  const Evaluator e(TUNED_EVALUATION_WEIGHTS, position, moving_side_matrix,
+                    opposing_side_matrix);
   const Score stand_pat = e.evaluate();
 
   // No tactical moves - return the static evaluation (stand pat).
@@ -175,15 +187,15 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     const Score child_score = -child_result.second;
     position.undo_move(undo_move);
 
+    // Update alpha if the child's score is better than the alpha.
+    if (child_score > alpha) {
+      alpha = child_score;
+    }
+
     // Update best score and best move based on child's score.
     if (child_score > best_score) {
       best_score = child_score;
       best_move = move;
-    }
-
-    // Update alpha if the child's score is better than the alpha.
-    if (child_score > alpha) {
-      alpha = best_score;
     }
 
     // Alpha-beta pruning based on child's score.

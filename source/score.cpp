@@ -1,6 +1,7 @@
 #include "score.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 Score::Score() : m_fields{.value = 0, .mate = 0, .sign = 0} {}
@@ -9,6 +10,9 @@ Score::Score(int16_t evaluation) {
   Score s = Score::from_int(evaluation);
   m_fields = s.m_fields;
 }
+
+Score::Score(double evaluation)
+    : Score(static_cast<int16_t>(std::lround(evaluation))) {}
 
 Score::Score(Score_Fields fields) { m_fields = fields; }
 
@@ -111,8 +115,8 @@ Score Score::operator+(const Score& other) const {
     return Score::from_int(std::max(this_int, other_int));
   } else {
     int16_t sum = this_int + other_int;
-    return std::clamp(sum, (int16_t)ESCORE::NEGATIVE_INFINITY,
-                      (int16_t)ESCORE::POSITIVE_INFINITY);
+    return Score(std::clamp(sum, (int16_t)ESCORE::NEGATIVE_INFINITY,
+                            (int16_t)ESCORE::POSITIVE_INFINITY));
   }
 }
 
@@ -124,8 +128,8 @@ Score Score::operator-(const Score& other) const {
     return Score::from_int(std::min(this_int, other_int));
   } else {
     int16_t difference = this_int - other_int;
-    return std::clamp(difference, (int16_t)ESCORE::NEGATIVE_INFINITY,
-                      (int16_t)ESCORE::POSITIVE_INFINITY);
+    return Score(std::clamp(difference, (int16_t)ESCORE::NEGATIVE_INFINITY,
+                            (int16_t)ESCORE::POSITIVE_INFINITY));
   }
 }
 

@@ -17,6 +17,7 @@ class Move_Ordering {
  public:
   Move_Ordering(const Chess_Board& cb);
   Chess_Move_List& get_sorted_moves();
+  Moves_Bitboard_Matrix& get_moves_matrix();
   bool is_side_to_move_in_check() const;
 
   template <MOVE_GENERATION_TYPE move_gen_type>
@@ -25,6 +26,7 @@ class Move_Ordering {
  private:
   const Chess_Board& m_chess_board;
   Chess_Move_List m_move_list;
+  Moves_Bitboard_Matrix m_moves_matrix;
   static mvv_lva_array m_mvv_lva_array;
 
   static mvv_lva_array generate_mvv_lva_array();
@@ -33,6 +35,19 @@ class Move_Ordering {
 
 template <MOVE_GENERATION_TYPE move_gen_type>
 void Move_Ordering::generate_moves() {
-  Move_Generator mg(m_chess_board);
-  mg.generate_all_moves<move_gen_type>(m_move_list);
+  if constexpr (move_gen_type == MOVE_GENERATION_TYPE::ALL) {
+    Move_Generator mg(m_chess_board);
+    mg.generate_all_moves<move_gen_type>(m_move_list, m_moves_matrix);
+  } else {
+    Chess_Move_List not_used_moves_list;
+    Moves_Bitboard_Matrix not_used_moves_matrix;
+
+    Move_Generator typed_mg(m_chess_board);
+    typed_mg.generate_all_moves<move_gen_type>(m_move_list,
+                                               not_used_moves_matrix);
+
+    Move_Generator all_mg(m_chess_board);
+    all_mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(not_used_moves_list,
+                                                         m_moves_matrix);
+  }
 }

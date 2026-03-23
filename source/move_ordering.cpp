@@ -13,6 +13,10 @@ Chess_Move_List& Move_Ordering::get_sorted_moves() {
   return m_move_list;
 }
 
+Moves_Bitboard_Matrix& Move_Ordering::get_moves_matrix() {
+  return m_moves_matrix;
+}
+
 mvv_lva_array Move_Ordering::generate_mvv_lva_array() {
   mvv_lva_array return_value;
 
