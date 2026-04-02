@@ -3,10 +3,10 @@
 
 constexpr double LN_2 = 0.69314718056;  // Precomputed value of ln(2).
 
-constexpr std::size_t LOG2_LOOKUP_TABLE_SIZE = 1024;
+constexpr std::size_t LOG2_LOOKUP_TABLE_SIZE = 4096;
 using log2_lookup_table_type = std::array<int32_t, LOG2_LOOKUP_TABLE_SIZE>;
 
-constexpr std::size_t EXP2_LOOKUP_TABLE_SIZE = 1024;
+constexpr std::size_t EXP2_LOOKUP_TABLE_SIZE = 4096;
 using exp2_lookup_table_type = std::array<int32_t, EXP2_LOOKUP_TABLE_SIZE>;
 
 template <uint8_t F>  // F is the number of fractional bits.
@@ -16,6 +16,7 @@ class Fixed_Point_Integer {
   explicit Fixed_Point_Integer(int32_t value) : m_value(value) {}
 
   int32_t get_value() const;
+  double to_double() const;
 
   Fixed_Point_Integer floor() const;
 
@@ -41,6 +42,10 @@ class Fixed_Point_Integer {
   inline auto operator<=>(const int32_t other) const;
   inline auto operator<=>(const double other) const;
 
+  inline bool operator==(const Fixed_Point_Integer& other) const;
+  inline bool operator==(const int32_t other) const;
+  inline bool operator==(const double other) const;
+
   template <typename W>
   friend std::ostream& operator<<(std::ostream& os,
                                   const Fixed_Point_Integer& weights);
@@ -53,9 +58,8 @@ class Fixed_Point_Integer {
   }
 
   static Fixed_Point_Integer from_integer(int32_t integer) {
-    int32_t value =
-        integer
-        << F;  // Scale up by 2^F to convert to fixed-point representation.
+    // Scale up by 2^F to convert to fixed-point representation.
+    int32_t value = integer << F;
     return Fixed_Point_Integer::from_value(value);
   }
 
@@ -85,6 +89,11 @@ class Fixed_Point_Integer {
 template <uint8_t F>
 int32_t Fixed_Point_Integer<F>::get_value() const {
   return m_value;
+}
+
+template <uint8_t F>
+double Fixed_Point_Integer<F>::to_double() const {
+  return static_cast<double>(m_value) / (1LL << F);
 }
 
 template <uint8_t F>
@@ -224,6 +233,22 @@ inline auto Fixed_Point_Integer<F>::operator<=>(const double other) const {
 }
 
 template <uint8_t F>
+inline bool Fixed_Point_Integer<F>::operator==(
+    const Fixed_Point_Integer& other) const {
+  return m_value == other.m_value;
+}
+
+template <uint8_t F>
+inline bool Fixed_Point_Integer<F>::operator==(const int32_t other) const {
+  return m_value == Fixed_Point_Integer<F>::from_integer(other).m_value;
+}
+
+template <uint8_t F>
+inline bool Fixed_Point_Integer<F>::operator==(const double other) const {
+  return m_value == Fixed_Point_Integer<F>::from_double(other).m_value;
+}
+
+template <uint8_t F>
 constexpr log2_lookup_table_type Fixed_Point_Integer<F>::make_log2_table() {
   log2_lookup_table_type table{};
   for (std::size_t i = 0; i < LOG2_LOOKUP_TABLE_SIZE; ++i) {
@@ -265,15 +290,14 @@ template <uint8_t F>
 Fixed_Point_Integer<F> exponential_approximation(
     const Fixed_Point_Integer<F> input);
 
-// This is a rational piecewise function approximation of tanh that ChatGPT
-// came up with, instead of a Pade approximation that I told it to calculate.
+// 3/3 Pade Approximation of tanh(x) near 0.
 template <uint8_t F>
 Fixed_Point_Integer<F> tanh(const Fixed_Point_Integer<F> input) {
-  if (input <= -4) {
+  if (input <= -5.8917) {
     return Fixed_Point_Integer<F>::from_integer(-1);
   }
 
-  if (input >= 4) {
+  if (input >= 5.8917) {
     return Fixed_Point_Integer<F>::from_integer(1);
   }
 
@@ -284,10 +308,11 @@ Fixed_Point_Integer<F> tanh(const Fixed_Point_Integer<F> input) {
       input_power_four * input_power_two;
 
   const Fixed_Point_Integer<F> numerator =
-      input * ((input_power_two * 1260) + (input_power_four * 21) + 10395);
+      input * ((input_power_two * 17325) + (input_power_four * 378) +
+               input_power_six + 135135);
   const Fixed_Point_Integer<F> denominator =
-      ((input_power_two * 4725) + (input_power_four * 210) + input_power_six +
-       10395);
+      ((input_power_two * 62370) + (input_power_four * 3150) +
+       (input_power_six * 28) + 135135);
 
   return (numerator / denominator);
 }
@@ -351,7 +376,7 @@ Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input) {
                           .get_value() >>
                       F;
   index =
-      std::clamp(index, 0,
+      std::clamp(index, static_cast<std::size_t>(0),
                  (LOG2_LOOKUP_TABLE_SIZE -
                   1));  // Clamp index to be within bounds because of rounding.
   const Fixed_Point_Integer<F> c =
@@ -414,7 +439,7 @@ Fixed_Point_Integer<F> exp2(const Fixed_Point_Integer<F> input) {
   // we perform the lookup.
   std::size_t index = i.get_value() >> F;
   index =
-      std::clamp(index, 0,
+      std::clamp(index, static_cast<std::size_t>(0),
                  (EXP2_LOOKUP_TABLE_SIZE -
                   1));  // Clamp index to be within bounds because of rounding.
   Fixed_Point_Integer<F> table_lookup_value =
@@ -464,7 +489,7 @@ Fixed_Point_Integer<F> exponential_approximation(
   const Fixed_Point_Integer<F> numerator =
       (input * 60) + (input_power_two * 12) + input_power_three + 120;
   const Fixed_Point_Integer<F> denominator =
-      (-60 * input) + (12 * input_power_two) - input_power_three + 120;
+      (input * -60) + (input_power_two * 12) - input_power_three + 120;
 
   return numerator / denominator;
 }
