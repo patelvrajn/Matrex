@@ -1,5 +1,7 @@
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <stdexcept>
 
 constexpr double LN_2 = 0.69314718056;  // Precomputed value of ln(2).
 
