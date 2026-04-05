@@ -1,3 +1,7 @@
+#pragma once
+
+#include "fixed_point.hpp"
+
 template <typename T>
 struct NLR_Parameters {  // NLR = Non-Linear Response
   T h_plus;
@@ -311,14 +315,14 @@ T Non_Linear_Response<T>::calculate_u(T F) const {
 
 template <typename T>
 T Non_Linear_Response<T>::calculate_function_M(T x) const {
-  const T result = std::sqrt((x * x) + NON_LINEAR_RESPONSE_EPSILON);
+  const T result = Matrex::sqrt((x * x) + NON_LINEAR_RESPONSE_EPSILON);
   return result;
 }
 
 template <typename T>
 T Non_Linear_Response<T>::calculate_function_G(T F) const {
   const T u = calculate_u(F);
-  const T sigmoid = 1.0L / (1.0L + std::exp(-1 * u * NON_LINEAR_RESPONSE_T));
+  const T sigmoid = 1.0L / (1.0L + Matrex::exp(-1 * u * NON_LINEAR_RESPONSE_T));
   return sigmoid;
 }
 
@@ -340,7 +344,7 @@ T Non_Linear_Response<T>::calculate_function_S(T F) const {
 template <typename T>
 T Non_Linear_Response<T>::calculate_function_P_plus(T F) const {
   const T u = calculate_u(F);
-  const T term = std::pow(calculate_function_M(u), m_q_plus_parameter);
+  const T term = Matrex::pow(calculate_function_M(u), m_q_plus_parameter);
   return term;
 }
 
@@ -364,8 +368,8 @@ T Non_Linear_Response<T>::calculate_function_B_plus(T F) const {
   const T u = calculate_u(F);
   const T v =
       calculate_function_M(u) / calculate_function_M(m_g_plus_parameter);
-  const T w = std::pow(v, m_r_plus_parameter);
-  return std::tanh(w);
+  const T w = Matrex::pow(v, m_r_plus_parameter);
+  return Matrex::tanh(w);
 }
 
 template <typename T>
@@ -373,8 +377,8 @@ T Non_Linear_Response<T>::calculate_function_B_minus(T F) const {
   const T u = calculate_u(F);
   const T v =
       calculate_function_M(u) / calculate_function_M(m_g_minus_parameter);
-  const T w = std::pow(v, m_r_minus_parameter);
-  return std::tanh(w);
+  const T w = Matrex::pow(v, m_r_minus_parameter);
+  return Matrex::tanh(w);
 }
 
 template <typename T>
