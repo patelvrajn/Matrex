@@ -105,6 +105,9 @@ class Fixed_Point_Integer {
   static constexpr exp2_lookup_table_type m_exp2_table = make_exp2_table();
 };
 
+// Fixed Pointer Integer Type that Matrex Uses.
+using Matrex_FP_Int = Fixed_Point_Integer<16>;
+
 template <uint8_t F>
 constexpr int32_t Fixed_Point_Integer<F>::get_value() const {
   return m_value;

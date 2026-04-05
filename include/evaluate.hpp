@@ -4,30 +4,8 @@
 
 #include "chess_board.hpp"
 #include "move_generator.hpp"
+#include "non_linear_response.hpp"
 #include "score.hpp"
-
-template <typename T>
-struct NLR_Parameters {  // NLR = Non-Linear Response
-  T h_plus;
-  T h_minus;
-  T z;
-  T k;
-  T q_plus;
-  T q_minus;
-  T r_plus;
-  T r_minus;
-  T g_plus;
-  T g_minus;
-};
-
-#define NLR_ARRAY_FIELDS(arr, idx)                                           \
-  (arr)[(idx)].h_plus, (arr)[(idx)].h_minus, (arr)[(idx)].z, (arr)[(idx)].k, \
-      (arr)[(idx)].q_plus, (arr)[(idx)].q_minus, (arr)[(idx)].r_plus,        \
-      (arr)[(idx)].r_minus, (arr)[(idx)].g_plus, (arr)[(idx)].g_minus
-
-#define NLR_FIELDS(x)                                                         \
-  (x).h_plus, (x).h_minus, (x).z, (x).k, (x).q_plus, (x).q_minus, (x).r_plus, \
-      (x).r_minus, (x).g_plus, (x).g_minus
 
 template <typename T>
 class Evaluation_Weights {
@@ -369,67 +347,6 @@ std::size_t Evaluation_Weights<T>::get_size() const {
   return m_weight_ref_array.size;
 }
 
-constexpr double NON_LINEAR_RESPONSE_EPSILON = 1e-8;
-constexpr double NON_LINEAR_RESPONSE_T = 1e6;
-
-class Non_Linear_Response {
- public:
-  template <typename T>
-  Non_Linear_Response(NLR_Parameters<T> params);
-
-  double value(double F) const;
-
-  double partial_derivative_h_plus(double F) const;
-  double partial_derivative_h_minus(double F) const;
-  double partial_derivative_z(double F) const;
-  double partial_derivative_k(double F) const;
-  double partial_derivative_q_plus(double F) const;
-  double partial_derivative_q_minus(double F) const;
-  double partial_derivative_r_plus(double F) const;
-  double partial_derivative_r_minus(double F) const;
-  double partial_derivative_g_plus(double F) const;
-  double partial_derivative_g_minus(double F) const;
-  double partial_derivative_u(double F) const;
-
- private:
-  double m_h_plus_parameter;
-  double m_h_minus_parameter;
-  double m_z_parameter;
-  double m_k_parameter;
-  double m_q_plus_parameter;
-  double m_q_minus_parameter;
-  double m_r_plus_parameter;
-  double m_r_minus_parameter;
-  double m_g_plus_parameter;
-  double m_g_minus_parameter;
-
-  double calculate_u(double F) const;
-
-  double calculate_function_M(double x) const;
-  double calculate_function_G(double F) const;
-  double calculate_function_H(double F) const;
-  double calculate_function_S(double F) const;
-  double calculate_function_P_plus(double F) const;
-  double calculate_function_P_minus(double F) const;
-  double calculate_function_P(double F) const;
-  double calculate_function_B_plus(double F) const;
-  double calculate_function_B_minus(double F) const;
-  double calculate_function_B(double F) const;
-};
-
-template <typename T>
-Non_Linear_Response::Non_Linear_Response(NLR_Parameters<T> params)
-    : m_h_plus_parameter(static_cast<double>(params.h_plus)),
-      m_h_minus_parameter(static_cast<double>(params.h_minus)),
-      m_z_parameter(static_cast<double>(params.z)),
-      m_k_parameter(static_cast<double>(params.k)),
-      m_q_plus_parameter(static_cast<double>(params.q_plus)),
-      m_q_minus_parameter(static_cast<double>(params.q_minus)),
-      m_r_plus_parameter(static_cast<double>(params.r_plus)),
-      m_r_minus_parameter(static_cast<double>(params.r_minus)),
-      m_g_plus_parameter(static_cast<double>(params.g_plus)),
-      m_g_minus_parameter(static_cast<double>(params.g_minus)) {}
-
 template <typename T>
 class Evaluator {
  public:
@@ -529,7 +446,7 @@ template <PIECE_COLOR moving_side>
 inline T Evaluator<T>::material_score() const {
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
 
-  double return_value = 0.0L;
+  T return_value = 0.0L;
 
   for (uint8_t piece = PIECES::PAWN; piece <= PIECES::QUEEN; piece++) {
     T material_difference = 0;
@@ -541,7 +458,7 @@ inline T Evaluator<T>::material_score() const {
         (m_weights.material[piece] *
          m_chess_board.get_piece_occupancies(opposing_side, (PIECES)piece)
              .high_bit_count());
-    double non_linear_material =
+    T non_linear_material =
         Non_Linear_Response(m_weights.material_NLR_parameters[piece])
             .value(material_difference);
     return_value += non_linear_material;
@@ -572,7 +489,7 @@ inline Evaluation_Weights<T> Evaluator<T>::derivative_material_score() const {
 
     Non_Linear_Response nlr(m_weights.material_NLR_parameters[piece]);
 
-    const T dYdF = (T)nlr.partial_derivative_u((double)F);
+    const T dYdF = (T)nlr.partial_derivative_u(F);
 
     // 1) Gradient w.r.t. linear material weight w_p
     {
@@ -586,25 +503,23 @@ inline Evaluation_Weights<T> Evaluator<T>::derivative_material_score() const {
       const auto& p = m_weights.material_NLR_parameters[piece];
 
       grad[m_weights.get_index_of(p.h_plus)] +=
-          (T)nlr.partial_derivative_h_plus((double)F);
+          (T)nlr.partial_derivative_h_plus(F);
       grad[m_weights.get_index_of(p.h_minus)] +=
-          (T)nlr.partial_derivative_h_minus((double)F);
-      grad[m_weights.get_index_of(p.z)] +=
-          (T)nlr.partial_derivative_z((double)F);
-      grad[m_weights.get_index_of(p.k)] +=
-          (T)nlr.partial_derivative_k((double)F);
+          (T)nlr.partial_derivative_h_minus(F);
+      grad[m_weights.get_index_of(p.z)] += (T)nlr.partial_derivative_z(F);
+      grad[m_weights.get_index_of(p.k)] += (T)nlr.partial_derivative_k(F);
       grad[m_weights.get_index_of(p.q_plus)] +=
-          (T)nlr.partial_derivative_q_plus((double)F);
+          (T)nlr.partial_derivative_q_plus(F);
       grad[m_weights.get_index_of(p.q_minus)] +=
-          (T)nlr.partial_derivative_q_minus((double)F);
+          (T)nlr.partial_derivative_q_minus(F);
       grad[m_weights.get_index_of(p.r_plus)] +=
-          (T)nlr.partial_derivative_r_plus((double)F);
+          (T)nlr.partial_derivative_r_plus(F);
       grad[m_weights.get_index_of(p.r_minus)] +=
-          (T)nlr.partial_derivative_r_minus((double)F);
+          (T)nlr.partial_derivative_r_minus(F);
       grad[m_weights.get_index_of(p.g_plus)] +=
-          (T)nlr.partial_derivative_g_plus((double)F);
+          (T)nlr.partial_derivative_g_plus(F);
       grad[m_weights.get_index_of(p.g_minus)] +=
-          (T)nlr.partial_derivative_g_minus((double)F);
+          (T)nlr.partial_derivative_g_minus(F);
     }
   }
 
@@ -616,7 +531,7 @@ template <PIECE_COLOR moving_side>
 inline T Evaluator<T>::mobility_score() const {
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
 
-  double mobility = 0;
+  T mobility = 0;
 
   for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++) {
     const T moving_side_piece_mobility = calculate_piece_mobility<moving_side>(
