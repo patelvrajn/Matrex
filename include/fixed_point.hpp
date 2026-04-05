@@ -60,9 +60,9 @@ class Fixed_Point_Integer {
   constexpr bool operator==(const int32_t other) const;
   constexpr bool operator==(const double other) const;
 
-  template <typename W>
+  template <uint8_t X>
   friend std::ostream& operator<<(std::ostream& os,
-                                  const Fixed_Point_Integer& weights);
+                                  const Fixed_Point_Integer<X>& fp);
 
   // Value is already an integer in fixed-point representation.
   static constexpr Fixed_Point_Integer from_value(int32_t value) {
@@ -343,6 +343,12 @@ template <uint8_t F>
 constexpr inline bool Fixed_Point_Integer<F>::operator==(
     const double other) const {
   return m_value == Fixed_Point_Integer<F>::from_double(other).m_value;
+}
+
+template <uint8_t X>
+std::ostream& operator<<(std::ostream& os, const Fixed_Point_Integer<X>& fp) {
+  os << fp.get_value();
+  return os;
 }
 
 template <uint8_t F>
