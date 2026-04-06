@@ -6,17 +6,16 @@
 
 Score::Score() : m_fields{.value = 0, .mate = 0, .sign = 0} {}
 
-Score::Score(int16_t evaluation) {
+Score::Score(Fixed_Point_Int_Storage_Type evaluation) {
   Score s = Score::from_int(evaluation);
   m_fields = s.m_fields;
 }
 
-Score::Score(double evaluation)
-    : Score(static_cast<int16_t>(std::lround(evaluation))) {}
+Score::Score(Matrex_FP_Int evaluation) : Score(evaluation.get_value()) {}
 
 Score::Score(Score_Fields fields) { m_fields = fields; }
 
-int16_t Score::to_int() const {
+Fixed_Point_Int_Storage_Type Score::to_int() const {
   if (m_fields.mate) {  // Mating evaluation.
 
     if (m_fields.sign) {  // Negative
@@ -35,11 +34,11 @@ int16_t Score::to_int() const {
   }
 }
 
-Score Score::from_int(int16_t i) {
+Score Score::from_int(Fixed_Point_Int_Storage_Type i) {
   Score return_score;
   return_score.m_fields.sign = (i < 0);
 
-  const uint16_t abs_i = std::abs(i);
+  const uint32_t abs_i = std::abs(i);
 
   if (i == ESCORE::NEGATIVE_INFINITY) {
     return_score.m_fields.value = abs_i;
@@ -63,12 +62,12 @@ Score Score::from_int(int16_t i) {
       //    i - ESCORE::LOSING_MATE_MIN
       //    = (ESCORE::LOSING_MATE_MIN + N) - ESCORE::LOSING_MATE_MIN
       //    = N
-      const uint16_t plys_to_mate = i - ESCORE::LOSING_MATE_MIN;
+      const uint32_t plys_to_mate = i - ESCORE::LOSING_MATE_MIN;
       return_score.m_fields.value = plys_to_mate;
 
     } else {  // i is positive
 
-      const uint16_t plys_to_mate = ESCORE::WINNING_MATE_MAX -
+      const uint32_t plys_to_mate = ESCORE::WINNING_MATE_MAX -
                                     i;  // A higher i means closer to checkmate.
       return_score.m_fields.value =
           plys_to_mate;  // Assumes plys_to_mate will be a value represented in
@@ -108,28 +107,27 @@ bool Score::is_draw() const {
 }
 
 Score Score::operator+(const Score& other) const {
-  int16_t this_int = to_int();
-  int16_t other_int = other.to_int();
+  Fixed_Point_Int_Storage_Type this_int = to_int();
+  Fixed_Point_Int_Storage_Type other_int = other.to_int();
 
   if (m_fields.mate || other.m_fields.mate) {
     return Score::from_int(std::max(this_int, other_int));
   } else {
-    int16_t sum = this_int + other_int;
-    return Score(std::clamp(sum, (int16_t)ESCORE::NEGATIVE_INFINITY,
-                            (int16_t)ESCORE::POSITIVE_INFINITY));
+    Fixed_Point_Int_Storage_Type sum = this_int + other_int;
+    return Score(std::clamp(sum, FP_NEGATIVE_INFINITY, FP_POSITIVE_INFINITY));
   }
 }
 
 Score Score::operator-(const Score& other) const {
-  int16_t this_int = to_int();
-  int16_t other_int = other.to_int();
+  Fixed_Point_Int_Storage_Type this_int = to_int();
+  Fixed_Point_Int_Storage_Type other_int = other.to_int();
 
   if (m_fields.mate || other.m_fields.mate) {
     return Score::from_int(std::min(this_int, other_int));
   } else {
-    int16_t difference = this_int - other_int;
-    return Score(std::clamp(difference, (int16_t)ESCORE::NEGATIVE_INFINITY,
-                            (int16_t)ESCORE::POSITIVE_INFINITY));
+    Fixed_Point_Int_Storage_Type difference = this_int - other_int;
+    return Score(
+        std::clamp(difference, FP_NEGATIVE_INFINITY, FP_POSITIVE_INFINITY));
   }
 }
 

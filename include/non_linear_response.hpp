@@ -322,7 +322,7 @@ T Non_Linear_Response<T>::calculate_function_M(T x) const {
 template <typename T>
 T Non_Linear_Response<T>::calculate_function_G(T F) const {
   const T u = calculate_u(F);
-  const T sigmoid = 1.0L / (1.0L + Matrex::exp(-1 * u * NON_LINEAR_RESPONSE_T));
+  const T sigmoid = 1.0 / (Matrex::exp(-1 * u * NON_LINEAR_RESPONSE_T) + 1.0);
   return sigmoid;
 }
 
@@ -351,7 +351,7 @@ T Non_Linear_Response<T>::calculate_function_P_plus(T F) const {
 template <typename T>
 T Non_Linear_Response<T>::calculate_function_P_minus(T F) const {
   const T u = calculate_u(F);
-  const T term = std::pow(calculate_function_M(u), m_q_minus_parameter);
+  const T term = Matrex::pow(calculate_function_M(u), m_q_minus_parameter);
   return term;
 }
 
