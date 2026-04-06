@@ -31,10 +31,21 @@ constexpr Fixed_Point_Int_Storage_Type FP_NEGATIVE_INFINITY =
     Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY).get_value();
 constexpr Fixed_Point_Int_Storage_Type FP_POSITIVE_INFINITY =
     Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY).get_value();
+
 constexpr Fixed_Point_Int_Storage_Type FP_EVALUATION_MIN =
     Matrex_FP_Int::from_integer(ESCORE::EVALUATION_MIN).get_value();
 constexpr Fixed_Point_Int_Storage_Type FP_EVALUATION_MAX =
     Matrex_FP_Int::from_integer(ESCORE::EVALUATION_MAX).get_value();
+
+constexpr Fixed_Point_Int_Storage_Type FP_WINNING_MATE_MAX =
+    Matrex_FP_Int::from_integer(ESCORE::WINNING_MATE_MAX).get_value();
+constexpr Fixed_Point_Int_Storage_Type FP_WINNING_MATE_MIN =
+    Matrex_FP_Int::from_integer(ESCORE::WINNING_MATE_MIN).get_value();
+
+constexpr Fixed_Point_Int_Storage_Type FP_LOSING_MATE_MAX =
+    Matrex_FP_Int::from_integer(ESCORE::LOSING_MATE_MAX).get_value();
+constexpr Fixed_Point_Int_Storage_Type FP_LOSING_MATE_MIN =
+    Matrex_FP_Int::from_integer(ESCORE::LOSING_MATE_MIN).get_value();
 
 struct Score_Fields {
   // Only using 13 bit values needed to represent the integer portion of the

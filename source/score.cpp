@@ -40,45 +40,42 @@ Score Score::from_int(Fixed_Point_Int_Storage_Type i) {
 
   const uint32_t abs_i = std::abs(i);
 
-  if (i == ESCORE::NEGATIVE_INFINITY) {
+  if (i == FP_NEGATIVE_INFINITY) {
     return_score.m_fields.value = abs_i;
     return_score.m_fields.mate = 0;
     return return_score;
   }
 
-  if (i == ESCORE::POSITIVE_INFINITY) {
+  if (i == FP_POSITIVE_INFINITY) {
     return_score.m_fields.value = abs_i;
     return_score.m_fields.mate = 0;
     return return_score;
   }
 
-  if (abs_i >= ESCORE::WINNING_MATE_MIN) {  // Mating evaluation.
+  if (abs_i >= FP_WINNING_MATE_MIN) {  // Mating evaluation.
 
     return_score.m_fields.mate = 1;
 
     if (return_score.m_fields.sign) {  // i is negative
 
       // This gives the plys to mate because:
-      //    i - ESCORE::LOSING_MATE_MIN
-      //    = (ESCORE::LOSING_MATE_MIN + N) - ESCORE::LOSING_MATE_MIN
+      //    i - FP_LOSING_MATE_MIN
+      //    = (FP_LOSING_MATE_MIN + N) - FP_LOSING_MATE_MIN
       //    = N
-      const uint32_t plys_to_mate = i - ESCORE::LOSING_MATE_MIN;
+      const uint32_t plys_to_mate = i - FP_LOSING_MATE_MIN;
       return_score.m_fields.value = plys_to_mate;
 
     } else {  // i is positive
 
-      const uint32_t plys_to_mate = ESCORE::WINNING_MATE_MAX -
-                                    i;  // A higher i means closer to checkmate.
-      return_score.m_fields.value =
-          plys_to_mate;  // Assumes plys_to_mate will be a value represented in
-                         // 13 bits or less.
+      const uint32_t plys_to_mate =
+          FP_WINNING_MATE_MAX - i;  // A higher i means closer to checkmate.
+      return_score.m_fields.value = plys_to_mate;
     }
 
   } else {  // Normal evaluation.
 
     return_score.m_fields.mate = 0;
-    return_score.m_fields.value =
-        abs_i;  // Assumes abs_i will be a value represented in 13 bits or less.
+    return_score.m_fields.value = abs_i;
   }
 
   return return_score;

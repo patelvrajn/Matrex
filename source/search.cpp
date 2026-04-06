@@ -50,7 +50,7 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
   }
 
   Chess_Move best_move = Chess_Move();
-  Score best_score = Score(ESCORE::NEGATIVE_INFINITY);
+  Score best_score = Score(FP_NEGATIVE_INFINITY);
 
   for (const Chess_Move& move : moves) {
     // Explore the child move's subtree for it's evaluation. Negate the result
@@ -161,7 +161,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     return {Chess_Move(), stand_pat};
   }
 
-  Score best_score = Score(ESCORE::NEGATIVE_INFINITY);
+  Score best_score = Score(FP_NEGATIVE_INFINITY);
   Chess_Move best_move = Chess_Move();
 
   if (!is_side_to_move_in_check) {  // Heuristic
