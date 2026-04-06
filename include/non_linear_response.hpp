@@ -25,8 +25,8 @@ struct NLR_Parameters {  // NLR = Non-Linear Response
   (x).h_plus, (x).h_minus, (x).z, (x).k, (x).q_plus, (x).q_minus, (x).r_plus, \
       (x).r_minus, (x).g_plus, (x).g_minus
 
-constexpr double NON_LINEAR_RESPONSE_EPSILON = 1e-8;
-constexpr double NON_LINEAR_RESPONSE_T = 1e6;
+constexpr double NON_LINEAR_RESPONSE_EPSILON = 2e-5;
+constexpr double NON_LINEAR_RESPONSE_T = 5e3;
 
 template <typename T>
 class Non_Linear_Response {
