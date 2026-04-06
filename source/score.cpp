@@ -18,16 +18,19 @@ Score::Score(Score_Fields fields) { m_fields = fields; }
 Fixed_Point_Int_Storage_Type Score::to_int() const {
   if (m_fields.mate) {  // Mating evaluation.
 
+    const Fixed_Point_Int_Storage_Type fixed_point_mate =
+        m_fields.value << MATREX_FP_INT_FRACTIONAL_BITS;
+
     if (m_fields.sign) {  // Negative
-      return FP_LOSING_MATE_MIN + m_fields.value;
+      return FP_LOSING_MATE_MIN + fixed_point_mate;
     } else {  // Positive
-      return FP_WINNING_MATE_MAX - m_fields.value;
+      return FP_WINNING_MATE_MAX - fixed_point_mate;
     }
 
   } else {  // Normal evaluation.
 
     if (m_fields.sign) {  // Negative
-      return -m_fields.value;
+      return -static_cast<Fixed_Point_Int_Storage_Type>(m_fields.value);
     } else {  // Positive
       return m_fields.value;
     }
@@ -63,13 +66,15 @@ Score Score::from_int(Fixed_Point_Int_Storage_Type i) {
       //    = (FP_LOSING_MATE_MIN + N) - FP_LOSING_MATE_MIN
       //    = N
       const uint32_t plys_to_mate = i - FP_LOSING_MATE_MIN;
-      return_score.m_fields.value = plys_to_mate;
+      return_score.m_fields.value =
+          plys_to_mate >> MATREX_FP_INT_FRACTIONAL_BITS;
 
     } else {  // i is positive
 
       const uint32_t plys_to_mate =
           FP_WINNING_MATE_MAX - i;  // A higher i means closer to checkmate.
-      return_score.m_fields.value = plys_to_mate;
+      return_score.m_fields.value =
+          plys_to_mate >> MATREX_FP_INT_FRACTIONAL_BITS;
     }
 
   } else {  // Normal evaluation.

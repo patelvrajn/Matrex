@@ -35,6 +35,8 @@ TEST(negamax, mating) {
          Matrex_FP_Int::from_integer(
              static_cast<Fixed_Point_Int_Storage_Type>(distance_to_mate - 1))
              .get_value()));
+    EXPECT_TRUE(search_result.second.is_mating_score());
+    EXPECT_EQ(search_result.second.mate_in(), (distance_to_mate - 1));
   }
 }
 

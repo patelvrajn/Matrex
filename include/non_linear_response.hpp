@@ -322,7 +322,28 @@ T Non_Linear_Response<T>::calculate_function_M(T x) const {
 template <typename T>
 T Non_Linear_Response<T>::calculate_function_G(T F) const {
   const T u = calculate_u(F);
-  const T sigmoid = 1.0 / (Matrex::exp(-1 * u * NON_LINEAR_RESPONSE_T) + 1.0);
+
+  // A conversative clamp such that the shifts used in calculating exp2()
+  // doesn't produce undefined behavior. This does not result in changing the
+  // partials since the exponent clamp is large enough that it's in the
+  // saturating region of sigmoid - where the derivatives are close to zero.
+  constexpr int32_t G_EXPONENT_CLAMP = 15;
+  T exponent = (-1 * u * NON_LINEAR_RESPONSE_T);
+  if (exponent >= G_EXPONENT_CLAMP) {
+    if constexpr (std::is_same_v<T, double>) {
+      return 1.0;
+    } else {
+      return T::from_integer(1);
+    }
+  } else if (exponent <= -G_EXPONENT_CLAMP) {
+    if constexpr (std::is_same_v<T, double>) {
+      return -1.0;
+    } else {
+      return T::from_integer(-1);
+    }
+  }
+
+  const T sigmoid = 1.0 / (Matrex::exp(exponent) + 1.0);
   return sigmoid;
 }
 
