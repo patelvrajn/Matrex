@@ -55,7 +55,10 @@ inline Score Search_Engine::get_mate_score(const Move_Ordering& mo,
   // The side to move is in check and has no legal moves means they are in a
   // losing mating net specifically a checkmate at this depth.
   if (mo.is_side_to_move_in_check()) {
-    mate_score = Score::from_int(FP_LOSING_MATE_MIN + ply);
+    mate_score = Score::from_int(
+        FP_LOSING_MATE_MIN + Matrex_FP_Int::from_integer(
+                                 static_cast<Fixed_Point_Int_Storage_Type>(ply))
+                                 .get_value());
   } else {
     mate_score = Score::from_int(ESCORE::DRAW);  // Stalemate.
   }

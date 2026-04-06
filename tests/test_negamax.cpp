@@ -26,11 +26,15 @@ TEST(negamax, mating) {
     const Search_Engine_Result search_result =
         search.negamax(cb, distance_to_mate);
     if (fen_idx == 0) {  // Side to move is in checkmate.
-      EXPECT_EQ(search_result.second.to_int(), ESCORE::LOSING_MATE_MIN);
+      EXPECT_EQ(search_result.second.to_int(), FP_LOSING_MATE_MIN);
       continue;
     }
-    EXPECT_EQ(search_result.second.to_int(),
-              (ESCORE::WINNING_MATE_MAX - (distance_to_mate - 1)));
+    EXPECT_EQ(
+        search_result.second.to_int(),
+        (FP_WINNING_MATE_MAX -
+         Matrex_FP_Int::from_integer(
+             static_cast<Fixed_Point_Int_Storage_Type>(distance_to_mate - 1))
+             .get_value()));
   }
 }
 

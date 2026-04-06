@@ -19,9 +19,9 @@ Fixed_Point_Int_Storage_Type Score::to_int() const {
   if (m_fields.mate) {  // Mating evaluation.
 
     if (m_fields.sign) {  // Negative
-      return ESCORE::LOSING_MATE_MIN + m_fields.value;
+      return FP_LOSING_MATE_MIN + m_fields.value;
     } else {  // Positive
-      return ESCORE::WINNING_MATE_MAX - m_fields.value;
+      return FP_WINNING_MATE_MAX - m_fields.value;
     }
 
   } else {  // Normal evaluation.
