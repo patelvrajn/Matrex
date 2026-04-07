@@ -11,6 +11,8 @@
 #include <type_traits>
 #include <unordered_map>
 
+#define FORCE_INLINE inline __attribute__((always_inline, flatten))
+
 constexpr std::string_view ENGINE_NAME = "Matrex";
 constexpr std::string_view ENGINE_VERSION = "0.0.1";
 

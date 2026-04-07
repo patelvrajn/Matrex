@@ -7,6 +7,8 @@
 #include <numbers>
 #include <stdexcept>
 
+#include "globals.hpp"
+
 using Fixed_Point_Int_Storage_Type = int32_t;
 
 constexpr uint8_t FIXED_POINT_BIT_WIDTH =
@@ -40,14 +42,15 @@ class Fixed_Point_Integer {
       const Fixed_Point_Integer other) const;
   constexpr Fixed_Point_Integer operator-(
       const Fixed_Point_Integer other) const;
-  constexpr Fixed_Point_Integer operator/(
+  FORCE_INLINE constexpr Fixed_Point_Integer operator/(
       const Fixed_Point_Integer other) const;
-  constexpr Fixed_Point_Integer operator*(
+  FORCE_INLINE constexpr Fixed_Point_Integer operator*(
       const Fixed_Point_Integer other) const;
   constexpr Fixed_Point_Integer operator+=(const Fixed_Point_Integer other);
   constexpr Fixed_Point_Integer operator-=(const Fixed_Point_Integer other);
   constexpr Fixed_Point_Integer operator/=(const Fixed_Point_Integer other);
   constexpr Fixed_Point_Integer operator*=(const Fixed_Point_Integer other);
+  constexpr Fixed_Point_Integer operator-() const;
 
   // Arithmetic operators with a non-fixed-point integer.
   constexpr Fixed_Point_Integer operator+(
@@ -133,6 +136,21 @@ class Fixed_Point_Integer {
     return m_exp2_table[index];
   }
 
+  static constexpr Fixed_Point_Integer<F> FP_ONE =
+      Fixed_Point_Integer<F>::from_integer(1);
+  static constexpr Fixed_Point_Integer<F> FP_TWO =
+      Fixed_Point_Integer<F>::from_integer(2);
+  static constexpr Fixed_Point_Integer<F> FP_12 =
+      Fixed_Point_Integer<F>::from_integer(12);
+  static constexpr Fixed_Point_Integer<F> FP_SIXTY =
+      Fixed_Point_Integer<F>::from_integer(60);
+  static constexpr Fixed_Point_Integer<F> FP_120 =
+      Fixed_Point_Integer<F>::from_integer(120);
+  static constexpr Fixed_Point_Integer<F> FP_NATURAL_E =
+      Fixed_Point_Integer<F>::from_double(NATURAL_E);
+  static constexpr Fixed_Point_Integer<F> FP_LN_2 =
+      Fixed_Point_Integer<F>::from_double(LN_2);
+
  private:
   Fixed_Point_Int_Storage_Type m_value;
 
@@ -178,7 +196,7 @@ constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator-(
 
 // Helper function to count leading zeros in a 32-bit signed integer based on
 // our use case.
-constexpr uint8_t bit_width(Fixed_Point_Int_Storage_Type value) {
+FORCE_INLINE constexpr uint8_t bit_width(Fixed_Point_Int_Storage_Type value) {
   if (value == 0) {
     // All bits are zero, so no bit width.
     return 0;
@@ -198,7 +216,7 @@ constexpr uint8_t bit_width(Fixed_Point_Int_Storage_Type value) {
   }
 }
 
-constexpr uint8_t bit_width(int64_t value) {
+FORCE_INLINE constexpr uint8_t bit_width(int64_t value) {
   constexpr uint8_t VALUE_BIT_WIDTH = static_cast<uint8_t>(sizeof(int64_t) * 8);
   if (value == 0) {
     return 0;
@@ -219,7 +237,7 @@ constexpr uint8_t bit_width(int64_t value) {
 // better than allowing overflow. It must be done in the operator for engine
 // design considerations. (This also applies to the division operator.)
 template <uint8_t F>
-constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator*(
+FORCE_INLINE constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator*(
     const Fixed_Point_Integer other) const {
   int64_t product =
       static_cast<int64_t>(m_value) * static_cast<int64_t>(other.m_value);
@@ -233,30 +251,18 @@ constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator*(
   anti_overflow_scaling =
       std::max(static_cast<int8_t>(0), anti_overflow_scaling);
 
-  // This rounding method is to drive the expected value of the error produced
-  // by truncation towards zero. When you truncate (i.e. scale down by 2^F) you
-  // lose precision and drive the error in one-direction (towards zero), with
-  // this logic you either round up or down.
-  // Adding or subtracting by (1LL << (F - 1)) is the equivalent of 0.5 because:
-  // (((V * V) * 2^(2F)) + (2^(F-1))) / 2^F = (V * V) * 2^F + 0.5
-  int64_t rounding_offset = 1LL << (F + anti_overflow_scaling - 1);
-  if (product >= 0) {
-    product += rounding_offset;  // Rounding for positive numbers
-  } else {
-    product -= rounding_offset;  // Rounding for negative numbers
-  }
-
   // Scale down by 2^F because fixed point integers are real numbers (V) scaled
   // by 2^F. So:
   // (V * (2^F)) * (V * (2^F)) = (V * V) * (2^(2F))
   // To get back to the correct scale we need to divide by 2^F.
-  product = product >> (F + anti_overflow_scaling);
+  const uint8_t total_scaling = F + anti_overflow_scaling;
+  product = product >> total_scaling;
   return Fixed_Point_Integer::from_value(
       static_cast<Fixed_Point_Int_Storage_Type>(product));
 }
 
 template <uint8_t F>
-constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator/(
+FORCE_INLINE constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator/(
     const Fixed_Point_Integer other) const {
   // Similar to multiplication, we need to calculate the anti-overflow scaling
   // necessary to fit the quotient within (FIXED_POINT_BIT_WIDTH - 1) bits
@@ -280,25 +286,13 @@ constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator/(
     denominator = (other.m_value >= 0) ? 1 : -1;
   }
 
-  int64_t half_denominator = std::abs(static_cast<int64_t>(denominator)) / 2;
-
-  // This round method works the same as the multiplication rounding method
-  // except we are doing:
-  // floor((N/D) + (1/2))
-  if ((numerator >= 0) == (denominator >= 0)) {
-    numerator += half_denominator;  // Rounding for positive result
-  } else {
-    numerator -= half_denominator;  // Rounding for negative result
-  }
-
   // We scale both the numerator and denominator (see above) down because this
   // maintains the same result - the scaling factor cancels out - but prevents
   // overflow.
   numerator = numerator >> anti_overflow_scaling;
 
-  Fixed_Point_Int_Storage_Type result_value =
-      static_cast<Fixed_Point_Int_Storage_Type>(numerator / denominator);
-  return Fixed_Point_Integer::from_value(result_value);
+  return Fixed_Point_Integer::from_value(
+      static_cast<Fixed_Point_Int_Storage_Type>(numerator / denominator));
 }
 
 template <uint8_t F>
@@ -335,6 +329,11 @@ constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator*=(
   m_value = product.m_value;
 
   return *this;
+}
+
+template <uint8_t F>
+constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator-() const {
+  return Fixed_Point_Integer<F>::from_value(-m_value);
 }
 
 template <uint8_t F>
@@ -570,16 +569,20 @@ double exp(double x);
 // accurate.
 template <uint8_t F>
 Fixed_Point_Integer<F> tanh(const Fixed_Point_Integer<F> input) {
-  constexpr Fixed_Point_Integer<F> FIXED_NATURAL_E =
-      Fixed_Point_Integer<F>::from_double(NATURAL_E);
-  const Fixed_Point_Integer<F> exponent =
-      (input.get_value() >= 0) ? (input * -2) : (input * 2);
-  const Fixed_Point_Integer<F> pow_result = pow(FIXED_NATURAL_E, exponent);
+  const bool is_positive = (input.get_value() >= 0);
 
-  Fixed_Point_Integer<F> numerator = (pow_result * -1) + 1;
-  Fixed_Point_Integer<F> denominator = pow_result + 1;
+  const Fixed_Point_Integer<F> exponent =
+      is_positive ? (-input * Fixed_Point_Integer<F>::FP_TWO)
+                  : (input * Fixed_Point_Integer<F>::FP_TWO);
+  const Fixed_Point_Integer<F> pow_result =
+      pow(Fixed_Point_Integer<F>::FP_NATURAL_E, exponent);
+
+  Fixed_Point_Integer<F> numerator =
+      (-pow_result) + Fixed_Point_Integer<F>::FP_ONE;
+  Fixed_Point_Integer<F> denominator =
+      pow_result + Fixed_Point_Integer<F>::FP_ONE;
   Fixed_Point_Integer<F> result = numerator / denominator;
-  result = (input.get_value() >= 0) ? result : (result * -1);
+  result = is_positive ? result : (-result);
 
   return result;
 }
@@ -631,19 +634,19 @@ Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input) {
   // found in the range of [0, N) back to a number in the range [1, 2) and use
   // that as c - c is thus the left edge of the bucket that m is contained in
   // (given how we calculate it).
-  const Fixed_Point_Integer<F> log2_lookup_table_size_in_fp =
+  constexpr Fixed_Point_Integer<F> log2_lookup_table_size_in_fp =
       Fixed_Point_Integer<F>::from_integer(
           static_cast<Fixed_Point_Int_Storage_Type>(LOG2_LOOKUP_TABLE_SIZE));
-  std::size_t index = ((m - Fixed_Point_Integer<F>::from_integer(1)) *
-                       log2_lookup_table_size_in_fp)
-                          .get_value() >>
-                      F;
+  std::size_t index =
+      ((m - Fixed_Point_Integer<F>::FP_ONE) * log2_lookup_table_size_in_fp)
+          .get_value() >>
+      F;
   index =
       std::clamp(index, static_cast<std::size_t>(0),
                  (LOG2_LOOKUP_TABLE_SIZE -
                   1));  // Clamp index to be within bounds because of rounding.
   const Fixed_Point_Integer<F> c =
-      Fixed_Point_Integer<F>::from_integer(1) +
+      Fixed_Point_Integer<F>::FP_ONE +
       (Fixed_Point_Integer<F>::from_integer(
            static_cast<Fixed_Point_Int_Storage_Type>(index)) /
        log2_lookup_table_size_in_fp);
@@ -657,14 +660,12 @@ Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input) {
   //  and we know (m - c) must be less than (1/N) because m and c are in the
   //  same bucket of size (1/N) and c is the left edge of the bucket. Thus,
   //  t is strictly less than (1 / N).
-  const Fixed_Point_Integer<F> t =
-      (m / c) - Fixed_Point_Integer<F>::from_integer(1);
+  const Fixed_Point_Integer<F> t = (m / c) - Fixed_Point_Integer<F>::FP_ONE;
 
   return Fixed_Point_Integer<F>::from_integer(e) +
          Fixed_Point_Integer<F>::from_value(
              Fixed_Point_Integer<F>::lookup_log2_table(index)) +
-         (Matrex::ln1p_approximation(t) /
-          Fixed_Point_Integer<F>::from_double(LN_2));
+         (Matrex::ln1p_approximation(t) / Fixed_Point_Integer<F>::FP_LN_2);
 }
 
 template <uint8_t F>
@@ -713,8 +714,8 @@ Fixed_Point_Integer<F> exp2(const Fixed_Point_Integer<F> input) {
           Fixed_Point_Integer<F>::lookup_exp2_table(index));
 
   // For r: we rewrite 2^r as e^(r * ln(2)).
-  Fixed_Point_Integer<F> exp2_r = Matrex::exponential_approximation(
-      Fixed_Point_Integer<F>::from_double(LN_2) * r);
+  Fixed_Point_Integer<F> exp2_r =
+      Matrex::exponential_approximation(Fixed_Point_Integer<F>::FP_LN_2 * r);
   Fixed_Point_Integer<F> fractional_part_result = (table_lookup_value * exp2_r);
 
   // Now we calculate 2^(integer_part) for both positive and negative
@@ -741,9 +742,12 @@ Fixed_Point_Integer<F> ln1p_approximation(const Fixed_Point_Integer<F> input) {
   const Fixed_Point_Integer<F> input_power_three = input_power_two * input;
 
   const Fixed_Point_Integer<F> numerator =
-      (input * 60) + (input_power_two * 60) + (input_power_three * 11);
+      (input * Fixed_Point_Integer<F>::FP_SIXTY) +
+      (input_power_two * Fixed_Point_Integer<F>::FP_SIXTY) +
+      (input_power_three * 11);
   const Fixed_Point_Integer<F> denominator =
-      (input * 90) + (input_power_two * 36) + (input_power_three * 3) + 60;
+      (input * 90) + (input_power_two * 36) + (input_power_three * 3) +
+      Fixed_Point_Integer<F>::FP_SIXTY;
 
   return numerator / denominator;
 }
@@ -756,9 +760,13 @@ Fixed_Point_Integer<F> exponential_approximation(
   const Fixed_Point_Integer<F> input_power_three = input_power_two * input;
 
   const Fixed_Point_Integer<F> numerator =
-      (input * 60) + (input_power_two * 12) + input_power_three + 120;
+      (input * Fixed_Point_Integer<F>::FP_SIXTY) +
+      (input_power_two * Fixed_Point_Integer<F>::FP_12) + input_power_three +
+      Fixed_Point_Integer<F>::FP_120;
   const Fixed_Point_Integer<F> denominator =
-      (input * -60) + (input_power_two * 12) - input_power_three + 120;
+      (input * -Fixed_Point_Integer<F>::FP_SIXTY) +
+      (input_power_two * Fixed_Point_Integer<F>::FP_12) - input_power_three +
+      Fixed_Point_Integer<F>::FP_120;
 
   return numerator / denominator;
 }
