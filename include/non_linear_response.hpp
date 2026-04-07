@@ -331,15 +331,15 @@ T Non_Linear_Response<T>::calculate_function_G(T F) const {
   T exponent = (-1 * u * NON_LINEAR_RESPONSE_T);
   if (exponent >= G_EXPONENT_CLAMP) {
     if constexpr (std::is_same_v<T, double>) {
-      return 1.0;
+      return 0.0;
     } else {
-      return T::from_integer(1);
+      return T::from_integer(0);
     }
   } else if (exponent <= -G_EXPONENT_CLAMP) {
     if constexpr (std::is_same_v<T, double>) {
-      return -1.0;
+      return 1.0;
     } else {
-      return T::from_integer(-1);
+      return T::from_integer(1);
     }
   }
 
