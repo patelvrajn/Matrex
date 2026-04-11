@@ -315,6 +315,26 @@ T Non_Linear_Response<T>::calculate_u(T F) const {
 
 template <typename T>
 T Non_Linear_Response<T>::calculate_function_M(T x) const {
+  if constexpr (std::is_same_v<T, Matrex_FP_Int>) {
+    constexpr double MAX_SQRT_TERM =
+        std::sqrt(std::numeric_limits<Fixed_Point_Int_Storage_Type>::max() >>
+                  MATREX_FP_INT_FRACTIONAL_BITS);
+    constexpr Matrex_FP_Int FP_MAX_SQRT_TERM =
+        Matrex_FP_Int::from_double(MAX_SQRT_TERM);
+
+    const T abs_x = ((x < 0) ? -x : x);
+
+    // This function is used calculate the absolute value of x in a manner where
+    // it is differentiable and the return value value is not zero (to support
+    // negative exponents). If x is large enough that it will result in overflow
+    // we just return the absolute value as long as it is non-zero. It is
+    // guaranteed to be non-zero otherwise, it wouldn't be greater than the
+    // maximum square root term.
+    if (abs_x >= FP_MAX_SQRT_TERM) {
+      return abs_x;
+    }
+  }
+
   const T result = Matrex::sqrt((x * x) + NON_LINEAR_RESPONSE_EPSILON);
   return result;
 }
@@ -327,15 +347,16 @@ T Non_Linear_Response<T>::calculate_function_G(T F) const {
   // doesn't produce undefined behavior. This does not result in changing the
   // partials since the exponent clamp is large enough that it's in the
   // saturating region of sigmoid - where the derivatives are close to zero.
-  constexpr int32_t G_EXPONENT_CLAMP = 15;
-  T exponent = (-1 * u * NON_LINEAR_RESPONSE_T);
-  if (exponent >= G_EXPONENT_CLAMP) {
+  constexpr double G_EXPONENT_CLAMP =
+      15.0 / static_cast<double>(NON_LINEAR_RESPONSE_T);
+  const T negative_u = -u;
+  if (negative_u >= G_EXPONENT_CLAMP) {
     if constexpr (std::is_same_v<T, double>) {
       return 0.0;
     } else {
       return T::from_integer(0);
     }
-  } else if (exponent <= -G_EXPONENT_CLAMP) {
+  } else if (negative_u <= -G_EXPONENT_CLAMP) {
     if constexpr (std::is_same_v<T, double>) {
       return 1.0;
     } else {
@@ -343,6 +364,7 @@ T Non_Linear_Response<T>::calculate_function_G(T F) const {
     }
   }
 
+  const T exponent = (negative_u * NON_LINEAR_RESPONSE_T);
   const T sigmoid = 1.0 / (Matrex::exp(exponent) + 1.0);
   return sigmoid;
 }

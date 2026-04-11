@@ -18,7 +18,7 @@ PROJECT_NAME = matrex
 CXX      = g++
 CXXFLAGS = \
 		      -g \
-		      -std=c++23 \
+		      -std=gnu++23 \
 	        -O3 \
 					-flto \
 	        -MMD \
@@ -42,7 +42,7 @@ clean:
 
 # The final product depends on the object files.
 $(PROJECT_NAME) : $(objs)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lstdc++_libbacktrace
 
 # An object file depends on the respective cpp file.
 %.o: %.cpp

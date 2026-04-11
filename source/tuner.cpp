@@ -43,17 +43,17 @@ Evaluation_Weights<double> Tuner::init_weights() {
   weights.material_NLR_parameters = {random_nlr(2.5L), random_nlr(5.0L),
                                      random_nlr(6.5L), random_nlr(8.5L),
                                      random_nlr(9.5L)};
-  weights.material = {perturb(100.0L), perturb(300.0L), perturb(350.0L),
-                      perturb(650.0L), perturb(900.0L)};
+  weights.material = {perturb(1.0L), perturb(3.0L), perturb(3.5L),
+                      perturb(6.5L), perturb(9.0L)};
 
   weights.piece_mobility_NLR_parameters = {random_nlr(0.5L), random_nlr(1.5L),
                                            random_nlr(2.0L), random_nlr(3.0L),
                                            random_nlr(6.0L), random_nlr(1.0L)};
-  weights.diagonal_mobility = perturb(30.0L);
-  weights.orthogonal_mobility = perturb(24.0L);
-  weights.knight_movement_mobility = perturb(40.0L);
-  weights.multi_movement_mobility = perturb(70.0L);
-  weights.backwards_movement_mobility = perturb(25.0L);
+  weights.diagonal_mobility = perturb(0.43L);
+  weights.orthogonal_mobility = perturb(0.34L);
+  weights.knight_movement_mobility = perturb(0.57L);
+  weights.multi_movement_mobility = perturb(1.0L);
+  weights.backwards_movement_mobility = perturb(0.36L);
 
   return weights;
 }

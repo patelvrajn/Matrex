@@ -4,12 +4,32 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdlib>
+#include <format>
 #include <functional>
+#include <iostream>
 #include <optional>
+#include <stacktrace>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
+
+#ifdef NDEBUG
+#define MATREX_ASSERT(condition) ((void)0)
+#else
+#define MATREX_ASSERT(condition, message, ...)                                 \
+  if (!(condition)) {                                                          \
+    std::cerr << "Assertion in file " << __FILE__ << " on line " << __LINE__   \
+              << " failed!" << std::endl;                                      \
+    std::cerr << "Condition: " << #condition << std::endl;                     \
+    std::cerr << "Message: "                                                   \
+              << std::format(message __VA_OPT__(, ) __VA_ARGS__) << std::endl; \
+    std::cerr << "STACK TRACE: " << std::endl;                                 \
+    std::cerr << std::stacktrace::current() << std::endl;                      \
+    std::abort();                                                              \
+  }
+#endif
 
 #define FORCE_INLINE inline __attribute__((always_inline, flatten))
 

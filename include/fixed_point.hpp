@@ -109,7 +109,7 @@ class Fixed_Point_Integer {
     Fixed_Point_Int_Storage_Type maximum_integer =
         (1 << (FIXED_POINT_BIT_WIDTH - F - 1)) - 1;
     integer = std::clamp(integer, minimum_integer, maximum_integer);
-    Fixed_Point_Int_Storage_Type value = integer << F;
+    Fixed_Point_Int_Storage_Type value = integer * (1 << F);
     return Fixed_Point_Integer::from_value(value);
   }
 
@@ -251,6 +251,11 @@ FORCE_INLINE constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator*(
   anti_overflow_scaling =
       std::max(static_cast<int8_t>(0), anti_overflow_scaling);
 
+  MATREX_ASSERT(anti_overflow_scaling == 0,
+                "FIXED POINT MULTIPLICATION OVERFLOW with operands {} and {}, "
+                "intended anti-overflow scaling is {}.",
+                m_value, other.m_value, anti_overflow_scaling);
+
   // Scale down by 2^F because fixed point integers are real numbers (V) scaled
   // by 2^F. So:
   // (V * (2^F)) * (V * (2^F)) = (V * V) * (2^(2F))
@@ -275,9 +280,14 @@ FORCE_INLINE constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator/(
   anti_overflow_scaling =
       std::max(static_cast<int8_t>(0), anti_overflow_scaling);
 
+  MATREX_ASSERT(anti_overflow_scaling == 0,
+                "FIXED POINT DIVISION OVERFLOW with values {} and {}, intended "
+                "anti-overflow scaling is {}.",
+                m_value, other.m_value, anti_overflow_scaling);
+
   // We scale the numerator up for the same reason we scale down the product in
   // multiplication.
-  int64_t numerator = (static_cast<int64_t>(m_value) << F);
+  int64_t numerator = static_cast<int64_t>(m_value) * (1 << F);
   Fixed_Point_Int_Storage_Type denominator =
       other.m_value >> anti_overflow_scaling;
 
@@ -724,6 +734,11 @@ Fixed_Point_Integer<F> exp2(const Fixed_Point_Integer<F> input) {
   Fixed_Point_Int_Storage_Type shift = (integer_part.get_value() >> F);
   Fixed_Point_Integer<F> result = fractional_part_result;
   if (shift >= 0) {
+    MATREX_ASSERT(shift <= 31,
+                  "exp2 does not support integer exponents larger than the "
+                  "amount you can shift an Fixed_Point_Int_Storage_Type. "
+                  "Integer shift evaluates to {}",
+                  shift);
     // Guard against overflow by using fixed point integer multiplication.
     Fixed_Point_Integer<F> shift_fixed =
         Fixed_Point_Integer<F>::from_integer((1 << shift));
