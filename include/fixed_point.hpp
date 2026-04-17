@@ -14,6 +14,10 @@ using Fixed_Point_Int_Storage_Type = int32_t;
 constexpr uint8_t FIXED_POINT_BIT_WIDTH =
     static_cast<uint8_t>(sizeof(Fixed_Point_Int_Storage_Type) * 8);
 
+constexpr uint8_t MAXIMUM_ALLOWED_OVERFLOW = 3;
+
+constexpr uint8_t SAFE_RANGE_INTEGER_BITS = 2;
+
 constexpr double LN_2 = 0.69314718056;  // Precomputed value of ln(2).
 constexpr double NATURAL_E = std::numbers::e;
 
@@ -29,7 +33,7 @@ template <uint8_t F>  // F is the number of fractional bits.
 class Fixed_Point_Integer {
  public:
   constexpr Fixed_Point_Integer() : m_value(0) {}
-  constexpr Fixed_Point_Integer(Fixed_Point_Int_Storage_Type value)
+  explicit constexpr Fixed_Point_Integer(Fixed_Point_Int_Storage_Type value)
       : m_value(value) {}
 
   constexpr Fixed_Point_Int_Storage_Type get_value() const;
@@ -91,6 +95,106 @@ class Fixed_Point_Integer {
   template <uint8_t X>
   friend std::ostream& operator<<(std::ostream& os,
                                   const Fixed_Point_Integer<X>& fp);
+
+  static constexpr double precision() {
+    return (1.0 / static_cast<double>(1 << F));
+  }
+
+  // The maximum value the fractional component can have.
+  static constexpr double maximum_fractional() {
+    double max_fractional = 0;
+    for (uint8_t exponent = 1; exponent <= F; ++exponent) {
+      max_fractional += 1.0 / static_cast<double>(1 << exponent);
+    }
+    return max_fractional;
+  }
+
+  // The maximum value the integer component can have.
+  static constexpr double maximum_integer() {
+    Fixed_Point_Int_Storage_Type max_integer =
+        (1 << (FIXED_POINT_BIT_WIDTH - F - 1)) - 1;
+    return static_cast<double>(max_integer);
+  }
+
+  static constexpr double safe_maximum_integer() {
+    Fixed_Point_Int_Storage_Type max_integer =
+        (1 << SAFE_RANGE_INTEGER_BITS) - 1;
+    return static_cast<double>(max_integer);
+  }
+
+  static constexpr double maximum() {
+    double max = maximum_integer() + maximum_fractional();
+    max = std::min(
+        max, static_cast<double>(
+                 std::numeric_limits<Fixed_Point_Int_Storage_Type>::max() *
+                 precision()));
+    return max;
+  }
+
+  static constexpr double safe_maximum() {
+    double max = safe_maximum_integer() + maximum_fractional();
+    max = std::min(
+        max, static_cast<double>(
+                 std::numeric_limits<Fixed_Point_Int_Storage_Type>::max() *
+                 precision()));
+    return max;
+  }
+
+  static constexpr double minimum() {
+    double min = -(maximum());
+    min = std::max(
+        min, static_cast<double>(
+                 std::numeric_limits<Fixed_Point_Int_Storage_Type>::min() *
+                 precision()));
+    return min;
+  }
+
+  static constexpr double safe_minimum() {
+    double min = -(safe_maximum());
+    min = std::max(
+        min, static_cast<double>(
+                 std::numeric_limits<Fixed_Point_Int_Storage_Type>::min() *
+                 precision()));
+    return min;
+  }
+
+  static constexpr bool is_representable(double value) {
+    // Is this value representable with the precision of the fixed point
+    // integer?
+    if ((std::abs(value) < precision()) && (value != 0)) {
+      return false;
+    }
+
+    // Is this value within the bounds of what the fixed point integer can
+    // represent?
+    return (value == std::clamp(value, minimum(), maximum()));
+  }
+
+  // We define safe as the range in which performing multiplication will not
+  // result in an overflow. We only need to consider multiplication because it
+  // has the largest gain in bit-width and magnitude. We can calculate the
+  // safe range with (for example):
+  // 20 bit integer + 12 precision (width of the internal integer)
+  // The bit-width gain from multiplying two fixed fractional numbers is (2x
+  // precision) so 24 bits are used.
+  // That means we have 8 bits left to represent the integer portion, minus one
+  // for the sign bit. However, since multiplying squares the bit-width, we only
+  // have sqrt(7) bits to work with - which needs to be floored so as to not
+  // overcount bits.
+  // The safe range is then -maximum to maximum where maximum is floor(sqrt(7))
+  // + (2 x precision).
+  static constexpr bool is_safe(double value) {
+    return (value == std::clamp(value, safe_minimum(), safe_maximum()));
+  }
+
+  // Clamp a double to be within range of the fixed point representation.
+  static constexpr bool clamp(double value) {
+    return std::clamp(value, minimum(), maximum());
+  }
+
+  static constexpr bool safe_clamp(double value) {
+    return std::clamp(value, safe_minimum(), safe_maximum());
+  }
 
   // Value is already an integer in fixed-point representation.
   static constexpr Fixed_Point_Integer from_value(
@@ -162,8 +266,26 @@ class Fixed_Point_Integer {
 };
 
 // Fixed Pointer Integer Type that Matrex Uses.
-constexpr uint8_t MATREX_FP_INT_FRACTIONAL_BITS = 16;
+constexpr uint8_t MATREX_FP_INT_FRACTIONAL_BITS = 12;
 using Matrex_FP_Int = Fixed_Point_Integer<MATREX_FP_INT_FRACTIONAL_BITS>;
+
+template <typename T>
+consteval T explicit_fp_integer_conversion(Fixed_Point_Int_Storage_Type value) {
+  if constexpr (std::is_same_v<T, Fixed_Point_Int_Storage_Type>) {
+    return value;
+  } else if constexpr (std::is_same_v<T, Matrex_FP_Int>) {
+    return T::from_integer(value);
+  }
+}
+
+template <typename T>
+consteval T explicit_fp_double_conversion(double value) {
+  if constexpr (std::is_same_v<T, double>) {
+    return value;
+  } else if constexpr (std::is_same_v<T, Matrex_FP_Int>) {
+    return T::from_double(value);
+  }
+}
 
 template <uint8_t F>
 constexpr Fixed_Point_Int_Storage_Type Fixed_Point_Integer<F>::get_value()
@@ -173,12 +295,13 @@ constexpr Fixed_Point_Int_Storage_Type Fixed_Point_Integer<F>::get_value()
 
 template <uint8_t F>
 constexpr double Fixed_Point_Integer<F>::to_double() const {
-  return static_cast<double>(m_value) / (1LL << F);
+  return static_cast<double>(m_value) / static_cast<double>(1LL << F);
 }
 
 template <uint8_t F>
 constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::floor() const {
-  Fixed_Point_Int_Storage_Type integer_part = m_value & (~((1LL << F) - 1));
+  constexpr Fixed_Point_Int_Storage_Type mask = (~((1 << F) - 1));
+  Fixed_Point_Int_Storage_Type integer_part = m_value & mask;
   return Fixed_Point_Integer::from_value(integer_part);
 }
 
@@ -251,7 +374,7 @@ FORCE_INLINE constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator*(
   anti_overflow_scaling =
       std::max(static_cast<int8_t>(0), anti_overflow_scaling);
 
-  MATREX_ASSERT(anti_overflow_scaling == 0,
+  MATREX_ASSERT(anti_overflow_scaling < MAXIMUM_ALLOWED_OVERFLOW,
                 "FIXED POINT MULTIPLICATION OVERFLOW with operands {} and {}, "
                 "intended anti-overflow scaling is {}.",
                 m_value, other.m_value, anti_overflow_scaling);
@@ -262,6 +385,12 @@ FORCE_INLINE constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator*(
   // To get back to the correct scale we need to divide by 2^F.
   const uint8_t total_scaling = F + anti_overflow_scaling;
   product = product >> total_scaling;
+
+  MATREX_ASSERT(Fixed_Point_Integer<F>::is_representable(
+                    static_cast<double>(product) * precision()),
+                "FIXED POINT MULTIPLICATION ERROR: Product exceeded what was "
+                "representable.");
+
   return Fixed_Point_Integer::from_value(
       static_cast<Fixed_Point_Int_Storage_Type>(product));
 }
@@ -280,7 +409,7 @@ FORCE_INLINE constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator/(
   anti_overflow_scaling =
       std::max(static_cast<int8_t>(0), anti_overflow_scaling);
 
-  MATREX_ASSERT(anti_overflow_scaling == 0,
+  MATREX_ASSERT(anti_overflow_scaling < MAXIMUM_ALLOWED_OVERFLOW,
                 "FIXED POINT DIVISION OVERFLOW with values {} and {}, intended "
                 "anti-overflow scaling is {}.",
                 m_value, other.m_value, anti_overflow_scaling);
@@ -301,8 +430,15 @@ FORCE_INLINE constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator/(
   // overflow.
   numerator = numerator >> anti_overflow_scaling;
 
+  int64_t quotient = numerator / denominator;
+
+  MATREX_ASSERT(
+      Fixed_Point_Integer<F>::is_representable(static_cast<double>(quotient) *
+                                               precision()),
+      "FIXED POINT DIVISION ERROR: Quotient exceeded what was representable.");
+
   return Fixed_Point_Integer::from_value(
-      static_cast<Fixed_Point_Int_Storage_Type>(numerator / denominator));
+      static_cast<Fixed_Point_Int_Storage_Type>(quotient));
 }
 
 template <uint8_t F>
@@ -343,7 +479,15 @@ constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator*=(
 
 template <uint8_t F>
 constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::operator-() const {
-  return Fixed_Point_Integer<F>::from_value(-m_value);
+  // We need to check if m_value is the minimum value for an integer because if
+  // we negate it, it will be higher than the maximum value for an integer. So
+  // we need to clamp it to the negative of the maximum value.
+  if (m_value == std::numeric_limits<Fixed_Point_Int_Storage_Type>::min()) {
+    return Fixed_Point_Integer<F>::from_double(
+        -Fixed_Point_Integer<F>::maximum());
+  } else {
+    return Fixed_Point_Integer<F>::from_value(-m_value);
+  }
 }
 
 template <uint8_t F>
@@ -739,11 +883,19 @@ Fixed_Point_Integer<F> exp2(const Fixed_Point_Integer<F> input) {
                   "amount you can shift an Fixed_Point_Int_Storage_Type. "
                   "Integer shift evaluates to {}",
                   shift);
+    // Clamp the shift by what is safe to shift a signed integer left by.
+    shift = std::clamp(shift, 0, (FIXED_POINT_BIT_WIDTH - 2));
     // Guard against overflow by using fixed point integer multiplication.
     Fixed_Point_Integer<F> shift_fixed =
         Fixed_Point_Integer<F>::from_integer((1 << shift));
     result = result * shift_fixed;
   } else {
+    // We need to return a 0 for any shift bigger than the bit width of our
+    // fixed point because shifting larger than that would be undefined
+    // behavior.
+    if ((-shift) >= FIXED_POINT_BIT_WIDTH) {
+      return Fixed_Point_Integer<F>::from_value(0);
+    }
     result = Fixed_Point_Integer<F>::from_value(result.get_value() >> (-shift));
   }
 
@@ -793,7 +945,7 @@ Fixed_Point_Integer<F> sqrt(const Fixed_Point_Integer<F> input) {
 
 template <uint8_t F>
 Fixed_Point_Integer<F> exp(const Fixed_Point_Integer<F> input) {
-  return Matrex::pow(Fixed_Point_Integer<F>::from_double(NATURAL_E), input);
+  return Matrex::pow(Fixed_Point_Integer<F>::FP_NATURAL_E, input);
 }
 }  // namespace Matrex
 

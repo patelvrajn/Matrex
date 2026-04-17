@@ -14,6 +14,16 @@ struct NLR_Parameters {  // NLR = Non-Linear Response
   T r_minus;
   T g_plus;
   T g_minus;
+
+  friend std::ostream& operator<<(std::ostream& os, const NLR_Parameters& nlr) {
+    os << "{h_plus = " << nlr.h_plus << ", " << "h_minus = " << nlr.h_minus
+       << ", " << "z = " << nlr.z << ", " << "k = " << nlr.k << ", "
+       << "q_plus = " << nlr.q_plus << ", " << "q_minus = " << nlr.q_minus
+       << ", " << "r_plus = " << nlr.r_plus << ", "
+       << "r_minus = " << nlr.r_minus << ", " << "g_plus = " << nlr.g_plus
+       << ", " << "g_minus = " << nlr.g_minus << "}";
+    return os;
+  }
 };
 
 #define NLR_ARRAY_FIELDS(arr, idx)                                           \
@@ -25,8 +35,8 @@ struct NLR_Parameters {  // NLR = Non-Linear Response
   (x).h_plus, (x).h_minus, (x).z, (x).k, (x).q_plus, (x).q_minus, (x).r_plus, \
       (x).r_minus, (x).g_plus, (x).g_minus
 
-constexpr double NON_LINEAR_RESPONSE_EPSILON = 2e-5;
-constexpr double NON_LINEAR_RESPONSE_T = 5e3;
+constexpr double NON_LINEAR_RESPONSE_EPSILON = Matrex_FP_Int::precision();
+constexpr double NON_LINEAR_RESPONSE_T = Matrex_FP_Int::safe_maximum();
 
 template <typename T>
 class Non_Linear_Response {
@@ -47,18 +57,6 @@ class Non_Linear_Response {
   T partial_derivative_g_minus(T F) const;
   T partial_derivative_u(T F) const;
 
- private:
-  T m_h_plus_parameter;
-  T m_h_minus_parameter;
-  T m_z_parameter;
-  T m_k_parameter;
-  T m_q_plus_parameter;
-  T m_q_minus_parameter;
-  T m_r_plus_parameter;
-  T m_r_minus_parameter;
-  T m_g_plus_parameter;
-  T m_g_minus_parameter;
-
   T calculate_u(T F) const;
 
   T calculate_function_M(T x) const;
@@ -71,6 +69,18 @@ class Non_Linear_Response {
   T calculate_function_B_plus(T F) const;
   T calculate_function_B_minus(T F) const;
   T calculate_function_B(T F) const;
+
+ private:
+  T m_h_plus_parameter;
+  T m_h_minus_parameter;
+  T m_z_parameter;
+  T m_k_parameter;
+  T m_q_plus_parameter;
+  T m_q_minus_parameter;
+  T m_r_plus_parameter;
+  T m_r_minus_parameter;
+  T m_g_plus_parameter;
+  T m_g_minus_parameter;
 };
 
 template <typename T>
@@ -316,9 +326,14 @@ T Non_Linear_Response<T>::calculate_u(T F) const {
 template <typename T>
 T Non_Linear_Response<T>::calculate_function_M(T x) const {
   if constexpr (std::is_same_v<T, Matrex_FP_Int>) {
-    constexpr double MAX_SQRT_TERM =
-        std::sqrt(std::numeric_limits<Fixed_Point_Int_Storage_Type>::max() >>
-                  MATREX_FP_INT_FRACTIONAL_BITS);
+    constexpr double MAX_SQRT_TERM = std::sqrt(
+        static_cast<double>(
+            std::numeric_limits<Fixed_Point_Int_Storage_Type>::max()) /
+        static_cast<double>(1 << MATREX_FP_INT_FRACTIONAL_BITS));
+    MATREX_ASSERT(
+        Matrex_FP_Int::is_representable(MAX_SQRT_TERM),
+        "Maximum square root term of value {} in function M is out of bounds.",
+        MAX_SQRT_TERM);
     constexpr Matrex_FP_Int FP_MAX_SQRT_TERM =
         Matrex_FP_Int::from_double(MAX_SQRT_TERM);
 
@@ -350,18 +365,12 @@ T Non_Linear_Response<T>::calculate_function_G(T F) const {
   constexpr double G_EXPONENT_CLAMP =
       15.0 / static_cast<double>(NON_LINEAR_RESPONSE_T);
   const T negative_u = -u;
+  // -u > (positive clamp) means u is negative thus the denominator of function
+  // G gets large and goes to zero.
   if (negative_u >= G_EXPONENT_CLAMP) {
-    if constexpr (std::is_same_v<T, double>) {
-      return 0.0;
-    } else {
-      return T::from_integer(0);
-    }
+    return explicit_fp_double_conversion<T>(0.0);
   } else if (negative_u <= -G_EXPONENT_CLAMP) {
-    if constexpr (std::is_same_v<T, double>) {
-      return 1.0;
-    } else {
-      return T::from_integer(1);
-    }
+    return explicit_fp_double_conversion<T>(1.0);
   }
 
   const T exponent = (negative_u * NON_LINEAR_RESPONSE_T);
@@ -371,8 +380,9 @@ T Non_Linear_Response<T>::calculate_function_G(T F) const {
 
 template <typename T>
 T Non_Linear_Response<T>::calculate_function_H(T F) const {
-  const T first_term = calculate_function_G(F) * m_h_plus_parameter;
-  const T second_term = (1 - calculate_function_G(F)) * m_h_minus_parameter;
+  const T g = calculate_function_G(F);
+  const T first_term = g * m_h_plus_parameter;
+  const T second_term = (-g + 1) * m_h_minus_parameter;
   return (first_term + second_term);
 }
 

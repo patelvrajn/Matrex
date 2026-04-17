@@ -449,17 +449,21 @@ void Tuner::print_element_as_cpp(std::ofstream& ofs, double scalar) {
 
 void Tuner::print_element_as_cpp(std::ofstream& ofs,
                                  const NLR_Parameters<double>& nlr) {
-  ofs << "NLR_Parameters<Matrex_FP_Int>{"
-      << ".h_plus = " << Matrex_FP_Int::from_double(nlr.h_plus)
-      << ", .h_minus = " << Matrex_FP_Int::from_double(nlr.h_minus)
-      << ", .z = " << Matrex_FP_Int::from_double(nlr.z)
-      << ", .k = " << Matrex_FP_Int::from_double(nlr.k)
-      << ", .q_plus = " << Matrex_FP_Int::from_double(nlr.q_plus)
-      << ", .q_minus = " << Matrex_FP_Int::from_double(nlr.q_minus)
-      << ", .r_plus = " << Matrex_FP_Int::from_double(nlr.r_plus)
-      << ", .r_minus = " << Matrex_FP_Int::from_double(nlr.r_minus)
-      << ", .g_plus = " << Matrex_FP_Int::from_double(nlr.g_plus)
-      << ", .g_minus = " << Matrex_FP_Int::from_double(nlr.g_minus) << "}";
+  ofs << "NLR_Parameters<Matrex_FP_Int>{" << ".h_plus = Matrex_FP_Int("
+      << Matrex_FP_Int::from_double(nlr.h_plus) << ")"
+      << ", .h_minus = Matrex_FP_Int("
+      << Matrex_FP_Int::from_double(nlr.h_minus) << ")"
+      << ", .z = Matrex_FP_Int(" << Matrex_FP_Int::from_double(nlr.z) << ")"
+      << ", .k = Matrex_FP_Int(" << Matrex_FP_Int::from_double(nlr.k) << ")"
+      << ", .q_plus = Matrex_FP_Int(" << Matrex_FP_Int::from_double(nlr.q_plus)
+      << ")" << ", .q_minus = Matrex_FP_Int("
+      << Matrex_FP_Int::from_double(nlr.q_minus) << ")"
+      << ", .r_plus = Matrex_FP_Int(" << Matrex_FP_Int::from_double(nlr.r_plus)
+      << ")" << ", .r_minus = Matrex_FP_Int("
+      << Matrex_FP_Int::from_double(nlr.r_minus) << ")"
+      << ", .g_plus = Matrex_FP_Int(" << Matrex_FP_Int::from_double(nlr.g_plus)
+      << ")" << ", .g_minus = Matrex_FP_Int("
+      << Matrex_FP_Int::from_double(nlr.g_minus) << ")" << "}";
 }
 
 template <typename T, std::size_t N>
@@ -513,21 +517,25 @@ void Tuner::print_header_file(const Evaluation_Weights<double>& weights) {
   print_multi_array_as_cpp(m_output, weights.piece_mobility_NLR_parameters);
   m_output << ";" << std::endl;
   m_output << "constexpr Matrex_FP_Int TUNED_DIAGONAL_MOBILITY_WEIGHT = "
-           << Matrex_FP_Int::from_double(weights.diagonal_mobility) << ";"
+              "Matrex_FP_Int("
+           << Matrex_FP_Int::from_double(weights.diagonal_mobility) << ");"
            << std::endl;
   m_output << "constexpr Matrex_FP_Int TUNED_ORTHOGONAL_MOBILITY_WEIGHT = "
-           << Matrex_FP_Int::from_double(weights.orthogonal_mobility) << ";"
+              "Matrex_FP_Int("
+           << Matrex_FP_Int::from_double(weights.orthogonal_mobility) << ");"
            << std::endl;
   m_output << "constexpr Matrex_FP_Int TUNED_KNIGHT_MOVEMENT_MOBILITY_WEIGHT = "
+              "Matrex_FP_Int("
            << Matrex_FP_Int::from_double(weights.knight_movement_mobility)
-           << ";" << std::endl;
+           << ");" << std::endl;
   m_output << "constexpr Matrex_FP_Int TUNED_MULTI_MOVEMENT_MOBILITY_WEIGHT = "
-           << Matrex_FP_Int::from_double(weights.multi_movement_mobility) << ";"
-           << std::endl;
-  m_output
-      << "constexpr Matrex_FP_Int TUNED_BACKWARDS_MOVEMENT_MOBILITY_WEIGHT = "
-      << Matrex_FP_Int::from_double(weights.backwards_movement_mobility) << ";"
-      << std::endl;
+              "Matrex_FP_Int("
+           << Matrex_FP_Int::from_double(weights.multi_movement_mobility)
+           << ");" << std::endl;
+  m_output << "constexpr Matrex_FP_Int "
+              "TUNED_BACKWARDS_MOVEMENT_MOBILITY_WEIGHT = Matrex_FP_Int("
+           << Matrex_FP_Int::from_double(weights.backwards_movement_mobility)
+           << ");" << std::endl;
 
   // Weights
   m_output

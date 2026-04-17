@@ -414,8 +414,9 @@ T Evaluator<T>::evaluate_template_typed() const {
 
 template <typename T>
 Score Evaluator<T>::evaluate() const {
-  T evaluation = std::clamp(evaluate_template_typed().get_value(),
-                            FP_EVALUATION_MIN, FP_EVALUATION_MAX);
+  T evaluation =
+      Matrex_FP_Int(std::clamp(evaluate_template_typed().get_value(),
+                               FP_EVALUATION_MIN, FP_EVALUATION_MAX));
   Score return_value = Score(evaluation);
   return return_value;
 }
@@ -445,10 +446,11 @@ template <PIECE_COLOR moving_side>
 inline T Evaluator<T>::material_score() const {
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
 
-  T return_value = 0.0L;
+  T return_value = explicit_fp_double_conversion<T>(0.0);
 
   for (uint8_t piece = PIECES::PAWN; piece <= PIECES::QUEEN; piece++) {
-    T material_difference = 0;
+    T material_difference = explicit_fp_double_conversion<T>(0.0);
+    ;
     material_difference +=
         (m_weights.material[piece] *
          m_chess_board.get_piece_occupancies(moving_side, (PIECES)piece)
@@ -463,7 +465,7 @@ inline T Evaluator<T>::material_score() const {
     return_value += non_linear_material;
   }
 
-  return static_cast<T>(return_value);
+  return return_value;
 }
 
 template <typename T>
@@ -530,7 +532,7 @@ template <PIECE_COLOR moving_side>
 inline T Evaluator<T>::mobility_score() const {
   constexpr PIECE_COLOR opposing_side = (PIECE_COLOR)((~moving_side) & 0x1);
 
-  T mobility = 0;
+  T mobility = explicit_fp_double_conversion<T>(0.0);
 
   for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++) {
     const T moving_side_piece_mobility = calculate_piece_mobility<moving_side>(
@@ -984,7 +986,7 @@ inline T Evaluator<T>::calculate_piece_mobility(
 
   std::vector<Moves_Bitboard> moves_bitboards;
   matrix.get_piece_moves_bitboards(side, piece, moves_bitboards);
-  T piece_mobility = 0;
+  T piece_mobility = explicit_fp_double_conversion<T>(0.0);
   for (Moves_Bitboard& mb : moves_bitboards) {
     const Bitboard diagonal_movements =
         mb.bitboard &
