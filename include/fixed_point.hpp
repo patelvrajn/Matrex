@@ -878,11 +878,6 @@ Fixed_Point_Integer<F> exp2(const Fixed_Point_Integer<F> input) {
   Fixed_Point_Int_Storage_Type shift = (integer_part.get_value() >> F);
   Fixed_Point_Integer<F> result = fractional_part_result;
   if (shift >= 0) {
-    MATREX_ASSERT(shift <= 31,
-                  "exp2 does not support integer exponents larger than the "
-                  "amount you can shift an Fixed_Point_Int_Storage_Type. "
-                  "Integer shift evaluates to {}",
-                  shift);
     // Clamp the shift by what is safe to shift a signed integer left by.
     shift = std::clamp(shift, 0, (FIXED_POINT_BIT_WIDTH - 2));
     // Guard against overflow by using fixed point integer multiplication.

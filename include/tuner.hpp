@@ -67,6 +67,12 @@ class Tuner {
 
   Evaluation_Weights<double> init_weights();
 
+  Evaluation_Weights<double> projected_gradient(
+      Evaluation_Weights<double> weights, Evaluation_Weights<double> gradient);
+  Evaluation_Weights<double> projected_weight_change(
+      Evaluation_Weights<double> weights,
+      Evaluation_Weights<double> weight_update);
+
   double learning_rate_scheduler(uint64_t epoch) const;
 
   void parse_dataset_file(std::ifstream& dataset_file,

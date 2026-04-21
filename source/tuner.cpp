@@ -40,15 +40,15 @@ NLR_Parameters<double> Tuner::random_nlr(double h_mean) {
 Evaluation_Weights<double> Tuner::init_weights() {
   Evaluation_Weights<double> weights;
 
-  weights.material_NLR_parameters = {random_nlr(2.5L), random_nlr(5.0L),
-                                     random_nlr(6.5L), random_nlr(8.5L),
-                                     random_nlr(9.5L)};
-  weights.material = {perturb(1.0L), perturb(3.0L), perturb(3.5L),
-                      perturb(6.5L), perturb(9.0L)};
+  weights.material_NLR_parameters = {random_nlr(0.25L), random_nlr(0.5L),
+                                     random_nlr(0.65L), random_nlr(0.85L),
+                                     random_nlr(0.95L)};
+  weights.material = {perturb(0.1L), perturb(0.3L), perturb(0.35L),
+                      perturb(0.65L), perturb(0.9L)};
 
-  weights.piece_mobility_NLR_parameters = {random_nlr(0.5L), random_nlr(1.5L),
-                                           random_nlr(2.0L), random_nlr(3.0L),
-                                           random_nlr(6.0L), random_nlr(1.0L)};
+  weights.piece_mobility_NLR_parameters = {random_nlr(0.05L), random_nlr(0.15L),
+                                           random_nlr(0.2L),  random_nlr(0.3L),
+                                           random_nlr(0.6L),  random_nlr(0.1L)};
   weights.diagonal_mobility = perturb(0.43L);
   weights.orthogonal_mobility = perturb(0.34L);
   weights.knight_movement_mobility = perturb(0.57L);
@@ -122,6 +122,8 @@ Evaluation_Weights<double> Tuner::tune() {
       Evaluation_Weights<double> gradient =
           compute_gradient(weights, mini_batch);
 
+      gradient = projected_gradient(weights, gradient);
+
       // First moment calculation
       first_moment = (first_moment * TUNER_DECAY_FACTOR) +
                      (gradient * (1.0L - TUNER_DECAY_FACTOR));
@@ -158,8 +160,11 @@ Evaluation_Weights<double> Tuner::tune() {
       m_log << "[INFO] Weight decay update at timestep " << t << "; "
             << weight_decay_update << std::endl;
 
+      const Evaluation_Weights<double> total_weight_update =
+          weight_update + weight_decay_update;
+
       // Parameter update
-      weights = weights - weight_update - weight_decay_update;
+      weights = projected_weight_change(weights, total_weight_update);
 
       m_log << "[INFO] Weights at timestep " << t << "; " << weights
             << std::endl;
@@ -216,6 +221,68 @@ Evaluation_Weights<double> Tuner::tune() {
   print_header_file(best_weights);
 
   return best_weights;
+}
+
+// In the theme of projected gradient descent, we set the gradient to a scaled
+// value if the weights minus the gradient were to cross the valid range for the
+// fixed point math we are using for static evaluation - this is to prevent the
+// algorithm from jumping back and forth between the valid range and outside the
+// valid range because of momentum.
+Evaluation_Weights<double> Tuner::projected_gradient(
+    Evaluation_Weights<double> weights, Evaluation_Weights<double> gradient) {
+  Evaluation_Weights<double> result;
+
+  for (std::size_t i = 0; i < weights.get_size(); i++) {
+    // If the gradient is negative, according to the traditional gradient
+    // descent weight update, we want to increase the weights - so as a
+    // conservative measure we reduce the gradient to a numerical value a scale
+    // less than what would be needed to be greater than the maximum - this
+    // allows us to keep some form of a direction/magnitude rather than
+    // aggressively diminishing it to zero.
+    constexpr double PROJECTED_GRADIENT_SCALE = 1000.0;
+    const double weights_with_step = weights[i] - gradient[i];
+    if (weights_with_step > Matrex_FP_Int::safe_maximum()) {
+      double distance_from_boundary =
+          std::abs(weights[i] - Matrex_FP_Int::safe_maximum());
+      result[i] = std::copysign(distance_from_boundary, gradient[i]) /
+                  PROJECTED_GRADIENT_SCALE;
+      m_log << "Weight with value " << weights[i] << " and gradient with value "
+            << gradient[i] << " is greater than the maximum "
+            << Matrex_FP_Int::safe_maximum() << std::endl;
+      m_log << "Resultant gradient is now " << result[i] << std::endl;
+      // Simalaur logic as the maximum clamp.
+    } else if (weights_with_step < Matrex_FP_Int::safe_minimum()) {
+      double distance_from_boundary =
+          std::abs(weights[i] - Matrex_FP_Int::safe_minimum());
+      result[i] = std::copysign(distance_from_boundary, gradient[i]) /
+                  PROJECTED_GRADIENT_SCALE;
+      m_log << "Weight with value " << weights[i] << " and gradient with value "
+            << gradient[i] << " is less than the minimum "
+            << Matrex_FP_Int::safe_minimum() << std::endl;
+      m_log << "Resultant gradient is now " << result[i] << std::endl;
+    } else {
+      result[i] = gradient[i];
+    }
+  }
+
+  return result;
+}
+
+// Here we are using a concept from projected gradient descent where we project
+// the weights back into a valid range for the fixed point math we are using for
+// static evaluation.
+Evaluation_Weights<double> Tuner::projected_weight_change(
+    Evaluation_Weights<double> weights,
+    Evaluation_Weights<double> weight_update) {
+  Evaluation_Weights<double> result;
+
+  for (std::size_t i = 0; i < weights.get_size(); i++) {
+    result[i] = std::clamp((weights[i] - weight_update[i]),
+                           Matrex_FP_Int::safe_minimum(),
+                           Matrex_FP_Int::safe_maximum());
+  }
+
+  return result;
 }
 
 // OneCycleLR (Super-convergence)
@@ -444,7 +511,7 @@ double Tuner::compute_max_data_loss(const Dataset& d) {
 }
 
 void Tuner::print_element_as_cpp(std::ofstream& ofs, double scalar) {
-  ofs << Matrex_FP_Int::from_double(scalar);
+  ofs << "Matrex_FP_Int(" << Matrex_FP_Int::from_double(scalar) << ")";
 }
 
 void Tuner::print_element_as_cpp(std::ofstream& ofs,
