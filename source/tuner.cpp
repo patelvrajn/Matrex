@@ -431,14 +431,14 @@ Evaluation_Weights<double> Tuner::compute_gradient(
                 eval_params.moving_side_matrices[i],
                 eval_params.opposing_side_matrices[i]);
 
-    // This instantiation is needed to make this evaluation a fixed-point 
-    // evaluation - doing a double-typed evaluation while tuning will tune for 
-    // the precise values it sees but since the evaluation of the engine will be 
-    // fixed point, we must tune for imprecise fixed point values as their 
+    // This instantiation is needed to make this evaluation a fixed-point
+    // evaluation - doing a double-typed evaluation while tuning will tune for
+    // the precise values it sees but since the evaluation of the engine will be
+    // fixed point, we must tune for imprecise fixed point values as their
     // evaluation differs quite a bit.
     Evaluator fp_e(weights.to_matrex_fp_int(), eval_params.boards[i],
-                    eval_params.moving_side_matrices[i],
-                    eval_params.opposing_side_matrices[i]);
+                   eval_params.moving_side_matrices[i],
+                   eval_params.opposing_side_matrices[i]);
 
     const double sign =
         (eval_params.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)

@@ -94,13 +94,9 @@ class Fixed_Point_Integer {
   friend std::ostream& operator<<(std::ostream& os,
                                   const Fixed_Point_Integer<X>& fp);
 
-  static constexpr double scale() {
-    return static_cast<double>(1 << F);
-  }
+  static constexpr double scale() { return static_cast<double>(1 << F); }
 
-  static constexpr double precision() {
-    return (1.0 / scale());
-  }
+  static constexpr double precision() { return (1.0 / scale()); }
 
   // The maximum value the fractional component can have.
   static constexpr double maximum_fractional() {
@@ -119,7 +115,10 @@ class Fixed_Point_Integer {
   }
 
   static constexpr uint8_t safe_maximum_integer_bits() {
-    return std::floor(std::log2(std::sqrt(static_cast<double>(std::numeric_limits<Fixed_Point_Int_Storage_Type>::max()) / scale())));
+    return std::floor(std::log2(std::sqrt(
+        static_cast<double>(
+            std::numeric_limits<Fixed_Point_Int_Storage_Type>::max()) /
+        scale())));
   }
 
   static constexpr double safe_maximum_integer() {
@@ -180,14 +179,14 @@ class Fixed_Point_Integer {
   // result in an overflow. We only need to consider multiplication because it
   // has the largest gain in bit-width and magnitude. We can calculate the
   // safe range with:
-  // (x * y) / 2^F <= 2^31 - 1 where x and y are the fixed point integers being 
-  //                           multiplied and F is the number of fractional 
+  // (x * y) / 2^F <= 2^31 - 1 where x and y are the fixed point integers being
+  //                           multiplied and F is the number of fractional
   //                           bits.
   // (x * y) <= (2^31 - 1) * 2^F
   // For symmetric clamping of both operands:
   // z^2 <= (2^31 - 1) * 2^F
   // z <= sqrt((2^31 - 1) * 2^F)
-  // That means z must be at most floor(log2(sqrt((2^31 - 1) * 2^F))) bits to 
+  // That means z must be at most floor(log2(sqrt((2^31 - 1) * 2^F))) bits to
   // avoid overflow.
   // Since z is a fixed point integer, the real value is z/2^F.
   static constexpr bool is_safe(double value) {
@@ -778,35 +777,39 @@ Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input) {
   const int8_t e = 31 - __builtin_clz(input.get_value()) - F;
   Fixed_Point_Int_Storage_Type m_raw;
   if (e >= 0) {
-    MATREX_ASSERT(e < FIXED_POINT_BIT_WIDTH, "LOG2 SHIFT ERROR: e is not in bounds, e is {}", e);
+    MATREX_ASSERT(e < FIXED_POINT_BIT_WIDTH,
+                  "LOG2 SHIFT ERROR: e is not in bounds, e is {}", e);
     m_raw = input.get_value() >> e;
   } else {
-    MATREX_ASSERT((-e) <= (FIXED_POINT_BIT_WIDTH - 2), "LOG2 SHIFT ERROR: e is not in bounds, e is {}", e);
+    MATREX_ASSERT((-e) <= (FIXED_POINT_BIT_WIDTH - 2),
+                  "LOG2 SHIFT ERROR: e is not in bounds, e is {}", e);
     m_raw = input.get_value() << (-e);
   }
 
   const Fixed_Point_Integer<F> m = Fixed_Point_Integer<F>::from_value(m_raw);
 
-  MATREX_ASSERT((m.to_double() >= 1.0 && m.to_double() < 2.0),
-              "LOG2 FACTORIZATION ERROR: m is not in the range [1, 2), m is {}",
-              m.to_double());
+  MATREX_ASSERT(
+      (m.to_double() >= 1.0 && m.to_double() < 2.0),
+      "LOG2 FACTORIZATION ERROR: m is not in the range [1, 2), m is {}",
+      m.to_double());
 
   // Here we want to calculate the index in which log(c) is stored in the lookup
-  // table that we will be using to calculate the value of c. By design, we want 
-  // m to be very close to c, this will make t a very small number which is 
-  // ideal for a Pade approximation around 0 of ln(1+t). To calculate the index, 
-  // we simply map the m we found which is a number in the range [1, 2) to an 
-  // index in the range [0, N) (N being the number of entries in the lookup 
-  // table) - this index is the "bucket" from which m is contained. Since, we 
-  // want c close to m, we map the index we found in the range of [0, N) back to 
-  // a number in the range [1, 2) and use that as c - c is thus the left edge of 
+  // table that we will be using to calculate the value of c. By design, we want
+  // m to be very close to c, this will make t a very small number which is
+  // ideal for a Pade approximation around 0 of ln(1+t). To calculate the index,
+  // we simply map the m we found which is a number in the range [1, 2) to an
+  // index in the range [0, N) (N being the number of entries in the lookup
+  // table) - this index is the "bucket" from which m is contained. Since, we
+  // want c close to m, we map the index we found in the range of [0, N) back to
+  // a number in the range [1, 2) and use that as c - c is thus the left edge of
   // the bucket that m is contained in (given how we calculate it).
   constexpr Fixed_Point_Integer<F> log2_lookup_table_size_in_fp =
       Fixed_Point_Integer<F>::from_integer(
           static_cast<Fixed_Point_Int_Storage_Type>(LOG2_LOOKUP_TABLE_SIZE));
   std::size_t index =
       ((m - Fixed_Point_Integer<F>::FP_ONE) * log2_lookup_table_size_in_fp)
-          .get_value() >> F;
+          .get_value() >>
+      F;
   index =
       std::clamp(index, static_cast<std::size_t>(0),
                  (LOG2_LOOKUP_TABLE_SIZE -
@@ -828,7 +831,7 @@ Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input) {
   //  t is strictly less than (1 / N).
   const Fixed_Point_Integer<F> t = (m / c) - Fixed_Point_Integer<F>::FP_ONE;
 
-  // Returns log2(2^e * m) = e + log2(m) = e + log2(c) + log2(1+t) which is the 
+  // Returns log2(2^e * m) = e + log2(m) = e + log2(c) + log2(1+t) which is the
   // same as log2(input).
   return Fixed_Point_Integer<F>::from_integer(e) +
          Fixed_Point_Integer<F>::from_value(

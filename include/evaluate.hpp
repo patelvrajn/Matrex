@@ -335,7 +335,8 @@ Evaluation_Weights<double> Evaluation_Weights<T>::to_double() const {
 }
 
 template <typename T>
-Evaluation_Weights<Matrex_FP_Int> Evaluation_Weights<T>::to_matrex_fp_int() const {
+Evaluation_Weights<Matrex_FP_Int> Evaluation_Weights<T>::to_matrex_fp_int()
+    const {
   Evaluation_Weights<Matrex_FP_Int> result;
 
   for (std::size_t i = 0; i < m_weight_ref_array.size; ++i) {

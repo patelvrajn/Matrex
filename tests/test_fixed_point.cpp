@@ -1,14 +1,14 @@
 #include <cerrno>
 #include <cstring>
+#include <fstream>
 #include <iomanip>
 #include <random>
-#include <fstream>
 
+#include "evaluate.hpp"
+#include "evaluation_terms.hpp"
 #include "fixed_point.hpp"
 #include "gtest/gtest.h"
 #include "non_linear_response.hpp"
-#include "evaluate.hpp"
-#include "evaluation_terms.hpp"
 
 TEST(fixed_point_tests, tanh_24_8_test) {
   constexpr uint64_t NUMBER_OF_TRIALS = 50000;
@@ -159,52 +159,61 @@ struct NLR_Test_Error {
   std::string type = "";
 };
 
-void collect_error(std::vector<NLR_Test_Error>& errors, double nlr_input, double expected_value, double actual_value, std::string type) {
+void collect_error(std::vector<NLR_Test_Error>& errors, double nlr_input,
+                   double expected_value, double actual_value,
+                   std::string type) {
   if (expected_value != actual_value) {
-    NLR_Test_Error error {
-      .nlr_input = nlr_input,
-      .expected_value = expected_value,
-      .actual_value = actual_value,
-      .difference = std::abs(expected_value - actual_value),
-      .type = type
-    };
+    NLR_Test_Error error{.nlr_input = nlr_input,
+                         .expected_value = expected_value,
+                         .actual_value = actual_value,
+                         .difference = std::abs(expected_value - actual_value),
+                         .type = type};
     errors.push_back(error);
   }
 }
 
-void check_for_stastically_likely_errors (std::vector<NLR_Test_Error>& errors) {
-  constexpr double absolute_tolerance = 30 * Matrex_FP_Int::precision(); // For small values
+void check_for_stastically_likely_errors(std::vector<NLR_Test_Error>& errors) {
+  constexpr double absolute_tolerance =
+      30 * Matrex_FP_Int::precision();         // For small values
   constexpr double relative_tolerance = 0.35;  // For large values
 
-  std::stable_sort(errors.begin(), errors.end(), [](const NLR_Test_Error& a, const NLR_Test_Error& b) {
-    return a.difference < b.difference;
-  });
+  std::stable_sort(errors.begin(), errors.end(),
+                   [](const NLR_Test_Error& a, const NLR_Test_Error& b) {
+                     return a.difference < b.difference;
+                   });
 
   std::size_t const half_size = errors.size() / 2;
-  std::vector<NLR_Test_Error> first_half(errors.begin(), errors.begin() + half_size);
-  std::vector<NLR_Test_Error> second_half(errors.begin() + half_size, errors.end());
+  std::vector<NLR_Test_Error> first_half(errors.begin(),
+                                         errors.begin() + half_size);
+  std::vector<NLR_Test_Error> second_half(errors.begin() + half_size,
+                                          errors.end());
 
   std::size_t const first_half_median = first_half.size() / 2;
   std::size_t const second_half_median = second_half.size() / 2;
-  double interquartile_range = second_half[second_half_median].difference - first_half[first_half_median].difference;
-  double lower_bound = first_half[first_half_median].difference - (1.5 * interquartile_range);
-  double upper_bound = second_half[second_half_median].difference + (1.5 * interquartile_range);
+  double interquartile_range = second_half[second_half_median].difference -
+                               first_half[first_half_median].difference;
+  double lower_bound =
+      first_half[first_half_median].difference - (1.5 * interquartile_range);
+  double upper_bound =
+      second_half[second_half_median].difference + (1.5 * interquartile_range);
 
   for (const NLR_Test_Error& error : errors) {
-    double tolerance = std::max(absolute_tolerance, relative_tolerance * std::abs(error.expected_value));
+    double tolerance =
+        std::max(absolute_tolerance,
+                 relative_tolerance * std::abs(error.expected_value));
     double is_within_tolerance = error.difference <= tolerance;
-    double is_an_outlier = (error.difference < lower_bound) || (error.difference > upper_bound);
+    double is_an_outlier =
+        (error.difference < lower_bound) || (error.difference > upper_bound);
 
     if (!is_an_outlier) {
       ASSERT_TRUE(is_within_tolerance)
-        << "Type: " << error.type 
-        << ", NLR input: " << error.nlr_input
-        << ", expected value: " << error.expected_value
-        << ", actual value: " << error.actual_value
-        << ", difference: " << error.difference
-        << ", tolerance: " << tolerance
-        << ", IQR lower bound: " << lower_bound
-        << ", IQR upper bound: " << upper_bound;
+          << "Type: " << error.type << ", NLR input: " << error.nlr_input
+          << ", expected value: " << error.expected_value
+          << ", actual value: " << error.actual_value
+          << ", difference: " << error.difference
+          << ", tolerance: " << tolerance
+          << ", IQR lower bound: " << lower_bound
+          << ", IQR upper bound: " << upper_bound;
     }
   }
 }
@@ -276,7 +285,8 @@ TEST(fixed_point_tests, nlr_test) {
 
     if (Matrex_FP_Int::is_representable(expected_M)) {
       Matrex_FP_Int result = nlr.calculate_function_M(fp_test_value);
-      collect_error(errors, double_test_value, expected_M, result.to_double(), "M");
+      collect_error(errors, double_test_value, expected_M, result.to_double(),
+                    "M");
     }
 
     // Test function G
@@ -291,7 +301,8 @@ TEST(fixed_point_tests, nlr_test) {
 
     if (Matrex_FP_Int::is_representable(expected_G) && (errno == 0)) {
       Matrex_FP_Int result = nlr.calculate_function_G(fp_test_value);
-      collect_error(errors, double_test_value, expected_G, result.to_double(), "G");
+      collect_error(errors, double_test_value, expected_G, result.to_double(),
+                    "G");
     }
 
     // Test function H
@@ -300,22 +311,24 @@ TEST(fixed_point_tests, nlr_test) {
         ((1.0 - expected_G) * nlr_parameters.h_minus.to_double());
     if (Matrex_FP_Int::is_representable(expected_H) && (errno == 0)) {
       Matrex_FP_Int result = nlr.calculate_function_H(fp_test_value);
-      collect_error(errors, double_test_value, expected_H, result.to_double(), "H");
+      collect_error(errors, double_test_value, expected_H, result.to_double(),
+                    "H");
     }
 
-    // Test function S - IMPORTANT NOTE: We do not test function S as it results 
-    // in too many inaccurate results most likely due to quantization. However, 
-    // it can be said confidently that the implementation of function S is 
+    // Test function S - IMPORTANT NOTE: We do not test function S as it results
+    // in too many inaccurate results most likely due to quantization. However,
+    // it can be said confidently that the implementation of function S is
     // correct as it relies on the same core logic as the other functions.
     double expected_Mu =
         std::sqrt((double_u * double_u) + NON_LINEAR_RESPONSE_EPSILON);
     // double S_first_term = nlr_parameters.z.to_double() * double_u;
-    // double S_second_term = ((1.0 - nlr_parameters.z.to_double()) * expected_Mu);
-    // double expected_S = S_first_term + S_second_term;
-    // if (Matrex_FP_Int::is_representable(expected_S) &&
+    // double S_second_term = ((1.0 - nlr_parameters.z.to_double()) *
+    // expected_Mu); double expected_S = S_first_term + S_second_term; if
+    // (Matrex_FP_Int::is_representable(expected_S) &&
     //     Matrex_FP_Int::is_representable(expected_Mu)) {
     //   Matrex_FP_Int result = nlr.calculate_function_S(fp_test_value);
-    //   collect_error(errors, double_test_value, expected_S, result.to_double(), "S");
+    //   collect_error(errors, double_test_value, expected_S,
+    //   result.to_double(), "S");
     // }
 
     // Test function P_Plus
@@ -323,7 +336,8 @@ TEST(fixed_point_tests, nlr_test) {
         std::pow(expected_Mu, nlr_parameters.q_plus.to_double());
     if (Matrex_FP_Int::is_representable(expected_P_Plus)) {
       Matrex_FP_Int result = nlr.calculate_function_P_plus(fp_test_value);
-      collect_error(errors, double_test_value, expected_P_Plus, result.to_double(), "P_Plus");
+      collect_error(errors, double_test_value, expected_P_Plus,
+                    result.to_double(), "P_Plus");
     }
 
     // We don't need to test P_Minus it has the same functional form as P_Plus.
@@ -337,7 +351,8 @@ TEST(fixed_point_tests, nlr_test) {
         Matrex_FP_Int::is_representable(expected_P_Minus) &&
         Matrex_FP_Int::is_representable(expected_P_Plus)) {
       Matrex_FP_Int result = nlr.calculate_function_P(fp_test_value);
-      collect_error(errors, double_test_value, expected_P, result.to_double(), "P");
+      collect_error(errors, double_test_value, expected_P, result.to_double(),
+                    "P");
     }
 
     // Test function B_Plus
@@ -350,7 +365,8 @@ TEST(fixed_point_tests, nlr_test) {
     double expected_B_Plus = std::tanh(expected_w_Plus);
     if (Matrex_FP_Int::is_representable(expected_B_Plus)) {
       Matrex_FP_Int result = nlr.calculate_function_B_plus(fp_test_value);
-      collect_error(errors, double_test_value, expected_B_Plus, result.to_double(), "B_Plus");
+      collect_error(errors, double_test_value, expected_B_Plus,
+                    result.to_double(), "B_Plus");
     }
 
     // We don't need to test B_Minus it has the same functional form as B_Plus.
@@ -369,7 +385,8 @@ TEST(fixed_point_tests, nlr_test) {
         Matrex_FP_Int::is_representable(expected_B_Plus) &&
         Matrex_FP_Int::is_representable(expected_B_Minus)) {
       Matrex_FP_Int result = nlr.calculate_function_B(fp_test_value);
-      collect_error(errors, double_test_value, expected_B, result.to_double(), "B");
+      collect_error(errors, double_test_value, expected_B, result.to_double(),
+                    "B");
     }
 
     errno = 0;
