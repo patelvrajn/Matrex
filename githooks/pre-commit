@@ -39,4 +39,7 @@ echo "$files" | clang-format --style=Google -i --files=/dev/stdin
 #
 # "git add $files" updates the index with the newly formatted content,
 # ensuring the commit includes the formatting changes.
-git add $files
+#
+# IMPORTANT: This will still stage unstaged files with the same name as staged 
+# files.
+git add "$files"
