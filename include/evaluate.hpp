@@ -111,6 +111,9 @@ class Evaluation_Weights {
   Evaluation_Weights sqrt() const;
   T magnitude() const;
 
+  Evaluation_Weights<double> to_double() const;
+  Evaluation_Weights<Matrex_FP_Int> to_matrex_fp_int() const;
+
   template <typename W>
   friend std::ostream& operator<<(std::ostream& os,
                                   const Evaluation_Weights<W>& weights);
@@ -316,6 +319,28 @@ T Evaluation_Weights<T>::magnitude() const {
   }
 
   result = static_cast<T>(std::sqrt(result));
+
+  return result;
+}
+
+template <typename T>
+Evaluation_Weights<double> Evaluation_Weights<T>::to_double() const {
+  Evaluation_Weights<double> result;
+
+  for (std::size_t i = 0; i < m_weight_ref_array.size; ++i) {
+    result[i] = static_cast<double>((*this)[i].to_double());
+  }
+
+  return result;
+}
+
+template <typename T>
+Evaluation_Weights<Matrex_FP_Int> Evaluation_Weights<T>::to_matrex_fp_int() const {
+  Evaluation_Weights<Matrex_FP_Int> result;
+
+  for (std::size_t i = 0; i < m_weight_ref_array.size; ++i) {
+    result[i] = Matrex_FP_Int::from_double((*this)[i]);
+  }
 
   return result;
 }

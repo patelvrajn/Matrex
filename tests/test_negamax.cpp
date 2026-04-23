@@ -51,8 +51,7 @@ TEST(negamax, consistent_scoring) {
   constraints.time_controls[PIECE_COLOR::BLACK].increment = 1500;
 
   Chess_Board cb;
-  cb.set_from_fen(
-      "r1bq1rk1/ppp2ppp/2n1p3/b2p4/3PnB2/P1N1P3/1PP2PPP/1K1RQBNR b - - 2 9");
+  cb.set_from_fen("4k3/8/8/8/8/8/4PP2/4K3 w - - 0 1");
 
   Search_Engine first_search(cb, constraints);
   const Search_Engine_Result first_search_result =
