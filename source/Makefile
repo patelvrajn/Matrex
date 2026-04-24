@@ -57,10 +57,10 @@ endif
 # An object file depends on the respective cpp file.
 ifndef DEBUG
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) $< -o $@ -c
+	$(CXX) -DNDEBUG $(CXXFLAGS) $< -o $@ -c
 else
 %.o: %.cpp
-	$(CXX) -DNDEBUG $(CXXFLAGS) $< -o $@ -c
+	$(CXX) $(CXXFLAGS) $< -o $@ -c
 endif
 
 # Include dependency rules output from previous make.

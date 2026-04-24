@@ -30,6 +30,8 @@ fi
 # IMPORTANT:
 # This reformats ONLY the files that are already staged,
 # preventing unintended formatting of unstaged files.
+# FOR TESTING:
+# find . -iname '*.cpp' -o -iname '*.hpp' | clang-format --dry-run --style=clang-format -i --files=/dev/stdin
 echo "$files" | clang-format --style=Google -i --files=/dev/stdin
 
 # Re-stage the files after formatting.
@@ -42,4 +44,4 @@ echo "$files" | clang-format --style=Google -i --files=/dev/stdin
 #
 # IMPORTANT: This will still stage unstaged files with the same name as staged 
 # files.
-git add "$files"
+echo "$files" | xargs git add

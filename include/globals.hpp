@@ -16,7 +16,7 @@
 #include <unordered_map>
 
 #ifdef NDEBUG
-#define MATREX_ASSERT(condition) ((void)0)
+#define MATREX_ASSERT(condition, message, ...) ((void)0)
 #else
 #define MATREX_ASSERT(condition, message, ...)                                 \
   if (!(condition)) {                                                          \

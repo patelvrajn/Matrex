@@ -115,10 +115,11 @@ class Fixed_Point_Integer {
   }
 
   static constexpr uint8_t safe_maximum_integer_bits() {
-    return std::floor(std::log2(std::sqrt(
-        static_cast<double>(
-            std::numeric_limits<Fixed_Point_Int_Storage_Type>::max()) /
-        scale())));
+    return std::floor(std::log2(
+        std::pow(static_cast<double>(
+                     std::numeric_limits<Fixed_Point_Int_Storage_Type>::max()) /
+                     scale(),
+                 (1.0 / 4.0))));
   }
 
   static constexpr double safe_maximum_integer() {
@@ -187,7 +188,8 @@ class Fixed_Point_Integer {
   // z^2 <= (2^31 - 1) * 2^F
   // z <= sqrt((2^31 - 1) * 2^F)
   // That means z must be at most floor(log2(sqrt((2^31 - 1) * 2^F))) bits to
-  // avoid overflow.
+  // avoid overflow. (Since, the construction of the NLR is the multiplication
+  // of four functions we do the 4th root instead of the square root.)
   // Since z is a fixed point integer, the real value is z/2^F.
   static constexpr bool is_safe(double value) {
     return (value == std::clamp(value, safe_minimum(), safe_maximum()));
