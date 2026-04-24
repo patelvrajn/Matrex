@@ -1,6 +1,6 @@
 ---
 Language: Cpp
-Standard: c++23
+Standard: Latest
 AccessModifierOffset: 0
 AlignAfterOpenBracket: Align
 AlignArrayOfStructures: Right
@@ -9,8 +9,6 @@ AlignConsecutiveAssignments:
   AcrossEmptyLines: false
   AcrossComments:  false
   AlignCompound:   true
-  AlignFunctionDeclarations: true
-  AlignFunctionPointers: true 
   PadOperators:    true
 AlignConsecutiveBitFields:
   Enabled:         true
@@ -20,32 +18,27 @@ AlignConsecutiveBitFields:
   AlignFunctionPointers: true
   PadOperators:    true
 AlignConsecutiveDeclarations:
-  Enabled:         false
+  Enabled:         true
   AcrossEmptyLines: false
   AcrossComments:  false
-  AlignCompound:   false
-  AlignFunctionPointers: false
-  PadOperators:    false
+  AlignFunctionPointers: true
 AlignConsecutiveMacros:
   Enabled:         true
   AcrossEmptyLines: false
   AcrossComments:  false
   AlignCompound:   true
-  AlignFunctionDeclarations: true
   AlignFunctionPointers: true
   PadOperators:    true
 AlignConsecutiveShortCaseStatements:
   Enabled:         true
   AcrossEmptyLines: false
   AcrossComments:  false
-  AlignCaseArrows: true
   AlignCaseColons: true
-AlignEscapedNewlines: LeftWithLastLine
+AlignEscapedNewlines: Right
 AlignOperands:   AlignAfterOperator
 AlignTrailingComments:
   Kind:            Always
   OverEmptyLines:  0
-  AlignPPAndNotPP: true
 AllowAllArgumentsOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowBreakBeforeNoexceptSpecifier: Never
@@ -62,8 +55,8 @@ AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: true
 AlwaysBreakTemplateDeclarations: Yes
 AttributeMacros:
-BinPackArguments: OnePerLine
-BinPackParameters: OnePerLine
+BinPackArguments: false
+BinPackParameters: false
 BitFieldColonSpacing: Both
 BraceWrapping:
   AfterCaseLabel:  true
@@ -95,11 +88,10 @@ BreakConstructorInitializers: AfterColon
 BreakInheritanceList: AfterColon
 BreakStringLiterals: true
 ColumnLimit: 80
-CommentPragmas:
 CompactNamespaces: false
 ConstructorInitializerIndentWidth: 4
 ContinuationIndentWidth: 4
-Cpp11BracedListStyle: Block
+Cpp11BracedListStyle: true
 DerivePointerAlignment: false
 DisableFormat: false
 EmptyLineAfterAccessModifier: Always
@@ -124,7 +116,7 @@ IndentAccessModifiers: true
 IndentCaseBlocks: false
 IndentCaseLabels: true
 IndentExternBlock: AfterExternBlock
-IndentGotoLabels: InnerIndent
+IndentGotoLabels: true
 IndentPPDirectives: BeforeHash
 IndentRequiresClause: false
 IndentWidth: 4
@@ -154,7 +146,7 @@ PointerAlignment: Left
 QualifierAlignment: Left
 RawStringFormats:
 ReferenceAlignment: Pointer
-ReflowComments:  Always
+ReflowComments:  true
 RemoveBracesLLVM: false
 RemoveParentheses: Leave
 RemoveSemicolon: false

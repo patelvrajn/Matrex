@@ -23,16 +23,16 @@ fi
 # echo "$files"          → outputs newline-separated file names
 # |                      → pipe into clang-format
 # clang-format options:
-#   --style=Google       → use Google's formatting style
+#   --style=file         → use custom formatting style where the rules are specified in the .clang-format file
 #   -i                   → modify files in-place (overwrite them)
-#   --files=/dev/stdin   → read the list of files from stdin instead of arguments
+#   --files=/dev/stdin      → read the list of files from stdin instead of arguments
 #
 # IMPORTANT:
 # This reformats ONLY the files that are already staged,
 # preventing unintended formatting of unstaged files.
 # FOR TESTING:
-# find . -iname '*.cpp' -o -iname '*.hpp' | clang-format --dry-run --style=clang-format -i --files=/dev/stdin
-echo "$files" | clang-format --style=Google -i --files=/dev/stdin
+# find . -iname '*.cpp' -o -iname '*.hpp' | clang-format --dry-run --style=file -i --files=/dev/stdin
+echo "$files" | clang-format --style=file -i --files=/dev/stdin
 
 # Re-stage the files after formatting.
 #
