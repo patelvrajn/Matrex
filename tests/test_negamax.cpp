@@ -83,12 +83,12 @@ TEST(negamax, DISABLED_debug)
     Chess_Board cb;
     cb.set_from_fen(std::string(FEN));
 
-    // Arbitrary search constraints.
+    // Search constraints matching the fastchess time control used; 8+0.08.
     Search_Constraints constraints;
-    constraints.time_controls[PIECE_COLOR::WHITE].time_remaining = 15000;
-    constraints.time_controls[PIECE_COLOR::WHITE].increment      = 1500;
-    constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 15000;
-    constraints.time_controls[PIECE_COLOR::BLACK].increment      = 1500;
+    constraints.time_controls[PIECE_COLOR::WHITE].time_remaining = 8000;
+    constraints.time_controls[PIECE_COLOR::WHITE].increment      = 80;
+    constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 8000;
+    constraints.time_controls[PIECE_COLOR::BLACK].increment      = 80;
 
     Search_Engine              search(cb, constraints);
     const Search_Engine_Result search_result = search.search();

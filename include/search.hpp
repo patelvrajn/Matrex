@@ -14,8 +14,8 @@ constexpr uint16_t MAX_SEARCH_DEPTH = (5899 * NUM_OF_PLAYERS);
 
 struct Time_Control
 {
-    uint64_t time_remaining;
-    uint64_t increment;
+    uint64_t time_remaining; // Time in milliseconds.
+    uint64_t increment;      // Time in milliseconds.
 };
 
 struct Search_Constraints
