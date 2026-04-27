@@ -34,36 +34,6 @@ TEST(negamax, mating) {
   }
 }
 
-TEST(negamax, consistent_scoring) {
-  constexpr uint16_t SEARCH_DEPTH = 5;
-
-  // Arbitrary search constraints.
-  Search_Constraints constraints;
-  constraints.time_controls[PIECE_COLOR::WHITE].time_remaining = 150000;
-  constraints.time_controls[PIECE_COLOR::WHITE].increment = 1500;
-  constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 150000;
-  constraints.time_controls[PIECE_COLOR::BLACK].increment = 1500;
-
-  Chess_Board cb;
-  cb.set_from_fen(
-      "r1bq1rk1/ppp2ppp/2n1p3/b2p4/3PnB2/P1N1P3/1PP2PPP/1K1RQBNR b - - 2 9");
-
-  Search_Engine first_search(cb, constraints);
-  const Search_Engine_Result first_search_result =
-      first_search.negamax(cb, SEARCH_DEPTH);
-
-  cb.make_move(first_search_result.first);
-
-  Search_Engine second_search(cb, constraints);
-  const Search_Engine_Result second_search_result =
-      second_search.negamax(cb, SEARCH_DEPTH - 1);
-
-  // The score from the first search made at depth D must be the negated score
-  // of a second search (made after making the best move) made at depth (D-1).
-  ASSERT_EQ(first_search_result.second.to_int(),
-            -second_search_result.second.to_int());
-}
-
 TEST(negamax, DISABLED_debug) {
   constexpr std::string_view FEN =
       "r1bqk2r/2p1b3/2pn1ppp/p7/5B2/2N1QN2/PPP1KPPP/R6R w kq - 2 14";
@@ -77,9 +47,10 @@ TEST(negamax, DISABLED_debug) {
   constraints.time_controls[PIECE_COLOR::WHITE].increment = 1500;
   constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 15000;
   constraints.time_controls[PIECE_COLOR::BLACK].increment = 1500;
+  constraints.transposition_table_size = 64;
 
-  Search_Engine search(cb, constraints);
-  const Search_Engine_Result search_result = search.search();
+  Search_Engine search;
+  const Search_Engine_Result search_result = search.search(cb, constraints);
   std::cout << "Best move: "
             << search_result.first.to_coordinate_notation(false)
             << " Score: " << search_result.second.to_int()

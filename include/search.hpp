@@ -41,6 +41,7 @@ class Search_Engine {
   Timer m_timer;
   bool m_timer_expired_during_search;
   uint64_t m_num_of_nodes_searched;
+  uint16_t m_current_search_depth;
 
   Search_Engine_Result negamax(Chess_Board& position, uint16_t depth,
                                uint16_t ply = 0,

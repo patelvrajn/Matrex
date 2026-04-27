@@ -25,8 +25,8 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
                                             Score alpha, Score beta) {
   const Zobrist_Hash position_z_hash = position.get_zobrist_hash();
   Transposition_Table_Entry transposition_table_entry;
-  const bool did_transposition_table_hit =
-      m_transposition_table.read(position_z_hash, transposition_table_entry);
+  const bool did_transposition_table_hit = m_transposition_table.read(
+      m_current_search_depth, position_z_hash, transposition_table_entry);
 
   // Transposition table cutoff - use the stored best move and score if it
   // satisfies the conditions.
@@ -53,16 +53,16 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
 
     // Cache the position's mate evaluation in the transposition table.
     transposition_table_entry = {
+        .best_move = Chess_Move(),  // No best move in mate positions.
         .partial_zobrist =
             Transposition_Table::get_partial_zobrist(position_z_hash),
-        .age = 0,
-        .best_move = Chess_Move(),  // No best move in mate positions.
         .score = mate_score,
         .depth = depth,
         .score_bound =
             Score_Bound_Type::EXACT,  // Mate scores are always exact.
     };
-    m_transposition_table.write(position_z_hash, transposition_table_entry);
+    m_transposition_table.write(m_current_search_depth, position_z_hash,
+                                transposition_table_entry);
 
     return {Chess_Move(), mate_score};
   }
@@ -153,15 +153,15 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
   // time has not expired during the search.
   if (!m_timer_expired_during_search) {
     transposition_table_entry = {
+        .best_move = best_move,
         .partial_zobrist =
             Transposition_Table::get_partial_zobrist(position_z_hash),
-        .age = 0,
-        .best_move = best_move,
         .score = best_score,
         .depth = depth,
         .score_bound = score_bound,
     };
-    m_transposition_table.write(position_z_hash, transposition_table_entry);
+    m_transposition_table.write(m_current_search_depth, position_z_hash,
+                                transposition_table_entry);
   }
 
   return {best_move, best_score};
@@ -234,10 +234,9 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
 
     // Cache the position's mate evaluation in the transposition table.
     // transposition_table_entry = {
+    //     .best_move = Chess_Move(),  // No best move in mate positions.
     //     .partial_zobrist =
     //         Transposition_Table::get_partial_zobrist(position_z_hash),
-    //     .age = 0,
-    //     .best_move = Chess_Move(),  // No best move in mate positions.
     //     .score = mate_score,
     //     .depth = 0,
     //     .score_bound =
@@ -265,10 +264,9 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
   if ((moves.get_max_index() == -1) && (!is_side_to_move_in_check)) {
     // Cache the position's stand pat evaluation in the transposition table.
     // transposition_table_entry = {
+    //     .best_move = Chess_Move(),  // No best move.
     //     .partial_zobrist =
     //         Transposition_Table::get_partial_zobrist(position_z_hash),
-    //     .age = 0,
-    //     .best_move = Chess_Move(),  // No best move.
     //     .score = stand_pat,
     //     .depth = 0,
     //     .score_bound =
@@ -296,10 +294,9 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     if (alpha >= beta) {
       // Cache the position's mate evaluation in the transposition table.
       // transposition_table_entry = {
+      //     .best_move = best_move,
       //     .partial_zobrist =
       //         Transposition_Table::get_partial_zobrist(position_z_hash),
-      //     .age = 0,
-      //     .best_move = best_move,
       //     .score = best_score,
       //     .depth = 0,
       //     .score_bound =
@@ -344,10 +341,9 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
 
   // Cache the position's best move and evaluation in the transposition table.
   // transposition_table_entry = {
+  //     .best_move = best_move,
   //     .partial_zobrist =
   //         Transposition_Table::get_partial_zobrist(position_z_hash),
-  //     .age = 0,
-  //     .best_move = best_move,
   //     .score = best_score,
   //     .depth = 0,
   //     .score_bound = score_bound,
@@ -365,6 +361,7 @@ Search_Engine_Result Search_Engine::iterative_deepening() {
   m_timer.start();
   for (uint16_t current_depth = 1; current_depth < MAX_SEARCH_DEPTH;
        current_depth++) {
+    m_current_search_depth = current_depth;
     Search_Engine_Result result = negamax(m_chess_board, current_depth);
     // Only update best search result if the timer didn't expire during the
     // search. Otherwise, time has expired, break out of iterative deepening
