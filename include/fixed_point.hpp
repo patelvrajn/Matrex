@@ -44,6 +44,9 @@ class Fixed_Point_Integer
 
     constexpr Fixed_Point_Integer floor() const;
 
+    constexpr Fixed_Point_Int_Storage_Type get_integer() const;
+    constexpr Fixed_Point_Int_Storage_Type get_fractional() const;
+
     // Arithmetic operators with another fixed-point integer.
     constexpr Fixed_Point_Integer
     operator+(const Fixed_Point_Integer other) const;
@@ -345,6 +348,20 @@ constexpr Fixed_Point_Integer<F> Fixed_Point_Integer<F>::floor() const
     constexpr Fixed_Point_Int_Storage_Type mask         = (~((1 << F) - 1));
     Fixed_Point_Int_Storage_Type           integer_part = m_value & mask;
     return Fixed_Point_Integer::from_value(integer_part);
+}
+
+template <uint8_t F>
+constexpr Fixed_Point_Int_Storage_Type
+Fixed_Point_Integer<F>::get_integer() const
+{
+    return (get_value() >> F);
+}
+
+template <uint8_t F>
+constexpr Fixed_Point_Int_Storage_Type
+Fixed_Point_Integer<F>::get_fractional() const
+{
+    return (*this).get_value() - (*this).floor().get_value();
 }
 
 template <uint8_t F>
@@ -914,8 +931,7 @@ namespace Matrex
                     LOG2_LOOKUP_TABLE_SIZE));
         std::size_t index = ((m - Fixed_Point_Integer<F>::FP_ONE)
                              * log2_lookup_table_size_in_fp)
-                                .get_value()
-                         >> F;
+                                .get_integer();
 
         // Clamp index to be within bounds because of rounding.
         index = std::clamp(index,
@@ -1016,7 +1032,7 @@ namespace Matrex
 
         // The clamped integer part of i becomes the index for the lookup table
         // and we perform the lookup.
-        std::size_t index = i.get_value() >> F;
+        std::size_t index = i.get_integer();
 
         // Clamp index to be within bounds because of rounding.
         index = std::clamp(index,
@@ -1036,7 +1052,7 @@ namespace Matrex
         // Now we calculate 2^(integer_part) for both positive and negative
         // integer_part which simply translates into a bit shift of the
         // fractional part.
-        Fixed_Point_Int_Storage_Type shift  = (integer_part.get_value() >> F);
+        Fixed_Point_Int_Storage_Type shift  = integer_part.get_integer();
         Fixed_Point_Integer<F>       result = fractional_part_result;
         if (shift >= 0)
         {
