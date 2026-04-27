@@ -477,27 +477,16 @@ Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
 
     for (std::size_t i = 0; i < N; i++)
     {
-        // This instantiation is to compute derivatives.
         Evaluator e(weights,
                     eval_params.boards[i],
                     eval_params.moving_side_matrices[i],
                     eval_params.opposing_side_matrices[i]);
 
-        // This instantiation is needed to make this evaluation a fixed-point
-        // evaluation - doing a double-typed evaluation while tuning will tune
-        // for the precise values it sees but since the evaluation of the engine
-        // will be fixed point, we must tune for imprecise fixed point values as
-        // their evaluation differs quite a bit.
-        Evaluator fp_e(weights.to_matrex_fp_int(),
-                       eval_params.boards[i],
-                       eval_params.moving_side_matrices[i],
-                       eval_params.opposing_side_matrices[i]);
-
         const double sign =
             (eval_params.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)
                 ? 1.0L
                 : -1.0L;
-        const double evaluation = fp_e.evaluate_template_typed().to_double();
+        const double evaluation = e.evaluate_template_typed();
         const double evaluation_white =
             sign * evaluation; // Convert side-to-move's evaluation to white's
                                // perspective.
@@ -530,7 +519,7 @@ double Tuner::compute_loss(const Dataset&                    d,
 
         for (std::size_t i = 0; i < mini_batch.fens.size(); i++)
         {
-            Evaluator e(weights.to_matrex_fp_int(),
+            Evaluator e(weights,
                         eval_params.boards[i],
                         eval_params.moving_side_matrices[i],
                         eval_params.opposing_side_matrices[i]);
@@ -539,7 +528,7 @@ double Tuner::compute_loss(const Dataset&                    d,
                 (eval_params.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)
                     ? 1.0L
                     : -1.0L;
-            const double evaluation = e.evaluate_template_typed().to_double();
+            const double evaluation = e.evaluate_template_typed();
             const double evaluation_white =
                 sign * evaluation; // Convert side-to-move's evaluation to
                                    // white's perspective.

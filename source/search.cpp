@@ -175,8 +175,8 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     Score      best_score = Score(FP_NEGATIVE_INFINITY);
     Chess_Move best_move  = Chess_Move();
 
-    if (!is_side_to_move_in_check)
-    { // Heuristic
+    if (!is_side_to_move_in_check) // Heuristic
+    {
         best_score = stand_pat;
 
         // Update alpha if the stand pat score is greater than alpha.

@@ -14,7 +14,7 @@ using Fixed_Point_Int_Storage_Type = int32_t;
 constexpr uint8_t FIXED_POINT_BIT_WIDTH =
     static_cast<uint8_t>(sizeof(Fixed_Point_Int_Storage_Type) * 8);
 
-constexpr uint8_t MAXIMUM_ALLOWED_OVERFLOW = 3;
+constexpr uint8_t MAXIMUM_ALLOWED_OVERFLOW = 2;
 
 constexpr double LN_2      = 0.69314718056; // Precomputed value of ln(2).
 constexpr double NATURAL_E = std::numbers::e;
@@ -215,12 +215,12 @@ class Fixed_Point_Integer
     }
 
     // Clamp a double to be within range of the fixed point representation.
-    static constexpr bool clamp(double value)
+    static constexpr double clamp(double value)
     {
         return std::clamp(value, minimum(), maximum());
     }
 
-    static constexpr bool safe_clamp(double value)
+    static constexpr double safe_clamp(double value)
     {
         return std::clamp(value, safe_minimum(), safe_maximum());
     }
@@ -856,10 +856,15 @@ namespace Matrex
         return Matrex::exp2(Matrex::log2(base) * exponent);
     }
 
-    // NOTE: The input must be non-negative and non-zero.
     template <uint8_t F>
     Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input)
     {
+
+        MATREX_ASSERT(
+            input > 0,
+            "LOG2 ERROR: Input must be non-negative and non-zero, input is {}",
+            input.to_double());
+
         // Factor the input into (2^e * m) where m is in [1, 2) where e is an
         // integer. This may look like a familaur factorization because it's the
         // same way that floating point numbers are represented.
@@ -911,16 +916,22 @@ namespace Matrex
                              * log2_lookup_table_size_in_fp)
                                 .get_value()
                          >> F;
-        index = std::clamp(
-            index,
-            static_cast<std::size_t>(0),
-            (LOG2_LOOKUP_TABLE_SIZE
-             - 1)); // Clamp index to be within bounds because of rounding.
+
+        // Clamp index to be within bounds because of rounding.
+        index = std::clamp(index,
+                           static_cast<std::size_t>(0),
+                           (LOG2_LOOKUP_TABLE_SIZE - 1));
+
         const Fixed_Point_Integer<F> c =
             Fixed_Point_Integer<F>::FP_ONE
             + (Fixed_Point_Integer<F>::from_integer(
                    static_cast<Fixed_Point_Int_Storage_Type>(index))
                / log2_lookup_table_size_in_fp);
+
+        MATREX_ASSERT(
+            (c.to_double() >= 1.0 && c.to_double() < 2.0),
+            "LOG2 FACTORIZATION ERROR: c is not in the range [1, 2), c is {}",
+            c.to_double());
 
         // t is the residual component of m where m is c * (1 + t). Note, that
         // we use (1 + t) instead of t because in computing t = m/c (from m =
@@ -930,9 +941,16 @@ namespace Matrex
         //  t = (m/c) - 1 which is (m - c) / c
         //  and we know (m - c) must be less than (1/N) because m and c are in
         //  the same bucket of size (1/N) and c is the left edge of the bucket.
-        //  Thus, t is strictly less than (1 / N).
+        //  Thus, t is strictly less than or equal to (1 / N).
         const Fixed_Point_Integer<F> t =
             (m / c) - Fixed_Point_Integer<F>::FP_ONE;
+
+        MATREX_ASSERT(
+            ((t.to_double()
+              <= (1.0 / static_cast<double>(LOG2_LOOKUP_TABLE_SIZE)))
+             && (t.to_double() >= 0.0)),
+            "LOG2 FACTORIZATION ERROR: c is not in the range [1, 2), c is {}",
+            c.to_double());
 
         // Returns log2(2^e * m) = e + log2(m) = e + log2(c) + log2(1+t) which
         // is the same as log2(input).
@@ -955,6 +973,21 @@ namespace Matrex
         // (NOTE: The integer part is not shifted here, only masked!)
         Fixed_Point_Integer<F> integer_part    = input.floor();
         Fixed_Point_Integer<F> fractional_part = input - integer_part;
+
+        MATREX_ASSERT(fractional_part.to_double() >= 0.0
+                          && fractional_part.to_double() < 1.0,
+                      "EXP2 ERROR: Fractional part is not in the range [0, 1), "
+                      "fractional part is {}",
+                      fractional_part.to_double());
+
+        MATREX_ASSERT((integer_part + fractional_part) == input,
+                      "EXP2 ERROR: Integer part and fractional part do not sum "
+                      "to input, integer part is {}, fractional part is {}, "
+                      "the sum is {}, input is {}",
+                      integer_part.to_double(),
+                      fractional_part.to_double(),
+                      (integer_part + fractional_part).to_double(),
+                      input.to_double());
 
         // We can break the fractional part further:
         // 2^fractional_part = 2^((i/N) + r) = 2^(i/N) * 2^(r)
@@ -984,11 +1017,12 @@ namespace Matrex
         // The clamped integer part of i becomes the index for the lookup table
         // and we perform the lookup.
         std::size_t index = i.get_value() >> F;
-        index             = std::clamp(
-            index,
-            static_cast<std::size_t>(0),
-            (EXP2_LOOKUP_TABLE_SIZE
-             - 1)); // Clamp index to be within bounds because of rounding.
+
+        // Clamp index to be within bounds because of rounding.
+        index = std::clamp(index,
+                           static_cast<std::size_t>(0),
+                           (EXP2_LOOKUP_TABLE_SIZE - 1));
+
         Fixed_Point_Integer<F> table_lookup_value =
             Fixed_Point_Integer<F>::from_value(
                 Fixed_Point_Integer<F>::lookup_exp2_table(index));

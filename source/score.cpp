@@ -14,34 +14,32 @@ Score::Score(Fixed_Point_Int_Storage_Type evaluation)
 
 Score::Score(Matrex_FP_Int evaluation) : Score(evaluation.get_value()) {}
 
-Score::Score(Score_Fields fields) { m_fields = fields; }
+Score::Score(Score_Fields fields) : m_fields(fields) {}
 
 Fixed_Point_Int_Storage_Type Score::to_int() const
 {
-    if (m_fields.mate)
-    { // Mating evaluation.
-
+    if (m_fields.mate) // Mating evaluation.
+    {
         const Fixed_Point_Int_Storage_Type fixed_point_mate =
             m_fields.value << MATREX_FP_INT_FRACTIONAL_BITS;
 
-        if (m_fields.sign)
-        { // Negative
+        if (m_fields.sign) // Negative
+        {
             return FP_LOSING_MATE_MIN + fixed_point_mate;
         }
-        else
-        { // Positive
+        else // Positive
+        {
             return FP_WINNING_MATE_MAX - fixed_point_mate;
         }
     }
-    else
-    { // Normal evaluation.
-
-        if (m_fields.sign)
-        { // Negative
+    else // Normal evaluation.
+    {
+        if (m_fields.sign) // Negative
+        {
             return -static_cast<Fixed_Point_Int_Storage_Type>(m_fields.value);
         }
-        else
-        { // Positive
+        else // Positive
+        {
             return m_fields.value;
         }
     }
@@ -73,9 +71,8 @@ Score Score::from_int(Fixed_Point_Int_Storage_Type i)
 
         return_score.m_fields.mate = 1;
 
-        if (return_score.m_fields.sign)
-        { // i is negative
-
+        if (return_score.m_fields.sign) // i is negative
+        {
             // This gives the plys to mate because:
             //    i - FP_LOSING_MATE_MIN
             //    = (FP_LOSING_MATE_MIN + N) - FP_LOSING_MATE_MIN
@@ -84,9 +81,8 @@ Score Score::from_int(Fixed_Point_Int_Storage_Type i)
             return_score.m_fields.value =
                 plys_to_mate >> MATREX_FP_INT_FRACTIONAL_BITS;
         }
-        else
-        { // i is positive
-
+        else // i is positive
+        {
             const uint32_t plys_to_mate =
                 FP_WINNING_MATE_MAX
                 - i; // A higher i means closer to checkmate.
@@ -94,9 +90,8 @@ Score Score::from_int(Fixed_Point_Int_Storage_Type i)
                 plys_to_mate >> MATREX_FP_INT_FRACTIONAL_BITS;
         }
     }
-    else
-    { // Normal evaluation.
-
+    else // Normal evaluation.
+    {
         return_score.m_fields.mate  = 0;
         return_score.m_fields.value = abs_i;
     }
