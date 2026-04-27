@@ -30,22 +30,23 @@
 // count = 2 → square 5 → index bit 2 = 1 → set square 5.
 
 // Result: occupancy = 0b00100100 (occupied at squares 2 and 5)
-Bitboard set_occupancy(uint64_t index, uint8_t num_of_high_bits_in_mask,
-                       const Bitboard& mask) {
-  Bitboard occupancy;
-  Bitboard temp_mask = mask;
+Bitboard set_occupancy(uint64_t        index,
+                       uint8_t         num_of_high_bits_in_mask,
+                       const Bitboard& mask)
+{
+    Bitboard occupancy;
+    Bitboard temp_mask = mask;
 
-  for (uint8_t idx = 0; idx < num_of_high_bits_in_mask; idx++) {
-    Square s(temp_mask.get_index_of_high_lsb());
+    for (uint8_t idx = 0; idx < num_of_high_bits_in_mask; idx++)
+    {
+        Square s(temp_mask.get_index_of_high_lsb());
 
-    // Remove that bit from the temp mask so next iteration advances to the next
-    // square.
-    temp_mask.unset_square(s);
+        // Remove that bit from the temp mask so next iteration advances to the
+        // next square.
+        temp_mask.unset_square(s);
 
-    if (index & (1ULL << idx)) {
-      occupancy.set_square(s);
+        if (index & (1ULL << idx)) { occupancy.set_square(s); }
     }
-  }
 
-  return occupancy;
+    return occupancy;
 }

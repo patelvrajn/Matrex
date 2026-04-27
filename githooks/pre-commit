@@ -1,5 +1,47 @@
 #!/bin/bash
 
-find . -iname '*.cpp' -o -iname '*.hpp' | clang-format --style=Google -i --files=/dev/stdin
-git add --all
+# Get a list of files that are currently STAGED (in the index),
+# filtered to only include .cpp and .hpp files.
+# 
+# Breakdown:
+# --cached        → look at staged changes (NOT working directory changes)
+# --name-only     → output only file names (not full diffs)
+# -- '*.cpp' ...  → restrict to C++ source/header files
+files=$(git diff --cached --name-only -- '*.cpp' '*.hpp')
 
+# If the "files" variable is empty (i.e., no staged C++ files),
+# then exit early and do nothing.
+#
+# -z "$files" checks if the string is zero-length.
+# This prevents unnecessary work and avoids running clang-format with no input.
+if [ -z "$files" ]; then
+  exit 0
+fi
+
+# Pass the list of staged files into clang-format via stdin.
+#
+# echo "$files"          → outputs newline-separated file names
+# |                      → pipe into clang-format
+# clang-format options:
+#   --style=file         → use custom formatting style where the rules are specified in the .clang-format file
+#   -i                   → modify files in-place (overwrite them)
+#   --files=/dev/stdin      → read the list of files from stdin instead of arguments
+#
+# IMPORTANT:
+# This reformats ONLY the files that are already staged,
+# preventing unintended formatting of unstaged files.
+# FOR TESTING:
+# find . -iname '*.cpp' -o -iname '*.hpp' | clang-format --dry-run --style=file -i --files=/dev/stdin
+echo "$files" | clang-format --style=file -i --files=/dev/stdin
+
+# Re-stage the files after formatting.
+#
+# Because clang-format modified the files in the working directory,
+# but Git's index (staging area) still contains the OLD versions.
+#
+# "git add $files" updates the index with the newly formatted content,
+# ensuring the commit includes the formatting changes.
+#
+# IMPORTANT: This will still stage unstaged files with the same name as staged 
+# files.
+echo "$files" | xargs git add

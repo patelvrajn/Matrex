@@ -3,107 +3,111 @@
 #include "evaluate.hpp"
 #include "evaluation_terms.hpp"
 
-Search_Engine::Search_Engine(const Chess_Board& cb,
-                             const Search_Constraints& constraints)
-    : m_chess_board(cb),
-      m_constraints(constraints),
-      m_my_side(cb.get_side_to_move()),
-      m_timer_expired_during_search(false),
-      m_num_of_nodes_searched(0) {}
+Search_Engine::Search_Engine(const Chess_Board&        cb,
+                             const Search_Constraints& constraints) :
+    m_chess_board(cb),
+    m_constraints(constraints),
+    m_my_side(cb.get_side_to_move()),
+    m_timer_expired_during_search(false),
+    m_num_of_nodes_searched(0)
+{
+}
 
-Search_Engine_Result Search_Engine::search() {
-  m_num_of_nodes_searched = 0;
-  return iterative_deepening();
+Search_Engine_Result Search_Engine::search()
+{
+    m_num_of_nodes_searched = 0;
+    return iterative_deepening();
 }
 
 Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
-                                            uint16_t depth, uint16_t ply,
-                                            Score alpha, Score beta) {
-  Move_Ordering mo(position);
-  mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
-  Chess_Move_List& moves = mo.get_sorted_moves();
+                                            uint16_t     depth,
+                                            uint16_t     ply,
+                                            Score        alpha,
+                                            Score        beta)
+{
+    Move_Ordering mo(position);
+    mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
+    Chess_Move_List& moves = mo.get_sorted_moves();
 
-  // No legal moves available, return the appropriate mate or draw score.
-  if (moves.get_max_index() == -1) {
+    // No legal moves available, return the appropriate mate or draw score.
+    if (moves.get_max_index() == -1)
+    {
+        m_num_of_nodes_searched++;
+        const Score mate_score = get_mate_score(mo, ply);
+        return {Chess_Move(), mate_score};
+    }
+
+    // Base case: if depth is 0, perform quiescence search.
+    if (depth == 0) { return quiescence(position, ply, alpha, beta); }
+
     m_num_of_nodes_searched++;
-    const Score mate_score = get_mate_score(mo, ply);
-    return {Chess_Move(), mate_score};
-  }
 
-  // Base case: if depth is 0, perform quiescence search.
-  if (depth == 0) {
-    return quiescence(position, ply, alpha, beta);
-  }
+    // Check if time has expired during the search.
+    m_timer_expired_during_search = m_timer.is_search_time_expired(
+        m_constraints.time_controls[m_my_side].time_remaining,
+        m_constraints.time_controls[m_my_side].increment);
 
-  m_num_of_nodes_searched++;
+    // When time expires return beta because it will just be alpha of the parent
+    // as the child score and this way it doesn't affect the best move of the
+    // parent.
+    if (m_timer_expired_during_search) { return {moves[0], beta}; }
 
-  // Check if time has expired during the search.
-  m_timer_expired_during_search = m_timer.is_search_time_expired(
-      m_constraints.time_controls[m_my_side].time_remaining,
-      m_constraints.time_controls[m_my_side].increment);
+    Chess_Move best_move  = Chess_Move();
+    Score      best_score = Score(FP_NEGATIVE_INFINITY);
 
-  // When time expires return beta because it will just be alpha of the parent
-  // as the child score and this way it doesn't affect the best move of the
-  // parent.
-  if (m_timer_expired_during_search) {
-    return {moves[0], beta};
-  }
+    for (const Chess_Move& move : moves)
+    {
+        // Explore the child move's subtree for it's evaluation. Negate the
+        // result to compare it's score to the parent's scores (alpha,
+        // evaluation, etc).
+        const Undo_Chess_Move      undo_move = position.make_move(move);
+        const Search_Engine_Result child_result =
+            negamax(position, (depth - 1), (ply + 1), -beta, -alpha);
+        const Score child_score = -child_result.second;
+        position.undo_move(undo_move);
 
-  Chess_Move best_move = Chess_Move();
-  Score best_score = Score(ESCORE::NEGATIVE_INFINITY);
+        // Update alpha if the child's score is better than the current alpha.
+        // All nodes in negamax are looking to maximize their alpha value.
+        if (child_score > alpha) { alpha = child_score; }
 
-  for (const Chess_Move& move : moves) {
-    // Explore the child move's subtree for it's evaluation. Negate the result
-    // to compare it's score to the parent's scores (alpha, evaluation, etc).
-    const Undo_Chess_Move undo_move = position.make_move(move);
-    const Search_Engine_Result child_result =
-        negamax(position, (depth - 1), (ply + 1), -beta, -alpha);
-    const Score child_score = -child_result.second;
-    position.undo_move(undo_move);
+        // Update the best score and best move found so far at this node even if
+        // the child is expected to cause pruning because the information that
+        // this node caused a beta cutoff is still needed for the parent node's
+        // move.
+        if (child_score > best_score)
+        {
+            best_score = child_score;
+            best_move  = move;
+        }
 
-    // Update alpha if the child's score is better than the current alpha. All
-    // nodes in negamax are looking to maximize their alpha value.
-    if (child_score > alpha) {
-      alpha = child_score;
+        // When alpha of the parent becomes greater than or equal to beta, a
+        // beta cutoff (fail-high) or pruning of the node is needed because the
+        // opponent will never allow this sequence moves to occur In this case,
+        // we don't consider further children because alpha can only become
+        // higher not lower. Note, that the equal sign in the pruning condition
+        // is needed because:
+        //
+        //  We know b_c = -a_p (property essential to Negamax) and assume that
+        //  the pruning condition (with the equal sign) is met i.e. a_c >= b_c.
+        //
+        //  Then the following is true:
+        //    a_c >= -a_p
+        //    -a_c <= a_p
+        //  Which means a_p will not change in a_p = max(a_p, -negamax(...))
+        //  because the returned value from the child (v) is at least beta so:
+        //    v >= b_c = -a_p
+        //    parent_score (p) = -v <= -b_c
+        //    p <= -(-a_p)
+        //    p <= a_p
+        //  Since, the parent is looking to improve it's alpha, fully evaluating
+        //  the pruned child is futile. This logic holds even if we assumed a_c
+        //  > b_c thus, the equal sign eliminates further cases of futile work.
+        //
+        // (Credit to Tobi/toanth in the Engine Programming Discord)
+        if (alpha >= beta) { break; }
     }
 
-    // Update the best score and best move found so far at this node even if
-    // the child is expected to cause pruning because the information that this
-    // node caused a beta cutoff is still needed for the parent node's move.
-    if (child_score > best_score) {
-      best_score = child_score;
-      best_move = move;
-    }
-
-    // When alpha of the parent becomes greater than or equal to beta, a beta
-    // cutoff (fail-high) or pruning of the node is needed because the opponent
-    // will never allow this sequence moves to occur In this case, we don't
-    // consider further children because alpha can only become higher not lower.
-    // Note, that the equal sign in the pruning condition is needed because:
-    //
-    //  We know b_c = -a_p (property essential to Negamax) and assume that the
-    //  pruning condition (with the equal sign) is met i.e. a_c >= b_c.
-    //
-    //  Then the following is true:
-    //    a_c >= -a_p
-    //    -a_c <= a_p
-    //  Which means a_p will not change in a_p = max(a_p, -negamax(...)) because
-    //  the returned value from the child (v) is at least beta so:
-    //    v >= b_c = -a_p
-    //    parent_score (p) = -v <= -b_c
-    //    p <= -(-a_p)
-    //    p <= a_p
-    //  Since, the parent is looking to improve it's alpha, fully evaluating the
-    //  pruned child is futile. This logic holds even if we assumed a_c > b_c
-    //  thus, the equal sign eliminates further cases of futile work.
-    //
-    // (Credit to Tobi/toanth in the Engine Programming Discord)
-    if (alpha >= beta) {
-      break;
-    }
-  }
-
-  return {best_move, best_score};
+    return {best_move, best_score};
 }
 
 // This function implements quiescence search. The idea of quiescence search is
@@ -119,112 +123,115 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
 //    check.
 //    3. There is no depth limit.
 Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
-                                               uint16_t ply, Score alpha,
-                                               Score beta) {
-  m_num_of_nodes_searched++;
+                                               uint16_t     ply,
+                                               Score        alpha,
+                                               Score        beta)
+{
+    m_num_of_nodes_searched++;
 
-  // Generate sorted tactical moves in the current position if not in check, if
-  // in check, we need all moves because it is not guaranteed that at least one
-  // tactical move is a check evasion move.
-  Move_Ordering mo(position);
-  const bool is_side_to_move_in_check = mo.is_side_to_move_in_check();
-  if (is_side_to_move_in_check) {
-    mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
-  } else {
-    mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>();
-  }
-  Chess_Move_List& moves = mo.get_sorted_moves();
-  Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
+    // Generate sorted tactical moves in the current position if not in check,
+    // if in check, we need all moves because it is not guaranteed that at least
+    // one tactical move is a check evasion move.
+    Move_Ordering mo(position);
+    const bool    is_side_to_move_in_check = mo.is_side_to_move_in_check();
+    if (is_side_to_move_in_check)
+    {
+        mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
+    }
+    else { mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>(); }
+    Chess_Move_List&       moves              = mo.get_sorted_moves();
+    Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
 
-  // Generate moves matrix for the opposing side for evaluation purposes.
-  const PIECE_COLOR opposing_side =
-      (PIECE_COLOR)((~position.get_side_to_move()) & 0x1);
-  Chess_Move_List not_used_moves_list;
-  Moves_Bitboard_Matrix opposing_side_matrix;
-  Move_Generator mg(position);
-  mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
-      opposing_side, not_used_moves_list, opposing_side_matrix);
+    // Generate moves matrix for the opposing side for evaluation purposes.
+    const PIECE_COLOR opposing_side =
+        (PIECE_COLOR) ((~position.get_side_to_move()) & 0x1);
+    Chess_Move_List       not_used_moves_list;
+    Moves_Bitboard_Matrix opposing_side_matrix;
+    Move_Generator        mg(position);
+    mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,
+                                                     not_used_moves_list,
+                                                     opposing_side_matrix);
 
-  // No moves and in check - return mate score.
-  if ((moves.get_max_index() == -1) && is_side_to_move_in_check) {
-    const Score mate_score = get_mate_score(mo, ply);
-    return {Chess_Move(), mate_score};
-  }
-
-  // Stand pat evaluation.
-  const Evaluator e(TUNED_EVALUATION_WEIGHTS, position, moving_side_matrix,
-                    opposing_side_matrix);
-  const Score stand_pat = e.evaluate();
-
-  // No tactical moves - return the static evaluation (stand pat).
-  if ((moves.get_max_index() == -1) && (!is_side_to_move_in_check)) {
-    return {Chess_Move(), stand_pat};
-  }
-
-  Score best_score = Score(ESCORE::NEGATIVE_INFINITY);
-  Chess_Move best_move = Chess_Move();
-
-  if (!is_side_to_move_in_check) {  // Heuristic
-    best_score = stand_pat;
-
-    // Update alpha if the stand pat score is greater than alpha.
-    if (best_score > alpha) {
-      alpha = best_score;
+    // No moves and in check - return mate score.
+    if ((moves.get_max_index() == -1) && is_side_to_move_in_check)
+    {
+        const Score mate_score = get_mate_score(mo, ply);
+        return {Chess_Move(), mate_score};
     }
 
-    // Alpha-beta pruning based on stand pat score.
-    if (alpha >= beta) {
-      return {best_move, best_score};
-    }
-  }
+    // Stand pat evaluation.
+    const Evaluator e(TUNED_EVALUATION_WEIGHTS,
+                      position,
+                      moving_side_matrix,
+                      opposing_side_matrix);
+    const Score     stand_pat = e.evaluate();
 
-  for (const Chess_Move& move : moves) {
-    // Explore the child move's subtree for it's evaluation. Negate the result
-    // to compare it's score to the parent's scores (alpha, evaluation, etc).
-    const Undo_Chess_Move undo_move = position.make_move(move);
-    const Search_Engine_Result child_result =
-        quiescence(position, (ply + 1), -beta, -alpha);
-    const Score child_score = -child_result.second;
-    position.undo_move(undo_move);
-
-    // Update alpha if the child's score is better than the alpha.
-    if (child_score > alpha) {
-      alpha = child_score;
+    // No tactical moves - return the static evaluation (stand pat).
+    if ((moves.get_max_index() == -1) && (!is_side_to_move_in_check))
+    {
+        return {Chess_Move(), stand_pat};
     }
 
-    // Update best score and best move based on child's score.
-    if (child_score > best_score) {
-      best_score = child_score;
-      best_move = move;
+    Score      best_score = Score(FP_NEGATIVE_INFINITY);
+    Chess_Move best_move  = Chess_Move();
+
+    if (!is_side_to_move_in_check) // Heuristic
+    {
+        best_score = stand_pat;
+
+        // Update alpha if the stand pat score is greater than alpha.
+        if (best_score > alpha) { alpha = best_score; }
+
+        // Alpha-beta pruning based on stand pat score.
+        if (alpha >= beta) { return {best_move, best_score}; }
     }
 
-    // Alpha-beta pruning based on child's score.
-    if (alpha >= beta) {
-      break;
-    }
-  }
+    for (const Chess_Move& move : moves)
+    {
+        // Explore the child move's subtree for it's evaluation. Negate the
+        // result to compare it's score to the parent's scores (alpha,
+        // evaluation, etc).
+        const Undo_Chess_Move      undo_move = position.make_move(move);
+        const Search_Engine_Result child_result =
+            quiescence(position, (ply + 1), -beta, -alpha);
+        const Score child_score = -child_result.second;
+        position.undo_move(undo_move);
 
-  return {best_move, best_score};
+        // Update alpha if the child's score is better than the alpha.
+        if (child_score > alpha) { alpha = child_score; }
+
+        // Update best score and best move based on child's score.
+        if (child_score > best_score)
+        {
+            best_score = child_score;
+            best_move  = move;
+        }
+
+        // Alpha-beta pruning based on child's score.
+        if (alpha >= beta) { break; }
+    }
+
+    return {best_move, best_score};
 }
 
-Search_Engine_Result Search_Engine::iterative_deepening() {
-  // Declare the best search result obtained.
-  Search_Engine_Result best;
+Search_Engine_Result Search_Engine::iterative_deepening()
+{
+    // Declare the best search result obtained.
+    Search_Engine_Result best;
 
-  // Iteratively increment the negamax search depth and start the search timer.
-  m_timer.start();
-  for (uint16_t current_depth = 1; current_depth < MAX_SEARCH_DEPTH;
-       current_depth++) {
-    Search_Engine_Result result = negamax(m_chess_board, current_depth);
-    // Only update best search result if the timer didn't expire during the
-    // search. Otherwise, time has expired, break out of iterative deepening
-    // loop.
-    if (!m_timer_expired_during_search) {
-      best = result;
-    } else {
-      break;
+    // Iteratively increment the negamax search depth and start the search
+    // timer.
+    m_timer.start();
+    for (uint16_t current_depth = 1; current_depth < MAX_SEARCH_DEPTH;
+         current_depth++)
+    {
+        Search_Engine_Result result = negamax(m_chess_board, current_depth);
+        // Only update best search result if the timer didn't expire during the
+        // search. Otherwise, time has expired, break out of iterative deepening
+        // loop.
+        if (!m_timer_expired_during_search) { best = result; }
+        else { break; }
     }
-  }
 
-  return best;
+    return best;
 }
