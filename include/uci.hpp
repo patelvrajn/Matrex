@@ -12,14 +12,16 @@ class UCI
 
     UCI();
 
-  private:
-
-    Chess_Board   m_chess_board;
-    Search_Engine m_search_engine;
+    void loop();
 
   private:
 
     Chess_Board m_chess_board;
+
+    Search_Engine      m_search_engine;
+    Search_Constraints m_search_constraints;
+
+    bool m_is_frc;
 
     // UCI commands
     void handle_position(const std::string& arguments);

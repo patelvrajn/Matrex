@@ -27,10 +27,10 @@ TEST(negamax, mating)
     for (uint8_t fen_idx = 0; fen_idx < 3; fen_idx++)
     {
         cb.set_from_fen(std::string(FENS[fen_idx]));
-        Search_Engine  search(cb, constraints);
+        Search_Engine  search_engine;
         const uint16_t distance_to_mate = (NUM_OF_PLAYERS * fen_idx);
         const Search_Engine_Result search_result =
-            search.negamax(cb, distance_to_mate);
+            search_engine.search(cb, constraints);
         if (fen_idx == 0)
         { // Side to move is in checkmate.
             EXPECT_EQ(search_result.second.to_int(), FP_LOSING_MATE_MIN);

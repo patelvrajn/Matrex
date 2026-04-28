@@ -324,429 +324,390 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
 
         m_state.side_to_move = (PIECE_COLOR) ((~m_state.side_to_move) & 0x1);
         m_zobrist_hash.flip_side_to_move();
-
-        return undo_move;
     }
 
-    void Chess_Board::undo_move(Undo_Chess_Move undo_move)
+    return undo_move;
+}
+
+void Chess_Board::undo_move(Undo_Chess_Move undo_move)
+{
+    m_zobrist_hash.update_castling_rights(m_state.castling_rights);
+    m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
+
+    m_state.castling_rights   = undo_move.castling_rights;
+    m_state.half_move_clock   = undo_move.half_move_clock;
+    m_state.enpassant_square  = undo_move.enpassant_square;
+    PIECE_COLOR opposing_side = (PIECE_COLOR) ((~m_state.side_to_move) & 0x1);
+
+    m_zobrist_hash.update_castling_rights(m_state.castling_rights);
+    m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
+
+    calculate_next_board_state(opposing_side, undo_move.move);
+
+    if (opposing_side == PIECE_COLOR::BLACK)
     {
-        m_zobrist_hash.update_castling_rights(m_state.castling_rights);
-        m_zobrist_hash.update_en_passant_square(
-            Square(m_state.enpassant_square));
+        m_state.full_move_count = m_state.full_move_count - 1;
+    }
 
-        m_state.castling_rights  = undo_move.castling_rights;
-        m_state.half_move_clock  = undo_move.half_move_clock;
-        m_state.enpassant_square = undo_move.enpassant_square;
-        PIECE_COLOR opposing_side =
-            (PIECE_COLOR) ((~m_state.side_to_move) & 0x1);
+    m_state.side_to_move = opposing_side;
+    m_zobrist_hash.flip_side_to_move();
+}
 
-        m_zobrist_hash.update_castling_rights(m_state.castling_rights);
-        m_zobrist_hash.update_en_passant_square(
-            Square(m_state.enpassant_square));
+void Chess_Board::make_moves_from_string(const std::string& moves_str,
+                                         bool               is_frc)
+{
+    std::istringstream iss(moves_str);
 
-        calculate_next_board_state(opposing_side, undo_move.move);
+    std::string move_str;
 
-        if (opposing_side == PIECE_COLOR::BLACK)
+    while (iss >> move_str)
+    { // Loop over space seperated moves string.
+        Move_Generator        mg(*this);
+        Chess_Move_List       moves;
+        Moves_Bitboard_Matrix dummy_matrix;
+        mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves, dummy_matrix);
+
+        for (const auto& move : moves)
         {
-            m_state.full_move_count = m_state.full_move_count - 1;
-        }
-
-        m_state.side_to_move = opposing_side;
-        m_zobrist_hash.flip_side_to_move();
-    }
-
-    void Chess_Board::make_moves_from_string(const std::string& moves_str,
-                                             bool               is_frc)
-    {
-        std::istringstream iss(moves_str);
-
-        std::string move_str;
-
-        while (iss >> move_str)
-        { // Loop over space seperated moves string.
-            Move_Generator        mg(*this);
-            Chess_Move_List       moves;
-            Moves_Bitboard_Matrix dummy_matrix;
-            mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves,
-                                                             dummy_matrix);
-
-            for (const auto& move : moves)
+            if (move_str == move.to_coordinate_notation(is_frc))
             {
-                if (move_str == move.to_coordinate_notation(is_frc))
-                {
-                    make_move(move);
-                    break;
-                }
-            }
-        }
-    }
-
-    Zobrist_Hash Chess_Board::get_zobrist_hash() const
-    {
-        return m_zobrist_hash;
-    }
-
-    void Chess_Board::set_from_fen(const std::string& fen)
-    {
-        // Nuke the board: wipe every piece and occupancy bitboard like the
-        // apocalypse.
-        m_piece_bitboards           = {};
-        m_color_occupancy_bitboards = {};
-
-        m_zobrist_hash = Zobrist_Hash();
-
-        // Extract ONLY the piece placement section (before the first space).
-        // FEN format reminder: "<pieces> <side> <castling> <enpassant>
-        // <halfmove> <fullmove>"
-        const std::string piece_placement =
-            fen.substr(0, fen.find_first_of(' '));
-        const uint8_t piece_placement_len = piece_placement.length();
-
-        // Index trackers: idx = position in piece_placement string
-        // current_rank = rank we’re parsing
-        // start_of_substr = where this rank description starts in the FEN
-        // substring
-        uint8_t idx             = 0;
-        uint8_t current_rank    = 0;
-        uint8_t start_of_substr = 0;
-
-        // Walk through the piece placement string rank by rank, separated by
-        // "/"
-        while (idx < piece_placement_len)
-        {
-            bool is_last_char = (idx == (piece_placement_len - 1));
-
-            // If we hit a "/" (end of a rank) OR we’ve reached the very last
-            // char, parse a rank
-            if ((piece_placement[idx] == '/') || is_last_char)
-            {
-                uint8_t end_of_substr = idx - 1;
-                if (is_last_char)
-                {
-                    end_of_substr = idx; // include last character
-                }
-                const uint8_t len_of_substr =
-                    (end_of_substr - start_of_substr + 1);
-
-                // Parse the rank into actual bitboards
-                place_pieces_from_fen(
-                    piece_placement.substr(start_of_substr, len_of_substr),
-                    len_of_substr,
-                    current_rank);
-
-                // Prepare to start next rank
-                start_of_substr = idx + 1;
-                current_rank++;
-            }
-
-            idx++;
-        }
-
-        // Extract side to move ("w" or "b") from right after the piece
-        // placement section
-        const std::string side_to_move =
-            fen.substr(piece_placement.length() + 1, 1);
-
-        // Translate char into enum
-        switch (side_to_move[0])
-        {
-            case 'w': m_state.side_to_move = PIECE_COLOR::WHITE; break;
-            case 'b': m_state.side_to_move = PIECE_COLOR::BLACK; break;
-        }
-
-        // Translate char into enum
-        switch (side_to_move[0])
-        {
-            case 'w': m_state.side_to_move = PIECE_COLOR::WHITE; break;
-            case 'b':
-                m_state.side_to_move = PIECE_COLOR::BLACK;
-                m_zobrist_hash.flip_side_to_move();
+                make_move(move);
                 break;
+            }
+        }
+    }
+}
+
+Zobrist_Hash Chess_Board::get_zobrist_hash() const { return m_zobrist_hash; }
+
+void Chess_Board::set_from_fen(const std::string& fen)
+{
+    // Nuke the board: wipe every piece and occupancy bitboard like the
+    // apocalypse.
+    m_piece_bitboards           = {};
+    m_color_occupancy_bitboards = {};
+
+    m_zobrist_hash = Zobrist_Hash();
+
+    // Extract ONLY the piece placement section (before the first space).
+    // FEN format reminder: "<pieces> <side> <castling> <enpassant>
+    // <halfmove> <fullmove>"
+    const std::string piece_placement = fen.substr(0, fen.find_first_of(' '));
+    const uint8_t     piece_placement_len = piece_placement.length();
+
+    // Index trackers: idx = position in piece_placement string
+    // current_rank = rank we’re parsing
+    // start_of_substr = where this rank description starts in the FEN
+    // substring
+    uint8_t idx             = 0;
+    uint8_t current_rank    = 0;
+    uint8_t start_of_substr = 0;
+
+    // Walk through the piece placement string rank by rank, separated by
+    // "/"
+    while (idx < piece_placement_len)
+    {
+        bool is_last_char = (idx == (piece_placement_len - 1));
+
+        // If we hit a "/" (end of a rank) OR we’ve reached the very last
+        // char, parse a rank
+        if ((piece_placement[idx] == '/') || is_last_char)
+        {
+            uint8_t end_of_substr = idx - 1;
+            if (is_last_char)
+            {
+                end_of_substr = idx; // include last character
+            }
+            const uint8_t len_of_substr = (end_of_substr - start_of_substr + 1);
+
+            // Parse the rank into actual bitboards
+            place_pieces_from_fen(
+                piece_placement.substr(start_of_substr, len_of_substr),
+                len_of_substr,
+                current_rank);
+
+            // Prepare to start next rank
+            start_of_substr = idx + 1;
+            current_rank++;
         }
 
-        // Reset castling rights bitmask
-        m_state.castling_rights = 0;
+        idx++;
+    }
 
-        // Loop through castling characters (KQkq), set appropriate flags
-        for (uint8_t idx = 0; idx < castling_rights_length; idx++)
+    // Extract side to move ("w" or "b") from right after the piece
+    // placement section
+    const std::string side_to_move =
+        fen.substr(piece_placement.length() + 1, 1);
+
+    // Translate char into enum
+    switch (side_to_move[0])
+    {
+        case 'w': m_state.side_to_move = PIECE_COLOR::WHITE; break;
+        case 'b': m_state.side_to_move = PIECE_COLOR::BLACK; break;
+    }
+
+    // Translate char into enum
+    switch (side_to_move[0])
+    {
+        case 'w': m_state.side_to_move = PIECE_COLOR::WHITE; break;
+        case 'b':
+            m_state.side_to_move = PIECE_COLOR::BLACK;
+            m_zobrist_hash.flip_side_to_move();
+            break;
+    }
+
+    // Calculate where castling rights start (skip piece placement + space +
+    // "w " or "b ")
+    const uint8_t castling_rights_start_pos = piece_placement.length() + 1 + 2;
+    const uint8_t castling_rights_length =
+        (fen.find_first_of(' ', castling_rights_start_pos)
+         - castling_rights_start_pos);
+    const std::string castling_rights =
+        fen.substr(castling_rights_start_pos, castling_rights_length);
+
+    // Reset castling rights bitmask
+    m_state.castling_rights = 0;
+
+    // Loop through castling characters (KQkq), set appropriate flags
+    for (uint8_t idx = 0; idx < castling_rights_length; idx++)
+    {
+        if ((castling_rights[idx] >= 'A') && (castling_rights[idx] <= 'H'))
         {
-            if ((castling_rights[idx] >= 'A') && (castling_rights[idx] <= 'H'))
-            {
-                const uint8_t rook_file = castling_rights[idx] - 'A';
+            const uint8_t rook_file = castling_rights[idx] - 'A';
 
-                if (rook_file < get_king_square(PIECE_COLOR::WHITE).get_file())
-                {
-                    m_state.castling_rights |=
-                        CASTLING_RIGHTS_FLAGS::W_QUEENSIDE;
-                    m_state.castling_rooks[PIECE_COLOR::WHITE].queenside =
-                        Square((NUM_OF_RANKS_ON_CHESS_BOARD - 1), rook_file);
-                }
-                else
-                {
+            if (rook_file < get_king_square(PIECE_COLOR::WHITE).get_file())
+            {
+                m_state.castling_rights |= CASTLING_RIGHTS_FLAGS::W_QUEENSIDE;
+                m_state.castling_rooks[PIECE_COLOR::WHITE].queenside =
+                    Square((NUM_OF_RANKS_ON_CHESS_BOARD - 1), rook_file);
+            }
+            else
+            {
+                m_state.castling_rights |= CASTLING_RIGHTS_FLAGS::W_KINGSIDE;
+                m_state.castling_rooks[PIECE_COLOR::WHITE].kingside =
+                    Square((NUM_OF_RANKS_ON_CHESS_BOARD - 1), rook_file);
+            }
+        }
+        else if ((castling_rights[idx] >= 'a') && (castling_rights[idx] <= 'h'))
+        {
+            const uint8_t rook_file = castling_rights[idx] - 'a';
+
+            if (rook_file < get_king_square(PIECE_COLOR::BLACK).get_file())
+            {
+                m_state.castling_rights |= CASTLING_RIGHTS_FLAGS::B_QUEENSIDE;
+                m_state.castling_rooks[PIECE_COLOR::BLACK].queenside =
+                    Square(0, rook_file);
+            }
+            else
+            {
+                m_state.castling_rights |= CASTLING_RIGHTS_FLAGS::B_KINGSIDE;
+                m_state.castling_rooks[PIECE_COLOR::BLACK].kingside =
+                    Square(0, rook_file);
+            }
+        }
+        else
+        {
+            switch (castling_rights[idx])
+            {
+                case 'K':
                     m_state.castling_rights |=
                         CASTLING_RIGHTS_FLAGS::W_KINGSIDE;
                     m_state.castling_rooks[PIECE_COLOR::WHITE].kingside =
-                        Square((NUM_OF_RANKS_ON_CHESS_BOARD - 1), rook_file);
-                }
-            }
-            else if ((castling_rights[idx] >= 'a')
-                     && (castling_rights[idx] <= 'h'))
-            {
-                const uint8_t rook_file = castling_rights[idx] - 'a';
-
-                if (rook_file < get_king_square(PIECE_COLOR::BLACK).get_file())
-                {
+                        Square(ESQUARE::H1);
+                    break;
+                case 'Q':
                     m_state.castling_rights |=
-                        CASTLING_RIGHTS_FLAGS::B_QUEENSIDE;
-                    m_state.castling_rooks[PIECE_COLOR::BLACK].queenside =
-                        Square(0, rook_file);
-                }
-                else
-                {
+                        CASTLING_RIGHTS_FLAGS::W_QUEENSIDE;
+                    m_state.castling_rooks[PIECE_COLOR::WHITE].queenside =
+                        Square(ESQUARE::A1);
+                    break;
+                case 'k':
                     m_state.castling_rights |=
                         CASTLING_RIGHTS_FLAGS::B_KINGSIDE;
                     m_state.castling_rooks[PIECE_COLOR::BLACK].kingside =
-                        Square(0, rook_file);
-                }
-            }
-            else
-            {
-                switch (castling_rights[idx])
-                {
-                    case 'K':
-                        m_state.castling_rights |=
-                            CASTLING_RIGHTS_FLAGS::W_KINGSIDE;
-                        m_state.castling_rooks[PIECE_COLOR::WHITE].kingside =
-                            Square(ESQUARE::H1);
-                        break;
-                    case 'Q':
-                        m_state.castling_rights |=
-                            CASTLING_RIGHTS_FLAGS::W_QUEENSIDE;
-                        m_state.castling_rooks[PIECE_COLOR::WHITE].queenside =
-                            Square(ESQUARE::A1);
-                        break;
-                    case 'k':
-                        m_state.castling_rights |=
-                            CASTLING_RIGHTS_FLAGS::B_KINGSIDE;
-                        m_state.castling_rooks[PIECE_COLOR::BLACK].kingside =
-                            Square(ESQUARE::H8);
-                        break;
-                    case 'q':
-                        m_state.castling_rights |=
-                            CASTLING_RIGHTS_FLAGS::B_QUEENSIDE;
-                        m_state.castling_rooks[PIECE_COLOR::BLACK].queenside =
-                            Square(ESQUARE::A8);
-                        break;
-                }
+                        Square(ESQUARE::H8);
+                    break;
+                case 'q':
+                    m_state.castling_rights |=
+                        CASTLING_RIGHTS_FLAGS::B_QUEENSIDE;
+                    m_state.castling_rooks[PIECE_COLOR::BLACK].queenside =
+                        Square(ESQUARE::A8);
+                    break;
             }
         }
-
-        // En passant square parsing
-        // Find the substring that represents en passant target square ("-" or
-        // file+rank)
-        const uint8_t enpassant_square_start_pos =
-            castling_rights_start_pos + castling_rights_length + 1;
-        const uint8_t enpassant_square_start_length =
-            (fen.find_first_of(' ', enpassant_square_start_pos)
-             - enpassant_square_start_pos);
-        const std::string enpassant_square =
-            fen.substr(enpassant_square_start_pos,
-                       enpassant_square_start_length);
-
-        if (enpassant_square[0] != '-')
-        {
-            // Convert file letter ('a'–'h') to 0–7
-            const uint8_t file = enpassant_square[0] - 'a';
-            // Convert rank number ('1'–'8') to engine rank index (careful:
-            // flipped!)
-            const uint8_t rank =
-                NUM_OF_RANKS_ON_CHESS_BOARD - (enpassant_square[1] - '0');
-            const Square s(rank, file);
-            m_state.enpassant_square = (ESQUARE) s.get_index();
-        }
-        else
-        {
-            // "-" means no en passant available
-            m_state.enpassant_square = ESQUARE::NO_SQUARE;
-        }
-
-        m_zobrist_hash.update_castling_rights(m_state.castling_rights);
-
-        // En passant square parsing
-        // Find the substring that represents en passant target square ("-" or
-        // file+rank)
-        const uint8_t enpassant_square_start_pos =
-            castling_rights_start_pos + castling_rights_length + 1;
-        const uint8_t enpassant_square_start_length =
-            (fen.find_first_of(' ', enpassant_square_start_pos)
-             - enpassant_square_start_pos);
-        const std::string enpassant_square =
-            fen.substr(enpassant_square_start_pos,
-                       enpassant_square_start_length);
-
-        if (enpassant_square[0] != '-')
-        {
-            // Convert file letter ('a'–'h') to 0–7
-            const uint8_t file = enpassant_square[0] - 'a';
-            // Convert rank number ('1'–'8') to engine rank index (careful:
-            // flipped!)
-            const uint8_t rank =
-                NUM_OF_RANKS_ON_CHESS_BOARD - (enpassant_square[1] - '0');
-            const Square s(rank, file);
-            m_state.enpassant_square = (ESQUARE) s.get_index();
-        }
-        else
-        {
-            // "-" means no en passant available
-            m_state.enpassant_square = ESQUARE::NO_SQUARE;
-        }
-        m_zobrist_hash.update_en_passant_square(m_state.enpassant_square);
-
-        // Fullmove count parsing (how many complete turns have passed)
-        const uint8_t     last_space_in_fen = fen.find_last_of(' ');
-        const std::string full_move_count =
-            fen.substr(last_space_in_fen + 1,
-                       ((fen.length() - 1) - last_space_in_fen));
-
-        // Convert to unsigned long long (because we apparently expect games
-        // lasting until the heat death of the universe)
-        m_state.full_move_count = std::stoull(full_move_count);
     }
 
-    // Helper: take a substring describing a single rank (e.g. "rnbqkbnr" or
-    // "p3pppp") and place the corresponding pieces into bitboards
-    void Chess_Board::place_pieces_from_fen(const std::string& rank_description,
-                                            uint8_t length_of_description,
-                                            uint8_t rank)
+    m_zobrist_hash.update_castling_rights(m_state.castling_rights);
+
+    // En passant square parsing
+    // Find the substring that represents en passant target square ("-" or
+    // file+rank)
+    const uint8_t enpassant_square_start_pos =
+        castling_rights_start_pos + castling_rights_length + 1;
+    const uint8_t enpassant_square_start_length =
+        (fen.find_first_of(' ', enpassant_square_start_pos)
+         - enpassant_square_start_pos);
+    const std::string enpassant_square =
+        fen.substr(enpassant_square_start_pos, enpassant_square_start_length);
+
+    if (enpassant_square[0] != '-')
     {
-        uint8_t file = 0; // Track file (0 = 'a')
+        // Convert file letter ('a'–'h') to 0–7
+        const uint8_t file = enpassant_square[0] - 'a';
+        // Convert rank number ('1'–'8') to engine rank index (careful:
+        // flipped!)
+        const uint8_t rank =
+            NUM_OF_RANKS_ON_CHESS_BOARD - (enpassant_square[1] - '0');
+        const Square s(rank, file);
+        m_state.enpassant_square = (ESQUARE) s.get_index();
+    }
+    else
+    {
+        // "-" means no en passant available
+        m_state.enpassant_square = ESQUARE::NO_SQUARE;
+    }
+    m_zobrist_hash.update_en_passant_square(m_state.enpassant_square);
 
-        for (uint8_t idx = 0; idx < length_of_description; idx++)
+    // Fullmove count parsing (how many complete turns have passed)
+    const uint8_t     last_space_in_fen = fen.find_last_of(' ');
+    const std::string full_move_count =
+        fen.substr(last_space_in_fen + 1,
+                   ((fen.length() - 1) - last_space_in_fen));
+
+    // Convert to unsigned long long (because we apparently expect games
+    // lasting until the heat death of the universe)
+    m_state.full_move_count = std::stoull(full_move_count);
+}
+
+// Helper: take a substring describing a single rank (e.g. "rnbqkbnr" or
+// "p3pppp") and place the corresponding pieces into bitboards
+void Chess_Board::place_pieces_from_fen(const std::string& rank_description,
+                                        uint8_t length_of_description,
+                                        uint8_t rank)
+{
+    uint8_t file = 0; // Track file (0 = 'a')
+
+    for (uint8_t idx = 0; idx < length_of_description; idx++)
+    {
+        const Square s(rank, file);
+
+        if (std::isdigit(rank_description[idx]))
         {
-            const Square s(rank, file);
-
-            if (std::isdigit(rank_description[idx]))
+            // Digit = number of consecutive empty squares
+            // Move file forward by that many empties
+            file += std::stoi(std::string(1, rank_description[idx]));
+        }
+        else
+        {
+            // It’s a piece. Determine color by case (lower = black, upper =
+            // white)
+            if (std::islower(rank_description[idx]))
             {
-                // Digit = number of consecutive empty squares
-                // Move file forward by that many empties
-                file += std::stoi(std::string(1, rank_description[idx]));
+                // Mark square occupied by black
+                m_color_occupancy_bitboards[PIECE_COLOR::BLACK].set_square(s);
+                switch (rank_description[idx])
+                {
+                    case 'p':
+                        m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::PAWN]
+                            .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
+                                                    PIECES::PAWN,
+                                                    s);
+                        break;
+                    case 'n':
+                        m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KNIGHT]
+                            .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
+                                                    PIECES::KNIGHT,
+                                                    s);
+                        break;
+                    case 'b':
+                        m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::BISHOP]
+                            .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
+                                                    PIECES::BISHOP,
+                                                    s);
+                        break;
+                    case 'r':
+                        m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::ROOK]
+                            .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
+                                                    PIECES::ROOK,
+                                                    s);
+                        break;
+                    case 'q':
+                        m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::QUEEN]
+                            .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
+                                                    PIECES::QUEEN,
+                                                    s);
+                        break;
+                    case 'k':
+                        m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KING]
+                            .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
+                                                    PIECES::KING,
+                                                    s);
+                        break;
+                }
             }
             else
             {
-                // It’s a piece. Determine color by case (lower = black, upper =
-                // white)
-                if (std::islower(rank_description[idx]))
+                // Uppercase piece = white
+                m_color_occupancy_bitboards[PIECE_COLOR::WHITE].set_square(s);
+                switch (rank_description[idx])
                 {
-                    // Mark square occupied by black
-                    m_color_occupancy_bitboards[PIECE_COLOR::BLACK].set_square(
-                        s);
-                    switch (rank_description[idx])
-                    {
-                        case 'p':
-                            m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::PAWN]
-                                .set_square(s);
-                            m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
-                                                        PIECES::PAWN,
-                                                        s);
-                            break;
-                        case 'n':
-                            m_piece_bitboards[PIECE_COLOR::BLACK]
-                                             [PIECES::KNIGHT]
-                                                 .set_square(s);
-                            m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
-                                                        PIECES::KNIGHT,
-                                                        s);
-                            break;
-                        case 'b':
-                            m_piece_bitboards[PIECE_COLOR::BLACK]
-                                             [PIECES::BISHOP]
-                                                 .set_square(s);
-                            m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
-                                                        PIECES::BISHOP,
-                                                        s);
-                            break;
-                        case 'r':
-                            m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::ROOK]
-                                .set_square(s);
-                            m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
-                                                        PIECES::ROOK,
-                                                        s);
-                            break;
-                        case 'q':
-                            m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::QUEEN]
-                                .set_square(s);
-                            m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
-                                                        PIECES::QUEEN,
-                                                        s);
-                            break;
-                        case 'k':
-                            m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KING]
-                                .set_square(s);
-                            m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
-                                                        PIECES::KING,
-                                                        s);
-                            break;
-                    }
-                }
-                else
-                {
-                    // Uppercase piece = white
-                    m_color_occupancy_bitboards[PIECE_COLOR::WHITE].set_square(
-                        s);
-                    switch (rank_description[idx])
-                    {
-                        case 'P':
-                            m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::PAWN]
-                                .set_square(s);
-                            m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
-                                                        PIECES::PAWN,
-                                                        s);
-                            break;
-                        case 'N':
-                            m_piece_bitboards[PIECE_COLOR::WHITE]
-                                             [PIECES::KNIGHT]
-                                                 .set_square(s);
-                            m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
-                                                        PIECES::KNIGHT,
-                                                        s);
-                            break;
-                        case 'B':
-                            m_piece_bitboards[PIECE_COLOR::WHITE]
-                                             [PIECES::BISHOP]
-                                                 .set_square(s);
-                            m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
-                                                        PIECES::BISHOP,
-                                                        s);
-                            break;
-                        case 'R':
-                            m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::ROOK]
-                                .set_square(s);
-                            m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
-                                                        PIECES::ROOK,
-                                                        s);
-                            break;
-                        case 'Q':
-                            m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::QUEEN]
-                                .set_square(s);
-                            m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
-                                                        PIECES::QUEEN,
-                                                        s);
-                            break;
-                        case 'K':
-                            m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::KING]
-                                .set_square(s);
-                            m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
-                                                        PIECES::KING,
-                                                        s);
-                            break;
-                    }
+                    case 'P':
+                        m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::PAWN]
+                            .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
+                                                    PIECES::PAWN,
+                                                    s);
+                        break;
+                    case 'N':
+                        m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::KNIGHT]
+                            .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
+                                                    PIECES::KNIGHT,
+                                                    s);
+                        break;
+                    case 'B':
+                        m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::BISHOP]
+                            .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
+                                                    PIECES::BISHOP,
+                                                    s);
+                        break;
+                    case 'R':
+                        m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::ROOK]
+                            .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
+                                                    PIECES::ROOK,
+                                                    s);
+                        break;
+                    case 'Q':
+                        m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::QUEEN]
+                            .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
+                                                    PIECES::QUEEN,
+                                                    s);
+                        break;
+                    case 'K':
+                        m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::KING]
+                            .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
+                                                    PIECES::KING,
+                                                    s);
+                        break;
                 }
             }
+        }
+    }
+}
 
-            bool Chess_Board::operator==(const Chess_Board& other) const
-            {
-                return (other.m_state == m_state)
-                    && (other.m_piece_bitboards == m_piece_bitboards)
-                    && (other.m_color_occupancy_bitboards
-                        == m_color_occupancy_bitboards);
-            }
+bool Chess_Board::operator==(const Chess_Board& other) const
+{
+    return (other.m_state == m_state)
+        && (other.m_piece_bitboards == m_piece_bitboards)
+        && (other.m_color_occupancy_bitboards == m_color_occupancy_bitboards);
+}

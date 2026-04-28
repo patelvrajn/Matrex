@@ -17,7 +17,7 @@ class Move_Ordering
 {
   public:
 
-    Move_Ordering(const Chess_Board& cb);
+    Move_Ordering(const Chess_Board& c, const Chess_Move& hash_move);
     Chess_Move_List&       get_sorted_moves();
     Moves_Bitboard_Matrix& get_moves_matrix();
     bool                   is_side_to_move_in_check() const;
