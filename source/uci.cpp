@@ -103,11 +103,11 @@ void UCI::handle_position(const std::string& arguments)
 
             m_chess_board.make_moves_from_string(moves_str, m_is_frc);
         }
+    }
 
-        if (subcommand == "print")
-        { // Not part of specification.
-            m_chess_board.pretty_print();
-        }
+    if (subcommand == "print") // Not part of specification.
+    {
+        m_chess_board.pretty_print();
     }
 }
 

@@ -311,9 +311,8 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     Score      best_score = Score(FP_NEGATIVE_INFINITY);
     Chess_Move best_move  = Chess_Move();
 
-    if (!is_side_to_move_in_check)
-    { // Heuristic
-
+    if (!is_side_to_move_in_check) // Heuristic
+    {
         best_score = stand_pat;
 
         // Update alpha if the stand pat score is greater than alpha.
@@ -344,52 +343,52 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
 
             return {best_move, best_score};
         }
+    }
 
-        for (const Chess_Move& move : moves)
+    for (const Chess_Move& move : moves)
+    {
+        // Explore the child move's subtree for it's evaluation. Negate
+        // the result to compare it's score to the parent's scores
+        // (alpha, evaluation, etc).
+        const Undo_Chess_Move undo_move = position.make_move(move);
+        // m_transposition_table.prefetch(position.get_zobrist_hash());
+        const Search_Engine_Result child_result =
+            quiescence(position, (ply + 1), -beta, -alpha);
+        const Score child_score = -child_result.second;
+        position.undo_move(undo_move);
+
+        // Update alpha if the child's score is better than the alpha.
+        if (child_score > alpha)
         {
-            // Explore the child move's subtree for it's evaluation. Negate
-            // the result to compare it's score to the parent's scores
-            // (alpha, evaluation, etc).
-            const Undo_Chess_Move undo_move = position.make_move(move);
-            // m_transposition_table.prefetch(position.get_zobrist_hash());
-            const Search_Engine_Result child_result =
-                quiescence(position, (ply + 1), -beta, -alpha);
-            const Score child_score = -child_result.second;
-            position.undo_move(undo_move);
-
-            // Update alpha if the child's score is better than the alpha.
-            if (child_score > alpha)
-            {
-                score_bound = Score_Bound_Type::EXACT;
-                alpha       = child_score;
-            }
-
-            // Update best score and best move based on child's score.
-            if (child_score > best_score)
-            {
-                best_score = child_score;
-                best_move  = move;
-            }
-
-            // Alpha-beta pruning based on child's score.
-            if (alpha >= beta)
-            {
-                score_bound = Score_Bound_Type::LOWER_BOUND;
-                break;
-            }
-
-            // Cache the position's best move and evaluation in the
-            // transposition table. transposition_table_entry = {
-            //     .best_move = best_move,
-            //     .partial_zobrist =
-            //         Transposition_Table::get_partial_zobrist(position_z_hash),
-            //     .score = best_score,
-            //     .depth = 0,
-            //     .score_bound = score_bound,
-            // };
-            // m_transposition_table.write(position_z_hash,
-            // transposition_table_entry);
+            score_bound = Score_Bound_Type::EXACT;
+            alpha       = child_score;
         }
+
+        // Update best score and best move based on child's score.
+        if (child_score > best_score)
+        {
+            best_score = child_score;
+            best_move  = move;
+        }
+
+        // Alpha-beta pruning based on child's score.
+        if (alpha >= beta)
+        {
+            score_bound = Score_Bound_Type::LOWER_BOUND;
+            break;
+        }
+
+        // Cache the position's best move and evaluation in the
+        // transposition table. transposition_table_entry = {
+        //     .best_move = best_move,
+        //     .partial_zobrist =
+        //         Transposition_Table::get_partial_zobrist(position_z_hash),
+        //     .score = best_score,
+        //     .depth = 0,
+        //     .score_bound = score_bound,
+        // };
+        // m_transposition_table.write(position_z_hash,
+        // transposition_table_entry);
     }
 
     return {best_move, best_score};
