@@ -443,13 +443,6 @@ void Chess_Board::set_from_fen(const std::string& fen)
     switch (side_to_move[0])
     {
         case 'w': m_state.side_to_move = PIECE_COLOR::WHITE; break;
-        case 'b': m_state.side_to_move = PIECE_COLOR::BLACK; break;
-    }
-
-    // Translate char into enum
-    switch (side_to_move[0])
-    {
-        case 'w': m_state.side_to_move = PIECE_COLOR::WHITE; break;
         case 'b':
             m_state.side_to_move = PIECE_COLOR::BLACK;
             m_zobrist_hash.flip_side_to_move();
@@ -567,6 +560,18 @@ void Chess_Board::set_from_fen(const std::string& fen)
         m_state.enpassant_square = ESQUARE::NO_SQUARE;
     }
     m_zobrist_hash.update_en_passant_square(m_state.enpassant_square);
+
+    // Halfmove clock parsing (for 50-move rule)
+    const uint8_t half_move_clock_start_pos =
+        enpassant_square_start_pos + enpassant_square_start_length + 1;
+    const uint8_t half_move_clock_start_length =
+        (fen.find_first_of(' ', half_move_clock_start_pos)
+         - half_move_clock_start_pos);
+    const std::string half_move_clock =
+        fen.substr(half_move_clock_start_pos, half_move_clock_start_length);
+
+    // Convert string to int, store half move clock.
+    m_state.half_move_clock = std::stoi(half_move_clock);
 
     // Fullmove count parsing (how many complete turns have passed)
     const uint8_t     last_space_in_fen = fen.find_last_of(' ');
@@ -702,6 +707,9 @@ void Chess_Board::place_pieces_from_fen(const std::string& rank_description,
                 }
             }
         }
+
+        // Advance file pointer after placing a piece
+        file++;
     }
 }
 

@@ -539,7 +539,7 @@ inline T Evaluator<T>::material_score() const
     for (uint8_t piece = PIECES::PAWN; piece <= PIECES::QUEEN; piece++)
     {
         T material_difference = explicit_fp_double_conversion<T>(0.0);
-        ;
+
         material_difference +=
             (m_weights.material[piece]
              * m_chess_board.get_piece_occupancies(moving_side, (PIECES) piece)
