@@ -321,10 +321,10 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
 
         m_zobrist_hash.update_castling_rights(previous_castling_rights);
         m_zobrist_hash.update_castling_rights(m_state.castling_rights);
-
-        m_state.side_to_move = (PIECE_COLOR) ((~m_state.side_to_move) & 0x1);
-        m_zobrist_hash.flip_side_to_move();
     }
+
+    m_state.side_to_move = (PIECE_COLOR) ((~m_state.side_to_move) & 0x1);
+    m_zobrist_hash.flip_side_to_move();
 
     return undo_move;
 }
