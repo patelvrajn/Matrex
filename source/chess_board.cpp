@@ -253,75 +253,75 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
             m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::B_KINGSIDE
                                          | CASTLING_RIGHTS_FLAGS::B_QUEENSIDE);
         }
-
-        const ESQUARE white_queenside_rook_square =
-            (ESQUARE) get_castling_rook_source_square(PIECE_COLOR::WHITE,
-                                                      CASTLING_TYPE::QUEENSIDE)
-                .get_index();
-        const ESQUARE white_kingside_rook_square =
-            (ESQUARE) get_castling_rook_source_square(PIECE_COLOR::WHITE,
-                                                      CASTLING_TYPE::KINGSIDE)
-                .get_index();
-        const ESQUARE black_queenside_rook_square =
-            (ESQUARE) get_castling_rook_source_square(PIECE_COLOR::BLACK,
-                                                      CASTLING_TYPE::QUEENSIDE)
-                .get_index();
-        const ESQUARE black_kingside_rook_square =
-            (ESQUARE) get_castling_rook_source_square(PIECE_COLOR::BLACK,
-                                                      CASTLING_TYPE::KINGSIDE)
-                .get_index();
-
-        // If white moves their queenside rook or it is captured by black, white
-        // loses queenside castling rights.
-        if (((m_state.side_to_move == PIECE_COLOR::WHITE)
-             && (move.moving_piece == PIECES::ROOK)
-             && (move.source_square == white_queenside_rook_square))
-            || ((m_state.side_to_move == PIECE_COLOR::BLACK)
-                && (move.captured_piece == PIECES::ROOK)
-                && (move.destination_square == white_queenside_rook_square)))
-        {
-            m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::W_QUEENSIDE);
-        }
-
-        // If white moves their kingside rook or it is captured by black, white
-        // loses kingside castling rights.
-        if (((m_state.side_to_move == PIECE_COLOR::WHITE)
-             && (move.moving_piece == PIECES::ROOK)
-             && (move.source_square == white_kingside_rook_square))
-            || ((m_state.side_to_move == PIECE_COLOR::BLACK)
-                && (move.captured_piece == PIECES::ROOK)
-                && (move.destination_square == white_kingside_rook_square)))
-        {
-            m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::W_KINGSIDE);
-        }
-
-        // If black moves their queenside rook or it is captured by white, black
-        // loses queenside castling rights.
-        if (((m_state.side_to_move == PIECE_COLOR::BLACK)
-             && (move.moving_piece == PIECES::ROOK)
-             && (move.source_square == black_queenside_rook_square))
-            || ((m_state.side_to_move == PIECE_COLOR::WHITE)
-                && (move.captured_piece == PIECES::ROOK)
-                && (move.destination_square == black_queenside_rook_square)))
-        {
-            m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::B_QUEENSIDE);
-        }
-
-        // If black moves their kingside rook or it is captured by white, black
-        // loses kingside castling rights.
-        if (((m_state.side_to_move == PIECE_COLOR::BLACK)
-             && (move.moving_piece == PIECES::ROOK)
-             && (move.source_square == black_kingside_rook_square))
-            || ((m_state.side_to_move == PIECE_COLOR::WHITE)
-                && (move.captured_piece == PIECES::ROOK)
-                && (move.destination_square == black_kingside_rook_square)))
-        {
-            m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::B_KINGSIDE);
-        }
-
-        m_zobrist_hash.update_castling_rights(previous_castling_rights);
-        m_zobrist_hash.update_castling_rights(m_state.castling_rights);
     }
+
+    const ESQUARE white_queenside_rook_square =
+        (ESQUARE) get_castling_rook_source_square(PIECE_COLOR::WHITE,
+                                                  CASTLING_TYPE::QUEENSIDE)
+            .get_index();
+    const ESQUARE white_kingside_rook_square =
+        (ESQUARE) get_castling_rook_source_square(PIECE_COLOR::WHITE,
+                                                  CASTLING_TYPE::KINGSIDE)
+            .get_index();
+    const ESQUARE black_queenside_rook_square =
+        (ESQUARE) get_castling_rook_source_square(PIECE_COLOR::BLACK,
+                                                  CASTLING_TYPE::QUEENSIDE)
+            .get_index();
+    const ESQUARE black_kingside_rook_square =
+        (ESQUARE) get_castling_rook_source_square(PIECE_COLOR::BLACK,
+                                                  CASTLING_TYPE::KINGSIDE)
+            .get_index();
+
+    // If white moves their queenside rook or it is captured by black, white
+    // loses queenside castling rights.
+    if (((m_state.side_to_move == PIECE_COLOR::WHITE)
+         && (move.moving_piece == PIECES::ROOK)
+         && (move.source_square == white_queenside_rook_square))
+        || ((m_state.side_to_move == PIECE_COLOR::BLACK)
+            && (move.captured_piece == PIECES::ROOK)
+            && (move.destination_square == white_queenside_rook_square)))
+    {
+        m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::W_QUEENSIDE);
+    }
+
+    // If white moves their kingside rook or it is captured by black, white
+    // loses kingside castling rights.
+    if (((m_state.side_to_move == PIECE_COLOR::WHITE)
+         && (move.moving_piece == PIECES::ROOK)
+         && (move.source_square == white_kingside_rook_square))
+        || ((m_state.side_to_move == PIECE_COLOR::BLACK)
+            && (move.captured_piece == PIECES::ROOK)
+            && (move.destination_square == white_kingside_rook_square)))
+    {
+        m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::W_KINGSIDE);
+    }
+
+    // If black moves their queenside rook or it is captured by white, black
+    // loses queenside castling rights.
+    if (((m_state.side_to_move == PIECE_COLOR::BLACK)
+         && (move.moving_piece == PIECES::ROOK)
+         && (move.source_square == black_queenside_rook_square))
+        || ((m_state.side_to_move == PIECE_COLOR::WHITE)
+            && (move.captured_piece == PIECES::ROOK)
+            && (move.destination_square == black_queenside_rook_square)))
+    {
+        m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::B_QUEENSIDE);
+    }
+
+    // If black moves their kingside rook or it is captured by white, black
+    // loses kingside castling rights.
+    if (((m_state.side_to_move == PIECE_COLOR::BLACK)
+         && (move.moving_piece == PIECES::ROOK)
+         && (move.source_square == black_kingside_rook_square))
+        || ((m_state.side_to_move == PIECE_COLOR::WHITE)
+            && (move.captured_piece == PIECES::ROOK)
+            && (move.destination_square == black_kingside_rook_square)))
+    {
+        m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::B_KINGSIDE);
+    }
+
+    m_zobrist_hash.update_castling_rights(previous_castling_rights);
+    m_zobrist_hash.update_castling_rights(m_state.castling_rights);
 
     m_state.side_to_move = (PIECE_COLOR) ((~m_state.side_to_move) & 0x1);
     m_zobrist_hash.flip_side_to_move();

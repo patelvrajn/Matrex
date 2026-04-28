@@ -59,54 +59,54 @@ void UCI::handle_position(const std::string& arguments)
 
             m_chess_board.make_moves_from_string(moves_str, m_is_frc);
         }
+    }
 
-        if (subcommand == "fen")
+    if (subcommand == "fen")
+    {
+        constexpr uint8_t SPACES_IN_A_FEN = 5;
+
+        std::size_t fen_space_index =
+            arguments.find_first_of(" ", (first_space_idx + 1));
+        uint8_t fen_space_count = 0;
+        while ((fen_space_index != std::string::npos)
+               && (fen_space_count != SPACES_IN_A_FEN))
         {
-            constexpr uint8_t SPACES_IN_A_FEN = 5;
+            fen_space_index =
+                arguments.find_first_of(" ", (fen_space_index + 1));
+            fen_space_count++;
+        }
 
-            std::size_t fen_space_index =
-                arguments.find_first_of(" ", (first_space_idx + 1));
-            uint8_t fen_space_count = 0;
-            while ((fen_space_index != std::string::npos)
-                   && (fen_space_count != SPACES_IN_A_FEN))
-            {
-                fen_space_index =
-                    arguments.find_first_of(" ", (fen_space_index + 1));
-                fen_space_count++;
-            }
+        bool is_end_of_string = false;
 
-            bool is_end_of_string = false;
+        std::string fen;
+        if (fen_space_index == std::string::npos)
+        {
+            fen              = arguments.substr((first_space_idx + 1));
+            is_end_of_string = true;
+        }
+        else
+        {
+            fen = arguments.substr(
+                (first_space_idx + 1),
+                (((fen_space_index - 1) - (first_space_idx + 1)) + 1));
+        }
 
-            std::string fen;
-            if (fen_space_index == std::string::npos)
-            {
-                fen              = arguments.substr((first_space_idx + 1));
-                is_end_of_string = true;
-            }
-            else
-            {
-                fen = arguments.substr(
-                    (first_space_idx + 1),
-                    (((fen_space_index - 1) - (first_space_idx + 1)) + 1));
-            }
+        m_chess_board.set_from_fen(fen);
 
-            m_chess_board.set_from_fen(fen);
+        if (!is_end_of_string)
+        {
+            const std::size_t end_of_moves_keyword_index =
+                arguments.find_first_of(" ", (fen_space_index + 1));
 
-            if (!is_end_of_string)
-            {
-                const std::size_t end_of_moves_keyword_index =
-                    arguments.find_first_of(" ", (fen_space_index + 1));
+            const std::string moves_str =
+                arguments.substr(end_of_moves_keyword_index + 1);
 
-                const std::string moves_str =
-                    arguments.substr(end_of_moves_keyword_index + 1);
+            m_chess_board.make_moves_from_string(moves_str, m_is_frc);
+        }
 
-                m_chess_board.make_moves_from_string(moves_str, m_is_frc);
-            }
-
-            if (subcommand == "print")
-            { // Not part of specification.
-                m_chess_board.pretty_print();
-            }
+        if (subcommand == "print")
+        { // Not part of specification.
+            m_chess_board.pretty_print();
         }
     }
 }
