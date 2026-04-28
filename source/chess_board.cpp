@@ -706,10 +706,10 @@ void Chess_Board::place_pieces_from_fen(const std::string& rank_description,
                         break;
                 }
             }
-        }
 
-        // Advance file pointer after placing a piece
-        file++;
+            // Advance file pointer after placing a piece
+            file++;
+        }
     }
 }
 
