@@ -13,21 +13,22 @@ typedef uint16_t Move_Score; // Not the same as a search evaluation score.
 
 struct Chess_Move
 {
-    ESQUARE    source_square                    : 7;
-    ESQUARE    destination_square               : 7;
-    PIECES     moving_piece                     : 4;
-    PIECES     promoted_piece                   : 4;
-    PIECES     captured_piece                   : 4;
-    bool       is_capture                       : 1;
-    bool       is_short_castling                : 1;
-    bool       is_long_castling                 : 1;
-    ESQUARE    castling_rook_source_square      : 7;
-    ESQUARE    castling_rook_destination_square : 7;
-    bool       is_double_pawn_push              : 1;
-    bool       is_en_passant                    : 1;
-    ESQUARE    en_passant_victim_square         : 7;
-    bool       is_promotion                     : 1;
-    Move_Score score = 0;
+    ESQUARE    source_square                    : 7;      // 7
+    ESQUARE    destination_square               : 7;      // 14
+    PIECES     moving_piece                     : 4;      // 18
+    PIECES     promoted_piece                   : 4;      // 22
+    PIECES     captured_piece                   : 4;      // 26
+    bool       is_capture                       : 1;      // 27
+    bool       is_short_castling                : 1;      // 28
+    bool       is_long_castling                 : 1;      // 29
+    ESQUARE    castling_rook_source_square      : 7;      // 36
+    ESQUARE    castling_rook_destination_square : 7;      // 43
+    bool       is_double_pawn_push              : 1;      // 44
+    bool       is_en_passant                    : 1;      // 45
+    ESQUARE    en_passant_victim_square         : 7;      // 52
+    bool       is_promotion                     : 1;      // 53
+    uint16_t   padding                          : 11 = 0; // 64
+    Move_Score score                                 = 0; // 80
 
     std::string to_coordinate_notation(bool is_frc) const
     {
@@ -103,6 +104,9 @@ struct Chess_Move
         return (score <=> other.score);
     }
 };
+
+static_assert(sizeof(Chess_Move) == 12,
+              "Chess_Move should be 12 bytes in size.");
 
 struct Undo_Chess_Move
 {

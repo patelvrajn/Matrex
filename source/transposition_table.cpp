@@ -93,6 +93,10 @@ bool Transposition_Table::read(const uint16_t             max_depth,
 {
     uint64_t index = get_lemire_index(hash);
 
+#if COLLECT_TT_STATISTICS == 1
+    m_statistics.nodes_read++;
+#endif
+
     // Check protected segment first.
     uint8_t found_entry_index = 0;
     for (const Transposition_Table_Entry& e :
@@ -109,12 +113,20 @@ bool Transposition_Table::read(const uint16_t             max_depth,
             m_table.protected_segment[index].entries.move_to_front(
                 found_entry_index);
 
+#if COLLECT_TT_STATISTICS == 1
+            m_statistics.protected_hits++;
+#endif
+
             // We found an entry!
             return true;
         }
 
         found_entry_index++;
     }
+
+#if COLLECT_TT_STATISTICS == 1
+    m_statistics.protected_misses++;
+#endif
 
     // Check probationary segment next.
     found_entry_index = 0;
@@ -146,12 +158,20 @@ bool Transposition_Table::read(const uint16_t             max_depth,
                     found_entry_index);
             }
 
+#if COLLECT_TT_STATISTICS == 1
+            m_statistics.probationary_hits++;
+#endif
+
             // We found an entry.
             return true;
         }
 
         found_entry_index++;
     }
+
+#if COLLECT_TT_STATISTICS == 1
+    m_statistics.probationary_misses++;
+#endif
 
     return false;
 }
@@ -161,6 +181,10 @@ void Transposition_Table::write(const uint16_t                   max_depth,
                                 const Transposition_Table_Entry& entry)
 {
     uint64_t index = get_lemire_index(hash);
+
+#if COLLECT_TT_STATISTICS == 1
+    m_statistics.nodes_written++;
+#endif
 
     // Loop through protected segment.
     uint8_t found_entry_index = 0;
@@ -238,4 +262,22 @@ void Transposition_Table::clear()
 uint16_t Transposition_Table::get_partial_zobrist(const Zobrist_Hash hash)
 {
     return static_cast<uint16_t>(hash.get_hash_value() & PARTIAL_ZOBRIST_MASK);
+}
+
+const Transposition_Table_Statistics&
+Transposition_Table::get_statistics() const
+{
+#if COLLECT_TT_STATISTICS == 1
+    return m_statistics;
+#else
+    static const Transposition_Table_Statistics empty_stats {};
+    return empty_stats;
+#endif
+}
+
+void Transposition_Table::clear_statistics()
+{
+#if COLLECT_TT_STATISTICS == 1
+    m_statistics = Transposition_Table_Statistics();
+#endif
 }

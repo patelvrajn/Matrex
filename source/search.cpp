@@ -8,7 +8,14 @@ Search_Engine::Search_Engine() :
 {
 }
 
-void Search_Engine::new_game() { m_transposition_table.clear(); }
+void Search_Engine::new_game()
+{
+#if COLLECT_TT_STATISTICS == 1
+    m_transposition_table.get_statistics().print();
+    m_transposition_table.clear_statistics();
+#endif
+    m_transposition_table.clear();
+}
 
 Search_Engine_Result
 Search_Engine::search(const Chess_Board&        cb,
@@ -66,13 +73,13 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
 
         // Cache the position's mate evaluation in the transposition table.
         transposition_table_entry = {
-            .best_move = Chess_Move(), // No best move in mate positions.
+            .best_move = Chess_Move(), // No best move in mate positions
+            .score     = mate_score,
             .partial_zobrist =
                 Transposition_Table::get_partial_zobrist(position_z_hash),
-            .score = mate_score,
             .depth = depth,
             .score_bound =
-                Score_Bound_Type::EXACT, // Mate scores are always exact.
+                Score_Bound_Type::EXACT // Mate scores are always exact.
         };
         m_transposition_table.write(m_current_search_depth,
                                     position_z_hash,
@@ -171,9 +178,9 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
         {
             transposition_table_entry = {
                 .best_move = best_move,
+                .score     = best_score,
                 .partial_zobrist =
                     Transposition_Table::get_partial_zobrist(position_z_hash),
-                .score       = best_score,
                 .depth       = depth,
                 .score_bound = score_bound,
             };
@@ -415,4 +422,14 @@ Search_Engine_Result Search_Engine::iterative_deepening()
     }
 
     return best;
+}
+
+const Transposition_Table_Statistics& Search_Engine::get_tt_statistics() const
+{
+#if COLLECT_TT_STATISTICS == 1
+    return m_transposition_table.get_statistics();
+#else
+    static const Transposition_Table_Statistics empty_stats {};
+    return empty_stats;
+#endif
 }

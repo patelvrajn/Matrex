@@ -33,9 +33,10 @@ class Search_Engine
 
     Search_Engine();
 
-    void                 new_game();
-    Search_Engine_Result search(const Chess_Board&        cb,
-                                const Search_Constraints& constraints);
+    void                                  new_game();
+    Search_Engine_Result                  search(const Chess_Board&        cb,
+                                                 const Search_Constraints& constraints);
+    const Transposition_Table_Statistics& get_tt_statistics() const;
 
   private:
 

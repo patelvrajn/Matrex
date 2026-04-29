@@ -49,13 +49,12 @@ TEST(negamax, mating)
 
 TEST(negamax, DISABLED_debug)
 {
-    constexpr std::string_view FEN =
-        "r1bqk2r/2p1b3/2pn1ppp/p7/5B2/2N1QN2/PPP1KPPP/R6R w kq - 2 14";
+    constexpr std::string_view FEN = "8/k7/3p4/p2P1p2/P2P1P2/8/8/K7 w - - 0 1";
 
     Chess_Board cb;
     cb.set_from_fen(std::string(FEN));
 
-    // Search constraints matching the fastchess time control used; 8+0.08.
+    // Search constraints matching the fastchess constraints used during SPRT.
     Search_Constraints constraints;
     constraints.time_controls[PIECE_COLOR::WHITE].time_remaining = 8000;
     constraints.time_controls[PIECE_COLOR::WHITE].increment      = 80;
@@ -72,6 +71,8 @@ TEST(negamax, DISABLED_debug)
               << (search_result.second.is_friendly_mate()
                   || search_result.second.is_enemy_mate())
               << std::endl;
+
+    search.get_tt_statistics().print();
 
     const PIECE_COLOR     moving_side = cb.get_side_to_move();
     Chess_Move_List       moving_side_moves_list;

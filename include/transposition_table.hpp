@@ -23,6 +23,8 @@ Protected Segment:
 item to the probationary segment.
 */
 
+#define COLLECT_TT_STATISTICS 0
+
 template <typename T, uint8_t capacity>
 class Mini_Queue
 {
@@ -88,7 +90,7 @@ constexpr uint64_t PARTIAL_ZOBRIST_MASK = 0xFFFF;
 
 constexpr uint8_t TRANSPOSITION_TABLE_CLUSTER_SIZE = 4;
 
-constexpr uint16_t TRANSPOSITION_TABLE_DEPTH_THRESHOLD = 1;
+constexpr uint16_t TRANSPOSITION_TABLE_DEPTH_THRESHOLD = 2;
 
 constexpr uint64_t DEFAULT_TRANSPOSITION_TABLE_SIZE = 64; // MiB
 
@@ -101,12 +103,15 @@ enum class Score_Bound_Type : uint8_t
 
 struct Transposition_Table_Entry
 {
-    Chess_Move       best_move;
-    uint16_t         partial_zobrist;
-    Score            score;
-    uint16_t         depth;
-    Score_Bound_Type score_bound;
+    Chess_Move       best_move;       // 12 bytes
+    Score            score;           // 4 bytes
+    uint16_t         partial_zobrist; // 2 bytes
+    uint16_t         depth;           // 2 bytes
+    Score_Bound_Type score_bound;     // 1 bytes
 };
+
+static_assert(sizeof(Transposition_Table_Entry) == 24,
+              "Transposition_Table_Entry should be 24 bytes in size.");
 
 struct Transposition_Table_Cluster
 {
@@ -118,6 +123,40 @@ struct Transposition_Table_Segments
 {
     Transposition_Table_Cluster* probationary_segment;
     Transposition_Table_Cluster* protected_segment;
+};
+
+struct Transposition_Table_Statistics
+{
+    uint64_t nodes_written       = 0;
+    uint64_t nodes_read          = 0;
+    uint64_t protected_hits      = 0;
+    uint64_t protected_misses    = 0;
+    uint64_t probationary_hits   = 0;
+    uint64_t probationary_misses = 0;
+
+    void print() const
+    {
+        double protected_hit_rate = static_cast<double>(protected_hits)
+                                  / static_cast<double>(nodes_read) * 100;
+        double protected_miss_rate = static_cast<double>(protected_misses)
+                                   / static_cast<double>(nodes_read) * 100;
+        double probationary_hit_rate = static_cast<double>(probationary_hits)
+                                     / static_cast<double>(nodes_read) * 100;
+        double probationary_miss_rate = static_cast<double>(probationary_misses)
+                                      / static_cast<double>(nodes_read) * 100;
+
+        std::cout << "Transposition Table Statistics:\n"
+                  << "Nodes Written: " << nodes_written << "\n"
+                  << "Nodes Read: " << nodes_read << "\n"
+                  << "Protected Hits: " << protected_hits << " ("
+                  << protected_hit_rate << "%)\n"
+                  << "Protected Misses: " << protected_misses << " ("
+                  << protected_miss_rate << "%)\n"
+                  << "Probationary Hits: " << probationary_hits << " ("
+                  << probationary_hit_rate << "%)\n"
+                  << "Probationary Misses: " << probationary_misses << " ("
+                  << probationary_miss_rate << "%)" << std::endl;
+    }
 };
 
 class Transposition_Table
@@ -143,10 +182,17 @@ class Transposition_Table
 
     static uint16_t get_partial_zobrist(const Zobrist_Hash hash);
 
+    const Transposition_Table_Statistics& get_statistics() const;
+    void                                  clear_statistics();
+
   private:
 
     Transposition_Table_Segments m_table;
     uint64_t                     m_segment_size;
+
+#if COLLECT_TT_STATISTICS == 1
+    Transposition_Table_Statistics m_statistics;
+#endif
 
     uint64_t get_lemire_index(const Zobrist_Hash hash) const;
 
