@@ -14,8 +14,6 @@ using Fixed_Point_Int_Storage_Type = int32_t;
 constexpr uint8_t FIXED_POINT_BIT_WIDTH =
     static_cast<uint8_t>(sizeof(Fixed_Point_Int_Storage_Type) * 8);
 
-constexpr uint8_t MAXIMUM_ALLOWED_OVERFLOW = 2;
-
 constexpr double LN_2      = 0.69314718056; // Precomputed value of ln(2).
 constexpr double NATURAL_E = std::numbers::e;
 
@@ -102,12 +100,19 @@ class Fixed_Point_Integer
     friend std::ostream& operator<<(std::ostream&                 os,
                                     const Fixed_Point_Integer<X>& fp);
 
-    static constexpr double scale() { return static_cast<double>(1 << F); }
+    static consteval uint8_t fractional_bits() { return F; }
 
-    static constexpr double precision() { return (1.0 / scale()); }
+    static consteval uint8_t integer_bits()
+    {
+        return (FIXED_POINT_BIT_WIDTH - F);
+    }
+
+    static consteval double scale() { return static_cast<double>(1 << F); }
+
+    static consteval double precision() { return (1.0 / scale()); }
 
     // The maximum value the fractional component can have.
-    static constexpr double maximum_fractional()
+    static consteval double maximum_fractional()
     {
         double max_fractional = 0;
         for (uint8_t exponent = 1; exponent <= F; ++exponent)
@@ -118,14 +123,14 @@ class Fixed_Point_Integer
     }
 
     // The maximum value the integer component can have.
-    static constexpr double maximum_integer()
+    static consteval double maximum_integer()
     {
         Fixed_Point_Int_Storage_Type max_integer =
             (1 << (FIXED_POINT_BIT_WIDTH - F - 1)) - 1;
         return static_cast<double>(max_integer);
     }
 
-    static constexpr uint8_t safe_maximum_integer_bits()
+    static consteval uint8_t safe_maximum_integer_bits()
     {
         return std::floor(std::log2(std::pow(
             static_cast<double>(
@@ -134,14 +139,14 @@ class Fixed_Point_Integer
             (1.0 / 4.0))));
     }
 
-    static constexpr double safe_maximum_integer()
+    static consteval double safe_maximum_integer()
     {
         Fixed_Point_Int_Storage_Type max_integer =
             (1 << safe_maximum_integer_bits()) - 1;
         return static_cast<double>(max_integer);
     }
 
-    static constexpr double maximum()
+    static consteval double maximum()
     {
         double max = maximum_integer() + maximum_fractional();
         max        = std::min(
@@ -152,7 +157,7 @@ class Fixed_Point_Integer
         return max;
     }
 
-    static constexpr double safe_maximum()
+    static consteval double safe_maximum()
     {
         double max = safe_maximum_integer() + maximum_fractional();
         max        = std::min(
@@ -163,7 +168,7 @@ class Fixed_Point_Integer
         return max;
     }
 
-    static constexpr double minimum()
+    static consteval double minimum()
     {
         double min = -(maximum());
         min        = std::max(
@@ -174,7 +179,7 @@ class Fixed_Point_Integer
         return min;
     }
 
-    static constexpr double safe_minimum()
+    static consteval double safe_minimum()
     {
         double min = -(safe_maximum());
         min        = std::max(
@@ -296,8 +301,8 @@ class Fixed_Point_Integer
 
     Fixed_Point_Int_Storage_Type m_value;
 
-    static constexpr log2_lookup_table_type make_log2_table();
-    static constexpr exp2_lookup_table_type make_exp2_table();
+    static consteval log2_lookup_table_type make_log2_table();
+    static consteval exp2_lookup_table_type make_exp2_table();
 
     static constexpr log2_lookup_table_type m_log2_table = make_log2_table();
     static constexpr exp2_lookup_table_type m_exp2_table = make_exp2_table();
@@ -368,14 +373,24 @@ template <uint8_t F>
 constexpr Fixed_Point_Integer<F>
 Fixed_Point_Integer<F>::operator+(const Fixed_Point_Integer other) const
 {
-    return Fixed_Point_Integer::from_value(m_value + other.m_value);
+    // Clamp in case of overflow.
+    Fixed_Point_Int_Storage_Type return_value =
+        std::clamp((m_value + other.m_value),
+                   std::numeric_limits<Fixed_Point_Int_Storage_Type>::min(),
+                   std::numeric_limits<Fixed_Point_Int_Storage_Type>::max());
+    return Fixed_Point_Integer::from_value(return_value);
 }
 
 template <uint8_t F>
 constexpr Fixed_Point_Integer<F>
 Fixed_Point_Integer<F>::operator-(const Fixed_Point_Integer other) const
 {
-    return Fixed_Point_Integer::from_value(m_value - other.m_value);
+    // Clamp in case of overflow.
+    Fixed_Point_Int_Storage_Type return_value =
+        std::clamp((m_value - other.m_value),
+                   std::numeric_limits<Fixed_Point_Int_Storage_Type>::min(),
+                   std::numeric_limits<Fixed_Point_Int_Storage_Type>::max());
+    return Fixed_Point_Integer::from_value(return_value);
 }
 
 // Helper function to count leading zeros in a 32-bit signed integer based on
@@ -390,7 +405,7 @@ FORCE_INLINE constexpr uint8_t bit_width(Fixed_Point_Int_Storage_Type value)
     else if (value < 0)
     {
         // We want to count leading zeros simply as an extremely fast way to do
-        // (floor(log2(value)) + 1) which is the number of bits needed to
+        // (floor(log2(abs(value))) + 1) which is the number of bits needed to
         // represent the value in binary. Thus, we can count leading zeros on
         // the absolute value of the number. Value needs to be promoted to
         // int64_t because -INT_MIN is not representable in
@@ -444,16 +459,13 @@ Fixed_Point_Integer<F>::operator*(const Fixed_Point_Integer other) const
     // off the shift by F we already need to do, described below.
     int8_t anti_overflow_scaling =
         bit_width(product) - F - (FIXED_POINT_BIT_WIDTH - 1);
+
+    // An additional bit of scaling is needed if the product is negative because
+    // bit_width doesn't account for the sign of the product.
+    if (product < 0) { anti_overflow_scaling++; }
+
     anti_overflow_scaling =
         std::max(static_cast<int8_t>(0), anti_overflow_scaling);
-
-    MATREX_ASSERT(
-        anti_overflow_scaling < MAXIMUM_ALLOWED_OVERFLOW,
-        "FIXED POINT MULTIPLICATION OVERFLOW with operands {} and {}, "
-        "intended anti-overflow scaling is {}.",
-        m_value,
-        other.m_value,
-        anti_overflow_scaling);
 
     // Scale down by 2^F because fixed point integers are real numbers (V)
     // scaled by 2^F. So: (V * (2^F)) * (V * (2^F)) = (V * V) * (2^(2F)) To get
@@ -481,23 +493,24 @@ Fixed_Point_Integer<F>::operator/(const Fixed_Point_Integer other) const
     // Also unlike multiplication, we subtract off the bits in the divisor.
     int8_t anti_overflow_scaling = bit_width(m_value) + F
                                  - bit_width(other.m_value)
-                                 - (FIXED_POINT_BIT_WIDTH - 1);
+                                 - (FIXED_POINT_BIT_WIDTH - 1) + 1;
+
+    // An additional bit of scaling is needed if the product is negative because
+    // bit_width doesn't account for the sign of the product.
+    if (((m_value < 0) || (other.m_value < 0))
+        && (!((m_value < 0) && (other.m_value < 0))))
+    {
+        anti_overflow_scaling++;
+    }
+
     anti_overflow_scaling =
         std::max(static_cast<int8_t>(0), anti_overflow_scaling);
-
-    MATREX_ASSERT(
-        anti_overflow_scaling < MAXIMUM_ALLOWED_OVERFLOW,
-        "FIXED POINT DIVISION OVERFLOW with values {} and {}, intended "
-        "anti-overflow scaling is {}.",
-        m_value,
-        other.m_value,
-        anti_overflow_scaling);
 
     // We scale the numerator up for the same reason we scale down the product
     // in multiplication.
     int64_t numerator = static_cast<int64_t>(m_value) * scale();
-    Fixed_Point_Int_Storage_Type denominator =
-        other.m_value >> anti_overflow_scaling;
+    int64_t denominator =
+        static_cast<int64_t>(other.m_value) >> anti_overflow_scaling;
 
     // Prevent division by zero by clamping to the smallest denominator.
     if (denominator == 0) { denominator = (other.m_value >= 0) ? 1 : -1; }
@@ -766,7 +779,7 @@ std::ostream& operator<<(std::ostream& os, const Fixed_Point_Integer<X>& fp)
 }
 
 template <uint8_t F>
-constexpr log2_lookup_table_type Fixed_Point_Integer<F>::make_log2_table()
+consteval log2_lookup_table_type Fixed_Point_Integer<F>::make_log2_table()
 {
     log2_lookup_table_type table {};
     for (std::size_t i = 0; i < LOG2_LOOKUP_TABLE_SIZE; ++i)
@@ -780,7 +793,7 @@ constexpr log2_lookup_table_type Fixed_Point_Integer<F>::make_log2_table()
 }
 
 template <uint8_t F>
-constexpr exp2_lookup_table_type Fixed_Point_Integer<F>::make_exp2_table()
+consteval exp2_lookup_table_type Fixed_Point_Integer<F>::make_exp2_table()
 {
     exp2_lookup_table_type table {};
     for (std::size_t i = 0; i < EXP2_LOOKUP_TABLE_SIZE; ++i)
@@ -876,7 +889,6 @@ namespace Matrex
     template <uint8_t F>
     Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input)
     {
-
         MATREX_ASSERT(
             input > 0,
             "LOG2 ERROR: Input must be non-negative and non-zero, input is {}",
