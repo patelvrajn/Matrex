@@ -1,34 +1,24 @@
 #include "transposition_table.hpp"
 
 Transposition_Table::Transposition_Table(const uint64_t size_in_mib) :
-    m_table({nullptr, nullptr}), m_segment_size(0)
+    m_table(nullptr), m_size(0)
 {
     resize(size_in_mib);
 }
 
 void Transposition_Table::resize(const uint64_t size_in_mib)
 {
-    constexpr uint64_t SIZE_OF_CLUSTER  = sizeof(Transposition_Table_Cluster);
-    uint64_t           size_in_bytes    = size_in_mib * 1024 * 1024;
-    uint64_t           new_segment_size = (size_in_bytes / SIZE_OF_CLUSTER) / 2;
+    constexpr uint64_t SIZE_OF_CLUSTER = sizeof(Transposition_Table_Cluster);
+    uint64_t           size_in_bytes   = size_in_mib * 1024 * 1024;
+    uint64_t           new_size        = (size_in_bytes / SIZE_OF_CLUSTER);
 
-    if (new_segment_size == m_segment_size) { return; }
+    if (new_size == m_size) { return; }
 
-    m_segment_size = new_segment_size;
+    m_size = new_size;
 
-    if (m_table.probationary_segment != nullptr)
-    {
-        delete[] m_table.probationary_segment;
-    }
+    if (m_table != nullptr) { delete[] m_table; }
 
-    if (m_table.protected_segment != nullptr)
-    {
-        delete[] m_table.protected_segment;
-    }
-
-    m_table.probationary_segment =
-        new Transposition_Table_Cluster[m_segment_size];
-    m_table.protected_segment = new Transposition_Table_Cluster[m_segment_size];
+    m_table = new Transposition_Table_Cluster[m_size];
     clear();
 }
 
@@ -37,15 +27,14 @@ void Transposition_Table::resize(const uint64_t size_in_mib)
 uint64_t Transposition_Table::get_lemire_index(const Zobrist_Hash hash) const
 {
     __uint128_t product = (static_cast<__uint128_t>(hash.get_hash_value())
-                           * static_cast<__uint128_t>(m_segment_size));
+                           * static_cast<__uint128_t>(m_size));
     return static_cast<uint64_t>(product >> 64);
 }
 
 void Transposition_Table::prefetch(const Zobrist_Hash hash)
 {
     uint64_t index = get_lemire_index(hash);
-    __builtin_prefetch(&m_table.probationary_segment[index]);
-    __builtin_prefetch(&m_table.protected_segment[index]);
+    __builtin_prefetch(&m_table[index]);
 }
 
 bool Transposition_Table::is_priority_entry(
@@ -73,18 +62,25 @@ void Transposition_Table::promotion_to_protected_segment(
     // Add the entry to protected segment using conditional eviction. Add the
     // demoted entry to the probationary segment only if it's a priority entry.
     Transposition_Table_Entry demoted_entry;
-    if (m_table.protected_segment[index].entries.conditional_eviction(
-            entry,
-            &demoted_entry))
+    if (m_table[index].protected_entries.conditional_eviction(entry,
+                                                              &demoted_entry))
     {
         if (is_priority_entry(max_depth, demoted_entry))
         {
             Transposition_Table_Entry evicted_entry;
-            m_table.probationary_segment[index].entries.conditional_eviction(
+            m_table[index].probationary_entries.conditional_eviction(
                 demoted_entry,
                 &evicted_entry);
         }
     }
+}
+
+bool Transposition_Table::should_replace_matched_entry(
+    const Transposition_Table_Entry& existing_entry,
+    const Transposition_Table_Entry& new_entry)
+{
+    return ((existing_entry.depth < new_entry.depth)
+            || (new_entry.score_bound == Score_Bound_Type::EXACT));
 }
 
 bool Transposition_Table::read(const uint16_t             max_depth,
@@ -99,8 +95,7 @@ bool Transposition_Table::read(const uint16_t             max_depth,
 
     // Check protected segment first.
     uint8_t found_entry_index = 0;
-    for (const Transposition_Table_Entry& e :
-         m_table.protected_segment[index].entries)
+    for (const Transposition_Table_Entry& e : m_table[index].protected_entries)
     {
         // Is this entry a partial zobrist match?
         if (e.partial_zobrist == Transposition_Table::get_partial_zobrist(hash))
@@ -110,8 +105,7 @@ bool Transposition_Table::read(const uint16_t             max_depth,
 
             // The read entry is removed from it's current position and goes to
             // the front of the deque (LRU Policy).
-            m_table.protected_segment[index].entries.move_to_front(
-                found_entry_index);
+            m_table[index].protected_entries.move_to_front(found_entry_index);
 
 #if COLLECT_TT_STATISTICS == 1
             m_statistics.protected_hits++;
@@ -131,7 +125,7 @@ bool Transposition_Table::read(const uint16_t             max_depth,
     // Check probationary segment next.
     found_entry_index = 0;
     for (const Transposition_Table_Entry& e :
-         m_table.probationary_segment[index].entries)
+         m_table[index].probationary_entries)
     {
         // Is this entry a partial zobrist match?
         if (e.partial_zobrist == Transposition_Table::get_partial_zobrist(hash))
@@ -147,15 +141,13 @@ bool Transposition_Table::read(const uint16_t             max_depth,
                 // segment. Remove the entry that will be promoted from the
                 // probationary segment. Promote this entry to the protected
                 // segment.
-                m_table.probationary_segment[index].entries.remove(
-                    found_entry_index);
+                m_table[index].probationary_entries.remove(found_entry_index);
                 promotion_to_protected_segment(max_depth, index, output);
             }
             else
             {
                 // Otherwise, the entry works its way up towards the front.
-                m_table.probationary_segment[index].entries.swap_up(
-                    found_entry_index);
+                m_table[index].probationary_entries.swap_up(found_entry_index);
             }
 
 #if COLLECT_TT_STATISTICS == 1
@@ -188,16 +180,15 @@ void Transposition_Table::write(const uint16_t                   max_depth,
 
     // Loop through protected segment.
     uint8_t found_entry_index = 0;
-    for (Transposition_Table_Entry& e :
-         m_table.protected_segment[index].entries)
+    for (Transposition_Table_Entry& e : m_table[index].protected_entries)
     {
         // Same logic for protected segment as probationary segment below.
         if (e.partial_zobrist == Transposition_Table::get_partial_zobrist(hash))
         {
-            if (e.depth < entry.depth)
+            if (should_replace_matched_entry(e, entry))
             {
                 e = entry;
-                m_table.protected_segment[index].entries.move_to_front(
+                m_table[index].protected_entries.move_to_front(
                     found_entry_index);
             }
             return;
@@ -207,8 +198,7 @@ void Transposition_Table::write(const uint16_t                   max_depth,
 
     // Loop through probationary segment.
     found_entry_index = 0;
-    for (Transposition_Table_Entry& e :
-         m_table.probationary_segment[index].entries)
+    for (Transposition_Table_Entry& e : m_table[index].probationary_entries)
     {
         // Is this probationary segment entry a partial zobrist match?
         if (e.partial_zobrist == Transposition_Table::get_partial_zobrist(hash))
@@ -216,10 +206,10 @@ void Transposition_Table::write(const uint16_t                   max_depth,
             // Replace the entry in the probationary segment if it's depth
             // searched is less than the given entry. Move the replaced entry to
             // the front.
-            if (e.depth < entry.depth)
+            if (should_replace_matched_entry(e, entry))
             {
                 e = entry;
-                m_table.probationary_segment[index].entries.move_to_front(
+                m_table[index].probationary_entries.move_to_front(
                     found_entry_index);
             }
 
@@ -243,18 +233,16 @@ void Transposition_Table::write(const uint16_t                   max_depth,
     // position (hopefully), write the new entry using conditional eviction into
     // the probationary segment.
     Transposition_Table_Entry evicted_entry;
-    m_table.probationary_segment[index].entries.conditional_eviction(
-        entry,
-        &evicted_entry);
+    m_table[index].probationary_entries.conditional_eviction(entry,
+                                                             &evicted_entry);
 }
 
 void Transposition_Table::clear()
 {
-    for (uint64_t cluster_index = 0; cluster_index < m_segment_size;
-         ++cluster_index)
+    for (uint64_t cluster_index = 0; cluster_index < m_size; ++cluster_index)
     {
-        m_table.probationary_segment[cluster_index].entries.clear();
-        m_table.protected_segment[cluster_index].entries.clear();
+        m_table[cluster_index].protected_entries.clear();
+        m_table[cluster_index].probationary_entries.clear();
     }
 }
 

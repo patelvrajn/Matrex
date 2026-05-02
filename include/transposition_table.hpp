@@ -88,7 +88,8 @@ class Mini_Queue
 
 constexpr uint64_t PARTIAL_ZOBRIST_MASK = 0xFFFF;
 
-constexpr uint8_t TRANSPOSITION_TABLE_CLUSTER_SIZE = 4;
+constexpr uint8_t TT_PROTECTED_CLUSTER_SIZE    = 4;
+constexpr uint8_t TT_PROBATIONARY_CLUSTER_SIZE = 4;
 
 constexpr uint16_t TRANSPOSITION_TABLE_DEPTH_THRESHOLD = 2;
 
@@ -115,14 +116,10 @@ static_assert(sizeof(Transposition_Table_Entry) == 24,
 
 struct Transposition_Table_Cluster
 {
-    Mini_Queue<Transposition_Table_Entry, TRANSPOSITION_TABLE_CLUSTER_SIZE>
-        entries;
-};
-
-struct Transposition_Table_Segments
-{
-    Transposition_Table_Cluster* probationary_segment;
-    Transposition_Table_Cluster* protected_segment;
+    Mini_Queue<Transposition_Table_Entry, TT_PROTECTED_CLUSTER_SIZE>
+        protected_entries;
+    Mini_Queue<Transposition_Table_Entry, TT_PROBATIONARY_CLUSTER_SIZE>
+        probationary_entries;
 };
 
 struct Transposition_Table_Statistics
@@ -187,8 +184,8 @@ class Transposition_Table
 
   private:
 
-    Transposition_Table_Segments m_table;
-    uint64_t                     m_segment_size;
+    Transposition_Table_Cluster* m_table;
+    uint64_t                     m_size;
 
 #if COLLECT_TT_STATISTICS == 1
     Transposition_Table_Statistics m_statistics;
@@ -202,6 +199,10 @@ class Transposition_Table
     void promotion_to_protected_segment(const uint16_t max_depth,
                                         const uint64_t index,
                                         const Transposition_Table_Entry& entry);
+
+    bool should_replace_matched_entry(
+        const Transposition_Table_Entry& existing_entry,
+        const Transposition_Table_Entry& new_entry);
 };
 
 // Note: This logic limits the capacity to being powers of two. If it is needed
