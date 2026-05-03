@@ -33,8 +33,22 @@ uint64_t Transposition_Table::get_lemire_index(const Zobrist_Hash hash) const
 
 void Transposition_Table::prefetch(const Zobrist_Hash hash)
 {
-    uint64_t index = get_lemire_index(hash);
-    __builtin_prefetch(&m_table[index]);
+    constexpr uint64_t SIZE_OF_CLUSTER = sizeof(Transposition_Table_Cluster);
+    constexpr bool     IS_CLUSTER_SIZE_MULTIPLE_OF_CACHE_LINE_SIZE =
+        ((SIZE_OF_CLUSTER % CACHE_LINE_SIZE) == 0);
+    constexpr uint64_t PREFETCH_STRIDE =
+        (SIZE_OF_CLUSTER / CACHE_LINE_SIZE)
+        + (IS_CLUSTER_SIZE_MULTIPLE_OF_CACHE_LINE_SIZE ? 0 : 1);
+
+    uint64_t index   = get_lemire_index(hash);
+    uint8_t* address = reinterpret_cast<uint8_t*>(&m_table[index]);
+
+    for (uint8_t i = 0; i < PREFETCH_STRIDE; ++i)
+    {
+        // Note: we want to prefetch for a write because of how our cluster's
+        // queues work on a read.
+        __builtin_prefetch((address + (i * CACHE_LINE_SIZE)), 1, 3);
+    }
 }
 
 bool Transposition_Table::is_priority_entry(

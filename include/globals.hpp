@@ -34,6 +34,9 @@
 
 #define FORCE_INLINE inline __attribute__((always_inline, flatten))
 
+constexpr uint64_t CACHE_LINE_SIZE = 64;
+#define CACHE_ALIGN alignas(CACHE_LINE_SIZE)
+
 constexpr std::string_view ENGINE_NAME    = "Matrex";
 constexpr std::string_view ENGINE_VERSION = "0.0.1";
 

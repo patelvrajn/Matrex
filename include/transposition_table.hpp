@@ -93,7 +93,7 @@ constexpr uint8_t TT_PROBATIONARY_CLUSTER_SIZE = 4;
 
 constexpr uint16_t TRANSPOSITION_TABLE_DEPTH_THRESHOLD = 2;
 
-constexpr uint64_t DEFAULT_TRANSPOSITION_TABLE_SIZE = 64; // MiB
+constexpr uint64_t DEFAULT_TRANSPOSITION_TABLE_SIZE = 128; // MiB
 
 enum class Score_Bound_Type : uint8_t
 {
@@ -114,7 +114,7 @@ struct Transposition_Table_Entry
 static_assert(sizeof(Transposition_Table_Entry) == 24,
               "Transposition_Table_Entry should be 24 bytes in size.");
 
-struct Transposition_Table_Cluster
+struct CACHE_ALIGN Transposition_Table_Cluster
 {
     Mini_Queue<Transposition_Table_Entry, TT_PROTECTED_CLUSTER_SIZE>
         protected_entries;
