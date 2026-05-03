@@ -13,6 +13,8 @@
 // 5898.5 is the theoritical maximum number of moves (2-ply) in a chess game.
 constexpr uint16_t MAX_SEARCH_DEPTH = (5899 * NUM_OF_PLAYERS);
 
+constexpr uint16_t QUIESCENCE_SEARCH_DEPTH = 0;
+
 struct Time_Control
 {
     uint64_t time_remaining; // Time in milliseconds.
