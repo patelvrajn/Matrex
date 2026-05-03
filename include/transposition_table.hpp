@@ -165,7 +165,7 @@ class Transposition_Table
 
     void resize(const uint64_t size_in_mib);
 
-    void prefetch(const Zobrist_Hash hash);
+    FORCE_INLINE void prefetch(const Zobrist_Hash hash);
 
     bool read(const uint16_t             max_depth,
               const Zobrist_Hash         hash,
@@ -204,6 +204,26 @@ class Transposition_Table
         const Transposition_Table_Entry& existing_entry,
         const Transposition_Table_Entry& new_entry);
 };
+
+FORCE_INLINE void Transposition_Table::prefetch(const Zobrist_Hash hash)
+{
+    constexpr uint64_t SIZE_OF_CLUSTER = sizeof(Transposition_Table_Cluster);
+    constexpr bool     IS_CLUSTER_SIZE_MULTIPLE_OF_CACHE_LINE_SIZE =
+        ((SIZE_OF_CLUSTER % CACHE_LINE_SIZE) == 0);
+    constexpr uint64_t PREFETCH_STRIDE =
+        (SIZE_OF_CLUSTER / CACHE_LINE_SIZE)
+        + (IS_CLUSTER_SIZE_MULTIPLE_OF_CACHE_LINE_SIZE ? 0 : 1);
+
+    uint64_t index   = get_lemire_index(hash);
+    uint8_t* address = reinterpret_cast<uint8_t*>(&m_table[index]);
+
+    for (uint8_t i = 0; i < PREFETCH_STRIDE; ++i)
+    {
+        // Note: we want to prefetch for a write because of how our cluster's
+        // queues work on a read.
+        __builtin_prefetch((address + (i * CACHE_LINE_SIZE)), 1, 3);
+    }
+}
 
 // Note: This logic limits the capacity to being powers of two. If it is needed
 // to support non-powers of two, the function can be modified to use modulus
