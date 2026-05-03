@@ -34,8 +34,7 @@ class Move_Ordering
     Chess_Move            m_hash_move;
 
     static mvv_lva_array generate_mvv_lva_array();
-    void                 mvv_lva_scorer();
-    void                 hash_move_scorer();
+    void                 move_scorer();
 };
 
 template <MOVE_GENERATION_TYPE move_gen_type>
