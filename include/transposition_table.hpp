@@ -5,22 +5,34 @@
 #include "zobrist_hash.hpp"
 
 /*
-Transposition Table With Depth-Prioritized Segmented LRU
+Segmented LRU (Least Recently Used) Transposition Table
 
-In any segment - if a position is found and the depth is greater for the entry
-being made - replace immediately.
+The idea behind this transposition table architecture comes from cache
+architectures used in computer systems. The idea is to protect any entries that
+are likely to be important to the current search from being evicted from the
+tranposition table. It is implemented by a table of clusters where each cluster
+contains two queues, one for protected entries and one for probationary entries.
 
-Probationary Segment:
-  New items enter here.
-        When an item is read here, it is promoted from the probationary segment
-to the protected segment. When writing a new entry and the cluster here is
-already full OR an item is demoted and the cluster is full, evict the LRU item
-in the cluster.
+In any segment - if a position is found (matched entry) and the depth is greater
+for the entry being written or the entry being written is an an exact score -
+replace on a write.
 
-Protected Segment:
-  Promoted items enter here.
-        When an item is promoted here and the cluster is full, demote the LRU
-item to the probationary segment.
+A priority entry is defined as any entry with a depth within a certain range of
+the current search depth or the entry is an exact score.
+
+Probationary Segment - this segment is where new entries enter or demoted
+priority entries are placed. When an item is read here it is moved foward one
+position in the queue, if an item is already at the front of the queue it is
+promoted to the protected segment. When writing a new entry and the queue is
+full, evict the LRU entry, that is the entry at the back of the queue. If the
+queue is not full, push the new entry to the front of the queue.
+
+Protected Segment - this segment is where either promoted entries are written or
+priority entries bypassing the probationary segment enter. When an item is read
+here it is moved to the front of the queue. When an item is written here and the
+queue is full, evict the LRU item and only if it is a priority entry demote it
+to the probationary segment where it is placed in the front of the queu. If the
+queue is not full, push the new entry to the front of the queue.
 */
 
 #define COLLECT_TT_STATISTICS 0
@@ -28,6 +40,11 @@ item to the probationary segment.
 template <typename T, uint8_t capacity>
 class Mini_Queue
 {
+
+    static_assert((std::floor(std::log2(capacity)) == std::log2(capacity)),
+                  "Mini_Queue capacity should be a power of two for efficient "
+                  "modulo operations.");
+
   public:
 
     class Iterator
@@ -269,22 +286,12 @@ void Mini_Queue<T, capacity>::clear()
 template <typename T, uint8_t capacity>
 T& Mini_Queue<T, capacity>::front()
 {
-    if (is_empty())
-    {
-        throw std::runtime_error(
-            "Mini_Queue is empty there is no front of an empty queue.");
-    }
     return m_queue[m_front];
 }
 
 template <typename T, uint8_t capacity>
 T& Mini_Queue<T, capacity>::back()
 {
-    if (is_empty())
-    {
-        throw std::runtime_error(
-            "Mini_Queue is empty there is no back of an empty queue.");
-    }
     return m_queue[wrap_index(static_cast<uint8_t>(m_back - 1))];
 }
 
