@@ -86,11 +86,11 @@ constexpr std::string_view START_POSITION_FEN =
 template <typename T, std::size_t thisSize, std::size_t... otherSizes>
 class multi_array : private std::array<multi_array<T, otherSizes...>, thisSize>
 {
-    using base_array = std::array<multi_array<T, otherSizes...>, thisSize>;
+    using Base_Array = std::array<multi_array<T, otherSizes...>, thisSize>;
 
   public:
 
-    using base_array::operator[];
+    using Base_Array::operator[];
 
     // Constructor from initializer list of multi_arrays
     constexpr multi_array(
@@ -108,6 +108,19 @@ class multi_array : private std::array<multi_array<T, otherSizes...>, thisSize>
         }
     }
 
+    auto begin() { return Base_Array::begin(); }
+
+    auto end() { return Base_Array::end(); }
+
+    auto begin() const { return Base_Array::begin(); }
+
+    auto end() const { return Base_Array::end(); }
+
+    void fill(T fill_value)
+    {
+        for (auto& element : (*this)) { element.fill(fill_value); }
+    }
+
     // Default constructor
     constexpr multi_array() = default;
 };
@@ -116,11 +129,11 @@ class multi_array : private std::array<multi_array<T, otherSizes...>, thisSize>
 template <typename T, std::size_t thisSize>
 class multi_array<T, thisSize> : private std::array<T, thisSize>
 {
-    using base_array = std::array<T, thisSize>;
+    using Base_Array = std::array<T, thisSize>;
 
   public:
 
-    using base_array::operator[];
+    using Base_Array::operator[];
 
     // Constructor from initializer list
     constexpr multi_array(std::initializer_list<T> init)
@@ -135,6 +148,19 @@ class multi_array<T, thisSize> : private std::array<T, thisSize>
                 break; // ignore extra elements
             }
         }
+    }
+
+    auto begin() { return Base_Array::begin(); }
+
+    auto end() { return Base_Array::end(); }
+
+    auto begin() const { return Base_Array::begin(); }
+
+    auto end() const { return Base_Array::end(); }
+
+    void fill(T fill_value)
+    {
+        for (auto& element : (*this)) { element = fill_value; }
     }
 
     // Default constructor
