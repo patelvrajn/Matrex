@@ -243,8 +243,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     // Generate sorted tactical moves in the current position if not in
     // check, if in check, we need all moves because it is not guaranteed
     // that at least one tactical move is a check evasion move.
-    // Move_Ordering mo(position, transposition_table_entry.best_move);
-    Move_Ordering mo(position, Chess_Move());
+    Move_Ordering mo(position, transposition_table_entry.best_move);
     const bool    is_side_to_move_in_check = mo.is_side_to_move_in_check();
     if (is_side_to_move_in_check)
     {

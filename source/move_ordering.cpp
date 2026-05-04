@@ -64,10 +64,10 @@ void Move_Ordering::move_scorer()
         // For the hash move, give it the maximum score to ensure it is sorted
         // to the front. If the hash move is not found, it won't be scored (e.g.
         // if move is Chess_Move()).
-        // if (move.is_same_move(m_hash_move))
-        // {
-        //     move.score = std::numeric_limits<Move_Score>::max();
-        // }
+        if (move.is_same_move(m_hash_move))
+        {
+            move.score = std::numeric_limits<Move_Score>::max();
+        }
     }
 }
 
