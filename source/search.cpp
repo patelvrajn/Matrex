@@ -14,6 +14,7 @@ void Search_Engine::new_game()
     m_transposition_table.get_statistics().print();
     m_transposition_table.clear_statistics();
 #endif
+    Move_Ordering::clear_all_history_heuristics();
     m_transposition_table.clear();
 }
 
@@ -111,6 +112,10 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
 
     for (const Chess_Move& move : moves)
     {
+        // Butterfly history heuristic - the number of trials (frequency) of
+        // quiet moves are tracked for purposes of dynamic move ordering.
+        mo.update_butterfly_move_history(move);
+
         // Explore the child move's subtree for it's evaluation. Negate the
         // result to compare it's score to the parent's scores (alpha,
         // evaluation, etc).
