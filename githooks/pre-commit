@@ -6,8 +6,9 @@
 # Breakdown:
 # --cached        → look at staged changes (NOT working directory changes)
 # --name-only     → output only file names (not full diffs)
+# --diff-filter=d → exclude files that will be deleted
 # -- '*.cpp' ...  → restrict to C++ source/header files
-files=$(git diff --cached --name-only -- '*.cpp' '*.hpp')
+files=$(git diff --cached --name-only --diff-filter=d -- '*.cpp' '*.hpp')
 
 # If the "files" variable is empty (i.e., no staged C++ files),
 # then exit early and do nothing.

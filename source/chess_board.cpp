@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include "move_generator.hpp"
+
 Chess_Board::Chess_Board()
 {
     m_state.castling_rights = CASTLING_RIGHTS_FLAGS::W_KINGSIDE
@@ -14,51 +16,9 @@ Chess_Board::Chess_Board()
     m_state.full_move_count     = 0;
     m_piece_bitboards           = {};
     m_color_occupancy_bitboards = {};
-}
-
-Chess_Board::Chess_Board(const Bitboard& w_pawn_bb,
-                         const Bitboard& w_knight_bb,
-                         const Bitboard& w_bishop_bb,
-                         const Bitboard& w_rook_bb,
-                         const Bitboard& w_queen_bb,
-                         const Bitboard& w_king_bb,
-                         const Bitboard& b_pawn_bb,
-                         const Bitboard& b_knight_bb,
-                         const Bitboard& b_bishop_bb,
-                         const Bitboard& b_rook_bb,
-                         const Bitboard& b_queen_bb,
-                         const Bitboard& b_king_bb)
-{
-    m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::PAWN]   = w_pawn_bb;
-    m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::KNIGHT] = w_knight_bb;
-    m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::BISHOP] = w_bishop_bb;
-    m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::ROOK]   = w_rook_bb;
-    m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::QUEEN]  = w_queen_bb;
-    m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::KING]   = w_king_bb;
-
-    m_color_occupancy_bitboards[PIECE_COLOR::WHITE] = w_pawn_bb | w_knight_bb
-                                                    | w_bishop_bb | w_rook_bb
-                                                    | w_queen_bb | w_king_bb;
-
-    m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::PAWN]   = b_pawn_bb;
-    m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KNIGHT] = b_knight_bb;
-    m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::BISHOP] = b_bishop_bb;
-    m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::ROOK]   = b_rook_bb;
-    m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::QUEEN]  = b_queen_bb;
-    m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KING]   = b_king_bb;
-
-    m_color_occupancy_bitboards[PIECE_COLOR::BLACK] = b_pawn_bb | b_knight_bb
-                                                    | b_bishop_bb | b_rook_bb
-                                                    | b_queen_bb | b_king_bb;
-
-    m_state.castling_rights = CASTLING_RIGHTS_FLAGS::W_KINGSIDE
-                            | CASTLING_RIGHTS_FLAGS::W_QUEENSIDE
-                            | CASTLING_RIGHTS_FLAGS::B_KINGSIDE
-                            | CASTLING_RIGHTS_FLAGS::B_QUEENSIDE;
-    m_state.enpassant_square = ESQUARE::NO_SQUARE;
-    m_state.side_to_move     = PIECE_COLOR::WHITE;
-    m_state.half_move_clock  = 0;
-    m_state.full_move_count  = 0;
+    m_zobrist_hash              = Zobrist_Hash();
+    m_zobrist_hash.update_castling_rights(m_state.castling_rights);
+    m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
 }
 
 Bitboard Chess_Board::get_both_color_occupancies() const
@@ -214,6 +174,9 @@ void Chess_Board::pretty_print() const
 
     std::cout << "Full move count: " << m_state.full_move_count << std::endl;
 
+    std::cout << "Zobrist Hash: " << m_zobrist_hash.get_hash_value()
+              << std::endl;
+
     std::cout << std::endl;
 }
 
@@ -258,6 +221,7 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
         m_state.full_move_count = m_state.full_move_count + 1;
     }
 
+    m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
     if (move.is_double_pawn_push)
     {
         if (m_state.side_to_move == PIECE_COLOR::WHITE)
@@ -270,6 +234,9 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
         }
     }
     else { m_state.enpassant_square = ESQUARE::NO_SQUARE; }
+    m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
+
+    const uint8_t previous_castling_rights = m_state.castling_rights;
 
     // If either side castles or moves their king, the respective side loses all
     // castling rights.
@@ -353,17 +320,27 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
         m_state.castling_rights &= ~(CASTLING_RIGHTS_FLAGS::B_KINGSIDE);
     }
 
+    m_zobrist_hash.update_castling_rights(previous_castling_rights);
+    m_zobrist_hash.update_castling_rights(m_state.castling_rights);
+
     m_state.side_to_move = (PIECE_COLOR) ((~m_state.side_to_move) & 0x1);
+    m_zobrist_hash.flip_side_to_move();
 
     return undo_move;
 }
 
 void Chess_Board::undo_move(Undo_Chess_Move undo_move)
 {
+    m_zobrist_hash.update_castling_rights(m_state.castling_rights);
+    m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
+
     m_state.castling_rights   = undo_move.castling_rights;
     m_state.half_move_clock   = undo_move.half_move_clock;
     m_state.enpassant_square  = undo_move.enpassant_square;
     PIECE_COLOR opposing_side = (PIECE_COLOR) ((~m_state.side_to_move) & 0x1);
+
+    m_zobrist_hash.update_castling_rights(m_state.castling_rights);
+    m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
 
     calculate_next_board_state(opposing_side, undo_move.move);
 
@@ -373,7 +350,35 @@ void Chess_Board::undo_move(Undo_Chess_Move undo_move)
     }
 
     m_state.side_to_move = opposing_side;
+    m_zobrist_hash.flip_side_to_move();
 }
+
+void Chess_Board::make_moves_from_string(const std::string& moves_str,
+                                         bool               is_frc)
+{
+    std::istringstream iss(moves_str);
+
+    std::string move_str;
+
+    while (iss >> move_str)
+    { // Loop over space seperated moves string.
+        Move_Generator        mg(*this);
+        Chess_Move_List       moves;
+        Moves_Bitboard_Matrix dummy_matrix;
+        mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves, dummy_matrix);
+
+        for (const auto& move : moves)
+        {
+            if (move_str == move.to_coordinate_notation(is_frc))
+            {
+                make_move(move);
+                break;
+            }
+        }
+    }
+}
+
+Zobrist_Hash Chess_Board::get_zobrist_hash() const { return m_zobrist_hash; }
 
 void Chess_Board::set_from_fen(const std::string& fen)
 {
@@ -382,26 +387,30 @@ void Chess_Board::set_from_fen(const std::string& fen)
     m_piece_bitboards           = {};
     m_color_occupancy_bitboards = {};
 
+    m_zobrist_hash = Zobrist_Hash();
+
     // Extract ONLY the piece placement section (before the first space).
-    // FEN format reminder: "<pieces> <side> <castling> <enpassant> <halfmove>
-    // <fullmove>"
+    // FEN format reminder: "<pieces> <side> <castling> <enpassant>
+    // <halfmove> <fullmove>"
     const std::string piece_placement = fen.substr(0, fen.find_first_of(' '));
     const uint8_t     piece_placement_len = piece_placement.length();
 
     // Index trackers: idx = position in piece_placement string
     // current_rank = rank we’re parsing
-    // start_of_substr = where this rank description starts in the FEN substring
+    // start_of_substr = where this rank description starts in the FEN
+    // substring
     uint8_t idx             = 0;
     uint8_t current_rank    = 0;
     uint8_t start_of_substr = 0;
 
-    // Walk through the piece placement string rank by rank, separated by "/"
+    // Walk through the piece placement string rank by rank, separated by
+    // "/"
     while (idx < piece_placement_len)
     {
         bool is_last_char = (idx == (piece_placement_len - 1));
 
-        // If we hit a "/" (end of a rank) OR we’ve reached the very last char,
-        // parse a rank
+        // If we hit a "/" (end of a rank) OR we’ve reached the very last
+        // char, parse a rank
         if ((piece_placement[idx] == '/') || is_last_char)
         {
             uint8_t end_of_substr = idx - 1;
@@ -425,8 +434,8 @@ void Chess_Board::set_from_fen(const std::string& fen)
         idx++;
     }
 
-    // Extract side to move ("w" or "b") from right after the piece placement
-    // section
+    // Extract side to move ("w" or "b") from right after the piece
+    // placement section
     const std::string side_to_move =
         fen.substr(piece_placement.length() + 1, 1);
 
@@ -434,11 +443,14 @@ void Chess_Board::set_from_fen(const std::string& fen)
     switch (side_to_move[0])
     {
         case 'w': m_state.side_to_move = PIECE_COLOR::WHITE; break;
-        case 'b': m_state.side_to_move = PIECE_COLOR::BLACK; break;
+        case 'b':
+            m_state.side_to_move = PIECE_COLOR::BLACK;
+            m_zobrist_hash.flip_side_to_move();
+            break;
     }
 
-    // Calculate where castling rights start (skip piece placement + space + "w
-    // " or "b ")
+    // Calculate where castling rights start (skip piece placement + space +
+    // "w " or "b ")
     const uint8_t castling_rights_start_pos = piece_placement.length() + 1 + 2;
     const uint8_t castling_rights_length =
         (fen.find_first_of(' ', castling_rights_start_pos)
@@ -518,6 +530,8 @@ void Chess_Board::set_from_fen(const std::string& fen)
         }
     }
 
+    m_zobrist_hash.update_castling_rights(m_state.castling_rights);
+
     // En passant square parsing
     // Find the substring that represents en passant target square ("-" or
     // file+rank)
@@ -545,6 +559,7 @@ void Chess_Board::set_from_fen(const std::string& fen)
         // "-" means no en passant available
         m_state.enpassant_square = ESQUARE::NO_SQUARE;
     }
+    m_zobrist_hash.update_en_passant_square(m_state.enpassant_square);
 
     // Halfmove clock parsing (for 50-move rule)
     const uint8_t half_move_clock_start_pos =
@@ -555,7 +570,7 @@ void Chess_Board::set_from_fen(const std::string& fen)
     const std::string half_move_clock =
         fen.substr(half_move_clock_start_pos, half_move_clock_start_length);
 
-    // Convert string to int, store
+    // Convert string to int, store half move clock.
     m_state.half_move_clock = std::stoi(half_move_clock);
 
     // Fullmove count parsing (how many complete turns have passed)
@@ -564,8 +579,8 @@ void Chess_Board::set_from_fen(const std::string& fen)
         fen.substr(last_space_in_fen + 1,
                    ((fen.length() - 1) - last_space_in_fen));
 
-    // Convert to unsigned long long (because we apparently expect games lasting
-    // until the heat death of the universe)
+    // Convert to unsigned long long (because we apparently expect games
+    // lasting until the heat death of the universe)
     m_state.full_move_count = std::stoull(full_move_count);
 }
 
@@ -600,26 +615,44 @@ void Chess_Board::place_pieces_from_fen(const std::string& rank_description,
                     case 'p':
                         m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::PAWN]
                             .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
+                                                    PIECES::PAWN,
+                                                    s);
                         break;
                     case 'n':
                         m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KNIGHT]
                             .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
+                                                    PIECES::KNIGHT,
+                                                    s);
                         break;
                     case 'b':
                         m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::BISHOP]
                             .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
+                                                    PIECES::BISHOP,
+                                                    s);
                         break;
                     case 'r':
                         m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::ROOK]
                             .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
+                                                    PIECES::ROOK,
+                                                    s);
                         break;
                     case 'q':
                         m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::QUEEN]
                             .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
+                                                    PIECES::QUEEN,
+                                                    s);
                         break;
                     case 'k':
                         m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KING]
                             .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::BLACK,
+                                                    PIECES::KING,
+                                                    s);
                         break;
                 }
             }
@@ -632,26 +665,44 @@ void Chess_Board::place_pieces_from_fen(const std::string& rank_description,
                     case 'P':
                         m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::PAWN]
                             .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
+                                                    PIECES::PAWN,
+                                                    s);
                         break;
                     case 'N':
                         m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::KNIGHT]
                             .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
+                                                    PIECES::KNIGHT,
+                                                    s);
                         break;
                     case 'B':
                         m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::BISHOP]
                             .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
+                                                    PIECES::BISHOP,
+                                                    s);
                         break;
                     case 'R':
                         m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::ROOK]
                             .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
+                                                    PIECES::ROOK,
+                                                    s);
                         break;
                     case 'Q':
                         m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::QUEEN]
                             .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
+                                                    PIECES::QUEEN,
+                                                    s);
                         break;
                     case 'K':
                         m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::KING]
                             .set_square(s);
+                        m_zobrist_hash.update_piece(PIECE_COLOR::WHITE,
+                                                    PIECES::KING,
+                                                    s);
                         break;
                 }
             }

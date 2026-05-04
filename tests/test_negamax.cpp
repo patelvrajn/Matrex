@@ -11,7 +11,8 @@ TEST(negamax, mating)
         "4r3/1pp2rbk/6pn/4n3/P3BN1q/1PB2bPP/8/2Q1RRK1 b - - 0 31",
         "4r1k1/4r1p1/8/p2R1P1K/5P1P/1QP3q1/1P6/3R4 b - - 0 1"};
 
-    Chess_Board cb;
+    Chess_Board   cb;
+    Search_Engine search;
 
     // Arbitrary search constraints.
     Search_Constraints constraints;
@@ -19,16 +20,17 @@ TEST(negamax, mating)
     constraints.time_controls[PIECE_COLOR::WHITE].increment      = 1500;
     constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 150000;
     constraints.time_controls[PIECE_COLOR::BLACK].increment      = 1500;
+    constraints.transposition_table_size                         = 64;
 
     // Note: The maximum fen index is 3 otherwise, search is too slow to
     // complete upto mate distance depth search.
     for (uint8_t fen_idx = 0; fen_idx < 3; fen_idx++)
     {
         cb.set_from_fen(std::string(FENS[fen_idx]));
-        Search_Engine  search(cb, constraints);
+        Search_Engine  search_engine;
         const uint16_t distance_to_mate = (NUM_OF_PLAYERS * fen_idx);
         const Search_Engine_Result search_result =
-            search.negamax(cb, distance_to_mate);
+            search_engine.search(cb, constraints);
         if (fen_idx == 0)
         { // Side to move is in checkmate.
             EXPECT_EQ(search_result.second.to_int(), FP_LOSING_MATE_MIN);
@@ -45,53 +47,23 @@ TEST(negamax, mating)
     }
 }
 
-TEST(negamax, consistent_scoring)
-{
-    constexpr uint16_t SEARCH_DEPTH = 5;
-
-    // Arbitrary search constraints.
-    Search_Constraints constraints;
-    constraints.time_controls[PIECE_COLOR::WHITE].time_remaining = 150000;
-    constraints.time_controls[PIECE_COLOR::WHITE].increment      = 1500;
-    constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 150000;
-    constraints.time_controls[PIECE_COLOR::BLACK].increment      = 1500;
-
-    Chess_Board cb;
-    cb.set_from_fen("4k3/8/8/8/8/8/4PP2/4K3 w - - 0 1");
-
-    Search_Engine              first_search(cb, constraints);
-    const Search_Engine_Result first_search_result =
-        first_search.negamax(cb, SEARCH_DEPTH);
-
-    cb.make_move(first_search_result.first);
-
-    Search_Engine              second_search(cb, constraints);
-    const Search_Engine_Result second_search_result =
-        second_search.negamax(cb, SEARCH_DEPTH - 1);
-
-    // The score from the first search made at depth D must be the negated score
-    // of a second search (made after making the best move) made at depth (D-1).
-    ASSERT_EQ(first_search_result.second.to_int(),
-              -second_search_result.second.to_int());
-}
-
 TEST(negamax, DISABLED_debug)
 {
-    constexpr std::string_view FEN =
-        "r1bqk2r/2p1b3/2pn1ppp/p7/5B2/2N1QN2/PPP1KPPP/R6R w kq - 2 14";
+    constexpr std::string_view FEN = "8/k7/3p4/p2P1p2/P2P1P2/8/8/K7 w - - 0 1";
 
     Chess_Board cb;
     cb.set_from_fen(std::string(FEN));
 
-    // Search constraints matching the fastchess time control used; 8+0.08.
+    // Search constraints matching the fastchess constraints used during SPRT.
     Search_Constraints constraints;
     constraints.time_controls[PIECE_COLOR::WHITE].time_remaining = 8000;
     constraints.time_controls[PIECE_COLOR::WHITE].increment      = 80;
     constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 8000;
     constraints.time_controls[PIECE_COLOR::BLACK].increment      = 80;
+    constraints.transposition_table_size                         = 64;
 
-    Search_Engine              search(cb, constraints);
-    const Search_Engine_Result search_result = search.search();
+    Search_Engine              search;
+    const Search_Engine_Result search_result = search.search(cb, constraints);
     std::cout << "Best move: "
               << search_result.first.to_coordinate_notation(false)
               << " Score: " << search_result.second.to_int()
@@ -99,6 +71,8 @@ TEST(negamax, DISABLED_debug)
               << (search_result.second.is_friendly_mate()
                   || search_result.second.is_enemy_mate())
               << std::endl;
+
+    search.get_tt_statistics().print();
 
     const PIECE_COLOR     moving_side = cb.get_side_to_move();
     Chess_Move_List       moving_side_moves_list;

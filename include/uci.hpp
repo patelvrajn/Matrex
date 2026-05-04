@@ -18,9 +18,10 @@ class UCI
 
     Chess_Board m_chess_board;
 
-    bool m_is_frc;
-
+    Search_Engine      m_search_engine;
     Search_Constraints m_search_constraints;
+
+    bool m_is_frc;
 
     // UCI commands
     void handle_position(const std::string& arguments);
@@ -29,9 +30,9 @@ class UCI
     void handle_uci(const std::string& arguments);
     void handle_ucinewgame(const std::string& arguments);
     void handle_isready(const std::string& arguments);
+    void handle_setoption(const std::string& arguments);
 
     // Helpers
-    void make_moves_from_string(const std::string& moves_str, bool is_frc);
     std::unique_ptr<std::vector<std::string>>
     split_string(std::string s, const std::string& delimiter);
 };
