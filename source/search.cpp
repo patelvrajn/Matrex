@@ -63,7 +63,7 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
 
     Move_Ordering mo(position, transposition_table_entry.best_move);
     mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
-    Chess_Move_List& moves = mo.get_sorted_moves();
+    Move_Generation_List& moves = mo.get_sorted_moves();
 
     // No legal moves available, return the appropriate mate or draw score.
     if (moves.get_max_index() == -1)
@@ -121,12 +121,14 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
         const Score child_score = -child_result.second;
         position.undo_move(undo_move);
 
+        bool is_child_score_better_than_alpha = child_score > alpha;
+
         // Update alpha if the child's score is better than the current alpha.
         // All nodes in negamax are looking to maximize their alpha value. If
         // the score is greater than alpha and assuming it doesn't cause a beta
         // cutoff, then the score is exact because it falls between the
         // invariant; alpha < score < beta.
-        if (child_score > alpha)
+        if (is_child_score_better_than_alpha)
         {
             score_bound = Score_Bound_Type::EXACT;
             alpha       = child_score;
@@ -174,6 +176,8 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
             score_bound = Score_Bound_Type::LOWER_BOUND;
             break;
         }
+
+        if (is_child_score_better_than_alpha) {}
 
         // Cache the position's best move and evaluation in the transposition
         // table if time has not expired during the search.
@@ -250,13 +254,13 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
     }
     else { mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>(); }
-    Chess_Move_List&       moves              = mo.get_sorted_moves();
+    Move_Generation_List&  moves              = mo.get_sorted_moves();
     Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
 
     // Generate moves matrix for the opposing side for evaluation purposes.
     const PIECE_COLOR opposing_side =
         (PIECE_COLOR) ((~position.get_side_to_move()) & 0x1);
-    Chess_Move_List       not_used_moves_list;
+    Move_Generation_List  not_used_moves_list;
     Moves_Bitboard_Matrix opposing_side_matrix;
     Move_Generator        mg(position);
     mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,

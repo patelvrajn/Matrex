@@ -8,7 +8,7 @@
 uint64_t perft(Chess_Board& board, uint64_t depth)
 {
     Move_Generator        mg(board);
-    Chess_Move_List       moves;
+    Move_Generation_List  moves;
     Moves_Bitboard_Matrix matrix;
     uint64_t              nodes = 0;
 
@@ -30,7 +30,7 @@ uint64_t perft(Chess_Board& board, uint64_t depth)
 uint64_t divide_perft(Chess_Board& board, uint64_t depth, bool is_frc)
 {
     Move_Generator        mg(board);
-    Chess_Move_List       moves;
+    Move_Generation_List  moves;
     Moves_Bitboard_Matrix matrix;
     mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves, matrix);
 

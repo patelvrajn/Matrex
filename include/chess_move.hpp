@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <iostream>
 
@@ -7,7 +8,8 @@
 #include "score.hpp"
 #include "square.hpp"
 
-constexpr uint16_t MAXIMUM_NUM_OF_MOVES_IN_A_POSITION = 256;
+constexpr std::size_t MAXIMUM_NUM_OF_MOVES_IN_A_POSITION = 256;
+constexpr std::size_t PRINCIPAL_VARIATION_LIST_CAPACITY  = 256;
 
 typedef uint16_t Move_Score; // Not the same as a search evaluation score.
 
@@ -116,6 +118,7 @@ struct Undo_Chess_Move
     ESQUARE    enpassant_square : 7;
 };
 
+template <std::size_t capacity>
 class Chess_Move_List
 {
   public:
@@ -135,12 +138,54 @@ class Chess_Move_List
 
   private:
 
-    int16_t                                                    m_max_index;
-    std::array<Chess_Move, MAXIMUM_NUM_OF_MOVES_IN_A_POSITION> m_list;
+    int16_t                          m_max_index;
+    std::array<Chess_Move, capacity> m_list;
 };
 
-inline void Chess_Move_List::append(const Chess_Move& move)
+template <std::size_t capacity>
+Chess_Move_List<capacity>::Chess_Move_List() : m_max_index(-1)
+{
+}
+
+template <std::size_t capacity>
+inline void Chess_Move_List<capacity>::append(const Chess_Move& move)
 {
     m_max_index++;
     m_list[m_max_index] = move;
 }
+
+template <std::size_t capacity>
+Chess_Move* Chess_Move_List<capacity>::begin() const
+{
+    return (Chess_Move*) &m_list[0];
+}
+
+template <std::size_t capacity>
+Chess_Move* Chess_Move_List<capacity>::end() const
+{
+    return (Chess_Move*) &m_list[m_max_index + 1];
+}
+
+template <std::size_t capacity>
+int16_t Chess_Move_List<capacity>::get_max_index() const
+{
+    return m_max_index;
+}
+
+template <std::size_t capacity>
+Chess_Move& Chess_Move_List<capacity>::operator[](uint16_t index)
+{
+    return m_list[index];
+}
+
+// Sort moves according to their score in non-ascending order.
+template <std::size_t capacity>
+void Chess_Move_List<capacity>::sort()
+{
+    std::stable_sort(begin(), end(), std::greater<Chess_Move>());
+}
+
+using Move_Generation_List =
+    Chess_Move_List<MAXIMUM_NUM_OF_MOVES_IN_A_POSITION>;
+using Principal_Variation_List =
+    Chess_Move_List<PRINCIPAL_VARIATION_LIST_CAPACITY>;

@@ -439,7 +439,7 @@ Tuner_Eval_Params Tuner::compute_eval_params(const Mini_Batch& mini_batch)
         cb.set_from_fen(mini_batch.fens[i]);
 
         const PIECE_COLOR     moving_side = cb.get_side_to_move();
-        Chess_Move_List       moving_side_moves_list;
+        Move_Generation_List  moving_side_moves_list;
         Moves_Bitboard_Matrix moving_side_matrix;
         Move_Generator        mg_moving_side(cb);
         mg_moving_side.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
@@ -449,7 +449,7 @@ Tuner_Eval_Params Tuner::compute_eval_params(const Mini_Batch& mini_batch)
 
         const PIECE_COLOR opposing_side =
             (PIECE_COLOR) ((~cb.get_side_to_move()) & 0x1);
-        Chess_Move_List       opposing_side_moves_list;
+        Move_Generation_List  opposing_side_moves_list;
         Moves_Bitboard_Matrix opposing_side_matrix;
         Move_Generator        mg_opposing_side(cb);
         mg_opposing_side.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(

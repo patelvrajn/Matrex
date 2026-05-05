@@ -11,7 +11,7 @@ Move_Ordering::Move_Ordering(const Chess_Board& cb,
 {
 }
 
-Chess_Move_List& Move_Ordering::get_sorted_moves()
+Move_Generation_List& Move_Ordering::get_sorted_moves()
 {
     if (m_move_list.get_max_index() != -1)
     {
