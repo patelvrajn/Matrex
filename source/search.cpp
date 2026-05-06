@@ -48,9 +48,19 @@ Search_Engine::negamax(Chess_Board&              position,
                                    position_z_hash,
                                    transposition_table_entry);
 
+    // A principal variation node is any node that requires an alpha-beta window
+    // wider than 1 because in principal variation search we only search the
+    // best move from last iteration (PV node, the first move, presumably) with
+    // a full window to get a baseline score. Assuming the first move is not an
+    // exact score and is not the best move then we redo the search with a full
+    // window looking for the PV node. If the first move is the PV node then we
+    // only expect a PV_WINDOW_SIZE alpha-beta window for all other moves.
+    int is_pv_node = ((beta - alpha).to_int() > PV_WINDOW_SIZE.get_value());
+
     // Transposition table cutoff - use the stored best move and score if it
     // satisfies the conditions.
-    if (should_use_transposition_table_score(did_transposition_table_hit,
+    if (should_use_transposition_table_score(is_pv_node,
+                                             did_transposition_table_hit,
                                              depth,
                                              transposition_table_entry,
                                              alpha,
@@ -114,6 +124,8 @@ Search_Engine::negamax(Chess_Board&              position,
     Chess_Move               best_move  = Chess_Move();
     Score                    best_score = Score(FP_NEGATIVE_INFINITY);
 
+    bool is_first_move = true;
+
     for (const Chess_Move& move : moves)
     {
         // Explore the child move's subtree for it's evaluation. Negate the
@@ -121,13 +133,48 @@ Search_Engine::negamax(Chess_Board&              position,
         // evaluation, etc).
         const Undo_Chess_Move undo_move = position.make_move(move);
         // m_transposition_table.prefetch(position.get_zobrist_hash());
-        const Search_Engine_Result child_result =
-            negamax(position,
-                    (depth - 1),
-                    child_principal_variation,
-                    (ply + 1),
-                    -beta,
-                    -alpha);
+
+        Search_Engine_Result child_result = {best_move, best_score};
+
+        if (is_first_move)
+        {
+            // Full alpha-beta window search for the first move which we assume
+            // to be a PV node.
+            child_result = negamax(position,
+                                   (depth - 1),
+                                   child_principal_variation,
+                                   (ply + 1),
+                                   -beta,
+                                   -alpha);
+        }
+        else
+        {
+            // Search the presumably non-PV node with the narrowest window
+            // around alpha since, we assume no other move will raise alpha.
+            child_result = negamax(position,
+                                   (depth - 1),
+                                   child_principal_variation,
+                                   (ply + 1),
+                                   (-alpha - Score(PV_WINDOW_SIZE)),
+                                   -alpha);
+
+            // If the child result's score raised alpha and was within the full
+            // alpha-beta window - redo the search because we found out that
+            // the first move is not the PV node for this position. We only want
+            // to redo the search if the current search is a full-window search
+            // otherwise, we may do redundant searches for non-PV nodes.
+            if (((child_result.second > alpha) && (child_result.second < beta))
+                && is_pv_node)
+            {
+                child_result = negamax(position,
+                                       (depth - 1),
+                                       child_principal_variation,
+                                       (ply + 1),
+                                       -beta,
+                                       -alpha);
+            }
+        }
+
         const Score child_score = -child_result.second;
         position.undo_move(undo_move);
 
@@ -195,22 +242,22 @@ Search_Engine::negamax(Chess_Board&              position,
             principal_variation.push_and_copy(move, child_principal_variation);
         }
 
-        // Cache the position's best move and evaluation in the transposition
-        // table if time has not expired during the search.
-        if (!m_timer_expired_during_search)
-        {
-            transposition_table_entry = {
-                .best_move = best_move,
-                .score     = best_score,
-                .partial_zobrist =
-                    Transposition_Table::get_partial_zobrist(position_z_hash),
-                .depth       = depth,
-                .score_bound = score_bound};
-            m_transposition_table.write(m_current_search_depth,
-                                        position_z_hash,
-                                        transposition_table_entry);
-        }
+        is_first_move = false;
     }
+
+    // Cache the position's best move and evaluation in the transposition table
+    // regardless of time because principal variation search guarantees the next
+    // move found is a better move.
+    transposition_table_entry = {
+        .best_move = best_move,
+        .score     = best_score,
+        .partial_zobrist =
+            Transposition_Table::get_partial_zobrist(position_z_hash),
+        .depth       = depth,
+        .score_bound = score_bound};
+    m_transposition_table.write(m_current_search_depth,
+                                position_z_hash,
+                                transposition_table_entry);
 
     return {best_move, best_score};
 }
@@ -456,11 +503,12 @@ Search_Engine_Result Search_Engine::iterative_deepening()
                                                result.second);
         std::cout << uci_search_info << std::endl;
 
+        best = result;
+
         // Only update best search result if the timer didn't expire
         // during the search. Otherwise, time has expired, break out
         // of iterative deepening loop.
-        if (!m_timer_expired_during_search) { best = result; }
-        else { break; }
+        if (m_timer_expired_during_search) { break; }
     }
 
     return best;

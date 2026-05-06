@@ -15,6 +15,8 @@ constexpr uint16_t MAX_SEARCH_DEPTH = (5899 * NUM_OF_PLAYERS);
 
 constexpr uint16_t QUIESCENCE_SEARCH_DEPTH = 0;
 
+constexpr Matrex_FP_Int PV_WINDOW_SIZE = Matrex_FP_Int::from_integer(1);
+
 struct Time_Control
 {
     uint64_t time_remaining; // Time in milliseconds.
@@ -106,6 +108,15 @@ class Search_Engine
     Search_Engine_Result iterative_deepening();
 
     inline Score get_mate_score(const Move_Ordering& mo, uint16_t ply);
+
+    inline bool
+    should_use_transposition_table_score(const bool     is_pv,
+                                         const bool     is_hit,
+                                         const uint16_t depth,
+                                         const Transposition_Table_Entry& entry,
+                                         const Score                      alpha,
+                                         const Score                      beta);
+
     inline bool
     should_use_transposition_table_score(const bool     is_hit,
                                          const uint16_t depth,
@@ -140,6 +151,22 @@ inline Score Search_Engine::get_mate_score(const Move_Ordering& mo,
     }
 
     return mate_score;
+}
+
+inline bool Search_Engine::should_use_transposition_table_score(
+    const bool                       is_pv,
+    const bool                       is_hit,
+    const uint16_t                   depth,
+    const Transposition_Table_Entry& entry,
+    const Score                      alpha,
+    const Score                      beta)
+{
+    return (!is_pv) && is_hit && (depth <= entry.depth)
+        && ((entry.score_bound == Score_Bound_Type::EXACT)
+            || (entry.score_bound == Score_Bound_Type::LOWER_BOUND
+                && entry.score >= beta)
+            || (entry.score_bound == Score_Bound_Type::UPPER_BOUND
+                && entry.score <= alpha));
 }
 
 inline bool Search_Engine::should_use_transposition_table_score(
