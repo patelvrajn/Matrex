@@ -60,7 +60,7 @@ TEST(negamax, DISABLED_debug)
     constraints.time_controls[PIECE_COLOR::WHITE].increment      = 80;
     constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 8000;
     constraints.time_controls[PIECE_COLOR::BLACK].increment      = 80;
-    constraints.transposition_table_size                         = 64;
+    constraints.transposition_table_size                         = 128;
 
     Search_Engine              search;
     const Search_Engine_Result search_result = search.search(cb, constraints);
@@ -75,7 +75,7 @@ TEST(negamax, DISABLED_debug)
     search.get_tt_statistics().print();
 
     const PIECE_COLOR     moving_side = cb.get_side_to_move();
-    Chess_Move_List       moving_side_moves_list;
+    Move_Generation_List  moving_side_moves_list;
     Moves_Bitboard_Matrix moving_side_matrix;
     Move_Generator        mg_moving_side(cb);
     mg_moving_side.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
@@ -85,7 +85,7 @@ TEST(negamax, DISABLED_debug)
 
     const PIECE_COLOR opposing_side =
         (PIECE_COLOR) ((~cb.get_side_to_move()) & 0x1);
-    Chess_Move_List       opposing_side_moves_list;
+    Move_Generation_List  opposing_side_moves_list;
     Moves_Bitboard_Matrix opposing_side_matrix;
     Move_Generator        mg_opposing_side(cb);
     mg_opposing_side.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(

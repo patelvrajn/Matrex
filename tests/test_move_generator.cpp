@@ -8,7 +8,7 @@ TEST(move_generator_tests, moves_bitboard_test)
     cb.set_from_fen("1brqbnn1/PPPPPPPP/2kNN3/R7/6K1/3BB3/1Q6/7R w - - 0 1");
 
     const PIECE_COLOR     moving_side = cb.get_side_to_move();
-    Chess_Move_List       moving_side_moves_list;
+    Move_Generation_List  moving_side_moves_list;
     Moves_Bitboard_Matrix moving_side_matrix;
     Move_Generator        mg_moving_side(cb);
     mg_moving_side.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(

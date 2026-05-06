@@ -18,7 +18,7 @@ class Move_Ordering
   public:
 
     Move_Ordering(const Chess_Board& c, const Chess_Move& hash_move);
-    Chess_Move_List&       get_sorted_moves();
+    Move_Generation_List&  get_sorted_moves();
     Moves_Bitboard_Matrix& get_moves_matrix();
     bool                   is_side_to_move_in_check() const;
 
@@ -28,7 +28,7 @@ class Move_Ordering
   private:
 
     const Chess_Board&    m_chess_board;
-    Chess_Move_List       m_move_list;
+    Move_Generation_List  m_move_list;
     Moves_Bitboard_Matrix m_moves_matrix;
     static mvv_lva_array  m_mvv_lva_array;
     Chess_Move            m_hash_move;
@@ -47,7 +47,7 @@ void Move_Ordering::generate_moves()
     }
     else
     {
-        Chess_Move_List       not_used_moves_list;
+        Move_Generation_List  not_used_moves_list;
         Moves_Bitboard_Matrix not_used_moves_matrix;
 
         Move_Generator typed_mg(m_chess_board);

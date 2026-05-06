@@ -21,22 +21,30 @@ Search_Engine_Result
 Search_Engine::search(const Chess_Board&        cb,
                       const Search_Constraints& constraints)
 {
-    m_chess_board = cb;
-    m_transposition_table.resize(constraints.transposition_table_size);
+    m_chess_board                 = cb;
     m_constraints                 = constraints;
     m_my_side                     = cb.get_side_to_move();
     m_num_of_nodes_searched       = 0;
     m_timer_expired_during_search = false;
 
+    m_transposition_table.resize(constraints.transposition_table_size);
+    m_principal_variation.clear();
+
     return iterative_deepening();
 }
 
-Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
-                                            uint16_t     depth,
-                                            uint16_t     ply,
-                                            Score        alpha,
-                                            Score        beta)
+Search_Engine_Result
+Search_Engine::negamax(Chess_Board&              position,
+                       uint16_t                  depth,
+                       Principal_Variation_List& principal_variation,
+                       uint16_t                  ply,
+                       Score                     alpha,
+                       Score                     beta)
 {
+    // The parent's PV must be cleared between negamax calls because sibling
+    // moves could influence each other.
+    principal_variation.clear();
+
     const Zobrist_Hash        position_z_hash = position.get_zobrist_hash();
     Transposition_Table_Entry transposition_table_entry;
     const bool                did_transposition_table_hit =
@@ -44,9 +52,19 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
                                    position_z_hash,
                                    transposition_table_entry);
 
+    // A principal variation node is any node that requires an alpha-beta window
+    // wider than 1 because in principal variation search we only search the
+    // best move from last iteration (PV node, the first move, presumably) with
+    // a full window to get a baseline score. Assuming the first move is not an
+    // exact score and is not the best move then we redo the search with a full
+    // window looking for the PV node. If the first move is the PV node then we
+    // only expect a PV_WINDOW_SIZE alpha-beta window for all other moves.
+    int is_pv_node = ((beta - alpha).to_int() > PV_WINDOW_SIZE.get_value());
+
     // Transposition table cutoff - use the stored best move and score if it
     // satisfies the conditions.
-    if (should_use_transposition_table_score(did_transposition_table_hit,
+    if (should_use_transposition_table_score(is_pv_node,
+                                             did_transposition_table_hit,
                                              depth,
                                              transposition_table_entry,
                                              alpha,
@@ -63,7 +81,7 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
 
     Move_Ordering mo(position, transposition_table_entry.best_move);
     mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
-    Chess_Move_List& moves = mo.get_sorted_moves();
+    Move_Generation_List& moves = mo.get_sorted_moves();
 
     // No legal moves available, return the appropriate mate or draw score.
     if (moves.get_max_index() == -1)
@@ -106,27 +124,77 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
     // parent.
     if (m_timer_expired_during_search) { return {moves[0], beta}; }
 
-    Chess_Move best_move  = Chess_Move();
-    Score      best_score = Score(FP_NEGATIVE_INFINITY);
+    Principal_Variation_List child_principal_variation;
+    Chess_Move               best_move  = Chess_Move();
+    Score                    best_score = Score(FP_NEGATIVE_INFINITY);
+
+    bool is_first_move = true;
 
     for (const Chess_Move& move : moves)
     {
+        // Ensure each child has its own principal variation and is unaffected
+        // by moves from the previous sibling.
+        child_principal_variation.clear();
+
         // Explore the child move's subtree for it's evaluation. Negate the
         // result to compare it's score to the parent's scores (alpha,
         // evaluation, etc).
         const Undo_Chess_Move undo_move = position.make_move(move);
         // m_transposition_table.prefetch(position.get_zobrist_hash());
-        const Search_Engine_Result child_result =
-            negamax(position, (depth - 1), (ply + 1), -beta, -alpha);
+
+        Search_Engine_Result child_result = {best_move, best_score};
+
+        if (is_first_move)
+        {
+            // Full alpha-beta window search for the first move which we assume
+            // to be a PV node.
+            child_result = negamax(position,
+                                   (depth - 1),
+                                   child_principal_variation,
+                                   (ply + 1),
+                                   -beta,
+                                   -alpha);
+        }
+        else
+        {
+            // Search the presumably non-PV node with the narrowest window
+            // around alpha since, we assume no other move will raise alpha.
+            child_result = negamax(position,
+                                   (depth - 1),
+                                   child_principal_variation,
+                                   (ply + 1),
+                                   (-alpha - Score(PV_WINDOW_SIZE)),
+                                   -alpha);
+
+            const Score child_score = -child_result.second;
+
+            // If the child result's score raised alpha and was within the full
+            // alpha-beta window - redo the search because we found out that
+            // the first move is not the PV node for this position. We only want
+            // to redo the search if the current search is a full-window search
+            // otherwise, we may do redundant searches for non-PV nodes.
+            if (((child_score > alpha) && (child_score < beta)) && is_pv_node)
+            {
+                child_result = negamax(position,
+                                       (depth - 1),
+                                       child_principal_variation,
+                                       (ply + 1),
+                                       -beta,
+                                       -alpha);
+            }
+        }
+
         const Score child_score = -child_result.second;
         position.undo_move(undo_move);
+
+        bool is_child_score_better_than_alpha = child_score > alpha;
 
         // Update alpha if the child's score is better than the current alpha.
         // All nodes in negamax are looking to maximize their alpha value. If
         // the score is greater than alpha and assuming it doesn't cause a beta
         // cutoff, then the score is exact because it falls between the
         // invariant; alpha < score < beta.
-        if (child_score > alpha)
+        if (is_child_score_better_than_alpha)
         {
             score_bound = Score_Bound_Type::EXACT;
             alpha       = child_score;
@@ -175,22 +243,30 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
             break;
         }
 
-        // Cache the position's best move and evaluation in the transposition
-        // table if time has not expired during the search.
-        if (!m_timer_expired_during_search)
+        // If the child's score raised alpha and was within alpha < score <
+        // beta, then the child's move is the principal variation move for the
+        // current ply.
+        if (is_child_score_better_than_alpha)
         {
-            transposition_table_entry = {
-                .best_move = best_move,
-                .score     = best_score,
-                .partial_zobrist =
-                    Transposition_Table::get_partial_zobrist(position_z_hash),
-                .depth       = depth,
-                .score_bound = score_bound};
-            m_transposition_table.write(m_current_search_depth,
-                                        position_z_hash,
-                                        transposition_table_entry);
+            principal_variation.push_and_copy(move, child_principal_variation);
         }
+
+        is_first_move = false;
     }
+
+    // Cache the position's best move and evaluation in the transposition table
+    // regardless of time because principal variation search guarantees the next
+    // move found is a better move.
+    transposition_table_entry = {
+        .best_move = best_move,
+        .score     = best_score,
+        .partial_zobrist =
+            Transposition_Table::get_partial_zobrist(position_z_hash),
+        .depth       = depth,
+        .score_bound = score_bound};
+    m_transposition_table.write(m_current_search_depth,
+                                position_z_hash,
+                                transposition_table_entry);
 
     return {best_move, best_score};
 }
@@ -250,13 +326,13 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
     }
     else { mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>(); }
-    Chess_Move_List&       moves              = mo.get_sorted_moves();
+    Move_Generation_List&  moves              = mo.get_sorted_moves();
     Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
 
     // Generate moves matrix for the opposing side for evaluation purposes.
     const PIECE_COLOR opposing_side =
         (PIECE_COLOR) ((~position.get_side_to_move()) & 0x1);
-    Chess_Move_List       not_used_moves_list;
+    Move_Generation_List  not_used_moves_list;
     Moves_Bitboard_Matrix opposing_side_matrix;
     Move_Generator        mg(position);
     mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,
@@ -424,13 +500,26 @@ Search_Engine_Result Search_Engine::iterative_deepening()
     for (uint16_t current_depth = 1; current_depth < MAX_SEARCH_DEPTH;
          current_depth++)
     {
-        m_current_search_depth      = current_depth;
-        Search_Engine_Result result = negamax(m_chess_board, current_depth);
+        m_current_search_depth = current_depth;
+        Search_Engine_Result result =
+            negamax(m_chess_board, current_depth, m_principal_variation);
+        uint64_t current_time = m_timer.elapsed();
+
+        UCI_Search_Information uci_search_info(m_current_search_depth,
+                                               current_time,
+                                               m_num_of_nodes_searched,
+                                               m_principal_variation,
+                                               result.second);
+        std::cout << uci_search_info << std::endl;
+
+        best = result;
+
+        m_principal_variation.clear();
+
         // Only update best search result if the timer didn't expire
         // during the search. Otherwise, time has expired, break out
         // of iterative deepening loop.
-        if (!m_timer_expired_during_search) { best = result; }
-        else { break; }
+        if (m_timer_expired_during_search) { break; }
     }
 
     return best;

@@ -15,6 +15,8 @@ constexpr uint16_t MAX_SEARCH_DEPTH = (5899 * NUM_OF_PLAYERS);
 
 constexpr uint16_t QUIESCENCE_SEARCH_DEPTH = 0;
 
+constexpr Matrex_FP_Int PV_WINDOW_SIZE = Matrex_FP_Int::from_integer(1);
+
 struct Time_Control
 {
     uint64_t time_remaining; // Time in milliseconds.
@@ -27,6 +29,47 @@ struct Search_Constraints
     uint64_t                                 transposition_table_size;
 };
 
+struct UCI_Search_Information
+{
+    uint16_t&                 depth;
+    uint64_t&                 time;
+    uint64_t&                 node_count;
+    Principal_Variation_List& principal_variation;
+    Score&                    score;
+
+    UCI_Search_Information(uint16_t&                 search_depth,
+                           uint64_t&                 search_time,
+                           uint64_t&                 search_node_count,
+                           Principal_Variation_List& search_principal_variation,
+                           Score&                    search_score) :
+        depth(search_depth),
+        time(search_time),
+        node_count(search_node_count),
+        principal_variation(search_principal_variation),
+        score(search_score)
+    {
+    }
+
+    friend std::ostream& operator<<(std::ostream&                 os,
+                                    const UCI_Search_Information& search_info)
+    {
+        const Fixed_Point_Int_Storage_Type score_cp =
+            Matrex_FP_Int::from_value(search_info.score.to_int()).get_integer();
+        const uint64_t time_ms = search_info.time / 1e6;
+        const uint64_t nps = search_info.node_count / (search_info.time / 1e9);
+
+        os << "info";
+        os << " depth " << search_info.depth;
+        os << " nodes " << search_info.node_count;
+        os << " time " << time_ms;
+        os << " nps " << nps;
+        os << " score cp " << score_cp;
+        os << " pv" << search_info.principal_variation;
+
+        return os;
+    }
+};
+
 typedef std::pair<Chess_Move, Score> Search_Engine_Result;
 
 class Search_Engine
@@ -35,32 +78,45 @@ class Search_Engine
 
     Search_Engine();
 
-    void                                  new_game();
-    Search_Engine_Result                  search(const Chess_Board&        cb,
-                                                 const Search_Constraints& constraints);
+    void new_game();
+
+    Search_Engine_Result search(const Chess_Board&        cb,
+                                const Search_Constraints& constraints);
+
     const Transposition_Table_Statistics& get_tt_statistics() const;
 
   private:
 
-    Chess_Board         m_chess_board;
-    Transposition_Table m_transposition_table;
-    Search_Constraints  m_constraints;
-    PIECE_COLOR         m_my_side;
-    Timer               m_timer;
-    bool                m_timer_expired_during_search;
-    uint64_t            m_num_of_nodes_searched;
-    uint16_t            m_current_search_depth;
+    Chess_Board              m_chess_board;
+    Transposition_Table      m_transposition_table;
+    Search_Constraints       m_constraints;
+    PIECE_COLOR              m_my_side;
+    Timer                    m_timer;
+    bool                     m_timer_expired_during_search;
+    uint64_t                 m_num_of_nodes_searched;
+    uint16_t                 m_current_search_depth;
+    Principal_Variation_List m_principal_variation;
 
-    Search_Engine_Result negamax(Chess_Board& position,
-                                 uint16_t     depth,
-                                 uint16_t     ply = 0,
-                                 Score alpha      = Score(FP_NEGATIVE_INFINITY),
-                                 Score beta = Score(FP_POSITIVE_INFINITY));
+    Search_Engine_Result negamax(Chess_Board&              position,
+                                 uint16_t                  depth,
+                                 Principal_Variation_List& principal_variation,
+                                 uint16_t                  ply = 0,
+                                 Score alpha = Score(FP_NEGATIVE_INFINITY),
+                                 Score beta  = Score(FP_POSITIVE_INFINITY));
     Search_Engine_Result
     quiescence(Chess_Board& position, uint16_t ply, Score alpha, Score beta);
     Search_Engine_Result iterative_deepening();
 
     inline Score get_mate_score(const Move_Ordering& mo, uint16_t ply);
+
+    inline bool
+    should_use_transposition_table_score(const bool     is_pv,
+                                         const bool     is_hit,
+                                         const uint16_t depth,
+                                         const Transposition_Table_Entry& entry,
+                                         const Score                      alpha,
+                                         const Score                      beta);
+
     inline bool
     should_use_transposition_table_score(const bool     is_hit,
                                          const uint16_t depth,
@@ -95,6 +151,22 @@ inline Score Search_Engine::get_mate_score(const Move_Ordering& mo,
     }
 
     return mate_score;
+}
+
+inline bool Search_Engine::should_use_transposition_table_score(
+    const bool                       is_pv,
+    const bool                       is_hit,
+    const uint16_t                   depth,
+    const Transposition_Table_Entry& entry,
+    const Score                      alpha,
+    const Score                      beta)
+{
+    return (!is_pv) && is_hit && (depth <= entry.depth)
+        && ((entry.score_bound == Score_Bound_Type::EXACT)
+            || (entry.score_bound == Score_Bound_Type::LOWER_BOUND
+                && entry.score >= beta)
+            || (entry.score_bound == Score_Bound_Type::UPPER_BOUND
+                && entry.score <= alpha));
 }
 
 inline bool Search_Engine::should_use_transposition_table_score(
