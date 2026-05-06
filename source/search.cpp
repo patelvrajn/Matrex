@@ -41,6 +41,10 @@ Search_Engine::negamax(Chess_Board&              position,
                        Score                     alpha,
                        Score                     beta)
 {
+    // The parent's PV must be cleared between negamax calls because sibling
+    // moves could influence each other.
+    principal_variation.clear();
+
     const Zobrist_Hash        position_z_hash = position.get_zobrist_hash();
     Transposition_Table_Entry transposition_table_entry;
     const bool                did_transposition_table_hit =
@@ -128,6 +132,10 @@ Search_Engine::negamax(Chess_Board&              position,
 
     for (const Chess_Move& move : moves)
     {
+        // Ensure each child has its own principal variation and is unaffected
+        // by moves from the previous sibling.
+        child_principal_variation.clear();
+
         // Explore the child move's subtree for it's evaluation. Negate the
         // result to compare it's score to the parent's scores (alpha,
         // evaluation, etc).
@@ -158,13 +166,14 @@ Search_Engine::negamax(Chess_Board&              position,
                                    (-alpha - Score(PV_WINDOW_SIZE)),
                                    -alpha);
 
+            const Score child_score = -child_result.second;
+
             // If the child result's score raised alpha and was within the full
             // alpha-beta window - redo the search because we found out that
             // the first move is not the PV node for this position. We only want
             // to redo the search if the current search is a full-window search
             // otherwise, we may do redundant searches for non-PV nodes.
-            if (((child_result.second > alpha) && (child_result.second < beta))
-                && is_pv_node)
+            if (((child_score > alpha) && (child_score < beta)) && is_pv_node)
             {
                 child_result = negamax(position,
                                        (depth - 1),
@@ -504,6 +513,8 @@ Search_Engine_Result Search_Engine::iterative_deepening()
         std::cout << uci_search_info << std::endl;
 
         best = result;
+
+        m_principal_variation.clear();
 
         // Only update best search result if the timer didn't expire
         // during the search. Otherwise, time has expired, break out

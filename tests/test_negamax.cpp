@@ -60,7 +60,7 @@ TEST(negamax, DISABLED_debug)
     constraints.time_controls[PIECE_COLOR::WHITE].increment      = 80;
     constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 8000;
     constraints.time_controls[PIECE_COLOR::BLACK].increment      = 80;
-    constraints.transposition_table_size                         = 64;
+    constraints.transposition_table_size                         = 128;
 
     Search_Engine              search;
     const Search_Engine_Result search_result = search.search(cb, constraints);
