@@ -125,9 +125,11 @@ class Chess_Move_List
 
     Chess_Move_List();
 
-    inline void push_and_copy(const Chess_Move&      move,
-                              const Chess_Move_List& move_list);
+    template <std::size_t S>
+    inline void push_and_copy(const Chess_Move&         move,
+                              const Chess_Move_List<S>& move_list);
     inline void append(const Chess_Move& move);
+    inline void clear();
 
     Chess_Move* begin() const;
     Chess_Move* end() const;
@@ -137,6 +139,10 @@ class Chess_Move_List
     Chess_Move& operator[](uint16_t index);
 
     void sort();
+
+    template <std::size_t S>
+    friend std::ostream& operator<<(std::ostream&            os,
+                                    const Chess_Move_List<S> moves);
 
   private:
 
@@ -155,12 +161,19 @@ Chess_Move_List<capacity>::Chess_Move_List() : m_max_index(-1)
 // principal variation list after the pushed move. The reason we push to the
 // front is because as you go back up the search tree, plies decrease.
 template <std::size_t capacity>
-inline void push_and_copy(const Chess_Move&      move,
-                          const Chess_Move_List& move_list)
+template <std::size_t S>
+inline void
+Chess_Move_List<capacity>::push_and_copy(const Chess_Move&         move,
+                                         const Chess_Move_List<S>& move_list)
 {
     m_list[0] = move;
-    std::copy(move_list.begin(), move_list.end(), (m_list.begin() + 1));
-    m_max_index++;
+
+    if (move_list.get_max_index() != -1)
+    {
+        std::copy(move_list.begin(), move_list.end(), (m_list.begin() + 1));
+        m_max_index = move_list.m_max_index + 1;
+    }
+    else { m_max_index = 0; }
 }
 
 template <std::size_t capacity>
@@ -168,6 +181,12 @@ inline void Chess_Move_List<capacity>::append(const Chess_Move& move)
 {
     m_max_index++;
     m_list[m_max_index] = move;
+}
+
+template <std::size_t capacity>
+inline void Chess_Move_List<capacity>::clear()
+{
+    m_max_index = -1;
 }
 
 template <std::size_t capacity>
@@ -199,6 +218,17 @@ template <std::size_t capacity>
 void Chess_Move_List<capacity>::sort()
 {
     std::stable_sort(begin(), end(), std::greater<Chess_Move>());
+}
+
+template <std::size_t S>
+std::ostream& operator<<(std::ostream& os, const Chess_Move_List<S> moves)
+{
+    for (const Chess_Move& move : moves)
+    {
+        os << " " << move.to_coordinate_notation(false);
+    }
+
+    return os;
 }
 
 using Move_Generation_List =

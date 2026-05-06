@@ -21,21 +21,25 @@ Search_Engine_Result
 Search_Engine::search(const Chess_Board&        cb,
                       const Search_Constraints& constraints)
 {
-    m_chess_board = cb;
-    m_transposition_table.resize(constraints.transposition_table_size);
+    m_chess_board                 = cb;
     m_constraints                 = constraints;
     m_my_side                     = cb.get_side_to_move();
     m_num_of_nodes_searched       = 0;
     m_timer_expired_during_search = false;
 
+    m_transposition_table.resize(constraints.transposition_table_size);
+    m_principal_variation.clear();
+
     return iterative_deepening();
 }
 
-Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
-                                            uint16_t     depth,
-                                            uint16_t     ply,
-                                            Score        alpha,
-                                            Score        beta)
+Search_Engine_Result
+Search_Engine::negamax(Chess_Board&              position,
+                       uint16_t                  depth,
+                       Principal_Variation_List& principal_variation,
+                       uint16_t                  ply,
+                       Score                     alpha,
+                       Score                     beta)
 {
     const Zobrist_Hash        position_z_hash = position.get_zobrist_hash();
     Transposition_Table_Entry transposition_table_entry;
@@ -106,8 +110,9 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
     // parent.
     if (m_timer_expired_during_search) { return {moves[0], beta}; }
 
-    Chess_Move best_move  = Chess_Move();
-    Score      best_score = Score(FP_NEGATIVE_INFINITY);
+    Principal_Variation_List child_principal_variation;
+    Chess_Move               best_move  = Chess_Move();
+    Score                    best_score = Score(FP_NEGATIVE_INFINITY);
 
     for (const Chess_Move& move : moves)
     {
@@ -117,7 +122,12 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
         const Undo_Chess_Move undo_move = position.make_move(move);
         // m_transposition_table.prefetch(position.get_zobrist_hash());
         const Search_Engine_Result child_result =
-            negamax(position, (depth - 1), (ply + 1), -beta, -alpha);
+            negamax(position,
+                    (depth - 1),
+                    child_principal_variation,
+                    (ply + 1),
+                    -beta,
+                    -alpha);
         const Score child_score = -child_result.second;
         position.undo_move(undo_move);
 
@@ -177,7 +187,13 @@ Search_Engine_Result Search_Engine::negamax(Chess_Board& position,
             break;
         }
 
-        if (is_child_score_better_than_alpha) {}
+        // If the child's score raised alpha and was within alpha < score <
+        // beta, then the child's move is the principal variation move for the
+        // current ply.
+        if (is_child_score_better_than_alpha)
+        {
+            principal_variation.push_and_copy(move, child_principal_variation);
+        }
 
         // Cache the position's best move and evaluation in the transposition
         // table if time has not expired during the search.
@@ -428,8 +444,18 @@ Search_Engine_Result Search_Engine::iterative_deepening()
     for (uint16_t current_depth = 1; current_depth < MAX_SEARCH_DEPTH;
          current_depth++)
     {
-        m_current_search_depth      = current_depth;
-        Search_Engine_Result result = negamax(m_chess_board, current_depth);
+        m_current_search_depth = current_depth;
+        Search_Engine_Result result =
+            negamax(m_chess_board, current_depth, m_principal_variation);
+        uint64_t current_time = m_timer.elapsed();
+
+        UCI_Search_Information uci_search_info(m_current_search_depth,
+                                               current_time,
+                                               m_num_of_nodes_searched,
+                                               m_principal_variation,
+                                               result.second);
+        std::cout << uci_search_info << std::endl;
+
         // Only update best search result if the timer didn't expire
         // during the search. Otherwise, time has expired, break out
         // of iterative deepening loop.

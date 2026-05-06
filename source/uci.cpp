@@ -148,8 +148,6 @@ void UCI::handle_go(const std::string& arguments)
     Search_Engine_Result search_result =
         m_search_engine.search(m_chess_board, m_search_constraints);
 
-    std::cout << "info score cp " << search_result.second.to_int() << std::endl;
-
     std::cout << "bestmove "
               << search_result.first.to_coordinate_notation(m_is_frc)
               << std::endl;

@@ -89,6 +89,8 @@ class Score
     Score& operator+=(const Score& other);
     Score& operator-=(const Score& other);
 
+    friend std::ostream& operator<<(std::ostream& os, const Score s);
+
     Score_Fields m_fields;
 };
 

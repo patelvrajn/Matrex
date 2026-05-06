@@ -177,3 +177,10 @@ Score& Score::operator-=(const Score& other)
 
     return *this;
 }
+
+std::ostream& operator<<(std::ostream& os, const Score s)
+{
+    os << s.to_int();
+
+    return os;
+}
