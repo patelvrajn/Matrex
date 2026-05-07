@@ -210,7 +210,8 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
 
     calculate_next_board_state(m_state.side_to_move, move);
 
-    if ((move.moving_piece == PIECES::PAWN) || (move.is_capture))
+    if ((move.moving_piece == PIECES::PAWN) || (move.is_capture)
+        || (move.is_en_passant))
     {
         m_state.half_move_clock = 0;
     }
