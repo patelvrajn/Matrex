@@ -18,7 +18,7 @@ struct Zobrist_Hash_Keys
     uint64_t                                                  black_to_move;
 };
 
-consteval Zobrist_Hash_Keys initialize_hash_keys()
+consteval Zobrist_Hash_Keys initialize_zobrist_hash_keys()
 {
     Zobrist_Hash_Keys    keys;
     Psuedo_RNG<uint64_t> prng;
@@ -74,7 +74,7 @@ class Zobrist_Hash
     uint64_t m_hash_value;
 
     inline static constexpr Zobrist_Hash_Keys m_hash_keys =
-        initialize_hash_keys();
+        initialize_zobrist_hash_keys();
 };
 
 constexpr inline auto Zobrist_Hash::operator<=>(const Zobrist_Hash& other) const
