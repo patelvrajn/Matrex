@@ -308,28 +308,29 @@ class Parameter_Pack_Container
 };
 
 // =============================================================================
-// Multi_Array Implementation (Short-hand version of std::array for multiple
-// dimensions)
+// Multi_Array Implementation
 // =============================================================================
 // Recursive multi_array definition
-template <typename T, std::size_t thisSize, std::size_t... otherSizes>
-class multi_array : private std::array<multi_array<T, otherSizes...>, thisSize>
+template <typename T, std::size_t this_size, std::size_t... other_sizes>
+class multi_array
 {
-    using base_array = std::array<multi_array<T, otherSizes...>, thisSize>;
+    using element_type = multi_array<T, other_sizes...>;
 
   public:
 
-    using base_array::operator[];
+    std::array<element_type, this_size> data {};
+
+    // Default constructor
+    constexpr multi_array() = default;
 
     // Constructor from initializer list of multi_arrays
-    constexpr multi_array(
-        std::initializer_list<multi_array<T, otherSizes...>> init)
+    constexpr multi_array(std::initializer_list<element_type> init)
     {
         std::size_t i = 0;
         for (auto& v : init) // Only sets up to the number of elements in the
                              // initializer list.
         {
-            if (i < thisSize) { (*this)[i++] = v; }
+            if (i < this_size) { (*this)[i++] = v; }
             else
             {
                 break; // ignore extra elements
@@ -337,19 +338,26 @@ class multi_array : private std::array<multi_array<T, otherSizes...>, thisSize>
         }
     }
 
-    // Default constructor
-    constexpr multi_array() = default;
+    constexpr element_type& operator[](std::size_t i) { return data[i]; }
+
+    constexpr const element_type& operator[](std::size_t i) const
+    {
+        return data[i];
+    }
 };
 
 // Base case: single-dimension multi_array
-template <typename T, std::size_t thisSize>
-class multi_array<T, thisSize> : private std::array<T, thisSize>
+template <typename T, std::size_t this_size>
+class multi_array<T, this_size>
 {
-    using base_array = std::array<T, thisSize>;
+    using element_type = T;
 
   public:
 
-    using base_array::operator[];
+    std::array<element_type, this_size> data {};
+
+    // Default constructor
+    constexpr multi_array() = default;
 
     // Constructor from initializer list
     constexpr multi_array(std::initializer_list<T> init)
@@ -358,7 +366,7 @@ class multi_array<T, thisSize> : private std::array<T, thisSize>
         for (auto& v : init) // Only sets up to the number of elements in the
                              // initializer list.
         {
-            if (i < thisSize) { (*this)[i++] = v; }
+            if (i < this_size) { (*this)[i++] = v; }
             else
             {
                 break; // ignore extra elements
@@ -366,8 +374,12 @@ class multi_array<T, thisSize> : private std::array<T, thisSize>
         }
     }
 
-    // Default constructor
-    constexpr multi_array() = default;
+    constexpr element_type& operator[](std::size_t i) { return data[i]; }
+
+    constexpr const element_type& operator[](std::size_t i) const
+    {
+        return data[i];
+    }
 };
 
 // =============================================================================

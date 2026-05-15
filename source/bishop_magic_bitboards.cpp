@@ -8,8 +8,10 @@
 // that allow efficient indexing into precomputed bishop attack tables.
 // Magic bitboards are a chess programming optimization that replaces
 // slow ray-tracing with fast hash table lookups.
-void Bishop_Magic_Bitboards::init_magics()
+Magics_Array Bishop_Magic_Bitboards::init_magics()
 {
+    Magics_Array output;
+
     // Random number generator (Mersenne Twister 64-bit), seeded with fixed
     // value. We use a fixed seed to ensure reproducibility of results.
     std::mt19937_64                         rng(3);
@@ -104,7 +106,7 @@ void Bishop_Magic_Bitboards::init_magics()
             // square.
             if (!fail)
             {
-                m_magics[square_idx] = magic;
+                output[square_idx] = magic;
                 break; // Move on to next square
             }
         }
@@ -112,4 +114,6 @@ void Bishop_Magic_Bitboards::init_magics()
         delete[] occupancies;
         delete[] attacks;
     }
+
+    return output;
 }

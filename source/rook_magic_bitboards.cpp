@@ -2,15 +2,15 @@
 
 #include <random>
 
-#include "occupancy.hpp"
-
 // Initialize rook magic numbers for all 64 squares of the chessboard
 // This function attempts to find "magic numbers" for each square
 // that allow efficient indexing into precomputed rook attack tables.
 // Magic bitboards are a chess programming optimization that replaces
 // slow ray-tracing with fast hash table lookups.
-void Rook_Magic_Bitboards::init_magics()
+Magics_Array Rook_Magic_Bitboards::init_magics()
 {
+    Magics_Array output;
+
     // Random number generator (Mersenne Twister 64-bit), seeded with fixed
     // value. We use a fixed seed to ensure reproducibility of results.
     std::mt19937_64                         rng(1755979527);
@@ -105,7 +105,7 @@ void Rook_Magic_Bitboards::init_magics()
             // square.
             if (!fail)
             {
-                m_magics[square_idx] = magic;
+                output[square_idx] = magic;
                 break; // Move on to next square
             }
         }
@@ -114,5 +114,5 @@ void Rook_Magic_Bitboards::init_magics()
         delete[] attacks;
     }
 
-    m_is_magics_initialized = true;
+    return output;
 }

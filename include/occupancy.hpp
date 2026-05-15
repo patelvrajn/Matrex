@@ -32,7 +32,7 @@
 // count = 2 → square 5 → index bit 2 = 1 → set square 5.
 
 // Result: occupancy = 0b00100100 (occupied at squares 2 and 5)
-consteval Bitboard set_occupancy(uint64_t        index,
+constexpr Bitboard set_occupancy(uint64_t        index,
                                  uint8_t         num_of_high_bits_in_mask,
                                  const Bitboard& mask)
 {

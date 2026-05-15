@@ -1,3 +1,6 @@
+# Compile using all available cores.
+MAKEFLAGS += -j$(shell nproc)
+
 # Recursive wildcard make function; recursively searches for files matching 
 # given wildcard pattern.
 rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))

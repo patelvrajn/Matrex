@@ -4,6 +4,7 @@
 
 #include "globals.hpp"
 #include "magic_hash_table.hpp"
+#include "occupancy.hpp"
 
 // Generate rook attack mask for a square (without board edges)
 constexpr Bitboard mask_rook_attacks(const Square s)
@@ -69,7 +70,7 @@ constexpr Bitboard calculate_rook_attacks(const Square   s,
     return attacks;
 }
 
-constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> rook_magics = {
+constexpr Magics_Array rook_magics = {
     612489824201375777ULL,   18015635461111872ULL,   13871122036941684744ULL,
     72093638208785664ULL,    1585302287834808324ULL, 72059947680530688ULL,
     648518921872277508ULL,   36029076737097984ULL,   140738562130016ULL,
@@ -175,10 +176,10 @@ class Rook_Magic_Bitboards
 
   private:
 
-    static Magic_Hash_Jagged_Table<init_rook_attack_hash_tables, rook_magics>
-        m_attack_hash_tables;
+    inline static constexpr auto m_attack_hash_tables =
+        Magic_Hash_Jagged_Table<init_rook_attack_hash_tables, rook_magics>();
 
-    void init_magics();
+    Magics_Array init_magics();
 };
 
 constexpr Rook_Magic_Bitboards::Rook_Magic_Bitboards() {}

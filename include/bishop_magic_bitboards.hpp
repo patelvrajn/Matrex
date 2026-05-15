@@ -84,7 +84,7 @@ constexpr Bitboard calculate_bishop_attacks(const Square   s,
     return attacks;
 }
 
-constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> bishop_magics = {
+constexpr Magics_Array bishop_magics = {
     1134730381265408ULL,    20284086875130114ULL,   434606161820387089ULL,
     4612883387133264427ULL, 1189249644271509520ULL, 5932974407180288ULL,
     2378186819975520388ULL, 144154779093049344ULL,  1153502184218853905ULL,
@@ -190,11 +190,11 @@ class Bishop_Magic_Bitboards
 
   private:
 
-    static Magic_Hash_Jagged_Table<init_bishop_attack_hash_tables,
-                                   bishop_magics>
-        m_attack_hash_tables;
+    inline static constexpr auto m_attack_hash_tables =
+        Magic_Hash_Jagged_Table<init_bishop_attack_hash_tables,
+                                bishop_magics>();
 
-    void init_magics();
+    Magics_Array init_magics();
 };
 
 constexpr Bishop_Magic_Bitboards::Bishop_Magic_Bitboards() {}
