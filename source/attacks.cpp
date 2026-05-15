@@ -28,16 +28,14 @@ Attacks::Attacks()
 
 Bishop_Magic_Bitboards& Attacks::m_bishop_attack_tables()
 {
-    static Bishop_Magic_Bitboards* bishop_attack_tables =
-        new Bishop_Magic_Bitboards();
-    return *bishop_attack_tables;
+    static Bishop_Magic_Bitboards bishop_attack_tables;
+    return bishop_attack_tables;
 }
 
 Rook_Magic_Bitboards& Attacks::m_rook_attack_tables()
 {
-    static Rook_Magic_Bitboards* rook_attack_tables =
-        new Rook_Magic_Bitboards();
-    return *rook_attack_tables;
+    static Rook_Magic_Bitboards rook_attack_tables;
+    return rook_attack_tables;
 }
 
 Bitboard Attacks::get_pawn_attacks(const Square& s, PIECE_COLOR c) const
