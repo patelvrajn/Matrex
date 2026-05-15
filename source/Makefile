@@ -17,18 +17,19 @@ PROJECT_NAME = matrex
 # Compiler and compiler flags.
 CXX      = g++
 CXXFLAGS = \
-		      -g \
-		      -std=gnu++23 \
+		    -g \
+		    -std=gnu++23 \
+			-fconstexpr-depth=8192 \
 	        -O3 \
-					-flto \
+			-flto \
 	        -MMD \
 	        -MP \
 	        -Wall \
 	        -Wextra \
 	        -Wpedantic \
-		      -fpie \
+		    -fpie \
 	        -pie \
-		      -I ../include
+		    -I ../include
 
 .PHONY: all clean
 

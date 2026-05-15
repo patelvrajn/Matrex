@@ -13,6 +13,7 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
+#include <utility>
 
 #ifdef NDEBUG
     #define MATREX_ASSERT(condition, message, ...) ((void) 0)
@@ -77,6 +78,204 @@ constexpr std::string
 
 constexpr std::string_view START_POSITION_FEN =
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+// =============================================================================
+// Constant Expression For-Loop
+//
+// Description: A function to loop through code in the function F
+// N = (floor((End - Start) / Step) + 1) times where all code executes at
+// compile-time. The primary purpose is provide a constant expression index to
+// use in the for loop.
+// =============================================================================
+template <auto Start, auto End, auto Step, class F>
+constexpr void constexpr_for(F&& function)
+{
+    constexpr bool is_positive_iteration_going = ((Step > 0) && (Start < End));
+    constexpr bool is_negative_iteration_going = ((Step < 0) && (Start > End));
+
+    if constexpr (is_positive_iteration_going || is_negative_iteration_going)
+    {
+        function(std::integral_constant<decltype(Start), Start> {});
+
+        constexpr_for<(Start + Step), End, Step>(std::forward<F>(function));
+    }
+}
+
+// =============================================================================
+// Index Sequence Unpacker
+//
+// Description: Abstraction of index sequence - unpacks the sequence and calls
+// f's () operator which means that f must be a functor, function, lambda, etc.
+// The use case is typically in template metaprogramming to generate
+// compile-time loops for heterogenous types (like elements in a tuple).
+// =============================================================================
+template <std::size_t N, class F>
+consteval decltype(auto) index_sequence_unpacker(F&& f)
+{
+    return []<std::size_t... Is>(std::index_sequence<Is...>,
+                                 F&& f) -> decltype(auto) {
+        return static_cast<F&&>(f).template operator()<Is...>();
+    }(std::make_index_sequence<N> {}, static_cast<F&&>(f));
+}
+
+// Generalized structs to extract the template parameters of an In typed object
+// and output an Out typed object with the same template parameters.
+template <class In, template <class...> class Out>
+struct Extract_Template_Parameters;
+
+template <template <class...> class In,
+          template <class...>
+          class Out,
+          class... Ts>
+struct Extract_Template_Parameters<In<Ts...>, Out>
+{
+    using Type = Out<Ts...>;
+};
+
+// =============================================================================
+// Parameter Pack Container
+//
+// Description: A class used for treating parameter packs passed into functions
+// as containers. Useful for indexing and/or slicing the parameter pack. All
+// operations unless stated otherwise can be done during compile-time.
+// =============================================================================
+template <typename... Pack>
+class Parameter_Pack_Container
+{
+  private:
+
+    std::tuple<Pack...> m_p;
+
+    template <std::size_t offset, std::size_t... Is>
+    constexpr auto offset_index_sequence(std::index_sequence<Is...>) const
+    {
+        return std::index_sequence<(Is + offset)...> {};
+    }
+
+    template <typename Tuple, std::size_t... Is>
+    constexpr auto extract_parameter_set(const Tuple& t,
+                                         std::index_sequence<Is...>) const
+    {
+        return std::make_tuple(std::get<Is>(t)...);
+    }
+
+    template <std::size_t start, std::size_t end, typename Tuple>
+    constexpr auto slice_tuple(const Tuple& t) const
+    {
+        static_assert((end < (std::tuple_size_v<Tuple>) ),
+                      "End of slice for tuple is greater than it's size.");
+
+        constexpr std::size_t length = end - start + 1;
+        auto                  slice_sequence =
+            offset_index_sequence<start>(std::make_index_sequence<length> {});
+        return extract_parameter_set(t, slice_sequence);
+    }
+
+    template <std::size_t index>
+    constexpr void
+    copy_parameter_pack_element(const Parameter_Pack_Container& source)
+    {
+        std::get<index>(m_p) = std::get<index>(source.m_p);
+    }
+
+    template <class Other, std::size_t... Is>
+    constexpr void copy_helper(const Other& other, std::index_sequence<Is...>)
+    {
+        ((copy_parameter_pack_element<Is>(other)), ...);
+    }
+
+  public:
+
+    using Parameter_Pack_Variant = std::variant<std::monostate, Pack...>;
+
+    constexpr Parameter_Pack_Container() = default;
+
+    // Takes a parameter pack and converts into a tuple to be assigned to the
+    // internal tuple.
+    template <class... Args>
+    requires ((sizeof...(Args) == sizeof...(Pack)) && (sizeof...(Pack) > 0))
+    constexpr Parameter_Pack_Container(Args&&... args) :
+        m_p(std::forward<Args>(args)...)
+    {
+    }
+
+    static constexpr std::size_t size = sizeof...(Pack);
+
+    // Returns a std_variant (not the array!) at an index of the internal tuple.
+    // The way this works is if the runtime index is the same as the index
+    // passed in by the template, we call get<>() otherwise, we recursively
+    // increment the template parameter of get<>().
+    template <std::size_t I = 0>
+    constexpr Parameter_Pack_Variant get(std::size_t index) const
+    {
+        if (I == index)
+        {
+            return Parameter_Pack_Variant(std::in_place_index<I + 1>,
+                                          std::get<I>(m_p));
+        }
+        if constexpr ((I + 1) < size) { return get<I + 1>(index); }
+
+        return std::monostate {};
+    }
+
+    constexpr Parameter_Pack_Variant& operator[](std::size_t index)
+    {
+        return this->get(index);
+    }
+
+    constexpr Parameter_Pack_Variant operator[](std::size_t index) const
+    {
+        return this->get(index);
+    }
+
+    consteval auto to_tuple() { return m_p; }
+
+    // Grabs a non-contigious subset of the internal tuple.
+    template <std::size_t... Is>
+    consteval auto get_parameter_set(std::index_sequence<Is...> sequence)
+    {
+        extract_parameter_set(m_p, sequence);
+    }
+
+    // Grabs a contigious subset of the internal tuple.
+    template <std::size_t start, std::size_t end>
+    consteval auto slice() const
+    {
+        return slice_tuple<start, end>(m_p);
+    }
+
+    // Takes the tuple internal to Parameter_Pack_Container and expands it out
+    // as parameters to any given function (even templated functions).
+    template <class Function>
+    consteval auto apply(Function&& function) const
+    {
+        std::apply([&](auto&&... args) { function(args...); }, m_p);
+    }
+
+    // Copies a Parameter_Pack_Container to this from a Parameter_Pack_Container
+    // that has a size less than or equal to this.
+    consteval Parameter_Pack_Container(const Parameter_Pack_Container& other)
+    {
+        static_assert(size >= other.size,
+                      "When copying parameter pack containers - the "
+                      "destination must be of greater size or equal size.");
+
+        constexpr auto Is = std::make_index_sequence<other.size> {};
+
+        copy_helper(other, Is);
+    }
+
+    // Creates an instance of Parameter_Pack_Container from any given tuple.
+    template <class Tuple>
+    static consteval auto make(Tuple&& t)
+    {
+        using Output_Type = typename Extract_Template_Parameters<
+            decltype(t),
+            Parameter_Pack_Container>::Type;
+
+        return std::make_from_tuple<Output_Type>(t);
+    }
+};
 
 // =============================================================================
 // Multi_Array Implementation (Short-hand version of std::array for multiple
@@ -282,5 +481,139 @@ class Reference_Array
         }
 
         return it->second;
+    }
+};
+
+// =============================================================================
+// Compile-time Jagged Array
+// =============================================================================
+template <typename>
+struct empty_type
+{
+};
+
+template <class T, std::size_t N>
+struct tuple_of_empty_types
+{
+    using type = decltype(index_sequence_unpacker<N>(
+        []<std::size_t... Is>()
+        { return std::tuple<decltype((void) Is, empty_type<T> {})...> {}; }));
+};
+
+template <typename T, typename... Pack>
+class Compile_Time_Jagged_Array
+{
+  public:
+
+    static constexpr std::size_t size = sizeof...(Pack);
+
+  private:
+
+    template <class Tuple>
+    struct Tuple_to_Jagged_Array;
+
+    template <class... Ts>
+    struct Tuple_to_Jagged_Array<std::tuple<Ts...>>
+    {
+        using Type = Compile_Time_Jagged_Array<T, Ts...>;
+    };
+
+    template <class... Ts>
+    consteval auto make_jagged_array_from_tuple(std::tuple<Ts...> t)
+    {
+        using Output_Type = typename Tuple_to_Jagged_Array<decltype(t)>::Type;
+
+        return std::make_from_tuple<Output_Type>(std::move(t));
+    }
+
+    Parameter_Pack_Container<Pack...> m_parameter_pack;
+
+  public:
+
+    constexpr Compile_Time_Jagged_Array() = default;
+
+    template <class... Args>
+    requires ((sizeof...(Args) == sizeof...(Pack)) && (sizeof...(Pack) > 0))
+    constexpr Compile_Time_Jagged_Array(Args&&... args) :
+        m_parameter_pack(std::forward<Args>(args)...)
+    {
+    }
+
+    template <std::size_t set_index, std::size_t inner_array_size>
+    consteval auto set(std::array<T, inner_array_size> inner_array)
+    {
+        if constexpr (set_index == 0)
+        {
+            const auto inserted_tuple = std::make_tuple(inner_array);
+            const auto end_of_tuple =
+                m_parameter_pack
+                    .template slice<1, (m_parameter_pack.size - 1)>();
+            const auto full_tuple =
+                std::tuple_cat(inserted_tuple, end_of_tuple);
+
+            return make_jagged_array_from_tuple(full_tuple);
+        }
+        else if constexpr (set_index == (size - 1))
+        {
+            const auto start_of_tuple =
+                m_parameter_pack.template slice<0, (set_index - 1)>();
+            const auto inserted_tuple = std::make_tuple(inner_array);
+            const auto full_tuple =
+                std::tuple_cat(start_of_tuple, inserted_tuple);
+
+            return make_jagged_array_from_tuple(full_tuple);
+
+            // Note: This is the only case where we grow the jagged array.
+        }
+        else if constexpr (set_index > (size - 1))
+        {
+            const auto start_of_tuple = m_parameter_pack.to_tuple();
+            const tuple_of_empty_types<T, ((size - 1) - set_index - 1)> padding;
+            const auto inserted_tuple = std::make_tuple(inner_array);
+            const auto full_tuple =
+                std::tuple_cat(start_of_tuple, padding, inserted_tuple);
+
+            return make_jagged_array_from_tuple(full_tuple);
+        }
+        else
+        {
+            const auto start_of_tuple =
+                m_parameter_pack.template slice<0, (set_index - 1)>();
+            const auto inserted_tuple = std::make_tuple(inner_array);
+            const auto end_of_tuple =
+                m_parameter_pack.template slice<(set_index + 1),
+                                                (m_parameter_pack.size - 1)>();
+            const auto full_tuple =
+                std::tuple_cat(start_of_tuple, inserted_tuple, end_of_tuple);
+
+            return make_jagged_array_from_tuple(full_tuple);
+        }
+    }
+
+    constexpr auto get(std::size_t inner_array_index,
+                       std::size_t element_index) const
+    {
+        return std::visit(
+            [element_index](const auto& array) -> T
+            {
+                using T_no_ref = std::remove_cvref_t<decltype(array)>;
+
+                if constexpr (std::is_same_v<T_no_ref, std::monostate>)
+                {
+                    throw std::out_of_range(
+                        "RUNTIME ERROR: Jagged Array indexed monostate.");
+                }
+                else { return array[element_index]; }
+            },
+            m_parameter_pack[inner_array_index]);
+    }
+
+    template <std::size_t size>
+    static consteval auto make()
+    {
+        using Tuple       = tuple_of_empty_types<T, size>;
+        using Output_Type = typename Tuple_to_Jagged_Array<Tuple>::Type;
+
+        return Output_Type {};
     }
 };
