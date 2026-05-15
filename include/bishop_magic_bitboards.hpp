@@ -109,7 +109,7 @@ constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> bishop_magics = {
     289360742829916288ULL};
 
 template <auto square_idx>
-constexpr auto create_attacks_array()
+constexpr auto create_bishop_attacks_array()
 {
     // Create a Square object for the current index (0–63)
     // This represents the actual chessboard square
@@ -174,8 +174,8 @@ consteval auto init_bishop_attack_hash_tables()
         {
             return Compile_Time_Jagged_Array<
                 Bitboard,
-                decltype(create_attacks_array<square_index>())...>(
-                create_attacks_array<square_index>()...);
+                decltype(create_bishop_attacks_array<square_index>())...>(
+                create_bishop_attacks_array<square_index>()...);
         });
 }
 
@@ -185,8 +185,8 @@ class Bishop_Magic_Bitboards
 
     constexpr Bishop_Magic_Bitboards();
 
-    constexpr Bitboard get_attacks(const Square&   s,
-                                   const Bitboard& occupancy) const;
+    constexpr Bitboard get_attacks(const Square   s,
+                                   const Bitboard occupancy) const;
 
   private:
 
@@ -200,8 +200,8 @@ class Bishop_Magic_Bitboards
 constexpr Bishop_Magic_Bitboards::Bishop_Magic_Bitboards() {}
 
 constexpr Bitboard
-Bishop_Magic_Bitboards::get_attacks(const Square&   s,
-                                    const Bitboard& occupancy) const
+Bishop_Magic_Bitboards::get_attacks(const Square   s,
+                                    const Bitboard occupancy) const
 {
     return m_attack_hash_tables.get_attacks(s, occupancy);
 }
