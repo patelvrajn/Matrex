@@ -15,32 +15,36 @@
 #include <unordered_map>
 #include <utility>
 
-#ifdef NDEBUG
-    #define MATREX_ASSERT(condition, message, ...) ((void) 0)
-#else
-    #define MATREX_ASSERT(condition, message, ...)                             \
-        if (!(condition))                                                      \
-        {                                                                      \
-            std::cerr << "Assertion in file " << __FILE__ << " on line "       \
-                      << __LINE__ << " failed!" << std::endl;                  \
-            std::cerr << "Condition: " << #condition << std::endl;             \
-            std::cerr << "Message: "                                           \
-                      << std::format(message __VA_OPT__(, ) __VA_ARGS__)       \
-                      << std::endl;                                            \
-            std::cerr << "STACK TRACE: " << std::endl;                         \
-            std::cerr << std::stacktrace::current() << std::endl;              \
-            std::abort();                                                      \
-        }
-#endif
+// =============================================================================
+// Engine Name and Version Strings
+// =============================================================================
+constexpr std::string_view ENGINE_NAME    = "Matrex";
+constexpr std::string_view ENGINE_VERSION = "0.0.1";
 
+// =============================================================================
+// Various Pre-processor Definitions
+//
+// Description:
+// → FORCE_INLINE - Recursively inlines all code such that there is no function
+// call costs. However, should be used at caution because the trade-off is that
+// there may be many more variables cluttering registers, the stack, etc.
+//
+// → CACHE_ALIGN - Pads structures laid out in memory so that each structure
+// represents a single cache line. This issue is mainly concerning with multi-
+// threaded code - if a single core writes to structure X and another core reads
+// from structure Y if they reside on the same cache-line the core reading Y is
+// forced to fetch the memory address again to update the cache even though it
+// was only reading Y and not X. Currently, the assumption is that Matrex runs
+// only on x86 systems so the cache line size is 64 bytes.
+// =============================================================================
 #define FORCE_INLINE inline __attribute__((always_inline, flatten))
 
 constexpr uint64_t CACHE_LINE_SIZE = 64;
 #define CACHE_ALIGN alignas(CACHE_LINE_SIZE)
 
-constexpr std::string_view ENGINE_NAME    = "Matrex";
-constexpr std::string_view ENGINE_VERSION = "0.0.1";
-
+// =============================================================================
+// Essential Chess-Related Enumerations and Constants
+// =============================================================================
 constexpr uint8_t NUM_OF_PLAYERS = 2;
 
 constexpr uint8_t NUM_OF_RANKS_ON_CHESS_BOARD = 8;
@@ -80,9 +84,35 @@ constexpr std::string_view START_POSITION_FEN =
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 // =============================================================================
+// Assertions
+//
+// Description: Currently, Matrex has it's own runtime assertion function in
+// order to be more verbose when unexpected behavior occurs during runtime. The
+// verbose-ness is mainly from the full stack trace being displayed which is
+// useful when trying to debug unexpected behavior.
+// =============================================================================
+#ifdef NDEBUG
+    #define MATREX_ASSERT(condition, message, ...) ((void) 0)
+#else
+    #define MATREX_ASSERT(condition, message, ...)                             \
+        if (!(condition))                                                      \
+        {                                                                      \
+            std::cerr << "Assertion in file " << __FILE__ << " on line "       \
+                      << __LINE__ << " failed!" << std::endl;                  \
+            std::cerr << "Condition: " << #condition << std::endl;             \
+            std::cerr << "Message: "                                           \
+                      << std::format(message __VA_OPT__(, ) __VA_ARGS__)       \
+                      << std::endl;                                            \
+            std::cerr << "STACK TRACE: " << std::endl;                         \
+            std::cerr << std::stacktrace::current() << std::endl;              \
+            std::abort();                                                      \
+        }
+#endif
+
+// =============================================================================
 // Constant Expression For-Loop
 //
-// Description: A function to loop through code in the function F
+// Description: A recursive function to loop through code in the function F
 // N = (floor((End - Start) / Step) + 1) times where all code executes at
 // compile-time. The primary purpose is provide a constant expression index to
 // use in the for loop.
