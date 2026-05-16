@@ -289,6 +289,8 @@ class Bitboard
         m_antidiagonal_masks = init_antidiagonal_masks();
 };
 
+using Bitboard_Array = multi_array<Bitboard, NUM_OF_SQUARES_ON_CHESS_BOARD>;
+
 constexpr Bitboard::Bitboard() : m_board(0) {}
 
 constexpr Bitboard::Bitboard(uint64_t board) : m_board(board) {}
