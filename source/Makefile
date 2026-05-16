@@ -1,5 +1,6 @@
-# Compile using all available cores.
-MAKEFLAGS += -j$(shell nproc)
+# To compile using all available cores use: -j$(shell nproc)
+# Only compile using 2 cores because of memory consumption.
+MAKEFLAGS += -j2
 
 # Recursive wildcard make function; recursively searches for files matching 
 # given wildcard pattern.
