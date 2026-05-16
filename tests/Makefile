@@ -24,20 +24,21 @@ PROJECT_NAME = matrex
 # Compiler and compiler flags.
 CXX      = g++
 CXXFLAGS = \
-		      -g \
-		      -std=gnu++23 \
-		      -pthread \
+		    -g \
+		    -std=gnu++23 \
+		    -fconstexpr-depth=8192 \
+			-pthread \
 	        -O3 \
-					-flto \
+			-flto \
 	        -MMD \
 	        -MP \
 	        -Wall \
 	        -Wextra \
 	        -Wpedantic \
-		      -fpie \
+		    -fpie \
 	        -pie \
-		      -I ../include \
-		      -I /usr/local/include/gtest/
+		    -I ../include \
+		    -I /usr/local/include/gtest/
 
 .PHONY: all clean
 

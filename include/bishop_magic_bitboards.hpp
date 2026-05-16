@@ -125,6 +125,10 @@ constexpr auto create_bishop_attacks_array()
     // interact with when generating all possible occupancies.
     constexpr uint8_t num_of_high_bits_in_mask = mask.high_bit_count();
 
+    constexpr Magic_Attacks_Info_Storage info {.mask = mask,
+                                               .num_of_idx_bits =
+                                                   num_of_high_bits_in_mask};
+
     // Compute the total number of occupancy variations for this mask.
     // Since each relevant square in the mask can either be empty (0) or
     // filled (1), there are 2^(num_of_high_bits_in_mask) possible blocker
@@ -164,18 +168,28 @@ constexpr auto create_bishop_attacks_array()
 
     })();
 
-    return attacks;
+    return std::pair {attacks, info};
 }
 
 consteval auto init_bishop_attack_hash_tables()
 {
-    return index_sequence_unpacker<NUM_OF_SQUARES_ON_CHESS_BOARD>(
+    return index_sequence_unpacker<64>(
         []<std::size_t... square_index>()
         {
             return Compile_Time_Jagged_Array<
                 Bitboard,
-                decltype(create_bishop_attacks_array<square_index>())...>(
-                create_bishop_attacks_array<square_index>()...);
+                decltype(create_bishop_attacks_array<square_index>().first)...>(
+                create_bishop_attacks_array<square_index>().first...);
+        });
+}
+
+consteval auto init_bishop_attack_hash_tables_infos()
+{
+    return index_sequence_unpacker<64>(
+        []<std::size_t... square_index>()
+        {
+            return Magic_Attacks_Info_Array {
+                create_bishop_attacks_array<square_index>().second...};
         });
 }
 
@@ -191,8 +205,9 @@ class Bishop_Magic_Bitboards
   private:
 
     inline static constexpr auto m_attack_hash_tables =
-        Magic_Hash_Jagged_Table<init_bishop_attack_hash_tables,
-                                bishop_magics>();
+        Magic_Hash_Jagged_Table<bishop_magics,
+                                init_bishop_attack_hash_tables,
+                                init_bishop_attack_hash_tables_infos>();
 
     Magics_Array init_magics();
 };

@@ -4,7 +4,18 @@
 
 using Magics_Array = multi_array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>;
 
-template <auto attacks_generation_function, auto magics>
+struct Magic_Attacks_Info_Storage
+{
+    Bitboard mask {};
+    uint8_t  num_of_idx_bits {};
+};
+
+using Magic_Attacks_Info_Array =
+    multi_array<Magic_Attacks_Info_Storage, NUM_OF_SQUARES_ON_CHESS_BOARD>;
+
+template <auto magics_gen_func,
+          auto attacks_gen_func,
+          auto attacks_info_gen_func>
 class Magic_Hash_Jagged_Table
 {
   public:
@@ -16,26 +27,30 @@ class Magic_Hash_Jagged_Table
 
   private:
 
-    Magics_Array                                         m_magics = magics;
-    multi_array<uint8_t, NUM_OF_SQUARES_ON_CHESS_BOARD>  m_num_of_idx_bits;
-    multi_array<Bitboard, NUM_OF_SQUARES_ON_CHESS_BOARD> m_masks;
-    static constexpr auto m_attacks = attacks_generation_function();
+    Magics_Array m_magics =
+        magics_gen_func; // TODO: make magics function compile-time.
+    static constexpr auto    m_attacks = attacks_gen_func();
+    Magic_Attacks_Info_Array m_info    = attacks_info_gen_func();
 };
 
-template <auto attacks_generation_function, auto magics>
+template <auto magics_gen_func,
+          auto attacks_gen_func,
+          auto attacks_info_gen_func>
 constexpr Bitboard
-Magic_Hash_Jagged_Table<attacks_generation_function, magics>::get_attacks(
-    const Square   s,
-    const Bitboard occupancy) const
+Magic_Hash_Jagged_Table<magics_gen_func,
+                        attacks_gen_func,
+                        attacks_info_gen_func>::get_attacks(const Square s,
+                                                            const Bitboard
+                                                                occupancy) const
 {
     const uint8_t square_index = s.get_index();
 
-    Bitboard blockers = occupancy & m_masks[square_index];
+    Bitboard blockers = occupancy & m_info[square_index].mask;
 
     uint64_t hash = blockers.get_board() * m_magics[square_index];
 
     uint64_t magic_index =
-        hash >> ((sizeof(hash) << 3) - m_num_of_idx_bits[square_index]);
+        hash >> ((sizeof(hash) << 3) - m_info[square_index].num_of_idx_bits);
 
     return m_attacks.get(square_index, magic_index);
 }

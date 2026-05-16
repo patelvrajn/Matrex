@@ -201,17 +201,22 @@ class Parameter_Pack_Container
         return extract_parameter_set(t, slice_sequence);
     }
 
-    template <std::size_t index>
-    constexpr void
-    copy_parameter_pack_element(const Parameter_Pack_Container& source)
+    template <std::size_t copy_length>
+    constexpr void copy(const Parameter_Pack_Container& other)
     {
-        std::get<index>(m_p) = std::get<index>(source.m_p);
+        return index_sequence_unpacker<copy_length>(
+            [&]<std::size_t... index>()
+            { ((std::get<index>(m_p) = std::get<index>(other.m_p)), ...); });
     }
 
-    template <class Other, std::size_t... Is>
-    constexpr void copy_helper(const Other& other, std::index_sequence<Is...>)
+    template <std::size_t move_length>
+    constexpr void move(Parameter_Pack_Container&& other)
     {
-        ((copy_parameter_pack_element<Is>(other)), ...);
+        return index_sequence_unpacker<move_length>(
+            [&]<std::size_t... index>() {
+                ((std::get<index>(m_p) = std::move(std::get<index>(other.m_p))),
+                 ...);
+            });
     }
 
   public:
@@ -284,15 +289,22 @@ class Parameter_Pack_Container
 
     // Copies a Parameter_Pack_Container to this from a Parameter_Pack_Container
     // that has a size less than or equal to this.
-    consteval Parameter_Pack_Container(const Parameter_Pack_Container& other)
+    constexpr Parameter_Pack_Container(const Parameter_Pack_Container& other)
     {
         static_assert(size >= other.size,
                       "When copying parameter pack containers - the "
                       "destination must be of greater size or equal size.");
 
-        constexpr auto Is = std::make_index_sequence<other.size> {};
+        copy<other.size>(other);
+    }
 
-        copy_helper(other, Is);
+    constexpr Parameter_Pack_Container(Parameter_Pack_Container&& other)
+    {
+        static_assert(size >= other.size,
+                      "When moving parameter pack containers - the "
+                      "destination must be of greater size or equal size.");
+
+        move<other.size>(std::move(other));
     }
 
     // Creates an instance of Parameter_Pack_Container from any given tuple.
@@ -580,6 +592,11 @@ class Compile_Time_Jagged_Array
         m_parameter_pack(std::forward<Args>(args)...)
     {
     }
+
+    // IMPORTANT: We cannot move or copy Compile_Time_Jagged_Array during
+    // compile-time because parameter packs are not move-able/copy-able
+    // (different-sized tuples of parameter packs make the tuple default copy or
+    // move contructor not usable).
 
     template <std::size_t set_index, std::size_t inner_array_size>
     consteval auto set(std::array<T, inner_array_size> inner_array)
