@@ -676,3 +676,68 @@ class Compile_Time_Jagged_Array
         return Output_Type {};
     }
 };
+
+template <typename T, std::size_t capacity>
+class Partially_Filled_Array
+{
+  public:
+
+    Partially_Filled_Array();
+
+    inline void append(const T& data);
+    inline void clear();
+
+    T* begin() const;
+    T* end() const;
+
+    int64_t get_max_index() const;
+
+    T& operator[](std::size_t index);
+
+  private:
+
+    int64_t                 m_max_index;
+    std::array<T, capacity> m_list;
+};
+
+template <typename T, std::size_t capacity>
+Partially_Filled_Array<T, capacity>::Partially_Filled_Array() : m_max_index(-1)
+{
+}
+
+template <typename T, std::size_t capacity>
+inline void Partially_Filled_Array<T, capacity>::append(const T& data)
+{
+    m_max_index++;
+    m_list[m_max_index] = data;
+}
+
+template <typename T, std::size_t capacity>
+inline void Partially_Filled_Array<T, capacity>::clear()
+{
+    m_max_index = -1;
+}
+
+template <typename T, std::size_t capacity>
+T* Partially_Filled_Array<T, capacity>::begin() const
+{
+    return (T*) &m_list[0];
+}
+
+template <typename T, std::size_t capacity>
+T* Partially_Filled_Array<T, capacity>::end() const
+{
+    return (T*) &m_list[m_max_index + 1];
+}
+
+template <typename T, std::size_t capacity>
+int64_t Partially_Filled_Array<T, capacity>::get_max_index() const
+{
+    return m_max_index;
+}
+
+template <typename T, std::size_t capacity>
+T& Partially_Filled_Array<T, capacity>::operator[](std::size_t index)
+{
+    return m_list[index];
+}

@@ -138,6 +138,7 @@ struct Undo_Chess_Move
     ESQUARE    enpassant_square : 7;
 };
 
+// A partially filled array class specialized for Chess Moves.
 template <std::size_t capacity>
 class Chess_Move_List
 {
