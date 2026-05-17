@@ -488,3 +488,5 @@ constexpr Bitboard& Bitboard::operator>>=(uint8_t shift)
     m_board >>= shift;
     return *this;
 }
+
+constexpr Bitboard EMPTY_BITBOARD = Bitboard(0);

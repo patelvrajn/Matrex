@@ -104,6 +104,11 @@ class Attacks
 
     constexpr Attacks();
 
+    constexpr Bitboard get_attacks(const PIECES      p,
+                                   const Square      s,
+                                   const PIECE_COLOR c,
+                                   const Bitboard    occupancy);
+
     constexpr Bitboard get_pawn_attacks(const Square& s, PIECE_COLOR c) const;
     constexpr Bitboard get_knight_attacks(const Square& s) const;
     constexpr Bitboard get_king_attacks(const Square& s) const;
@@ -135,6 +140,23 @@ class Attacks
 };
 
 constexpr Attacks::Attacks() {}
+
+constexpr Bitboard Attacks::get_attacks(const PIECES      p,
+                                        const Square      s,
+                                        const PIECE_COLOR c,
+                                        const Bitboard    occupancy)
+{
+    Bitboard output;
+
+    if (p == PIECES::PAWN) { output = get_pawn_attacks(s, c); }
+    else if (p == PIECES::KNIGHT) { output = get_knight_attacks(s); }
+    else if (p == PIECES::KING) { output = get_king_attacks(s); }
+    else if (p == PIECES::BISHOP) { output = get_bishop_attacks(s, occupancy); }
+    else if (p == PIECES::ROOK) { output = get_rook_attacks(s, occupancy); }
+    else if (p == PIECES::QUEEN) { output = get_queen_attacks(s, occupancy); }
+
+    return output;
+}
 
 constexpr Bitboard Attacks::get_pawn_attacks(const Square& s,
                                              PIECE_COLOR   c) const

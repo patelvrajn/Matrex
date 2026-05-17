@@ -7,21 +7,25 @@
 #include "psuedo_random_number_generator.hpp"
 #include "square.hpp"
 
+using Zobrist_Hash_Storage_Type = uint64_t;
+
 struct Zobrist_Hash_Keys
 {
-    std::array<std::array<std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
+    std::array<std::array<std::array<Zobrist_Hash_Storage_Type,
+                                     NUM_OF_SQUARES_ON_CHESS_BOARD>,
                           NUM_OF_UNIQUE_PIECES_PER_PLAYER>,
                NUM_OF_PLAYERS>
-                                                              pieces;
-    std::array<uint64_t, (NUM_OF_SQUARES_ON_CHESS_BOARD + 1)> en_passant;
-    std::array<uint64_t, 16>                                  castling_rights;
-    uint64_t                                                  black_to_move;
+        pieces;
+    std::array<Zobrist_Hash_Storage_Type, (NUM_OF_SQUARES_ON_CHESS_BOARD + 1)>
+                                              en_passant;
+    std::array<Zobrist_Hash_Storage_Type, 16> castling_rights;
+    Zobrist_Hash_Storage_Type                 black_to_move;
 };
 
 consteval Zobrist_Hash_Keys initialize_zobrist_hash_keys()
 {
-    Zobrist_Hash_Keys    keys;
-    Psuedo_RNG<uint64_t> prng;
+    Zobrist_Hash_Keys                     keys;
+    Psuedo_RNG<Zobrist_Hash_Storage_Type> prng;
 
     for (uint8_t player = 0; player < NUM_OF_PLAYERS; player++)
     {
@@ -58,7 +62,7 @@ class Zobrist_Hash
 
     constexpr Zobrist_Hash();
 
-    constexpr uint64_t get_hash_value() const;
+    constexpr Zobrist_Hash_Storage_Type get_hash_value() const;
 
     constexpr void update_piece(const PIECE_COLOR color,
                                 const PIECES      piece,
@@ -71,7 +75,7 @@ class Zobrist_Hash
 
   private:
 
-    uint64_t m_hash_value;
+    Zobrist_Hash_Storage_Type m_hash_value;
 
     inline static constexpr Zobrist_Hash_Keys m_hash_keys =
         initialize_zobrist_hash_keys();
@@ -84,7 +88,7 @@ constexpr inline auto Zobrist_Hash::operator<=>(const Zobrist_Hash& other) const
 
 constexpr Zobrist_Hash::Zobrist_Hash() : m_hash_value(0) {}
 
-constexpr uint64_t Zobrist_Hash::get_hash_value() const
+constexpr Zobrist_Hash_Storage_Type Zobrist_Hash::get_hash_value() const
 {
     return m_hash_value;
 };

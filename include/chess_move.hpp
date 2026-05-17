@@ -32,6 +32,26 @@ struct Chess_Move
     uint16_t   padding                          : 11 = 0; // 64
     Move_Score score                                 = 0; // 80
 
+    static Chess_Move
+    reversible_move(PIECES piece, Square source, Square destination)
+    {
+        return Chess_Move {
+            .source_square      = static_cast<ESQUARE>(source.get_index()),
+            .destination_square = static_cast<ESQUARE>(destination.get_index()),
+            .moving_piece       = piece,
+            .promoted_piece     = static_cast<PIECES>(0),
+            .captured_piece     = static_cast<PIECES>(0),
+            .is_capture         = false,
+            .is_short_castling  = false,
+            .is_long_castling   = false,
+            .castling_rook_source_square      = static_cast<ESQUARE>(0),
+            .castling_rook_destination_square = static_cast<ESQUARE>(0),
+            .is_double_pawn_push              = false,
+            .is_en_passant                    = false,
+            .en_passant_victim_square         = static_cast<ESQUARE>(0),
+            .is_promotion                     = false};
+    }
+
     std::string to_coordinate_notation(bool is_frc) const
     {
         std::string source_square_str      = SQUARE_STRINGS[source_square];
