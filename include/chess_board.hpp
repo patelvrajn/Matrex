@@ -11,6 +11,9 @@
 
 constexpr uint8_t NUM_OF_CASTLING_TYPES = 2;
 
+constexpr uint8_t     HALF_MOVE_CLOCK_MAXIMUM = 50;
+constexpr std::size_t HASH_HISTORY_SIZE       = HALF_MOVE_CLOCK_MAXIMUM * 2;
+
 enum CASTLING_TYPE
 {
     KINGSIDE,
@@ -37,6 +40,13 @@ struct Chess_Board_State
     ESQUARE     enpassant_square : 7; // Needs 7 bits because of NO_SQUARE
     uint8_t     castling_rights  : 4;
     uint8_t     half_move_clock  : 6; // Doesn't go past 50 so 6 bits.
+
+    // Record-keeping for hash history so that if the half-move clock resets in
+    // make move we still have a hash history to restore on undo move. Both are
+    // only 7 bits long because the maximum size of the hash history is 100 ply.
+    uint16_t hash_history_start  : 7;
+    uint16_t hash_history_length : 7;
+
     std::array<Castling_Rooks, NUM_OF_PLAYERS> castling_rooks;
     uint64_t                                   full_move_count;
 
@@ -105,6 +115,8 @@ class Chess_Board
     std::array<Bitboard, NUM_OF_PLAYERS> m_color_occupancy_bitboards;
 
     Zobrist_Hash m_zobrist_hash;
+
+    multi_array<Zobrist_Hash, HASH_HISTORY_SIZE> m_hash_history;
 
     Chess_Board_State m_state;
 

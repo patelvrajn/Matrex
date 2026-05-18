@@ -133,9 +133,11 @@ static_assert(sizeof(Chess_Move) == 12,
 struct Undo_Chess_Move
 {
     Chess_Move move;
-    uint8_t    castling_rights  : 4;
-    uint8_t    half_move_clock  : 6;
-    ESQUARE    enpassant_square : 7;
+    uint8_t    castling_rights     : 4;
+    uint8_t    half_move_clock     : 6;
+    ESQUARE    enpassant_square    : 7;
+    uint16_t   hash_history_start  : 7;
+    uint16_t   hash_history_length : 7;
 };
 
 // A partially filled array class specialized for Chess Moves.

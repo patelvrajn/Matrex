@@ -203,18 +203,21 @@ Chess_Board::what_piece_is_on_square(const Square& s) const
 
 Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
 {
-    Undo_Chess_Move undo_move = {.move             = move,
-                                 .castling_rights  = m_state.castling_rights,
-                                 .half_move_clock  = m_state.half_move_clock,
-                                 .enpassant_square = m_state.enpassant_square};
+    Undo_Chess_Move undo_move = {
+        .move                = move,
+        .castling_rights     = m_state.castling_rights,
+        .half_move_clock     = m_state.half_move_clock,
+        .enpassant_square    = m_state.enpassant_square,
+        .hash_history_start  = m_state.hash_history_start,
+        .hash_history_length = m_state.hash_history_length};
 
     calculate_next_board_state(m_state.side_to_move, move);
 
-    if ((move.moving_piece == PIECES::PAWN) || (move.is_capture)
-        || (move.is_en_passant))
-    {
-        m_state.half_move_clock = 0;
-    }
+    const bool is_move_irreversible =
+        ((move.moving_piece == PIECES::PAWN) || (move.is_capture)
+         || (move.is_en_passant));
+
+    if (is_move_irreversible) { m_state.half_move_clock = 0; }
     else { m_state.half_move_clock = m_state.half_move_clock + 1; }
 
     if (m_state.side_to_move == PIECE_COLOR::BLACK)
@@ -327,6 +330,19 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
     m_state.side_to_move = (PIECE_COLOR) ((~m_state.side_to_move) & 0x1);
     m_zobrist_hash.flip_side_to_move();
 
+    if (is_move_irreversible)
+    {
+        m_state.hash_history_start  = m_state.half_move_clock;
+        m_state.hash_history_length = 0;
+    }
+    else
+    {
+        uint16_t ply_count =
+            moves_to_ply(m_state.side_to_move, m_state.half_move_clock);
+        m_hash_history[ply_count] = m_zobrist_hash;
+        ++m_state.hash_history_length;
+    }
+
     return undo_move;
 }
 
@@ -352,6 +368,9 @@ void Chess_Board::undo_move(Undo_Chess_Move undo_move)
 
     m_state.side_to_move = opposing_side;
     m_zobrist_hash.flip_side_to_move();
+
+    m_state.hash_history_start  = undo_move.hash_history_start;
+    m_state.hash_history_length = undo_move.hash_history_length;
 }
 
 void Chess_Board::make_moves_from_string(const std::string& moves_str,
@@ -583,6 +602,12 @@ void Chess_Board::set_from_fen(const std::string& fen)
     // Convert to unsigned long long (because we apparently expect games
     // lasting until the heat death of the universe)
     m_state.full_move_count = std::stoull(full_move_count);
+
+    uint16_t ply_count =
+        moves_to_ply(m_state.side_to_move, m_state.half_move_clock);
+    m_hash_history[ply_count]   = m_zobrist_hash;
+    m_state.hash_history_start  = ply_count;
+    m_state.hash_history_length = 1;
 }
 
 // Helper: take a substring describing a single rank (e.g. "rnbqkbnr" or

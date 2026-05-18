@@ -43,7 +43,7 @@ constexpr uint64_t CACHE_LINE_SIZE = 64;
 #define CACHE_ALIGN alignas(CACHE_LINE_SIZE)
 
 // =============================================================================
-// Essential Chess-Related Enumerations and Constants
+// Essential Chess-Related Enumerations, Constants, and Functions
 // =============================================================================
 constexpr uint8_t NUM_OF_PLAYERS = 2;
 
@@ -82,6 +82,16 @@ constexpr std::string
 
 constexpr std::string_view START_POSITION_FEN =
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+uint16_t moves_to_ply(PIECE_COLOR c, uint16_t num_of_moves)
+{
+    if (c == PIECE_COLOR::WHITE) { return (NUM_OF_PLAYERS * num_of_moves); }
+    else if (c == PIECE_COLOR::BLACK)
+    {
+        return ((NUM_OF_PLAYERS * num_of_moves) + 1);
+    }
+    else { return 0; }
+}
 
 // =============================================================================
 // Assertions
