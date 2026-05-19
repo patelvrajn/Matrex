@@ -151,7 +151,7 @@ class Cuckoo_RM_Table // RM = reversible move
 
     Cuckoo_RM_Table::Cuckoo_RM_Table();
 
-    constexpr bool is_upcoming_repetition(const Chess_Board& position);
+    constexpr bool is_upcoming_repetition(const Chess_Board& position) const;
 
   private:
 
@@ -161,13 +161,15 @@ class Cuckoo_RM_Table // RM = reversible move
 }
 
 constexpr bool
-is_upcoming_repetition(const Chess_Board& position)
+is_upcoming_repetition(const Chess_Board& position) const
 
 {
     auto [hash_history,
           hash_history_start,
           hash_history_length,
           half_move_clock] = position.get_hash_history();
+
+    auto hash_history_end = hash_history_start + hash_history_length - 1;
 
     uint16_t ply_clock =
         moves_to_ply(position.get_side_to_move(), half_move_clock);
@@ -194,7 +196,7 @@ is_upcoming_repetition(const Chess_Board& position)
     // a move - so their displacement cannot be zero which is necessary for a
     // repeated position to occur).
     for (uint16_t index = (hash_history_start + MINIMUM_PLY_FOR_REPETITION);
-         index < hash_history_length;
+         index <= hash_history_end;
          index += 2)
     {
         // Use the running xor of the opponent's displacement to calculate

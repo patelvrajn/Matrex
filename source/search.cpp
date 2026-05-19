@@ -45,6 +45,18 @@ Search_Engine::negamax(Chess_Board&              position,
     // moves could influence each other.
     principal_variation.clear();
 
+    if ((alpha < Score::from_int(ESCORE::DRAW))
+        && (m_cuckoo_rm_table.is_upcoming_repetition(position)))
+    {
+        // If there is an upcoming repetition, the lowest score we can have is a
+        // draw.
+        alpha = Score::from_int(ESCORE::DRAW);
+
+        // On fail-high, return the draw score even though we are in a fail-soft
+        // framework.
+        if (alpha >= beta) { return {Chess_Move(), alpha}; }
+    }
+
     const Zobrist_Hash        position_z_hash = position.get_zobrist_hash();
     Transposition_Table_Entry transposition_table_entry;
     const bool                did_transposition_table_hit =
@@ -268,6 +280,8 @@ Search_Engine::negamax(Chess_Board&              position,
                                 position_z_hash,
                                 transposition_table_entry);
 
+    // Fail-soft. Always return the calculated score and don't bound it between
+    // the alpha-beta invariant.
     return {best_move, best_score};
 }
 
