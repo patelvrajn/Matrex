@@ -161,7 +161,10 @@ class Cuckoo_RM_Table // RM = reversible move
 
 Cuckoo_RM_Table::Cuckoo_RM_Table() {}
 
-constexpr bool
+// This is marked FORCE_NO_INLINE to avoid warnings (which are most likely false
+// positives) of the following type:
+//  warning: ‘<anonymous>’ is used uninitialized [-Wuninitialized]
+FORCE_NO_INLINE constexpr bool
 Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position) const
 
 {

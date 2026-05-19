@@ -37,7 +37,8 @@ constexpr std::string_view ENGINE_VERSION = "0.0.1";
 // was only reading Y and not X. Currently, the assumption is that Matrex runs
 // only on x86 systems so the cache line size is 64 bytes.
 // =============================================================================
-#define FORCE_INLINE inline __attribute__((always_inline, flatten))
+#define FORCE_INLINE    inline __attribute__((always_inline, flatten))
+#define FORCE_NO_INLINE [[gnu::noinline]]
 
 constexpr uint64_t CACHE_LINE_SIZE = 64;
 #define CACHE_ALIGN alignas(CACHE_LINE_SIZE)
