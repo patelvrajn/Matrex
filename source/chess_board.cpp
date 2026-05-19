@@ -14,6 +14,10 @@ Chess_Board::Chess_Board()
     m_state.side_to_move        = PIECE_COLOR::WHITE;
     m_state.half_move_clock     = 0;
     m_state.full_move_count     = 0;
+    m_hash_history              = {};
+    m_state.hash_history_start  = 0;
+    m_state.hash_history_length = 0;
+    m_state.half_move_clock     = 0;
     m_piece_bitboards           = {};
     m_color_occupancy_bitboards = {};
     m_zobrist_hash              = Zobrist_Hash();

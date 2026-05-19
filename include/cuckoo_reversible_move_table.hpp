@@ -157,6 +157,8 @@ class Cuckoo_RM_Table // RM = reversible move
         m_storage = initialize_cuckoo_rm_storage<CUCKOO_RM_TABLE_SIZE>();
 };
 
+Cuckoo_RM_Table::Cuckoo_RM_Table() {}
+
 constexpr bool
 Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position) const
 
@@ -165,6 +167,8 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position) const
           hash_history_start,
           hash_history_length,
           half_move_clock] = position.get_hash_history();
+
+    if (hash_history_length == 0) { return false; }
 
     auto hash_history_end = hash_history_start + hash_history_length - 1;
 

@@ -90,7 +90,8 @@ inline uint16_t moves_to_ply(PIECE_COLOR c, uint16_t num_of_moves)
     {
         return ((NUM_OF_PLAYERS * num_of_moves) + 1);
     }
-    else { return 0; }
+
+    return 0;
 }
 
 // =============================================================================

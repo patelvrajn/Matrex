@@ -126,8 +126,8 @@ class Attacks
 
   private:
 
-    // Slider Attack Tables (Construct on First Use Idiom to avoid the Static
-    // Initialization Order Fiasco)
+    // Slider Attack Tables (constinit to avoid the Static Initialization Order
+    // Fiasco)
     const inline static constinit Bishop_Magic_Bitboards
         m_bishop_attack_tables = Bishop_Magic_Bitboards();
     const inline static constinit Rook_Magic_Bitboards m_rook_attack_tables =
