@@ -128,8 +128,10 @@ class Attacks
 
     // Slider Attack Tables (Construct on First Use Idiom to avoid the Static
     // Initialization Order Fiasco)
-    constexpr Bishop_Magic_Bitboards& m_bishop_attack_tables();
-    constexpr Rook_Magic_Bitboards&   m_rook_attack_tables();
+    const inline static constinit Bishop_Magic_Bitboards
+        m_bishop_attack_tables = Bishop_Magic_Bitboards();
+    const inline static constinit Rook_Magic_Bitboards m_rook_attack_tables =
+        Rook_Magic_Bitboards();
 
     // Slider Rays Table
     static constexpr Slider_Ray_Tables m_slider_table = init_slider_rays();
@@ -174,28 +176,16 @@ constexpr Bitboard Attacks::get_king_attacks(const Square& s) const
     return m_leaper_table.king[s.get_index()];
 }
 
-constexpr Bishop_Magic_Bitboards& Attacks::m_bishop_attack_tables()
-{
-    static Bishop_Magic_Bitboards bishop_attack_tables;
-    return bishop_attack_tables;
-}
-
-constexpr Rook_Magic_Bitboards& Attacks::m_rook_attack_tables()
-{
-    static Rook_Magic_Bitboards rook_attack_tables;
-    return rook_attack_tables;
-}
-
 constexpr Bitboard Attacks::get_bishop_attacks(const Square&   s,
                                                const Bitboard& occupancy)
 {
-    return m_bishop_attack_tables().get_attacks(s, occupancy);
+    return m_bishop_attack_tables.get_attacks(s, occupancy);
 }
 
 constexpr Bitboard Attacks::get_rook_attacks(const Square&   s,
                                              const Bitboard& occupancy)
 {
-    return m_rook_attack_tables().get_attacks(s, occupancy);
+    return m_rook_attack_tables.get_attacks(s, occupancy);
 }
 
 constexpr Bitboard Attacks::get_bishop_rays(const Square& s,
