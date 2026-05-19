@@ -111,7 +111,7 @@ class Chess_Board
 
     Zobrist_Hash get_zobrist_hash() const;
 
-    auto Chess_Board::get_hash_history() const
+    auto get_hash_history() const
         -> std::tuple<const decltype((m_hash_history)), // Extra parentheses
                                                         // treats as reference.
                       const decltype(m_state.hash_history_start),
