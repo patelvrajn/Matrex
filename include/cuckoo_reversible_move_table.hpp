@@ -1,4 +1,5 @@
 #include <bit>
+#include <cassert>
 
 #include "attacks.hpp"
 #include "zobrist_hash.hpp"
@@ -41,7 +42,7 @@ constexpr Cuckoo_Hash_Storage_Type cuckoo_hash_function_2(Zobrist_Hash z)
 template <std::size_t capacity>
 constexpr void cuckoo_storage_insert(Cuckoo_RM_Table_Storage<capacity>& storage,
                                      Zobrist_Hash                       h,
-                                     Chess_Move&                        m)
+                                     const Chess_Move&                  m)
 {
     // For the initial slot to put the reversible move and zobrist hash pair use
     // the first hash function although, it doesn't matter as long as you swap
@@ -215,19 +216,20 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position) const
         // reversible move and we don't do further processing.
         Cuckoo_Hash_Storage_Type slot =
             cuckoo_hash_function_1(position_difference);
-        auto cuckoo_moves_table = m_storage.reversible_moves_table;
-        if (cuckoo_moves_table[slot] != position_difference)
+        auto cuckoo_hash_table = m_storage.hashes_table;
+        if (cuckoo_hash_table[slot] != position_difference)
         {
             slot = cuckoo_hash_function_2(position_difference);
 
-            if (cuckoo_moves_table[slot] != position_difference) { continue; }
+            if (cuckoo_hash_table[slot] != position_difference) { continue; }
         }
 
         // The path must be clear for the move of any piece except the knight.
         // In the case of the knight, there will be no ray thus, no obstruction.
+        auto cuckoo_rm_table = m_storage.reversible_moves_table;
         if (!Bitboard::is_ray_obstructed(
-                cuckoo_moves_table[slot].source_square,
-                cuckoo_moves_table[slot].destination_square,
+                cuckoo_rm_table[slot].source_square,
+                cuckoo_rm_table[slot].destination_square,
                 position.get_both_color_occupancies()))
         {
             return true;
