@@ -102,7 +102,7 @@ struct Chess_Move
                   << "\tScore: " << score << std::endl;
     }
 
-    bool is_same_move(const Chess_Move& m) const
+    constexpr bool is_same_move(const Chess_Move& m) const
     {
         return (m.source_square == source_square)
             && (m.destination_square == destination_square)
