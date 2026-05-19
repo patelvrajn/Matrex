@@ -42,7 +42,7 @@ constexpr Cuckoo_Hash_Storage_Type cuckoo_hash_function_2(Zobrist_Hash z)
 template <std::size_t capacity>
 constexpr void cuckoo_storage_insert(Cuckoo_RM_Table_Storage<capacity>& storage,
                                      Zobrist_Hash                       h,
-                                     const Chess_Move&                  m)
+                                     Chess_Move&                        m)
 {
     // For the initial slot to put the reversible move and zobrist hash pair use
     // the first hash function although, it doesn't matter as long as you swap
@@ -110,10 +110,9 @@ consteval Cuckoo_RM_Table_Storage<capacity> initialize_cuckoo_rm_storage()
                     // the piece otherwise, don't consider it.
                     if (valid_attacks.get_square(to_square) == 0) { continue; }
 
-                    const Chess_Move rm =
-                        Chess_Move::reversible_move((PIECES) piece,
-                                                    from_square,
-                                                    to_square);
+                    Chess_Move rm = Chess_Move::reversible_move((PIECES) piece,
+                                                                from_square,
+                                                                to_square);
 
                     // Move hash; This is equivalent to the paper's definition
                     // of a move hash difference:

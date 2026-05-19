@@ -32,7 +32,7 @@ struct Chess_Move
     uint16_t   padding                          : 11 = 0; // 64
     Move_Score score                                 = 0; // 80
 
-    static Chess_Move
+    constexpr static Chess_Move
     reversible_move(PIECES piece, Square source, Square destination)
     {
         return Chess_Move {
