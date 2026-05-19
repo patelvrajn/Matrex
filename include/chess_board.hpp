@@ -62,6 +62,12 @@ struct Chess_Board_State
 
 class Chess_Board
 {
+  private:
+
+    multi_array<Zobrist_Hash, HASH_HISTORY_SIZE> m_hash_history;
+
+    Chess_Board_State m_state;
+
   public:
 
     Chess_Board();
@@ -107,7 +113,7 @@ class Chess_Board
 
     auto Chess_Board::get_hash_history() const
         -> std::tuple<const decltype((m_hash_history)), // Extra parentheses
-                                                        // treats as ref.
+                                                        // treats as reference.
                       const decltype(m_state.hash_history_start),
                       const decltype(m_state.hash_history_length),
                       const decltype(m_state.half_move_clock)>
@@ -128,10 +134,6 @@ class Chess_Board
     std::array<Bitboard, NUM_OF_PLAYERS> m_color_occupancy_bitboards;
 
     Zobrist_Hash m_zobrist_hash;
-
-    multi_array<Zobrist_Hash, HASH_HISTORY_SIZE> m_hash_history;
-
-    Chess_Board_State m_state;
 
     void place_pieces_from_fen(const std::string& rank_description,
                                uint8_t            length_of_description,
