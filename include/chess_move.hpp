@@ -15,22 +15,22 @@ typedef uint16_t Move_Score; // Not the same as a search evaluation score.
 
 struct Chess_Move
 {
-    ESQUARE    source_square                    : 7;      // 7
-    ESQUARE    destination_square               : 7;      // 14
-    PIECES     moving_piece                     : 4;      // 18
-    PIECES     promoted_piece                   : 4;      // 22
-    PIECES     captured_piece                   : 4;      // 26
-    bool       is_capture                       : 1;      // 27
-    bool       is_short_castling                : 1;      // 28
-    bool       is_long_castling                 : 1;      // 29
-    ESQUARE    castling_rook_source_square      : 7;      // 36
-    ESQUARE    castling_rook_destination_square : 7;      // 43
-    bool       is_double_pawn_push              : 1;      // 44
-    bool       is_en_passant                    : 1;      // 45
-    ESQUARE    en_passant_victim_square         : 7;      // 52
-    bool       is_promotion                     : 1;      // 53
-    uint16_t   padding                          : 11 = 0; // 64
-    Move_Score score                                 = 0; // 80
+    ESQUARE    source_square                    : 7  = NO_SQUARE; // 7
+    ESQUARE    destination_square               : 7  = NO_SQUARE; // 14
+    PIECES     moving_piece                     : 4  = NO_PIECE;  // 18
+    PIECES     promoted_piece                   : 4  = NO_PIECE;  // 22
+    PIECES     captured_piece                   : 4  = NO_PIECE;  // 26
+    bool       is_capture                       : 1  = false;     // 27
+    bool       is_short_castling                : 1  = false;     // 28
+    bool       is_long_castling                 : 1  = false;     // 29
+    ESQUARE    castling_rook_source_square      : 7  = NO_SQUARE; // 36
+    ESQUARE    castling_rook_destination_square : 7  = NO_SQUARE; // 43
+    bool       is_double_pawn_push              : 1  = false;     // 44
+    bool       is_en_passant                    : 1  = false;     // 45
+    ESQUARE    en_passant_victim_square         : 7  = NO_SQUARE; // 52
+    bool       is_promotion                     : 1  = false;     // 53
+    uint16_t   padding                          : 11 = 0;         // 64
+    Move_Score score                                 = 0;         // 80
 
     constexpr static Chess_Move
     reversible_move(PIECES piece, Square source, Square destination)
