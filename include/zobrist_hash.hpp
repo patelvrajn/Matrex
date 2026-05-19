@@ -74,9 +74,10 @@ class Zobrist_Hash
     constexpr void flip_side_to_move();
 
     constexpr inline auto operator<=>(const Zobrist_Hash& other) const;
+    constexpr bool        operator==(const Zobrist_Hash& other) const;
 
-    inline Zobrist_Hash  operator^(const Zobrist_Hash& other) const;
-    inline Zobrist_Hash& operator^=(const Zobrist_Hash& other);
+    constexpr inline Zobrist_Hash  operator^(const Zobrist_Hash& other) const;
+    constexpr inline Zobrist_Hash& operator^=(const Zobrist_Hash& other);
 
   private:
 
@@ -91,12 +92,19 @@ constexpr inline auto Zobrist_Hash::operator<=>(const Zobrist_Hash& other) const
     return (get_hash_value() <=> other.get_hash_value());
 }
 
-inline Zobrist_Hash Zobrist_Hash::operator^(const Zobrist_Hash& other) const
+constexpr bool Zobrist_Hash::operator==(const Zobrist_Hash& other) const
+{
+    return (get_hash_value() == other.get_hash_value());
+}
+
+constexpr inline Zobrist_Hash
+Zobrist_Hash::operator^(const Zobrist_Hash& other) const
 {
     return Zobrist_Hash(m_hash_value ^ other.m_hash_value);
 }
 
-inline Zobrist_Hash& Zobrist_Hash::operator^=(const Zobrist_Hash& other)
+constexpr inline Zobrist_Hash&
+Zobrist_Hash::operator^=(const Zobrist_Hash& other)
 {
     m_hash_value ^= other.m_hash_value;
 

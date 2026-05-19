@@ -1,6 +1,6 @@
 #include <bit>
 
-#include "globals.hpp"
+#include "attacks.hpp"
 #include "zobrist_hash.hpp"
 
 constexpr std::size_t NUM_OF_REVERSIBLE_MOVE_HASHES = 7336;
@@ -9,8 +9,8 @@ constexpr std::size_t NUM_OF_SYMMETRIC_REVERSIBLE_MOVE_HASHES =
 constexpr std::size_t LOAD_FACTOR_DIVISOR =
     2; // Load factor is 1/2 so the divisor is 2.
 constexpr std::size_t CUCKOO_RM_HASH_BITS =
-    std::bit_ceil(NUM_OF_SYMMETRIC_REVERSIBLE_MOVE_HASHES)
-    * LOAD_FACTOR_DIVISOR;
+    std::log2(std::bit_ceil(NUM_OF_SYMMETRIC_REVERSIBLE_MOVE_HASHES)
+              * LOAD_FACTOR_DIVISOR);
 constexpr std::size_t CUCKOO_RM_TABLE_SIZE = static_cast<std::size_t>(1)
                                           << CUCKOO_RM_HASH_BITS;
 constexpr Zobrist_Hash_Storage_Type CUCKOO_HASH_MASK =
@@ -23,11 +23,9 @@ struct Cuckoo_RM_Table_Storage
 {
     multi_array<Zobrist_Hash, capacity> hashes_table;
     multi_array<Chess_Move, capacity>   reversible_moves_table;
+};
 
-}
-
-constexpr Cuckoo_Hash_Storage_Type
-cuckoo_hash_function_1(Zobrist_Hash z)
+constexpr Cuckoo_Hash_Storage_Type cuckoo_hash_function_1(Zobrist_Hash z)
 
 {
     return static_cast<Cuckoo_Hash_Storage_Type>((z.get_hash_value() >> 32)
@@ -102,14 +100,14 @@ consteval Cuckoo_RM_Table_Storage<capacity> initialize_cuckoo_rm_storage()
                 // using Zobrist hashing hashes for move(a, b) = hashes for
                 // move(b, a).
                 for (uint8_t to_square_idx = (from_square_idx + 1);
-                     to_square < NUM_OF_SQUARES_ON_CHESS_BOARD;
+                     to_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
                      to_square_idx++)
                 {
+                    const Square to_square(to_square_idx);
+
                     // Make sure that this reversible move is a valid move for
                     // the piece otherwise, don't consider it.
                     if (valid_attacks.get_square(to_square) == 0) { continue; }
-
-                    const Square to_square(to_square_idx);
 
                     const Chess_Move rm =
                         Chess_Move::reversible_move((PIECES) piece,
@@ -140,7 +138,7 @@ consteval Cuckoo_RM_Table_Storage<capacity> initialize_cuckoo_rm_storage()
         }
     }
 
-    static_assert(rm_count == NUM_OF_SYMMETRIC_REVERSIBLE_MOVE_HASHES);
+    assert(rm_count == NUM_OF_SYMMETRIC_REVERSIBLE_MOVE_HASHES);
 
     return storage;
 }
@@ -149,7 +147,7 @@ class Cuckoo_RM_Table // RM = reversible move
 {
   public:
 
-    Cuckoo_RM_Table::Cuckoo_RM_Table();
+    Cuckoo_RM_Table();
 
     constexpr bool is_upcoming_repetition(const Chess_Board& position) const;
 
@@ -157,11 +155,10 @@ class Cuckoo_RM_Table // RM = reversible move
 
     inline static constexpr Cuckoo_RM_Table_Storage<CUCKOO_RM_TABLE_SIZE>
         m_storage = initialize_cuckoo_rm_storage<CUCKOO_RM_TABLE_SIZE>();
-
-}
+};
 
 constexpr bool
-is_upcoming_repetition(const Chess_Board& position) const
+Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position) const
 
 {
     auto [hash_history,
@@ -185,8 +182,8 @@ is_upcoming_repetition(const Chess_Board& position) const
     // stack.
     Zobrist_Hash opponent_displacement =
         (hash_history[hash_history_start]
-         ^ hash_history[hash_history_start + 1])
-            .flip_side_to_move();
+         ^ hash_history[hash_history_start + 1]);
+    opponent_displacement.flip_side_to_move();
 
     // Note that we skip hash_history[2] because it doesn't matter in the larger
     // context. We will be calculating the opponent's displacement of pieces
@@ -203,7 +200,8 @@ is_upcoming_repetition(const Chess_Board& position) const
         // whether the opponent's pieces have reverted back to their position at
         // hash_history[start].
         opponent_displacement ^=
-            (hash_history[index - 1] ^ hash_history[index]).flip_side_to_move();
+            (hash_history[index - 1] ^ hash_history[index]);
+        opponent_displacement.flip_side_to_move();
         if (opponent_displacement != Zobrist_Hash(0)) { continue; }
 
         // Calculate the difference between the start of the hash history and

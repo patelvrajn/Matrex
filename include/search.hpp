@@ -97,7 +97,7 @@ class Search_Engine
     uint64_t                 m_num_of_nodes_searched;
     uint16_t                 m_current_search_depth;
     Principal_Variation_List m_principal_variation;
-    const Cuckoo_RM_Table&   m_cuckoo_rm_table;
+    const Cuckoo_RM_Table    m_cuckoo_rm_table;
 
     Search_Engine_Result negamax(Chess_Board&              position,
                                  uint16_t                  depth,
