@@ -62,6 +62,8 @@ class Zobrist_Hash
 
     constexpr Zobrist_Hash();
 
+    explicit constexpr Zobrist_Hash(Zobrist_Hash_Storage_Type h);
+
     constexpr Zobrist_Hash_Storage_Type get_hash_value() const;
 
     constexpr void update_piece(const PIECE_COLOR color,
@@ -72,6 +74,9 @@ class Zobrist_Hash
     constexpr void flip_side_to_move();
 
     constexpr inline auto operator<=>(const Zobrist_Hash& other) const;
+
+    inline Zobrist_Hash  operator^(const Zobrist_Hash& other) const;
+    inline Zobrist_Hash& operator^=(const Zobrist_Hash& other);
 
   private:
 
@@ -86,7 +91,24 @@ constexpr inline auto Zobrist_Hash::operator<=>(const Zobrist_Hash& other) const
     return (get_hash_value() <=> other.get_hash_value());
 }
 
+inline Zobrist_Hash Zobrist_Hash::operator^(const Zobrist_Hash& other) const
+{
+    return Zobrist_Hash(m_hash_value ^ other.m_hash_value);
+}
+
+inline Zobrist_Hash& Zobrist_Hash::operator^=(const Zobrist_Hash& other)
+{
+    m_hash_value ^= other.m_hash_value;
+
+    return (*this);
+}
+
 constexpr Zobrist_Hash::Zobrist_Hash() : m_hash_value(0) {}
+
+constexpr Zobrist_Hash::Zobrist_Hash(Zobrist_Hash_Storage_Type h) :
+    m_hash_value(h)
+{
+}
 
 constexpr Zobrist_Hash_Storage_Type Zobrist_Hash::get_hash_value() const
 {

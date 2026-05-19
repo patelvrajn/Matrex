@@ -105,6 +105,8 @@ class Chess_Board
 
     Zobrist_Hash get_zobrist_hash() const;
 
+    auto get_hash_history() const;
+
     bool operator==(const Chess_Board& other) const;
 
   private:
@@ -210,4 +212,12 @@ inline void Chess_Board::calculate_next_board_state(PIECE_COLOR moving_side,
             PIECES::ROOK,
             Square(move.castling_rook_destination_square));
     }
+}
+
+auto Chess_Board::get_hash_history() const
+{
+    return std::tie(m_hash_history,
+                    m_state.hash_history_start,
+                    m_state.hash_history_length,
+                    m_state.half_move_clock);
 }

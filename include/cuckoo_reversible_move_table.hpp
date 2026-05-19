@@ -151,8 +151,88 @@ class Cuckoo_RM_Table // RM = reversible move
 
     Cuckoo_RM_Table::Cuckoo_RM_Table();
 
+    constexpr bool is_upcoming_repetition(const Chess_Board& position);
+
   private:
 
     inline static constexpr Cuckoo_RM_Table_Storage<CUCKOO_RM_TABLE_SIZE>
         m_storage = initialize_cuckoo_rm_storage<CUCKOO_RM_TABLE_SIZE>();
+
+}
+
+constexpr bool
+is_upcoming_repetition(const Chess_Board& position)
+
+{
+    auto [hash_history,
+          hash_history_start,
+          hash_history_length,
+          half_move_clock] = position.get_hash_history();
+
+    uint16_t ply_clock =
+        moves_to_ply(position.get_side_to_move(), half_move_clock);
+
+    // If there is only 2 or less plies on the half move clock then the opponent
+    // did not have an oppurtunity to play the reversible move so regardless of
+    // the next move - we don't have an upcoming repetition.
+    constexpr uint16_t MINIMUM_PLY_FOR_REPETITION = 3;
+    if (ply_clock < MINIMUM_PLY_FOR_REPETITION) { return false; }
+
+    // Its important to know that the opponent is the opponent relative to the
+    // root position's (hash_history[start]) side to move in the repetition
+    // stack.
+    Zobrist_Hash opponent_displacement =
+        (hash_history[hash_history_start]
+         ^ hash_history[hash_history_start + 1])
+            .flip_side_to_move();
+
+    // Note that we skip hash_history[2] because it doesn't matter in the larger
+    // context. We will be calculating the opponent's displacement of pieces
+    // before we even evaluate the difference between the current position and
+    // the starting position (hash_history[2] is the third ply - it has no
+    // impact on the opponent's displacement and the opponent has already played
+    // a move - so their displacement cannot be zero which is necessary for a
+    // repeated position to occur).
+    for (uint16_t index = (hash_history_start + MINIMUM_PLY_FOR_REPETITION);
+         index < hash_history_length;
+         index += 2)
+    {
+        // Use the running xor of the opponent's displacement to calculate
+        // whether the opponent's pieces have reverted back to their position at
+        // hash_history[start].
+        opponent_displacement ^=
+            (hash_history[index - 1] ^ hash_history[index]).flip_side_to_move();
+        if (opponent_displacement != Zobrist_Hash(0)) { continue; }
+
+        // Calculate the difference between the start of the hash history and
+        // the currently indexed position in the hash history. This should
+        // result in the hash of a single reversible move if we expect an
+        // upcoming repetition.
+        Zobrist_Hash position_difference =
+            hash_history[hash_history_start] ^ hash_history[index];
+
+        // Find if the move exists in the cuckoo hash table if not, its not a
+        // reversible move and we don't do further processing.
+        Cuckoo_Hash_Storage_Type slot =
+            cuckoo_hash_function_1(position_difference);
+        auto cuckoo_moves_table = m_storage.reversible_moves_table;
+        if (cuckoo_moves_table[slot] != position_difference)
+        {
+            slot = cuckoo_hash_function_2(position_difference);
+
+            if (cuckoo_moves_table[slot] != position_difference) { continue; }
+        }
+
+        // The path must be clear for the move of any piece except the knight.
+        // In the case of the knight, there will be no ray thus, no obstruction.
+        if (!Bitboard::is_ray_obstructed(
+                cuckoo_moves_table[slot].source_square,
+                cuckoo_moves_table[slot].destination_square,
+                position.get_both_color_occupancies()))
+        {
+            return true;
+        }
+    }
+
+    return false;
 }

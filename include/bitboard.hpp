@@ -254,6 +254,9 @@ class Bitboard
     constexpr static Bitboard get_infinite_ray(const Square& a,
                                                const Square& b);
 
+    constexpr static bool
+    is_ray_obstructed(const Square a, const Square b, Bitboard occupancy);
+
     // Equality operators overload.
     constexpr bool operator==(const Bitboard& other) const;
     constexpr bool operator!=(const Bitboard& other) const;
@@ -420,6 +423,12 @@ constexpr Bitboard Bitboard::get_infinite_ray(const Square& a, const Square& b)
     }
 
     return Bitboard();
+}
+
+constexpr bool
+Bitboard::is_ray_obstructed(const Square a, const Square b, Bitboard occupancy)
+{
+    return ((get_infinite_ray(a, b) & occupancy) != Bitboard(0));
 }
 
 constexpr bool Bitboard::operator==(const Bitboard& other) const

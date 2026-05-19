@@ -83,7 +83,7 @@ constexpr std::string
 constexpr std::string_view START_POSITION_FEN =
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-uint16_t moves_to_ply(PIECE_COLOR c, uint16_t num_of_moves)
+inline uint16_t moves_to_ply(PIECE_COLOR c, uint16_t num_of_moves)
 {
     if (c == PIECE_COLOR::WHITE) { return (NUM_OF_PLAYERS * num_of_moves); }
     else if (c == PIECE_COLOR::BLACK)
