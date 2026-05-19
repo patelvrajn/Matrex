@@ -149,7 +149,7 @@ class Cuckoo_RM_Table // RM = reversible move
 {
   public:
 
-    Cuckoo_RM_Table();
+    Cuckoo_RM_Table() = default;
 
     constexpr bool is_upcoming_repetition(const Chess_Board& position) const;
 
@@ -159,12 +159,7 @@ class Cuckoo_RM_Table // RM = reversible move
         m_storage = initialize_cuckoo_rm_storage<CUCKOO_RM_TABLE_SIZE>();
 };
 
-Cuckoo_RM_Table::Cuckoo_RM_Table() {}
-
-// This is marked FORCE_NO_INLINE to avoid warnings (which are most likely false
-// positives) of the following type:
-//  warning: ‘<anonymous>’ is used uninitialized [-Wuninitialized]
-FORCE_NO_INLINE constexpr bool
+constexpr bool
 Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position) const
 
 {
