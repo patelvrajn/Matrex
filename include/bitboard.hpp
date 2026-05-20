@@ -502,8 +502,11 @@ consteval Bitboard init_light_square_bitboard()
 {
     Bitboard output;
 
-    for (const Square s : output)
+    for (uint8_t from_square_idx = 0;
+         from_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
+         from_square_idx++)
     {
+        Square s(from_square_idx);
         if (s.is_light_square()) { output.set_square(s); }
     }
 
@@ -514,8 +517,11 @@ consteval Bitboard init_dark_square_bitboard()
 {
     Bitboard output;
 
-    for (const Square s : output)
+    for (uint8_t from_square_idx = 0;
+         from_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
+         from_square_idx++)
     {
+        Square s(from_square_idx);
         if (s.is_dark_square()) { output.set_square(s); }
     }
 

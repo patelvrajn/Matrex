@@ -85,9 +85,9 @@ class Chess_Board
 
     Bitboard get_piece_occupancies(PIECE_COLOR c, PIECES p) const;
 
-    Bitboard get_piece_occupancies(PIECES p) const
+    Bitboard get_piece_occupancies(PIECES p) const;
 
-        uint8_t get_piece_count(PIECES p) const;
+    uint8_t get_piece_count(PIECES p) const;
 
     Square get_en_passant_square() const;
 
