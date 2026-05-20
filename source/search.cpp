@@ -45,8 +45,10 @@ Search_Engine::negamax(Chess_Board&              position,
     // moves could influence each other.
     principal_variation.clear();
 
+    bool is_three_fold_repetition = false;
     if ((alpha < Score::from_int(ESCORE::DRAW))
-        && (m_cuckoo_rm_table.is_upcoming_repetition(position)))
+        && (m_cuckoo_rm_table.is_upcoming_repetition(position,
+                                                     is_three_fold_repetition)))
     {
         // If there is an upcoming repetition, the lowest score we can have is a
         // draw.
@@ -57,6 +59,13 @@ Search_Engine::negamax(Chess_Board&              position,
         // the best move and because of principal variation search this move
         // will never be a PV-move since it failed high.
         if (alpha >= beta) { return {Chess_Move(), alpha}; }
+    }
+
+    if (is_three_fold_repetition)
+    {
+        // If there is a three fold repetition, the score of the position is a
+        // draw and we can return immediately without searching the position.
+        return {Chess_Move(), Score::from_int(ESCORE::DRAW)};
     }
 
     // Note: Never cache draw by fifty move rule in the transposition table

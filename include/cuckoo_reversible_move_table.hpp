@@ -151,7 +151,8 @@ class Cuckoo_RM_Table // RM = reversible move
 
     Cuckoo_RM_Table() = default;
 
-    constexpr bool is_upcoming_repetition(const Chess_Board& position) const;
+    constexpr bool is_upcoming_repetition(const Chess_Board& position,
+                                          bool& is_three_fold) const;
 
   private:
 
@@ -160,9 +161,12 @@ class Cuckoo_RM_Table // RM = reversible move
 };
 
 constexpr bool
-Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position) const
+Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position,
+                                        bool&              is_three_fold) const
 
 {
+    is_three_fold = false;
+
     auto [hash_history,
           hash_history_start,
           hash_history_length,
@@ -196,6 +200,7 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position) const
     // impact on the opponent's displacement and the opponent has already played
     // a move - so their displacement cannot be zero which is necessary for a
     // repeated position to occur).
+    uint8_t repetition_count = 0;
     for (uint16_t index = (hash_history_start + MINIMUM_PLY_FOR_REPETITION);
          index <= hash_history_end;
          index += 2)
@@ -214,6 +219,21 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position) const
         // upcoming repetition.
         Zobrist_Hash position_difference =
             hash_history[hash_history_start] ^ hash_history[index];
+
+        // Count the number of repetitions and if it's the third repetition, set
+        // the respective boolean and return false (it's not an upcoming
+        // repetition) - we don't need to check for an upcoming repetition if we
+        // already have a three fold repetition.
+        if (position_difference == Zobrist_Hash(0))
+        {
+            ++repetition_count;
+
+            if (repetition_count == 3)
+            {
+                is_three_fold = true;
+                return false;
+            }
+        }
 
         // Find if the move exists in the cuckoo hash table if not, its not a
         // reversible move and we don't do further processing.
