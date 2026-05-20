@@ -498,4 +498,30 @@ constexpr Bitboard& Bitboard::operator>>=(uint8_t shift)
     return *this;
 }
 
-constexpr Bitboard EMPTY_BITBOARD = Bitboard(0);
+consteval Bitboard init_light_square_bitboard()
+{
+    Bitboard output
+
+        for (const Square s : output)
+    {
+        if (s.is_light_square()) { output.set_square(s); }
+    }
+
+    return output;
+}
+
+consteval Bitboard init_dark_square_bitboard()
+{
+    Bitboard output
+
+        for (const Square s : output)
+    {
+        if (s.is_dark_square()) { output.set_square(s); }
+    }
+
+    return output;
+}
+
+constexpr Bitboard EMPTY_BITBOARD         = Bitboard(0);
+constexpr Bitboard LIGHT_SQUARES_BITBOARD = init_light_square_bitboard();
+constexpr Bitboard DARK_SQUARES_BITBOARD  = init_dark_square_bitboard();

@@ -41,6 +41,18 @@ Bitboard Chess_Board::get_piece_occupancies(PIECE_COLOR c, PIECES p) const
     return m_piece_bitboards[c][p];
 }
 
+Bitboard Chess_Board::get_piece_occupancies(PIECES p) const
+{
+    return m_piece_bitboards[PIECE_COLOR::WHITE][p]
+         | m_piece_bitboards[PIECE_COLOR::BLACK][p];
+}
+
+uint8_t Chess_Board::get_piece_count(PIECES p) const
+{
+    return (get_piece_occupancies(PIECE_COLOR::WHITE, p).high_bit_count()
+            + get_piece_occupancies(PIECE_COLOR::BLACK, p).high_bit_count());
+}
+
 Square Chess_Board::get_en_passant_square() const
 {
     return Square(m_state.enpassant_square);
@@ -741,6 +753,42 @@ void Chess_Board::place_pieces_from_fen(const std::string& rank_description,
             file++;
         }
     }
+}
+
+bool Chess_Board::is_draw_by_fifty_move_rule() const
+{
+    return (m_state.half_move_clock >= HALF_MOVE_CLOCK_MAXIMUM);
+}
+
+bool Chess_Board::has_insufficient_mating_material() const
+{
+    const uint8_t total_pieces = get_both_color_occupancies().high_bit_count();
+
+    // Only 2 kings left on the board - return true.
+    if (total_pieces == 2) { return true; }
+
+    // First Condition: No queens, rooks, or pawns on the board.
+    const bool first_condition =
+        ((get_piece_count(PIECES::PAWN) + get_piece_count(PIECES::ROOK)
+          + get_piece_count(PIECES::QUEEN))
+         == 0);
+
+    // Second Condition: Only same color bishops exist.
+    const Bitboard bishop_occupancies = get_piece_occupancies(PIECES::BISHOP);
+    const bool     second_condition =
+        ((bishop_occupancies & LIGHT_SQUARES_BITBOARD) == bishop_occupancies)
+        || ((bishop_occupancies & DARK_SQUARES_BITBOARD) == bishop_occupancies);
+
+    // Third Condition: Both at least one bishop and one knight have to exist
+    // for there to be sufficient mating material.
+    const bool third_condition = !((get_piece_count(PIECES::BISHOP) > 0)
+                                   && (get_piece_count(PIECES::KNIGHT) > 0));
+
+    // Fourth Condition: There is less than 2 knights.
+    const bool fourth_condition = (get_piece_count(PIECES::KNIGHT) < 2);
+
+    return (first_condition && second_condition && third_condition
+            && fourth_condition);
 }
 
 bool Chess_Board::operator==(const Chess_Board& other) const

@@ -53,8 +53,19 @@ Search_Engine::negamax(Chess_Board&              position,
         alpha = Score::from_int(ESCORE::DRAW);
 
         // On fail-high, return the draw score even though we are in a fail-soft
-        // framework.
+        // framework. The move is Chess_Move() because the drawing move is not
+        // the best move and because of principal variation search this move
+        // will never be a PV-move since it failed high.
         if (alpha >= beta) { return {Chess_Move(), alpha}; }
+    }
+
+    // Note: Never cache draw by fifty move rule in the transposition table
+    // because the Zobrist Hash implementation does not take into consideration
+    // fifty move rule and a position can have a completely different evaluation
+    // if the half move clock was not at it's maximum.
+    if (position.is_draw_by_fifty_move_rule())
+    {
+        return {Chess_Move(), Score::from_int(ESCORE::DRAW)};
     }
 
     const Zobrist_Hash        position_z_hash = position.get_zobrist_hash();
@@ -84,6 +95,25 @@ Search_Engine::negamax(Chess_Board&              position,
     {
         return {transposition_table_entry.best_move,
                 transposition_table_entry.score};
+    }
+
+    if (position.has_insufficient_mating_material())
+    {
+        // Cache the position's draw evaluation in the transposition table.
+        Transposition_Table_Entry transposition_table_entry = {
+            .best_move       = Chess_Move(), // No best move in drawn positions
+            .score           = Score::from_int(ESCORE::DRAW),
+            .partial_zobrist = Transposition_Table::get_partial_zobrist(
+                position.get_zobrist_hash()),
+            .depth = depth,
+            .score_bound =
+                Score_Bound_Type::EXACT // Draw scores are always exact.
+        };
+        m_transposition_table.write(m_current_search_depth,
+                                    position.get_zobrist_hash(),
+                                    transposition_table_entry);
+
+        return {Chess_Move(), Score::from_int(ESCORE::DRAW)};
     }
 
     // Assume that the score bound for a position's score to be stored in the

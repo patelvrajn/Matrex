@@ -85,6 +85,10 @@ class Chess_Board
 
     Bitboard get_piece_occupancies(PIECE_COLOR c, PIECES p) const;
 
+    Bitboard get_piece_occupancies(PIECES p) const
+
+        uint8_t get_piece_count(PIECES p) const;
+
     Square get_en_passant_square() const;
 
     Square get_en_passant_victim_square() const;
@@ -123,6 +127,9 @@ class Chess_Board
                                      m_state.hash_history_length,
                                      m_state.half_move_clock);
     }
+
+    bool is_draw_by_fifty_move_rule() const;
+    bool has_insufficient_mating_material() const;
 
     bool operator==(const Chess_Board& other) const;
 
