@@ -425,10 +425,11 @@ constexpr Bitboard Bitboard::get_infinite_ray(const Square& a, const Square& b)
     return Bitboard();
 }
 
-constexpr bool
-Bitboard::is_ray_obstructed(const Square a, const Square b, Bitboard occupancy)
+constexpr bool Bitboard::is_piece_obstructed(const Square a,
+                                             const Square b,
+                                             Bitboard     occupancy)
 {
-    return ((get_infinite_ray(a, b) & occupancy) != Bitboard(0));
+    return ((get_between_squares_mask(a, b) & occupancy) != Bitboard(0));
 }
 
 constexpr bool Bitboard::operator==(const Bitboard& other) const

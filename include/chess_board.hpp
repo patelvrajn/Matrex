@@ -12,7 +12,9 @@
 constexpr uint8_t NUM_OF_CASTLING_TYPES = 2;
 
 constexpr uint8_t     HALF_MOVE_CLOCK_MAXIMUM = 50;
-constexpr std::size_t HASH_HISTORY_SIZE       = HALF_MOVE_CLOCK_MAXIMUM * 2;
+constexpr std::size_t HASH_HISTORY_SIZE =
+    (HALF_MOVE_CLOCK_MAXIMUM * 2)
+    + 2; // +2 because of how the hash history is being indexed.
 
 enum CASTLING_TYPE
 {

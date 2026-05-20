@@ -228,7 +228,7 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position,
         {
             ++repetition_count;
 
-            if (repetition_count == 3)
+            if (repetition_count == 2) // 2 Repetitions + Position at the Start
             {
                 is_three_fold = true;
                 return false;
@@ -239,7 +239,7 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position,
         // reversible move and we don't do further processing.
         Cuckoo_Hash_Storage_Type slot =
             cuckoo_hash_function_1(position_difference);
-        auto cuckoo_hash_table = m_storage.hashes_table;
+        const auto& cuckoo_hash_table = m_storage.hashes_table;
         if (cuckoo_hash_table[slot] != position_difference)
         {
             slot = cuckoo_hash_function_2(position_difference);
@@ -249,8 +249,8 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position,
 
         // The path must be clear for the move of any piece except the knight.
         // In the case of the knight, there will be no ray thus, no obstruction.
-        auto cuckoo_rm_table = m_storage.reversible_moves_table;
-        if (!Bitboard::is_ray_obstructed(
+        const auto& cuckoo_rm_table = m_storage.reversible_moves_table;
+        if (!Bitboard::is_piece_obstructed(
                 cuckoo_rm_table[slot].source_square,
                 cuckoo_rm_table[slot].destination_square,
                 position.get_both_color_occupancies()))

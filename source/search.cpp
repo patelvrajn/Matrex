@@ -46,9 +46,11 @@ Search_Engine::negamax(Chess_Board&              position,
     principal_variation.clear();
 
     bool is_three_fold_repetition = false;
-    if ((alpha < Score::from_int(ESCORE::DRAW))
-        && (m_cuckoo_rm_table.is_upcoming_repetition(position,
-                                                     is_three_fold_repetition)))
+    bool is_upcoming_repetition =
+        m_cuckoo_rm_table.is_upcoming_repetition(position,
+                                                 is_three_fold_repetition);
+
+    if ((alpha < Score::from_int(ESCORE::DRAW)) && is_upcoming_repetition)
     {
         // If there is an upcoming repetition, the lowest score we can have is a
         // draw.
