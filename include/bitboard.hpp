@@ -500,9 +500,9 @@ constexpr Bitboard& Bitboard::operator>>=(uint8_t shift)
 
 consteval Bitboard init_light_square_bitboard()
 {
-    Bitboard output
+    Bitboard output;
 
-        for (const Square s : output)
+    for (const Square s : output)
     {
         if (s.is_light_square()) { output.set_square(s); }
     }
@@ -512,9 +512,9 @@ consteval Bitboard init_light_square_bitboard()
 
 consteval Bitboard init_dark_square_bitboard()
 {
-    Bitboard output
+    Bitboard output;
 
-        for (const Square s : output)
+    for (const Square s : output)
     {
         if (s.is_dark_square()) { output.set_square(s); }
     }
