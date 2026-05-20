@@ -255,7 +255,7 @@ class Bitboard
                                                const Square& b);
 
     constexpr static bool
-    is_ray_obstructed(const Square a, const Square b, Bitboard occupancy);
+    is_piece_obstructed(const Square a, const Square b, Bitboard occupancy);
 
     // Equality operators overload.
     constexpr bool operator==(const Bitboard& other) const;
