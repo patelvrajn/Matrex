@@ -2,8 +2,11 @@
 
 #include <bit>
 #include <cassert>
+#include <cmath>
 
 #include "attacks.hpp"
+#include "chess_board.hpp"
+#include "chess_move.hpp"
 #include "zobrist_hash.hpp"
 
 constexpr std::size_t NUM_OF_REVERSIBLE_MOVE_HASHES = 7336;
@@ -165,7 +168,8 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position,
                                         bool&              is_three_fold) const
 
 {
-    is_three_fold = false;
+    is_three_fold           = false;
+    bool is_upcoming_repeat = false;
 
     auto [hash_history,
           hash_history_start,
@@ -176,21 +180,34 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position,
 
     auto hash_history_end = hash_history_start + hash_history_length - 1;
 
-    uint16_t ply_clock =
-        moves_to_ply(position.get_side_to_move(), half_move_clock);
+    // Our hash history has the position where the half move clock resets at
+    // index hash_history_start and the current position at hash_history_end so
+    // we must index it in reverse to conform to the algorithm written in the
+    // paper.
+    auto reverse_index = [&](int index) { return (hash_history_end - index); };
+    auto reverse_index_hh = [&](int index)
+    { return hash_history[reverse_index(index)]; };
 
     // If there is only 2 or less plies on the half move clock then the opponent
     // did not have an oppurtunity to play the reversible move so regardless of
     // the next move - we don't have an upcoming repetition.
-    constexpr uint16_t MINIMUM_PLY_FOR_REPETITION = 3;
-    if (ply_clock < MINIMUM_PLY_FOR_REPETITION) { return false; }
+    constexpr uint16_t MINIMUM_PLY_FOR_UPCOMING_REPETITION = 3;
+    if (hash_history_length < MINIMUM_PLY_FOR_UPCOMING_REPETITION)
+    {
+        return false;
+    }
+
+    // 4 or more plies are needed for a three-fold because with 3 ply white
+    // makes a move then black makes a move which leads to a unique position
+    // regardless of the next move white makes (the opponent hasn't had a chance
+    // to revert his move), it will not be a repetition.
+    constexpr uint16_t MINIMUM_PLY_FOR_THREE_FOLD_REPETITION = 4;
+    uint8_t            repetition_count                      = 0;
 
     // Its important to know that the opponent is the opponent relative to the
-    // root position's (hash_history[start]) side to move in the repetition
-    // stack.
+    // root position's side to move in the repetition stack.
     Zobrist_Hash opponent_displacement =
-        (hash_history[hash_history_start]
-         ^ hash_history[hash_history_start + 1]);
+        (reverse_index_hh(0) ^ reverse_index_hh(1));
     opponent_displacement.flip_side_to_move();
 
     // Note that we skip hash_history[2] because it doesn't matter in the larger
@@ -200,16 +217,36 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position,
     // impact on the opponent's displacement and the opponent has already played
     // a move - so their displacement cannot be zero which is necessary for a
     // repeated position to occur).
-    uint8_t repetition_count = 0;
-    for (uint16_t index = (hash_history_start + MINIMUM_PLY_FOR_REPETITION);
-         index <= hash_history_end;
-         index += 2)
+    for (uint16_t index = MINIMUM_PLY_FOR_UPCOMING_REPETITION;
+         index < hash_history_length;
+         index += NUM_OF_PLAYERS)
     {
+        // Count the number of repetitions and if it's the third repetition, set
+        // the respective boolean and return false (it's not an upcoming
+        // repetition) - we don't need to check for an upcoming repetition if we
+        // already have a three fold repetition.
+        if ((index < (hash_history_length - 1))
+            && (reverse_index_hh(0) == reverse_index_hh(index + 1)))
+        {
+            MATREX_ASSERT(
+                ((index + 1) >= MINIMUM_PLY_FOR_THREE_FOLD_REPETITION),
+                "Three fold repetition should occur at {} or more plies.",
+                MINIMUM_PLY_FOR_THREE_FOLD_REPETITION);
+
+            ++repetition_count;
+
+            if (repetition_count >= 2) // 2 Repetitions + Root Position
+            {
+                is_three_fold = true;
+                return false;
+            }
+        }
+
         // Use the running xor of the opponent's displacement to calculate
         // whether the opponent's pieces have reverted back to their position at
         // hash_history[start].
         opponent_displacement ^=
-            (hash_history[index - 1] ^ hash_history[index]);
+            reverse_index_hh(index - 1) ^ reverse_index_hh(index);
         opponent_displacement.flip_side_to_move();
         if (opponent_displacement != Zobrist_Hash(0)) { continue; }
 
@@ -218,22 +255,7 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position,
         // result in the hash of a single reversible move if we expect an
         // upcoming repetition.
         Zobrist_Hash position_difference =
-            hash_history[hash_history_start] ^ hash_history[index];
-
-        // Count the number of repetitions and if it's the third repetition, set
-        // the respective boolean and return false (it's not an upcoming
-        // repetition) - we don't need to check for an upcoming repetition if we
-        // already have a three fold repetition.
-        if (position_difference == Zobrist_Hash(0))
-        {
-            ++repetition_count;
-
-            if (repetition_count == 2) // 2 Repetitions + Position at the Start
-            {
-                is_three_fold = true;
-                return false;
-            }
-        }
+            reverse_index_hh(0) ^ reverse_index_hh(index);
 
         // Find if the move exists in the cuckoo hash table if not, its not a
         // reversible move and we don't do further processing.
@@ -255,9 +277,9 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position,
                 cuckoo_rm_table[slot].destination_square,
                 position.get_both_color_occupancies()))
         {
-            return true;
+            is_upcoming_repeat = true;
         }
     }
 
-    return false;
+    return is_upcoming_repeat;
 }

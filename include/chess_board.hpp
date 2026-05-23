@@ -11,10 +11,8 @@
 
 constexpr uint8_t NUM_OF_CASTLING_TYPES = 2;
 
-constexpr uint8_t     HALF_MOVE_CLOCK_MAXIMUM = 50;
-constexpr std::size_t HASH_HISTORY_SIZE =
-    (HALF_MOVE_CLOCK_MAXIMUM * 2)
-    + 2; // +2 because of how the hash history is being indexed.
+constexpr uint8_t     HALF_MOVE_CLOCK_MAXIMUM = 100;
+constexpr std::size_t HASH_HISTORY_SIZE       = HALF_MOVE_CLOCK_MAXIMUM;
 
 enum CASTLING_TYPE
 {
@@ -41,7 +39,7 @@ struct Chess_Board_State
     PIECE_COLOR side_to_move     : 2; // Needs 2 bits because of NO_COLOR
     ESQUARE     enpassant_square : 7; // Needs 7 bits because of NO_SQUARE
     uint8_t     castling_rights  : 4;
-    uint8_t     half_move_clock  : 6; // Doesn't go past 50 so 6 bits.
+    uint8_t     half_move_clock  : 7; // Doesn't go past 100 so 7 bits.
 
     // Record-keeping for hash history so that if the half-move clock resets in
     // make move we still have a hash history to restore on undo move. Both are

@@ -1,3 +1,4 @@
+#include "cuckoo_reversible_move_table.hpp"
 #include "evaluate.hpp"
 #include "evaluation_terms.hpp"
 #include "gtest/gtest.h"
@@ -45,6 +46,56 @@ TEST(negamax, mating)
         EXPECT_TRUE(search_result.second.is_mating_score());
         EXPECT_EQ(search_result.second.mate_in(), (distance_to_mate - 1));
     }
+}
+
+TEST(negamax, draw_detection)
+{
+    Chess_Board cb;
+    cb.set_from_fen(std::string(START_POSITION_FEN));
+    cb.make_moves_from_string(
+        "e2e4 e7e5 f1c4 f8c5 c4f1 c5f8 f1c4 f8c5 c4f1 c5f8",
+        false);
+
+    Cuckoo_RM_Table rm_table;
+
+    bool is_three_fold_repetition = false;
+    bool is_upcoming_repetition =
+        rm_table.is_upcoming_repetition(cb, is_three_fold_repetition);
+
+    EXPECT_FALSE(is_three_fold_repetition);
+    EXPECT_TRUE(is_upcoming_repetition);
+
+    cb.make_moves_from_string("f1c4", false);
+
+    is_upcoming_repetition =
+        rm_table.is_upcoming_repetition(cb, is_three_fold_repetition);
+
+    EXPECT_TRUE(is_three_fold_repetition);
+    EXPECT_FALSE(is_upcoming_repetition);
+
+    // King v King is insufficient.
+    cb.set_from_fen("8/8/3k4/8/8/4K3/8/8 w - - 0 1");
+    EXPECT_TRUE(cb.has_insufficient_mating_material());
+
+    // King and Bishop v King is insufficient.
+    cb.set_from_fen("8/8/8/3k4/5B2/4K3/8/8 w - - 0 1");
+    EXPECT_TRUE(cb.has_insufficient_mating_material());
+
+    // King vs King and Knight is insufficient.
+    cb.set_from_fen("8/8/8/3k1n2/8/5K2/8/8 w - - 0 1");
+    EXPECT_TRUE(cb.has_insufficient_mating_material());
+
+    // Kings with only light square bishops is insufficient.
+    cb.set_from_fen("8/8/4b3/3k4/8/5K2/4B3/8 w - - 0 1");
+    EXPECT_TRUE(cb.has_insufficient_mating_material());
+
+    // Kings with only dark square bishops is insufficient.
+    cb.set_from_fen("8/8/8/3kb3/8/5K2/5B2/8 w - - 0 1");
+    EXPECT_TRUE(cb.has_insufficient_mating_material());
+
+    cb.set_from_fen("8/8/8/3k3p/8/7P/8/6K1 w - - 99 1");
+    cb.make_moves_from_string("g1h1", false);
+    EXPECT_TRUE(cb.is_draw_by_fifty_move_rule());
 }
 
 TEST(negamax, DISABLED_debug)

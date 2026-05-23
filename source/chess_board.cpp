@@ -17,7 +17,6 @@ Chess_Board::Chess_Board()
     m_hash_history              = {};
     m_state.hash_history_start  = 0;
     m_state.hash_history_length = 0;
-    m_state.half_move_clock     = 0;
     m_piece_bitboards           = {};
     m_color_occupancy_bitboards = {};
     m_zobrist_hash              = Zobrist_Hash();
@@ -348,14 +347,13 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
 
     if (is_move_irreversible)
     {
-        m_state.hash_history_start  = m_state.half_move_clock;
-        m_state.hash_history_length = 0;
+        m_state.hash_history_start                 = m_state.half_move_clock;
+        m_hash_history[m_state.hash_history_start] = m_zobrist_hash;
+        m_state.hash_history_length                = 1;
     }
-    else
+    else if (!is_draw_by_fifty_move_rule())
     {
-        uint16_t ply_count =
-            moves_to_ply(m_state.side_to_move, m_state.half_move_clock);
-        m_hash_history[ply_count] = m_zobrist_hash;
+        m_hash_history[m_state.half_move_clock] = m_zobrist_hash;
         ++m_state.hash_history_length;
     }
 
@@ -619,11 +617,9 @@ void Chess_Board::set_from_fen(const std::string& fen)
     // lasting until the heat death of the universe)
     m_state.full_move_count = std::stoull(full_move_count);
 
-    uint16_t ply_count =
-        moves_to_ply(m_state.side_to_move, m_state.half_move_clock);
-    m_hash_history[ply_count]   = m_zobrist_hash;
-    m_state.hash_history_start  = ply_count;
-    m_state.hash_history_length = 1;
+    m_hash_history[m_state.half_move_clock] = m_zobrist_hash;
+    m_state.hash_history_start              = m_state.half_move_clock;
+    m_state.hash_history_length             = 1;
 }
 
 // Helper: take a substring describing a single rank (e.g. "rnbqkbnr" or
