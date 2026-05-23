@@ -22,7 +22,7 @@ struct Zobrist_Hash_Keys
     Zobrist_Hash_Storage_Type                 black_to_move;
 };
 
-consteval Zobrist_Hash_Keys initialize_zobrist_hash_keys()
+constexpr Zobrist_Hash_Keys initialize_zobrist_hash_keys()
 {
     Zobrist_Hash_Keys                     keys;
     Psuedo_RNG<Zobrist_Hash_Storage_Type> prng;

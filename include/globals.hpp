@@ -152,7 +152,7 @@ constexpr void constexpr_for(F&& function)
 // compile-time loops for heterogenous types (like elements in a tuple).
 // =============================================================================
 template <std::size_t N, class F>
-consteval decltype(auto) index_sequence_unpacker(F&& f)
+constexpr decltype(auto) index_sequence_unpacker(F&& f)
 {
     return []<std::size_t... Is>(std::index_sequence<Is...>,
                                  F&& f) -> decltype(auto) {
@@ -275,18 +275,18 @@ class Parameter_Pack_Container
         return this->get(index);
     }
 
-    consteval auto to_tuple() { return m_p; }
+    constexpr auto to_tuple() { return m_p; }
 
     // Grabs a non-contigious subset of the internal tuple.
     template <std::size_t... Is>
-    consteval auto get_parameter_set(std::index_sequence<Is...> sequence)
+    constexpr auto get_parameter_set(std::index_sequence<Is...> sequence)
     {
         extract_parameter_set(m_p, sequence);
     }
 
     // Grabs a contigious subset of the internal tuple.
     template <std::size_t start, std::size_t end>
-    consteval auto slice() const
+    constexpr auto slice() const
     {
         return slice_tuple<start, end>(m_p);
     }
@@ -294,7 +294,7 @@ class Parameter_Pack_Container
     // Takes the tuple internal to Parameter_Pack_Container and expands it out
     // as parameters to any given function (even templated functions).
     template <class Function>
-    consteval auto apply(Function&& function) const
+    constexpr auto apply(Function&& function) const
     {
         std::apply([&](auto&&... args) { function(args...); }, m_p);
     }
@@ -321,7 +321,7 @@ class Parameter_Pack_Container
 
     // Creates an instance of Parameter_Pack_Container from any given tuple.
     template <class Tuple>
-    static consteval auto make(Tuple&& t)
+    static constexpr auto make(Tuple&& t)
     {
         using Output_Type = typename Extract_Template_Parameters<
             decltype(t),
@@ -585,7 +585,7 @@ class Compile_Time_Jagged_Array
     };
 
     template <class... Ts>
-    consteval auto make_jagged_array_from_tuple(std::tuple<Ts...> t)
+    constexpr auto make_jagged_array_from_tuple(std::tuple<Ts...> t)
     {
         using Output_Type = typename Tuple_to_Jagged_Array<decltype(t)>::Type;
 
@@ -611,7 +611,7 @@ class Compile_Time_Jagged_Array
     // move contructor not usable).
 
     template <std::size_t set_index, std::size_t inner_array_size>
-    consteval auto set(std::array<T, inner_array_size> inner_array)
+    constexpr auto set(std::array<T, inner_array_size> inner_array)
     {
         if constexpr (set_index == 0)
         {
@@ -680,7 +680,7 @@ class Compile_Time_Jagged_Array
     }
 
     template <std::size_t size>
-    static consteval auto make()
+    static constexpr auto make()
     {
         using Tuple       = tuple_of_empty_types<T, size>;
         using Output_Type = typename Tuple_to_Jagged_Array<Tuple>::Type;

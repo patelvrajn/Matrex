@@ -301,8 +301,8 @@ class Fixed_Point_Integer
 
     Fixed_Point_Int_Storage_Type m_value;
 
-    static consteval log2_lookup_table_type make_log2_table();
-    static consteval exp2_lookup_table_type make_exp2_table();
+    static constexpr log2_lookup_table_type make_log2_table();
+    static constexpr exp2_lookup_table_type make_exp2_table();
 
     static constexpr log2_lookup_table_type m_log2_table = make_log2_table();
     static constexpr exp2_lookup_table_type m_exp2_table = make_exp2_table();
@@ -779,7 +779,7 @@ std::ostream& operator<<(std::ostream& os, const Fixed_Point_Integer<X>& fp)
 }
 
 template <uint8_t F>
-consteval log2_lookup_table_type Fixed_Point_Integer<F>::make_log2_table()
+constexpr log2_lookup_table_type Fixed_Point_Integer<F>::make_log2_table()
 {
     log2_lookup_table_type table {};
     for (std::size_t i = 0; i < LOG2_LOOKUP_TABLE_SIZE; ++i)
@@ -793,7 +793,7 @@ consteval log2_lookup_table_type Fixed_Point_Integer<F>::make_log2_table()
 }
 
 template <uint8_t F>
-consteval exp2_lookup_table_type Fixed_Point_Integer<F>::make_exp2_table()
+constexpr exp2_lookup_table_type Fixed_Point_Integer<F>::make_exp2_table()
 {
     exp2_lookup_table_type table {};
     for (std::size_t i = 0; i < EXP2_LOOKUP_TABLE_SIZE; ++i)

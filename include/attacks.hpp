@@ -28,7 +28,7 @@ struct Slider_Ray_Tables
         rook;
 };
 
-consteval Leaper_Attack_Tables init_leaper_attacks()
+constexpr Leaper_Attack_Tables init_leaper_attacks()
 {
     Leaper_Attack_Tables leaper_table;
 
@@ -69,7 +69,7 @@ constexpr Bitboard generate_slider_rays_on_square(Square s,
     return ray;
 }
 
-consteval Slider_Ray_Tables init_slider_rays()
+constexpr Slider_Ray_Tables init_slider_rays()
 {
     Slider_Ray_Tables slider_table;
 
@@ -126,11 +126,11 @@ class Attacks
 
   private:
 
-    // Slider Attack Tables (constinit to avoid the Static Initialization Order
+    // Slider Attack Tables (constexpr to avoid the Static Initialization Order
     // Fiasco)
-    const inline static constinit Bishop_Magic_Bitboards
+    const inline static constexpr Bishop_Magic_Bitboards
         m_bishop_attack_tables = Bishop_Magic_Bitboards();
-    const inline static constinit Rook_Magic_Bitboards m_rook_attack_tables =
+    const inline static constexpr Rook_Magic_Bitboards m_rook_attack_tables =
         Rook_Magic_Bitboards();
 
     // Slider Rays Table

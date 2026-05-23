@@ -171,7 +171,7 @@ constexpr auto create_bishop_attacks_array()
     return std::pair {attacks, info};
 }
 
-consteval auto init_bishop_attack_hash_tables()
+constexpr auto init_bishop_attack_hash_tables()
 {
     return index_sequence_unpacker<64>(
         []<std::size_t... square_index>()
@@ -183,7 +183,7 @@ consteval auto init_bishop_attack_hash_tables()
         });
 }
 
-consteval auto init_bishop_attack_hash_tables_infos()
+constexpr auto init_bishop_attack_hash_tables_infos()
 {
     return index_sequence_unpacker<64>(
         []<std::size_t... square_index>()

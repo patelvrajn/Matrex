@@ -74,7 +74,7 @@ constexpr void cuckoo_storage_insert(Cuckoo_RM_Table_Storage<capacity>& storage,
 }
 
 template <std::size_t capacity>
-consteval Cuckoo_RM_Table_Storage<capacity> initialize_cuckoo_rm_storage()
+constexpr Cuckoo_RM_Table_Storage<capacity> initialize_cuckoo_rm_storage()
 {
     Attacks                           a;
     Cuckoo_RM_Table_Storage<capacity> storage;

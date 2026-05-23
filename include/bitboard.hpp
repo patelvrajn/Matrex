@@ -6,7 +6,7 @@
 #include "globals.hpp"
 #include "square.hpp"
 
-consteval uint64_t generate_between_squares_mask(const Square& a,
+constexpr uint64_t generate_between_squares_mask(const Square& a,
                                                  const Square& b)
 {
     uint64_t mask  = 0;
@@ -54,7 +54,7 @@ consteval uint64_t generate_between_squares_mask(const Square& a,
     return mask;
 }
 
-consteval std::array<std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
+constexpr std::array<std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
                      NUM_OF_SQUARES_ON_CHESS_BOARD>
 init_between_squares_masks()
 {
@@ -79,7 +79,7 @@ init_between_squares_masks()
     return between_squares_masks;
 }
 
-consteval std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_rank_masks()
+constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_rank_masks()
 {
     std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> rank_masks;
 
@@ -109,7 +109,7 @@ consteval std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_rank_masks()
     return rank_masks;
 }
 
-consteval std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_file_masks()
+constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_file_masks()
 {
     std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> file_masks;
 
@@ -139,7 +139,7 @@ consteval std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_file_masks()
     return file_masks;
 }
 
-consteval std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
+constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
 init_diagonal_masks()
 {
     std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> diagonal_masks;
@@ -170,7 +170,7 @@ init_diagonal_masks()
     return diagonal_masks;
 }
 
-consteval std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
+constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
 init_antidiagonal_masks()
 {
     std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> antidiagonal_masks;
@@ -499,7 +499,7 @@ constexpr Bitboard& Bitboard::operator>>=(uint8_t shift)
     return *this;
 }
 
-consteval Bitboard init_light_square_bitboard()
+constexpr Bitboard init_light_square_bitboard()
 {
     Bitboard output;
 
@@ -514,7 +514,7 @@ consteval Bitboard init_light_square_bitboard()
     return output;
 }
 
-consteval Bitboard init_dark_square_bitboard()
+constexpr Bitboard init_dark_square_bitboard()
 {
     Bitboard output;
 
