@@ -27,8 +27,10 @@ class Magic_Hash_Jagged_Table
 
   private:
 
-    Magics_Array m_magics =
-        magics_gen_func; // TODO: make magics function compile-time.
+    // In their current state, the magic generation functions are not constexpr
+    // - friendly because they take too long to execute at compile time. For
+    // now, we assign a pre-formulated magic array.
+    Magics_Array             m_magics  = magics_gen_func;
     static constexpr auto    m_attacks = attacks_gen_func();
     Magic_Attacks_Info_Array m_info    = attacks_info_gen_func();
 };

@@ -5,6 +5,7 @@
 #include "globals.hpp"
 #include "magic_hash_table.hpp"
 #include "occupancy.hpp"
+#include "psuedo_random_number_generator.hpp"
 
 // Generate rook attack mask for a square (without board edges)
 constexpr Bitboard mask_rook_attacks(const Square s)
@@ -68,6 +69,119 @@ constexpr Bitboard calculate_rook_attacks(const Square   s,
     }
 
     return attacks;
+}
+
+// Initialize rook magic numbers for all 64 squares of the chessboard
+// This function attempts to find "magic numbers" for each square
+// that allow efficient indexing into precomputed rook attack tables.
+// Magic bitboards are a chess programming optimization that replaces
+// slow ray-tracing with fast hash table lookups.
+constexpr Magics_Array init_rook_magics()
+{
+    Magics_Array output;
+
+    constexpr uint64_t   PRNG_SEED = 95647789;
+    Psuedo_RNG<uint64_t> prng(PRNG_SEED);
+
+    // Loop over all squares of the chessboard (0..63).
+    // For each square, we will attempt to find a suitable magic number.
+    for (uint8_t square_idx = 0; square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
+         square_idx++)
+    {
+        // Wrap raw index in a Square object.
+        const Square s(square_idx);
+
+        // Generate the *mask* of relevant squares for rook moves from `s`.
+        // The mask excludes edges (since they never block further sliding
+        // moves).
+        const Bitboard mask = mask_rook_attacks(s);
+
+        // Count how many bits are set in the mask.
+        // This corresponds to how many squares can act as blockers.
+        const uint8_t num_of_high_bits_in_mask = mask.high_bit_count();
+
+        // The number of possible blocker configurations is 2^(#bits in mask).
+        // This defines the size of our occupancy/attack arrays.
+        const uint64_t attacks_array_size = (1ULL << num_of_high_bits_in_mask);
+
+        // Allocate arrays to hold:
+        // - `occupancies`: all possible blocker configurations
+        // - `attacks`: rook attack sets for each blocker configuration
+        Bitboard* occupancies = new Bitboard[attacks_array_size];
+        Bitboard* attacks     = new Bitboard[attacks_array_size];
+
+        // Generate all possible blocker boards and their corresponding attacks
+        // for this rook square.
+        for (uint64_t idx = 0; idx < attacks_array_size; idx++)
+        {
+            // Generate occupancy bitboard for given subset of mask bits
+            occupancies[idx] =
+                set_occupancy(idx, num_of_high_bits_in_mask, mask);
+            // Compute rook attack set for this occupancy
+            attacks[idx] = calculate_rook_attacks(s, occupancies[idx]);
+        }
+
+        // Attempt to find a suitable magic number for this square.
+        // A magic number is valid if it perfectly maps all blocker
+        // configurations into unique indices with no collisions.
+        while (true)
+        {
+            // Allocate an array `used` to check for hash collisions during
+            // magic testing.
+            Bitboard* used = new Bitboard[attacks_array_size];
+
+            // Generate a random 64-bit candidate magic number.
+            // Using bitwise AND of multiple random draws increases chance
+            // of producing a "sparse" number (fewer bits set),
+            // which empirically tends to work better as magic multipliers.
+            uint64_t magic = prng.generate_sparse_random();
+
+            bool fail =
+                false; // Will flip true if this magic number causes collisions
+
+            // Try mapping every occupancy configuration through this magic
+            for (uint64_t idx = 0; idx < attacks_array_size; idx++)
+            {
+                // Multiply occupancy by magic to generate hash
+                uint64_t hash = occupancies[idx].get_board() * magic;
+
+                // Extract index bits: shift right to keep only the top
+                // `num_of_high_bits_in_mask` bits. This is our hash index into
+                // the attack table.
+                uint64_t magic_index =
+                    hash >> ((sizeof(hash) << 3) - num_of_high_bits_in_mask);
+
+                // If this slot in the used[] table is empty, assign it.
+                if (used[magic_index].get_board() == 0ULL)
+                {
+                    used[magic_index] = attacks[idx];
+                }
+                // If slot already contains a different attack set, collision →
+                // magic fails.
+                else if (used[magic_index] != attacks[idx])
+                {
+                    fail = true;
+                    break;
+                }
+            }
+
+            // Clear the used array each iteration.
+            delete[] used;
+
+            // If no collisions occurred, magic is valid → save it for this
+            // square.
+            if (!fail)
+            {
+                output[square_idx] = magic;
+                break; // Move on to next square
+            }
+        }
+
+        delete[] occupancies;
+        delete[] attacks;
+    }
+
+    return output;
 }
 
 constexpr Magics_Array rook_magics = {
@@ -194,8 +308,6 @@ class Rook_Magic_Bitboards
         Magic_Hash_Jagged_Table<rook_magics,
                                 init_rook_attack_hash_tables,
                                 init_rook_attack_hash_tables_infos>();
-
-    Magics_Array init_magics();
 };
 
 constexpr Rook_Magic_Bitboards::Rook_Magic_Bitboards() {}
