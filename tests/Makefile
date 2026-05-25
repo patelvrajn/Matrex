@@ -1,3 +1,7 @@
+# To compile using all available cores use: -j$(shell nproc)
+# Only compile using 2 cores because of memory consumption.
+MAKEFLAGS += -j2
+
 # Recursive wildcard make function; recursively searches for files matching 
 # given wildcard pattern.
 rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
@@ -21,20 +25,21 @@ PROJECT_NAME = matrex
 # Compiler and compiler flags.
 CXX      = g++
 CXXFLAGS = \
-		      -g \
-		      -std=gnu++23 \
-		      -pthread \
+		    -g \
+		    -std=gnu++23 \
+		    -fconstexpr-depth=8192 \
+			-pthread \
 	        -O3 \
-					-flto \
+			-flto \
 	        -MMD \
 	        -MP \
 	        -Wall \
 	        -Wextra \
 	        -Wpedantic \
-		      -fpie \
+		    -fpie \
 	        -pie \
-		      -I ../include \
-		      -I /usr/local/include/gtest/
+		    -I ../include \
+		    -I /usr/local/include/gtest/
 
 .PHONY: all clean
 

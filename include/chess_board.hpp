@@ -11,6 +11,9 @@
 
 constexpr uint8_t NUM_OF_CASTLING_TYPES = 2;
 
+constexpr uint8_t     HALF_MOVE_CLOCK_MAXIMUM = 100;
+constexpr std::size_t HASH_HISTORY_SIZE       = HALF_MOVE_CLOCK_MAXIMUM;
+
 enum CASTLING_TYPE
 {
     KINGSIDE,
@@ -36,7 +39,14 @@ struct Chess_Board_State
     PIECE_COLOR side_to_move     : 2; // Needs 2 bits because of NO_COLOR
     ESQUARE     enpassant_square : 7; // Needs 7 bits because of NO_SQUARE
     uint8_t     castling_rights  : 4;
-    uint8_t     half_move_clock  : 6; // Doesn't go past 50 so 6 bits.
+    uint8_t     half_move_clock  : 7; // Doesn't go past 100 so 7 bits.
+
+    // Record-keeping for hash history so that if the half-move clock resets in
+    // make move we still have a hash history to restore on undo move. Both are
+    // only 7 bits long because the maximum size of the hash history is 100 ply.
+    uint16_t hash_history_start  : 7;
+    uint16_t hash_history_length : 7;
+
     std::array<Castling_Rooks, NUM_OF_PLAYERS> castling_rooks;
     uint64_t                                   full_move_count;
 
@@ -52,6 +62,12 @@ struct Chess_Board_State
 
 class Chess_Board
 {
+  private:
+
+    multi_array<Zobrist_Hash, HASH_HISTORY_SIZE> m_hash_history;
+
+    Chess_Board_State m_state;
+
   public:
 
     Chess_Board();
@@ -68,6 +84,10 @@ class Chess_Board
     Bitboard get_color_occupancies(PIECE_COLOR c) const;
 
     Bitboard get_piece_occupancies(PIECE_COLOR c, PIECES p) const;
+
+    Bitboard get_piece_occupancies(PIECES p) const;
+
+    uint8_t get_piece_count(PIECES p) const;
 
     Square get_en_passant_square() const;
 
@@ -95,6 +115,22 @@ class Chess_Board
 
     Zobrist_Hash get_zobrist_hash() const;
 
+    auto get_hash_history() const
+        -> std::tuple<const decltype((m_hash_history)), // Extra parentheses
+                                                        // treats as reference.
+                      const decltype(m_state.hash_history_start),
+                      const decltype(m_state.hash_history_length),
+                      const decltype(m_state.half_move_clock)>
+    {
+        return std::forward_as_tuple(m_hash_history,
+                                     m_state.hash_history_start,
+                                     m_state.hash_history_length,
+                                     m_state.half_move_clock);
+    }
+
+    bool is_draw_by_fifty_move_rule() const;
+    bool has_insufficient_mating_material() const;
+
     bool operator==(const Chess_Board& other) const;
 
   private:
@@ -105,8 +141,6 @@ class Chess_Board
     std::array<Bitboard, NUM_OF_PLAYERS> m_color_occupancy_bitboards;
 
     Zobrist_Hash m_zobrist_hash;
-
-    Chess_Board_State m_state;
 
     void place_pieces_from_fen(const std::string& rank_description,
                                uint8_t            length_of_description,

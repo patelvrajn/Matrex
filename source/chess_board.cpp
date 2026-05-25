@@ -14,6 +14,9 @@ Chess_Board::Chess_Board()
     m_state.side_to_move        = PIECE_COLOR::WHITE;
     m_state.half_move_clock     = 0;
     m_state.full_move_count     = 0;
+    m_hash_history              = {};
+    m_state.hash_history_start  = 0;
+    m_state.hash_history_length = 0;
     m_piece_bitboards           = {};
     m_color_occupancy_bitboards = {};
     m_zobrist_hash              = Zobrist_Hash();
@@ -35,6 +38,18 @@ Bitboard Chess_Board::get_color_occupancies(PIECE_COLOR c) const
 Bitboard Chess_Board::get_piece_occupancies(PIECE_COLOR c, PIECES p) const
 {
     return m_piece_bitboards[c][p];
+}
+
+Bitboard Chess_Board::get_piece_occupancies(PIECES p) const
+{
+    return m_piece_bitboards[PIECE_COLOR::WHITE][p]
+         | m_piece_bitboards[PIECE_COLOR::BLACK][p];
+}
+
+uint8_t Chess_Board::get_piece_count(PIECES p) const
+{
+    return (get_piece_occupancies(PIECE_COLOR::WHITE, p).high_bit_count()
+            + get_piece_occupancies(PIECE_COLOR::BLACK, p).high_bit_count());
 }
 
 Square Chess_Board::get_en_passant_square() const
@@ -203,17 +218,21 @@ Chess_Board::what_piece_is_on_square(const Square& s) const
 
 Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
 {
-    Undo_Chess_Move undo_move = {.move             = move,
-                                 .castling_rights  = m_state.castling_rights,
-                                 .half_move_clock  = m_state.half_move_clock,
-                                 .enpassant_square = m_state.enpassant_square};
+    Undo_Chess_Move undo_move = {
+        .move                = move,
+        .castling_rights     = m_state.castling_rights,
+        .half_move_clock     = m_state.half_move_clock,
+        .enpassant_square    = m_state.enpassant_square,
+        .hash_history_start  = m_state.hash_history_start,
+        .hash_history_length = m_state.hash_history_length};
 
     calculate_next_board_state(m_state.side_to_move, move);
 
-    if ((move.moving_piece == PIECES::PAWN) || (move.is_capture))
-    {
-        m_state.half_move_clock = 0;
-    }
+    const bool is_move_irreversible =
+        ((move.moving_piece == PIECES::PAWN) || (move.is_capture)
+         || (move.is_en_passant));
+
+    if (is_move_irreversible) { m_state.half_move_clock = 0; }
     else { m_state.half_move_clock = m_state.half_move_clock + 1; }
 
     if (m_state.side_to_move == PIECE_COLOR::BLACK)
@@ -326,6 +345,18 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
     m_state.side_to_move = (PIECE_COLOR) ((~m_state.side_to_move) & 0x1);
     m_zobrist_hash.flip_side_to_move();
 
+    if (is_move_irreversible)
+    {
+        m_state.hash_history_start                 = m_state.half_move_clock;
+        m_hash_history[m_state.hash_history_start] = m_zobrist_hash;
+        m_state.hash_history_length                = 1;
+    }
+    else if (!is_draw_by_fifty_move_rule())
+    {
+        m_hash_history[m_state.half_move_clock] = m_zobrist_hash;
+        ++m_state.hash_history_length;
+    }
+
     return undo_move;
 }
 
@@ -351,6 +382,9 @@ void Chess_Board::undo_move(Undo_Chess_Move undo_move)
 
     m_state.side_to_move = opposing_side;
     m_zobrist_hash.flip_side_to_move();
+
+    m_state.hash_history_start  = undo_move.hash_history_start;
+    m_state.hash_history_length = undo_move.hash_history_length;
 }
 
 void Chess_Board::make_moves_from_string(const std::string& moves_str,
@@ -582,6 +616,10 @@ void Chess_Board::set_from_fen(const std::string& fen)
     // Convert to unsigned long long (because we apparently expect games
     // lasting until the heat death of the universe)
     m_state.full_move_count = std::stoull(full_move_count);
+
+    m_hash_history[m_state.half_move_clock] = m_zobrist_hash;
+    m_state.hash_history_start              = m_state.half_move_clock;
+    m_state.hash_history_length             = 1;
 }
 
 // Helper: take a substring describing a single rank (e.g. "rnbqkbnr" or
@@ -711,6 +749,42 @@ void Chess_Board::place_pieces_from_fen(const std::string& rank_description,
             file++;
         }
     }
+}
+
+bool Chess_Board::is_draw_by_fifty_move_rule() const
+{
+    return (m_state.half_move_clock >= HALF_MOVE_CLOCK_MAXIMUM);
+}
+
+bool Chess_Board::has_insufficient_mating_material() const
+{
+    const uint8_t total_pieces = get_both_color_occupancies().high_bit_count();
+
+    // Only 2 kings left on the board - return true.
+    if (total_pieces == 2) { return true; }
+
+    // First Condition: No queens, rooks, or pawns on the board.
+    const bool first_condition =
+        ((get_piece_count(PIECES::PAWN) + get_piece_count(PIECES::ROOK)
+          + get_piece_count(PIECES::QUEEN))
+         == 0);
+
+    // Second Condition: Only same color bishops exist.
+    const Bitboard bishop_occupancies = get_piece_occupancies(PIECES::BISHOP);
+    const bool     second_condition =
+        ((bishop_occupancies & LIGHT_SQUARES_BITBOARD) == bishop_occupancies)
+        || ((bishop_occupancies & DARK_SQUARES_BITBOARD) == bishop_occupancies);
+
+    // Third Condition: Both at least one bishop and one knight have to exist
+    // for there to be sufficient mating material.
+    const bool third_condition = !((get_piece_count(PIECES::BISHOP) > 0)
+                                   && (get_piece_count(PIECES::KNIGHT) > 0));
+
+    // Fourth Condition: There is less than 2 knights.
+    const bool fourth_condition = (get_piece_count(PIECES::KNIGHT) < 2);
+
+    return (first_condition && second_condition && third_condition
+            && fourth_condition);
 }
 
 bool Chess_Board::operator==(const Chess_Board& other) const

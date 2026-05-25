@@ -45,6 +45,47 @@ Search_Engine::negamax(Chess_Board&              position,
     // moves could influence each other.
     principal_variation.clear();
 
+    bool is_three_fold_repetition = false;
+    bool is_upcoming_repetition =
+        m_cuckoo_rm_table.is_upcoming_repetition(position,
+                                                 is_three_fold_repetition);
+
+    if ((alpha < Score::from_int(ESCORE::DRAW)) && is_upcoming_repetition)
+    {
+        // If there is an upcoming repetition, the lowest score we can have is a
+        // draw.
+        alpha = Score::from_int(ESCORE::DRAW);
+
+        // On fail-high, return the draw score even though we are in a fail-soft
+        // framework.
+        if (alpha >= beta) { return {Chess_Move(), alpha}; }
+    }
+
+    if (is_three_fold_repetition)
+    {
+        // If there is a three fold repetition, the score of the position is a
+        // draw and we can return immediately without searching the position.
+        return {Chess_Move(), Score::from_int(ESCORE::DRAW)};
+    }
+
+    // Note: Never cache draw by fifty move rule in the transposition table
+    // because the Zobrist Hash implementation does not take into consideration
+    // fifty move rule and a position can have a completely different evaluation
+    // if the half move clock was not at it's maximum.
+    if (position.is_draw_by_fifty_move_rule())
+    {
+        return {Chess_Move(), Score::from_int(ESCORE::DRAW)};
+    }
+
+    // Calling has_insufficient_mating_material() may be faster than writing to
+    // the transposition table - also the concern is writing it to the
+    // transposition table as an exact score but with a null move would result
+    // in a possible illegal move.
+    if (position.has_insufficient_mating_material())
+    {
+        return {Chess_Move(), Score::from_int(ESCORE::DRAW)};
+    }
+
     const Zobrist_Hash        position_z_hash = position.get_zobrist_hash();
     Transposition_Table_Entry transposition_table_entry;
     const bool                did_transposition_table_hit =
@@ -268,6 +309,8 @@ Search_Engine::negamax(Chess_Board&              position,
                                 position_z_hash,
                                 transposition_table_entry);
 
+    // Fail-soft. Always return the calculated score and don't bound it between
+    // the alpha-beta invariant.
     return {best_move, best_score};
 }
 
