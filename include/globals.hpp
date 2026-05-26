@@ -15,6 +15,8 @@
 #include <unordered_map>
 #include <utility>
 
+#include "square.hpp"
+
 // =============================================================================
 // Engine Name and Version Strings
 // =============================================================================
@@ -44,7 +46,7 @@ constexpr uint64_t CACHE_LINE_SIZE = 64;
 #define CACHE_ALIGN alignas(CACHE_LINE_SIZE)
 
 // =============================================================================
-// Essential Chess-Related Enumerations, Constants, and Functions
+// Essential Chess-Related Entities
 // =============================================================================
 constexpr uint8_t NUM_OF_PLAYERS = 2;
 
@@ -63,6 +65,14 @@ enum PIECE_COLOR
     NO_COLOR
 };
 
+constexpr PIECE_COLOR operator~(PIECE_COLOR c)
+{
+    if (c == PIECE_COLOR::WHITE) { return PIECE_COLOR::BLACK; }
+    else if (c == PIECE_COLOR::BLACK) { return PIECE_COLOR::WHITE; }
+
+    return PIECE_COLOR::NO_COLOR;
+}
+
 enum PIECES
 {
     PAWN,
@@ -80,6 +90,13 @@ constexpr std::string PIECE_STRINGS[] =
 constexpr std::string
     UNICODE_PIECES[NUM_OF_PLAYERS * NUM_OF_UNIQUE_PIECES_PER_PLAYER] =
         {"♙", "♘", "♗", "♖", "♕", "♔", "♟︎", "♞", "♝", "♜", "♛", "♚"};
+
+struct Placed_Piece
+{
+    PIECE_COLOR color;
+    PIECES      piece;
+    Square      square;
+};
 
 constexpr std::string_view START_POSITION_FEN =
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
