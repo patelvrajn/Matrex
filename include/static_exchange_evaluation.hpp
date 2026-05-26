@@ -2,30 +2,32 @@
 
 #include "evaluate.hpp"
 
+template <typename Integral_Type>
 class Static_Exchange_Evaluator
 {
   public:
 
-    Static_Exchange_Evaluator::Static_Exchange_Evaluator(
-        const Evaluation_Weights<Matrex_FP_Int>& weights,
-        const Chess_Board&                       position,
-        const Square                             target_square);
+    Static_Exchange_Evaluator(const Chess_Board& position,
+                              const Square       target_square);
 
-    template <typename Return_Integral_Type>
-    Return_Integral_Type evaluate();
+    Integral_Type evaluate();
 
   private:
 
     Square        m_target_square;
-    Matrex_FP_Int m_initial_score;
+    Integral_Type m_initial_score;
 
     PIECE_COLOR m_this_side;
 
     Bitboard m_all_occupancies;
     multi_array<Bitboard, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
         m_piece_bitboards;
-    multi_array<Matrex_FP_Int, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
-        m_material_weights;
+
+    // These are general material weights, we don't use the evaluation weights
+    // because they require computations too slow for SEE purposes.
+    static constexpr multi_array<Integral_Type,
+                                 (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
+        m_material_weights = {10, 30, 35, 50, 90};
 
     std::unique_ptr<std::vector<Placed_Piece>>
     what_pieces_attack_this_square(const Square      s,
@@ -34,33 +36,25 @@ class Static_Exchange_Evaluator
     std::unique_ptr<std::vector<Placed_Piece>>
     get_all_interleaved_attackers(const Square      s,
                                   const PIECE_COLOR this_side) const;
+};
 
-}
-
-Static_Exchange_Evaluator::Static_Exchange_Evaluator(const Evaluation_Weights<Matrex_FP_Int>& weights, const Chess_Board& position, const Square target_square) :
-    : m_target_square(target_square),
-      m_initial_score(weights.material[position.what_piece_is_on_square(target_square).second]),
-      m_this_side(position.get_side_to_move()),
-      m_all_occupancies(position.get_both_color_occupancies()),
-      m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::PAWN](position.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::PAWN)),
-      m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::KNIGHT](position.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::KNIGHT)),
-      m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::BISHOP](position.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::BISHOP)),
-      m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::ROOK](position.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::ROOK)),
-      m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::QUEEN](position.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::QUEEN)),
-      m_piece_bitboards[PIECE_COLOR::WHITE][PIECES::KING](position.get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::KING)),
-      m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::PAWN](position.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::PAWN)),
-      m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KNIGHT](position.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::KNIGHT)),
-      m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::BISHOP](position.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::BISHOP)),
-      m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::ROOK](position.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::ROOK)),
-      m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::QUEEN](position.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::QUEEN)),
-      m_piece_bitboards[PIECE_COLOR::BLACK][PIECES::KING](position.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::KING)),
-      m_material_weights(weights.material)
-
+template <typename Integral_Type>
+Static_Exchange_Evaluator<Integral_Type>::Static_Exchange_Evaluator(
+    const Chess_Board& position,
+    const Square       target_square) :
+    m_target_square(target_square),
+    m_initial_score(
+        m_material_weights[position.what_piece_is_on_square(target_square)
+                               .second]),
+    m_this_side(position.get_side_to_move()),
+    m_all_occupancies(position.get_both_color_occupancies()),
+    m_piece_bitboards(position.get_piece_occupancies())
 {
 }
 
+template <typename Integral_Type>
 std::unique_ptr<std::vector<Placed_Piece>>
-Static_Exchange_Evaluator::what_pieces_attack_this_square(
+Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
     const Square      s,
     const PIECE_COLOR this_side) const
 {
@@ -133,8 +127,9 @@ Static_Exchange_Evaluator::what_pieces_attack_this_square(
     return attackers;
 }
 
+template <typename Integral_Type>
 std::unique_ptr<std::vector<Placed_Piece>>
-Static_Exchange_Evaluator::get_all_interleaved_attackers(
+Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
     const Square      s,
     const PIECE_COLOR this_side) const
 {
@@ -161,17 +156,17 @@ Static_Exchange_Evaluator::get_all_interleaved_attackers(
     if (this_side_attackers->size() > other_side_attackers->size())
     {
         interleaved_attackers->push_back(
-            this_side_attackers[other_side_attackers->size()]);
+            this_side_attackers->at(other_side_attackers->size()));
     }
 
     return interleaved_attackers;
 }
 
-template <typename Return_Integral_Type>
-Return_Integral_Type Static_Exchange_Evaluator::evaluate()
+template <typename Integral_Type>
+Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
 {
     // Score of the overall exchange sequence.
-    Matrex_FP_Int score = 0;
+    Integral_Type score = 0;
 
     // All attackers to this square from both sides in interleaved order and in
     // order of least to greatest material value (e.g. white, black, white, ...
@@ -179,7 +174,7 @@ Return_Integral_Type Static_Exchange_Evaluator::evaluate()
     auto attackers =
         get_all_interleaved_attackers(m_target_square, m_this_side);
 
-    if (attackers.size() == 0) { return score; }
+    if (attackers->size() == 0) { return score; }
     else
     {
         // There is a follow-up attacker so the value of the material currently
@@ -190,18 +185,18 @@ Return_Integral_Type Static_Exchange_Evaluator::evaluate()
     while (true)
     {
         // If there are no more attackers hidden or unhidden, then we are done.
-        if (attackers.size() == 0) { break; }
+        if (attackers->size() == 0) { break; }
 
         // Loop over all attackers and clear their squares (to simulate
         // capturing) and add/subtract the material value of the piece to the
         // score depending on which side the piece is on.
-        while (attackers.size() > 0)
+        while (attackers->size() > 0)
         {
             // Check the size is non-zero after popping an attacker, so it is
             // known that a follow-up attacker can capture the current attacker.
-            bool is_there_more_attackers = ((attackers.size() - 1) > 0);
+            bool is_there_more_attackers = ((attackers->size() - 1) > 0);
 
-            const Placed_Piece& attacker = attackers.back();
+            const Placed_Piece& attacker = attackers->back();
 
             if (is_there_more_attackers)
             {
@@ -226,7 +221,7 @@ Return_Integral_Type Static_Exchange_Evaluator::evaluate()
                     attacker.square);
             }
 
-            attackers.pop_back();
+            attackers->pop_back();
         }
 
         // Generate next set of attackers that may have been hidden behind other
@@ -234,5 +229,5 @@ Return_Integral_Type Static_Exchange_Evaluator::evaluate()
         attackers = get_all_interleaved_attackers(m_target_square, m_this_side);
     }
 
-    return static_cast<Return_Integral_Type>(score.get_integer());
+    return score;
 }

@@ -107,18 +107,18 @@ class Attacks
     constexpr Bitboard get_attacks(const PIECES      p,
                                    const Square      s,
                                    const PIECE_COLOR c,
-                                   const Bitboard    occupancy);
+                                   const Bitboard    occupancy) const;
 
     constexpr Bitboard get_pawn_attacks(const Square& s, PIECE_COLOR c) const;
     constexpr Bitboard get_knight_attacks(const Square& s) const;
     constexpr Bitboard get_king_attacks(const Square& s) const;
 
     constexpr Bitboard get_bishop_attacks(const Square&   s,
-                                          const Bitboard& occupancy);
+                                          const Bitboard& occupancy) const;
     constexpr Bitboard get_rook_attacks(const Square&   s,
-                                        const Bitboard& occupancy);
+                                        const Bitboard& occupancy) const;
     constexpr Bitboard get_queen_attacks(const Square&   s,
-                                         const Bitboard& occupancy);
+                                         const Bitboard& occupancy) const;
 
     constexpr Bitboard get_bishop_rays(const Square& s,
                                        uint8_t       direction) const;
@@ -146,7 +146,7 @@ constexpr Attacks::Attacks() {}
 constexpr Bitboard Attacks::get_attacks(const PIECES      p,
                                         const Square      s,
                                         const PIECE_COLOR c,
-                                        const Bitboard    occupancy)
+                                        const Bitboard    occupancy) const
 {
     Bitboard output;
 
@@ -177,13 +177,13 @@ constexpr Bitboard Attacks::get_king_attacks(const Square& s) const
 }
 
 constexpr Bitboard Attacks::get_bishop_attacks(const Square&   s,
-                                               const Bitboard& occupancy)
+                                               const Bitboard& occupancy) const
 {
     return m_bishop_attack_tables.get_attacks(s, occupancy);
 }
 
 constexpr Bitboard Attacks::get_rook_attacks(const Square&   s,
-                                             const Bitboard& occupancy)
+                                             const Bitboard& occupancy) const
 {
     return m_rook_attack_tables.get_attacks(s, occupancy);
 }
@@ -201,7 +201,7 @@ constexpr Bitboard Attacks::get_rook_rays(const Square& s,
 }
 
 constexpr Bitboard Attacks::get_queen_attacks(const Square&   s,
-                                              const Bitboard& occupancy)
+                                              const Bitboard& occupancy) const
 {
     return (this->get_bishop_attacks(s, occupancy)
             | this->get_rook_attacks(s, occupancy));

@@ -385,6 +385,11 @@ class multi_array
     {
         return data[i];
     }
+
+    constexpr bool operator==(const multi_array& other) const
+    {
+        return data == other.data;
+    }
 };
 
 // Base case: single-dimension multi_array
@@ -420,6 +425,11 @@ class multi_array<T, this_size>
     constexpr const element_type& operator[](std::size_t i) const
     {
         return data[i];
+    }
+
+    constexpr bool operator==(const multi_array& other) const
+    {
+        return data == other.data;
     }
 };
 
