@@ -73,6 +73,16 @@ constexpr PIECE_COLOR operator~(PIECE_COLOR c)
     return PIECE_COLOR::NO_COLOR;
 }
 
+inline std::ostream& operator<<(std::ostream& os, PIECE_COLOR color)
+{
+    switch (color)
+    {
+        case PIECE_COLOR::WHITE: return os << "White";
+        case PIECE_COLOR::BLACK: return os << "Black";
+        default                : return os << "NO_COLOR";
+    }
+}
+
 enum PIECES
 {
     PAWN,
@@ -84,6 +94,20 @@ enum PIECES
     NO_PIECE
 };
 
+inline std::ostream& operator<<(std::ostream& os, PIECES piece)
+{
+    switch (piece)
+    {
+        case PIECES::PAWN  : return os << "Pawn";
+        case PIECES::KNIGHT: return os << "Knight";
+        case PIECES::BISHOP: return os << "Bishop";
+        case PIECES::ROOK  : return os << "Rook";
+        case PIECES::QUEEN : return os << "Queen";
+        case PIECES::KING  : return os << "King";
+        default            : return os << "NO_PIECE";
+    }
+}
+
 constexpr std::string PIECE_STRINGS[] =
     {"PAWN", "KNIGHT", "BISHOP", "ROOK", "QUEEN", "KING", "NO_PIECE"};
 
@@ -93,9 +117,22 @@ constexpr std::string
 
 struct Placed_Piece
 {
-    PIECE_COLOR color;
-    PIECES      piece;
-    Square      square;
+    PIECE_COLOR color  = PIECE_COLOR::NO_COLOR;
+    PIECES      piece  = PIECES::NO_PIECE;
+    Square      square = Square(ESQUARE::NO_SQUARE);
+
+    bool operator==(const Placed_Piece& other) const
+    {
+        return ((other.color == color) && (other.piece == piece)
+                && (other.square == square));
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const Placed_Piece& pp)
+    {
+        os << pp.color << " " << pp.piece << " on " << pp.square;
+
+        return os;
+    }
 };
 
 constexpr std::string_view START_POSITION_FEN =
