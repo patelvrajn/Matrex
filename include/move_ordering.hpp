@@ -3,6 +3,7 @@
 #include "chess_board.hpp"
 #include "chess_move.hpp"
 #include "move_generator.hpp"
+#include "static_exchange_evaluation.hpp"
 
 constexpr Move_Score MVV_LVA_ATTACKER_VALUES[] = {10, 20, 30, 40, 50, 60};
 
@@ -27,11 +28,12 @@ class Move_Ordering
 
   private:
 
-    const Chess_Board&    m_chess_board;
-    Move_Generation_List  m_move_list;
-    Moves_Bitboard_Matrix m_moves_matrix;
-    static mvv_lva_array  m_mvv_lva_array;
-    Chess_Move            m_hash_move;
+    const Chess_Board&                    m_chess_board;
+    Move_Generation_List                  m_move_list;
+    Moves_Bitboard_Matrix                 m_moves_matrix;
+    static mvv_lva_array                  m_mvv_lva_array;
+    Chess_Move                            m_hash_move;
+    Static_Exchange_Evaluator<Move_Score> m_see;
 
     static mvv_lva_array generate_mvv_lva_array();
     void                 move_scorer();

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <ranges>
 
 #include "evaluate.hpp"
@@ -12,15 +14,15 @@ class Static_Exchange_Evaluator
 {
   public:
 
-    Static_Exchange_Evaluator(const Chess_Board& position,
-                              const Square       target_square);
+    Static_Exchange_Evaluator(const Chess_Board& position);
 
-    Integral_Type evaluate();
+    Integral_Type evaluate(Square        target_square,
+                           PIECES        moving_piece,
+                           Integral_Type score_scaler);
 
   private:
 
-    Square m_target_square;
-    PIECES m_initial_piece;
+    const Chess_Board& m_position;
 
     PIECE_COLOR m_this_side;
 
@@ -34,6 +36,9 @@ class Static_Exchange_Evaluator
                                  (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
         m_material_weights = {10, 30, 35, 50, 90};
 
+    static constexpr multi_array<Integral_Type, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+        m_moving_piece_penalties = {1, 3, 4, 5, 9, 15};
+
     SEE_Attackers_Array
     what_pieces_attack_this_square(const Square      s,
                                    const PIECE_COLOR this_side) const;
@@ -46,10 +51,8 @@ class Static_Exchange_Evaluator
 
 template <typename Integral_Type>
 Static_Exchange_Evaluator<Integral_Type>::Static_Exchange_Evaluator(
-    const Chess_Board& position,
-    const Square       target_square) :
-    m_target_square(target_square),
-    m_initial_piece(position.what_piece_is_on_square(target_square).second),
+    const Chess_Board& position) :
+    m_position(position),
     m_this_side(position.get_side_to_move()),
     m_all_occupancies(position.get_both_color_occupancies()),
     m_piece_bitboards(position.get_piece_occupancies())
@@ -194,20 +197,26 @@ Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
 }
 
 template <typename Integral_Type>
-Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
+Integral_Type
+Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
+                                                   PIECES        moving_piece,
+                                                   Integral_Type score_scaler)
 {
-    // Score of the overall exchange sequence.
-    Integral_Type score = 0;
-
     bool only_kings = false;
 
     // All attackers to this square from both sides in interleaved order and in
     // order of least to greatest material value (e.g. white, black, white, ...
     // ).
     auto attackers =
-        get_all_interleaved_attackers(m_target_square, m_this_side, only_kings);
+        get_all_interleaved_attackers(target_square, m_this_side, only_kings);
 
-    if (attackers.size() == 0) { return score; }
+    if (attackers.size() == 0) { return 0; }
+
+    // Score of the overall exchange sequence. Start with a penalty if the move
+    // does not capture with the least valuable piece first.
+    Integral_Type score = (m_moving_piece_penalties[attackers.back().piece]
+                           - m_moving_piece_penalties[moving_piece])
+                        * score_scaler;
 
     bool is_first_iteration = true;
     while (true)
@@ -218,9 +227,11 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
         Placed_Piece previous_attacker;
         if (is_first_iteration)
         {
-            previous_attacker  = {.color  = ~m_this_side,
-                                  .piece  = m_initial_piece,
-                                  .square = m_target_square};
+            previous_attacker = {
+                .color = ~m_this_side,
+                .piece =
+                    m_position.what_piece_is_on_square(target_square).second,
+                .square = target_square};
             is_first_iteration = false;
         }
 
@@ -235,7 +246,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
             {
                 // Pre-compute the next set of attackers - if there are any
                 // attackers besides kings - don't execute any other logic.
-                attackers = get_all_interleaved_attackers(m_target_square,
+                attackers = get_all_interleaved_attackers(target_square,
                                                           m_this_side,
                                                           only_kings);
                 if (!only_kings)
@@ -262,7 +273,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
                 // After accounting for the last attacker's value and ensuring
                 // the king was the lone attacker - we are done just return the
                 // current score.
-                return score;
+                return (score * score_scaler);
             }
 
             // Account for the value of the previous attacker.
@@ -288,7 +299,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
 
         // Generate next set of attackers that may have been hidden behind other
         // attackers.
-        attackers = get_all_interleaved_attackers(m_target_square,
+        attackers = get_all_interleaved_attackers(target_square,
                                                   ~previous_attacker.color,
                                                   only_kings);
 
@@ -310,5 +321,5 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
         }
     }
 
-    return score;
+    return (score * score_scaler);
 }
