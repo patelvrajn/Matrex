@@ -760,11 +760,22 @@ class Partially_Filled_Array
 
     Partially_Filled_Array();
 
+    static constexpr std::size_t max_capacity = capacity;
+
+    inline std::size_t size() const;
+
     inline void append(const T& data);
+    inline T    pop();
     inline void clear();
 
-    T* begin() const;
-    T* end() const;
+    inline T& front();
+    inline T& back();
+
+    T* begin();
+    T* end();
+
+    const T* begin() const;
+    const T* end() const;
 
     int64_t get_max_index() const;
 
@@ -782,10 +793,23 @@ Partially_Filled_Array<T, capacity>::Partially_Filled_Array() : m_max_index(-1)
 }
 
 template <typename T, std::size_t capacity>
+inline std::size_t Partially_Filled_Array<T, capacity>::size() const
+{
+    return static_cast<std::size_t>(m_max_index + 1);
+}
+
+template <typename T, std::size_t capacity>
 inline void Partially_Filled_Array<T, capacity>::append(const T& data)
 {
     m_max_index++;
     m_list[m_max_index] = data;
+}
+
+template <typename T, std::size_t capacity>
+inline T Partially_Filled_Array<T, capacity>::pop()
+{
+    m_max_index--;
+    return m_list[m_max_index + 1];
 }
 
 template <typename T, std::size_t capacity>
@@ -795,13 +819,37 @@ inline void Partially_Filled_Array<T, capacity>::clear()
 }
 
 template <typename T, std::size_t capacity>
-T* Partially_Filled_Array<T, capacity>::begin() const
+inline T& Partially_Filled_Array<T, capacity>::front()
+{
+    return m_list[0];
+}
+
+template <typename T, std::size_t capacity>
+inline T& Partially_Filled_Array<T, capacity>::back()
+{
+    return m_list[m_max_index];
+}
+
+template <typename T, std::size_t capacity>
+T* Partially_Filled_Array<T, capacity>::begin()
 {
     return (T*) &m_list[0];
 }
 
 template <typename T, std::size_t capacity>
-T* Partially_Filled_Array<T, capacity>::end() const
+T* Partially_Filled_Array<T, capacity>::end()
+{
+    return (T*) &m_list[m_max_index + 1];
+}
+
+template <typename T, std::size_t capacity>
+const T* Partially_Filled_Array<T, capacity>::begin() const
+{
+    return (T*) &m_list[0];
+}
+
+template <typename T, std::size_t capacity>
+const T* Partially_Filled_Array<T, capacity>::end() const
 {
     return (T*) &m_list[m_max_index + 1];
 }

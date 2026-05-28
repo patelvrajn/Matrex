@@ -2,6 +2,11 @@
 
 #include "evaluate.hpp"
 
+using SEE_Attackers_Array =
+    Partially_Filled_Array<Placed_Piece, NUM_OF_PIECES_PER_PLAYER>;
+using SEE_Interleaved_Attackers_Array =
+    Partially_Filled_Array<Placed_Piece, (2 * NUM_OF_PIECES_PER_PLAYER)>;
+
 template <typename Integral_Type>
 class Static_Exchange_Evaluator
 {
@@ -29,11 +34,11 @@ class Static_Exchange_Evaluator
                                  (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
         m_material_weights = {10, 30, 35, 50, 90};
 
-    std::unique_ptr<std::vector<Placed_Piece>>
+    SEE_Attackers_Array
     what_pieces_attack_this_square(const Square      s,
                                    const PIECE_COLOR this_side) const;
 
-    std::unique_ptr<std::vector<Placed_Piece>>
+    SEE_Interleaved_Attackers_Array
     get_all_interleaved_attackers(const Square      s,
                                   const PIECE_COLOR this_side,
                                   bool&             only_kings) const;
@@ -52,14 +57,12 @@ Static_Exchange_Evaluator<Integral_Type>::Static_Exchange_Evaluator(
 }
 
 template <typename Integral_Type>
-std::unique_ptr<std::vector<Placed_Piece>>
+SEE_Attackers_Array
 Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
     const Square      s,
     const PIECE_COLOR this_side) const
 {
-    std::unique_ptr<std::vector<Placed_Piece>> attackers =
-        std::make_unique<std::vector<Placed_Piece>>();
-    attackers->reserve(NUM_OF_PIECES_PER_PLAYER);
+    SEE_Attackers_Array attackers;
 
     const Attacks a;
 
@@ -90,37 +93,37 @@ Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
 
     for (const Square attacker : this_attacking_kings)
     {
-        attackers->push_back(
+        attackers.append(
             {.color = this_side, .piece = PIECES::KING, .square = attacker});
     }
 
     for (const Square attacker : this_attacking_queens)
     {
-        attackers->push_back(
+        attackers.append(
             {.color = this_side, .piece = PIECES::QUEEN, .square = attacker});
     }
 
     for (const Square attacker : this_attacking_rooks)
     {
-        attackers->push_back(
+        attackers.append(
             {.color = this_side, .piece = PIECES::ROOK, .square = attacker});
     }
 
     for (const Square attacker : this_attacking_bishops)
     {
-        attackers->push_back(
+        attackers.append(
             {.color = this_side, .piece = PIECES::BISHOP, .square = attacker});
     }
 
     for (const Square attacker : this_attacking_knights)
     {
-        attackers->push_back(
+        attackers.append(
             {.color = this_side, .piece = PIECES::KNIGHT, .square = attacker});
     }
 
     for (const Square attacker : this_attacking_pawns)
     {
-        attackers->push_back(
+        attackers.append(
             {.color = this_side, .piece = PIECES::PAWN, .square = attacker});
     }
 
@@ -128,13 +131,13 @@ Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
 }
 
 template <typename Integral_Type>
-std::unique_ptr<std::vector<Placed_Piece>>
+SEE_Interleaved_Attackers_Array
 Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
     const Square      s,
     const PIECE_COLOR this_side,
     bool&             only_kings) const
 {
-    auto interleaved_attackers = std::make_unique<std::vector<Placed_Piece>>();
+    SEE_Interleaved_Attackers_Array interleaved_attackers;
 
     auto this_side_attackers  = what_pieces_attack_this_square(s, this_side);
     auto other_side_attackers = what_pieces_attack_this_square(s, ~this_side);
@@ -142,7 +145,7 @@ Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
     // The only kings boolean starts as true if either side as a size of 1 or
     // both sides have a size of 1 (this is equivalent to an OR).
     only_kings =
-        ((this_side_attackers->size() | other_side_attackers->size()) == 1);
+        ((this_side_attackers.size() | other_side_attackers.size()) == 1);
 
     // The below for loop logic will always pick out the maximum number of pairs
     // of attackers from both sides, but there may be one or more extra
@@ -155,34 +158,34 @@ Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
     // appended to the start because an attacker of this side must be the the
     // last element in the list (this side moves first).
     bool this_side_attacker_advantage =
-        this_side_attackers->size() > other_side_attackers->size();
+        this_side_attackers.size() > other_side_attackers.size();
     if (this_side_attacker_advantage)
     {
         only_kings =
-            only_kings && (this_side_attackers->front().piece == PIECES::KING);
-        interleaved_attackers->push_back(this_side_attackers->front());
+            only_kings && (this_side_attackers.front().piece == PIECES::KING);
+        interleaved_attackers.append(this_side_attackers.front());
     }
 
     for (const auto& [other_side_attacker, this_side_attacker] :
          std::views::zip(
-             (*other_side_attackers),
-             ((*this_side_attackers)
+             other_side_attackers,
+             (this_side_attackers
               | std::views::drop(this_side_attacker_advantage ? 1 : 0))))
     {
         only_kings = only_kings
                   && ((this_side_attacker.piece == PIECES::KING)
                       && (other_side_attacker.piece == PIECES::KING));
-        interleaved_attackers->push_back(other_side_attacker);
-        interleaved_attackers->push_back(this_side_attacker);
+        interleaved_attackers.append(other_side_attacker);
+        interleaved_attackers.append(this_side_attacker);
     }
 
     // Note: If the other side has more attackers it is accounted for because
     // this side must be first to move and if this side has no more attackers,
     // the capture sequence ends.
 
-    if (interleaved_attackers->size() > 0)
+    if (interleaved_attackers.size() > 0)
     {
-        MATREX_ASSERT((interleaved_attackers->back().color == this_side),
+        MATREX_ASSERT((interleaved_attackers.back().color == this_side),
                       "The current side to move is not the back of the "
                       "interleaved attackers.");
     }
@@ -204,13 +207,13 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
     auto attackers =
         get_all_interleaved_attackers(m_target_square, m_this_side, only_kings);
 
-    if (attackers->size() == 0) { return score; }
+    if (attackers.size() == 0) { return score; }
 
     bool is_first_iteration = true;
     while (true)
     {
         // If there are no more attackers hidden or unhidden, then we are done.
-        if (attackers->size() == 0) { break; }
+        if (attackers.size() == 0) { break; }
 
         Placed_Piece previous_attacker;
         if (is_first_iteration)
@@ -224,9 +227,9 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
         // Loop over all attackers and clear their squares (to simulate
         // capturing) and add/subtract the material value of the piece to the
         // score depending on which side the piece is on.
-        while (attackers->size() > 0)
+        while (attackers.size() > 0)
         {
-            const Placed_Piece attacker = attackers->back();
+            const Placed_Piece attacker = attackers.back();
 
             if (attacker.piece == PIECES::KING)
             {
@@ -243,8 +246,8 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
                 // If there is only an enemy king left attacking the target
                 // square, then account for the value of the previous attacker
                 // because the king can capture it.
-                if ((attackers->size() == 1)
-                    && (attackers->at(0).color == (~previous_attacker.color)))
+                if ((attackers.size() == 1)
+                    && (attackers.back().color == (~previous_attacker.color)))
                 {
                     if (previous_attacker.color == m_this_side)
                     {
@@ -280,7 +283,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
                 attacker.square);
 
             previous_attacker = attacker;
-            attackers->pop_back();
+            attackers.pop();
         }
 
         // Generate next set of attackers that may have been hidden behind other
@@ -293,7 +296,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
     // last attacker (before previous attacker resets) because it will be
     // captured by the hidden attackers.
     prev_attacker_value_post_hidden_attackers:
-        if (attackers->size() > 0)
+        if (attackers.size() > 0)
         {
             if (previous_attacker.color == m_this_side)
             {
