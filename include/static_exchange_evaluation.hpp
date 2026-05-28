@@ -14,8 +14,8 @@ class Static_Exchange_Evaluator
 
   private:
 
-    Square        m_target_square;
-    Integral_Type m_initial_score;
+    Square m_target_square;
+    PIECES m_initial_piece;
 
     PIECE_COLOR m_this_side;
 
@@ -44,9 +44,7 @@ Static_Exchange_Evaluator<Integral_Type>::Static_Exchange_Evaluator(
     const Chess_Board& position,
     const Square       target_square) :
     m_target_square(target_square),
-    m_initial_score(
-        m_material_weights[position.what_piece_is_on_square(target_square)
-                               .second]),
+    m_initial_piece(position.what_piece_is_on_square(target_square).second),
     m_this_side(position.get_side_to_move()),
     m_all_occupancies(position.get_both_color_occupancies()),
     m_piece_bitboards(position.get_piece_occupancies())
@@ -206,36 +204,28 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
     auto attackers =
         get_all_interleaved_attackers(m_target_square, m_this_side, only_kings);
 
-    for (const auto& attacker : (*attackers))
-    {
-        std::cout << "Attacker: " << attacker << std::endl;
-    }
-
     if (attackers->size() == 0) { return score; }
-    else
-    {
-        // There is a follow-up attacker so the value of the material currently
-        // on the target square is the initial score of the exchange sequence.
-        score = m_initial_score;
-    }
 
-    std::cout << "Initial score: " << score << std::endl;
-
+    bool is_first_iteration = true;
     while (true)
     {
         // If there are no more attackers hidden or unhidden, then we are done.
         if (attackers->size() == 0) { break; }
 
+        Placed_Piece previous_attacker;
+        if (is_first_iteration)
+        {
+            previous_attacker  = {.color  = ~m_this_side,
+                                  .piece  = m_initial_piece,
+                                  .square = m_target_square};
+            is_first_iteration = false;
+        }
+
         // Loop over all attackers and clear their squares (to simulate
         // capturing) and add/subtract the material value of the piece to the
         // score depending on which side the piece is on.
-        Placed_Piece previous_attacker;
         while (attackers->size() > 0)
         {
-            // Check the size is non-zero after popping an attacker, so it is
-            // known that a follow-up attacker can capture the current attacker.
-            bool is_there_more_attackers = ((attackers->size() - 1) > 0);
-
             const Placed_Piece attacker = attackers->back();
 
             if (attacker.piece == PIECES::KING)
@@ -247,16 +237,14 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
                                                           only_kings);
                 if (!only_kings)
                 {
-                    previous_attacker = Placed_Piece();
-                    continue;
+                    goto prev_attacker_value_post_hidden_attackers;
                 }
 
-                // If there is a king left and it is an enemy king to the
-                // previous attacker, then account for the value of the previous
-                // attacker because the king can capture it.
+                // If there is only an enemy king left attacking the target
+                // square, then account for the value of the previous attacker
+                // because the king can capture it.
                 if ((attackers->size() == 1)
-                    && (attackers->at(0).color == ~previous_attacker.color)
-                    && (previous_attacker != Placed_Piece()))
+                    && (attackers->at(0).color == (~previous_attacker.color)))
                 {
                     if (previous_attacker.color == m_this_side)
                     {
@@ -274,28 +262,15 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
                 return score;
             }
 
-            std::cout << "Is there more attackers: " << is_there_more_attackers
-                      << std::endl;
-
-            if (is_there_more_attackers) // TODO : CHANGE TO PREVIOUS ATTACKERS
+            // Account for the value of the previous attacker.
+            if (previous_attacker.color == m_this_side)
             {
-                // If the current attacker on this side will be captured,
-                // subtract off it's value.
-                if (attacker.color == m_this_side)
-                {
-                    score -= m_material_weights[attacker.piece];
-                    std::cout << "Score after subtracting attacker " << attacker
-                              << ": " << score << std::endl;
-                }
+                score -= m_material_weights[previous_attacker.piece];
+            }
 
-                // If the current attacker on the other side will be captured,
-                // add its value.
-                if (attacker.color == (~m_this_side))
-                {
-                    score += m_material_weights[attacker.piece];
-                    std::cout << "Score after adding attacker " << attacker
-                              << ": " << score << std::endl;
-                }
+            if (previous_attacker.color == (~m_this_side))
+            {
+                score += m_material_weights[previous_attacker.piece];
             }
 
             // Clear the attacker from it's square which will unhide any
@@ -314,18 +289,20 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate()
                                                   ~previous_attacker.color,
                                                   only_kings);
 
-        // We have hidden attackers so we need to account for the value of the
-        // last attacker (before previous attacker resets) because it will be
-        // captured by the hidden attackers.
+    // We have hidden attackers so we need to account for the value of the
+    // last attacker (before previous attacker resets) because it will be
+    // captured by the hidden attackers.
+    prev_attacker_value_post_hidden_attackers:
         if (attackers->size() > 0)
         {
-            if (previous_attacker != Placed_Piece())
+            if (previous_attacker.color == m_this_side)
             {
-                if (previous_attacker.color == m_this_side)
-                {
-                    score -= m_material_weights[previous_attacker.piece];
-                }
-                else { score += m_material_weights[previous_attacker.piece]; }
+                score -= m_material_weights[previous_attacker.piece];
+            }
+
+            if (previous_attacker.color == (~m_this_side))
+            {
+                score += m_material_weights[previous_attacker.piece];
             }
         }
     }
