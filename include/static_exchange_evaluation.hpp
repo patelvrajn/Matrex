@@ -201,8 +201,8 @@ Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
 template <typename Integral_Type>
 void Static_Exchange_Evaluator<Integral_Type>::reset_occupancy_bitboards()
 {
-    m_all_occupancies = position.get_both_color_occupancies();
-    m_piece_bitboards = position.get_piece_occupancies();
+    m_all_occupancies = m_position.get_both_color_occupancies();
+    m_piece_bitboards = m_position.get_piece_occupancies();
 }
 
 template <typename Integral_Type>
