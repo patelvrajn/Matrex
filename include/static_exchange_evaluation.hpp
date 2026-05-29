@@ -47,6 +47,8 @@ class Static_Exchange_Evaluator
     get_all_interleaved_attackers(const Square      s,
                                   const PIECE_COLOR this_side,
                                   bool&             only_kings) const;
+
+    void reset_occupancy_bitboards();
 };
 
 template <typename Integral_Type>
@@ -69,7 +71,7 @@ Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
 
     const Attacks a;
 
-    const Bitboard pawn_attacks   = a.get_pawn_attacks(s, this_side);
+    const Bitboard pawn_attacks   = a.get_pawn_attacks(s, ~this_side);
     const Bitboard bishop_attacks = a.get_bishop_attacks(s, m_all_occupancies);
     const Bitboard knight_attacks = a.get_knight_attacks(s);
     const Bitboard rook_attacks   = a.get_rook_attacks(s, m_all_occupancies);
@@ -197,6 +199,13 @@ Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
 }
 
 template <typename Integral_Type>
+void Static_Exchange_Evaluator<Integral_Type>::reset_occupancy_bitboards()
+{
+    m_all_occupancies = position.get_both_color_occupancies();
+    m_piece_bitboards = position.get_piece_occupancies();
+}
+
+template <typename Integral_Type>
 Integral_Type
 Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
                                                    PIECES        moving_piece,
@@ -215,8 +224,7 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
     // Score of the overall exchange sequence. Start with a penalty if the move
     // does not capture with the least valuable piece first.
     Integral_Type score = (m_moving_piece_penalties[attackers.back().piece]
-                           - m_moving_piece_penalties[moving_piece])
-                        * score_scaler;
+                           - m_moving_piece_penalties[moving_piece]);
 
     bool is_first_iteration = true;
     while (true)
@@ -273,6 +281,7 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
                 // After accounting for the last attacker's value and ensuring
                 // the king was the lone attacker - we are done just return the
                 // current score.
+                reset_occupancy_bitboards();
                 return (score * score_scaler);
             }
 
@@ -321,5 +330,6 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
         }
     }
 
+    reset_occupancy_bitboards();
     return (score * score_scaler);
 }

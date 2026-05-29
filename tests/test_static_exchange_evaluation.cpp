@@ -24,3 +24,12 @@ TEST(see_tests, all_piece_type_exchange)
     Static_Exchange_Evaluator<int64_t> see(position);
     ASSERT_EQ(see.evaluate(Square(ESQUARE::D4), PIECES::KNIGHT, 1), -80);
 }
+
+TEST(see_tests, pawn_attack)
+{
+    Chess_Board position;
+    position.set_from_fen(
+        "r1bqk2r/pppp1pp1/6n1/2bPp2p/3QP1n1/2N2N2/PPP1BPPP/R1B2RK1 b kq - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+    ASSERT_EQ(see.evaluate(Square(ESQUARE::D4), PIECES::PAWN, 1), 110);
+}
