@@ -56,7 +56,7 @@ clean:
 
 # The final product depends on the object files.
 $(PROJECT_NAME) : $(prog_objs) $(test_objs)
-	$(CXX) $(CXXFLAGS) -o $@ $^ /usr/local/lib/libgtest.a -lstdc++_libbacktrace
+	$(CXX) $(CXXFLAGS) -o $@ $^ /usr/local/lib/libgtest.a -lstdc++exp
 
 # An object file depends on the respective cpp file.
 %.o: %.cpp
