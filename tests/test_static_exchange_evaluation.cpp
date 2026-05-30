@@ -33,3 +33,21 @@ TEST(see_tests, pawn_attack)
     Static_Exchange_Evaluator<int64_t> see(position);
     ASSERT_EQ(see.evaluate(Square(ESQUARE::D4), PIECES::PAWN, 1), 110);
 }
+
+TEST(see_tests, mating_position) // FOR DEBUG
+{
+    Chess_Board position;
+    position.set_from_fen("8/8/8/8/8/4K3/R7/Q3k3 b - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+    ASSERT_EQ(see.evaluate(Square(ESQUARE::D5), PIECES::PAWN, 1), -20);
+}
+
+TEST(see_tests, debug)
+{
+    Chess_Board position;
+    position.set_from_fen(
+        "r2qkb1r/pbp2ppp/1pn1pn2/3p4/3PP3/P1N3P1/1PP2PBP/R1BQK1NR w KQkq - 1 "
+        "7");
+    Static_Exchange_Evaluator<int64_t> see(position);
+    ASSERT_EQ(see.evaluate(Square(ESQUARE::D5), PIECES::PAWN, 1), -20);
+}

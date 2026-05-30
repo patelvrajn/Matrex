@@ -4,10 +4,12 @@
 
 #include "evaluate.hpp"
 
+constexpr std::size_t SEE_ATTACKERS_ARRAY_SIZE = NUM_OF_PIECES_PER_PLAYER;
+
 using SEE_Attackers_Array =
-    Partially_Filled_Array<Placed_Piece, NUM_OF_PIECES_PER_PLAYER>;
+    Partially_Filled_Array<Placed_Piece, SEE_ATTACKERS_ARRAY_SIZE>;
 using SEE_Interleaved_Attackers_Array =
-    Partially_Filled_Array<Placed_Piece, (2 * NUM_OF_PIECES_PER_PLAYER)>;
+    Partially_Filled_Array<Placed_Piece, (2 * SEE_ATTACKERS_ARRAY_SIZE)>;
 
 template <typename Integral_Type>
 class Static_Exchange_Evaluator
@@ -240,6 +242,12 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
                 .piece =
                     m_position.what_piece_is_on_square(target_square).second,
                 .square = target_square};
+
+            // Clear the target square of it's original piece.
+            m_all_occupancies.unset_square(previous_attacker.square);
+            m_piece_bitboards[previous_attacker.color][previous_attacker.piece]
+                .unset_square(previous_attacker.square);
+
             is_first_iteration = false;
         }
 
@@ -253,10 +261,13 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
             if (attacker.piece == PIECES::KING)
             {
                 // Pre-compute the next set of attackers - if there are any
-                // attackers besides kings - don't execute any other logic.
-                attackers = get_all_interleaved_attackers(target_square,
-                                                          m_this_side,
-                                                          only_kings);
+                // attackers besides kings - don't execute any other logic. The
+                // king will not attack if there are other attackers so generate
+                // attackers for the opposing side of the previous attacker.
+                attackers =
+                    get_all_interleaved_attackers(target_square,
+                                                  ~previous_attacker.color,
+                                                  only_kings);
                 if (!only_kings)
                 {
                     goto prev_attacker_value_post_hidden_attackers;
@@ -304,6 +315,18 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
 
             previous_attacker = attacker;
             attackers.pop();
+
+            // if (attackers.size() == 0)
+            // {
+            //     break;
+            // }
+
+            // Placed_Piece hidden_attacker =
+            // find_hidden_attacker(previous_attacker, target_square); if
+            // (hidden_attacker.piece != PIECES::NO_PIECE)
+            // {
+            //     insert_hidden_attacker(attackers, hidden_attacker);
+            // }
         }
 
         // Generate next set of attackers that may have been hidden behind other

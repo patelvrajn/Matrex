@@ -17,7 +17,7 @@ constexpr uint64_t generate_between_squares_mask(const Square& a,
 
     const int8_t distance = b.get_index() - a.get_index();
 
-    if ((distance & 7) == 0)
+    if (a.get_file() == b.get_file())
     { // Squares a and b are on the same file.
 
         delta = ((distance > 0) ? 8 : -8); // Move along the file.
@@ -77,6 +77,104 @@ init_between_squares_masks()
     }
 
     return between_squares_masks;
+}
+
+enum DIRECTION : int8_t
+{
+    NORTHWEST    = -9,
+    NORTH        = -8,
+    NORTHEAST    = -7,
+    WEST         = -1,
+    NO_DIRECTION = 0,
+    EAST         = 1,
+    SOUTHWEST    = 7,
+    SOUTH        = 8,
+    SOUTHEAST    = 9
+};
+
+struct Directional_Ray
+{
+    uint64_t  ray       = 0;
+    DIRECTION direction = NO_DIRECTION;
+};
+
+using Directional_Ray_Table = multi_array<Directional_Ray,
+                                          NUM_OF_SQUARES_ON_CHESS_BOARD,
+                                          NUM_OF_SQUARES_ON_CHESS_BOARD>;
+
+constexpr Directional_Ray generate_directional_ray(const Square& a,
+                                                   const Square& b)
+{
+    uint64_t  mask  = 0;
+    DIRECTION delta = NO_DIRECTION;
+
+    // There are no squares in between a and b if they are the same square.
+    if (a == b) { return {.ray = mask, .direction = delta}; }
+
+    const int8_t distance = b.get_index() - a.get_index();
+
+    if (a.get_file() == b.get_file())
+    { // Squares a and b are on the same file.
+
+        delta = ((distance > 0) ? SOUTH : NORTH); // Move along the file.
+    }
+    else if (b.get_rank() == a.get_rank())
+    { // Squares a and b are on the same rank.
+
+        delta = ((distance > 0) ? EAST : WEST); // Move along the rank.
+    }
+    else if ((distance % 9) == 0)
+    { // Squares a and b are on a diagonal.
+
+        delta = ((distance > 0) ? SOUTHEAST
+                                : NORTHWEST); // Move along the diagonal.
+    }
+    else if ((distance % 7) == 0)
+    { // Squares a and b are on another diagonal.
+
+        delta = ((distance > 0) ? SOUTHWEST
+                                : NORTHEAST); // Move along the diagonal.
+    }
+    else
+    {
+        return {
+            .ray = mask,
+            .direction =
+                delta}; // No diagonal or orthogonal path between the squares.
+    }
+
+    // Starting from square a travel in the direction of square b until you
+    // cannot travel any further.
+    int square_index = a.get_index();
+    while ((Square(square_index).get_rank() < NUM_OF_RANKS_ON_CHESS_BOARD)
+           && (Square(square_index).get_file() < NUM_OF_FILES_ON_CHESS_BOARD))
+    {
+        mask         |= Square(square_index).get_mask();
+        square_index += delta;
+    }
+
+    return {.ray = mask, .direction = delta};
+}
+
+constexpr Directional_Ray_Table init_between_directional_rays_table()
+{
+    Directional_Ray_Table table;
+
+    for (uint8_t outer_square_idx = 0;
+         outer_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
+         outer_square_idx++)
+    {
+        for (uint8_t inner_square_idx = 0;
+             inner_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
+             inner_square_idx++)
+        {
+            table[outer_square_idx][inner_square_idx] =
+                generate_directional_ray(Square(outer_square_idx),
+                                         Square(inner_square_idx));
+        }
+    }
+
+    return table;
 }
 
 constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_rank_masks()
@@ -245,14 +343,16 @@ class Bitboard
     constexpr Bitboard get_backward_squares_mask(const Square& s,
                                                  PIECE_COLOR   side) const;
 
-    constexpr static Bitboard get_between_squares_mask(const Square& a,
-                                                       const Square& b);
-    constexpr static Bitboard get_rank_mask(const Square& s);
-    constexpr static Bitboard get_file_mask(const Square& s);
-    constexpr static Bitboard get_diagonal_mask(const Square& s);
-    constexpr static Bitboard get_antidiagonal_mask(const Square& s);
-    constexpr static Bitboard get_infinite_ray(const Square& a,
-                                               const Square& b);
+    constexpr static Bitboard        get_between_squares_mask(const Square& a,
+                                                              const Square& b);
+    constexpr static Bitboard        get_rank_mask(const Square& s);
+    constexpr static Bitboard        get_file_mask(const Square& s);
+    constexpr static Bitboard        get_diagonal_mask(const Square& s);
+    constexpr static Bitboard        get_antidiagonal_mask(const Square& s);
+    constexpr static Bitboard        get_infinite_ray(const Square& a,
+                                                      const Square& b);
+    constexpr static Directional_Ray get_directional_ray(const Square a,
+                                                         const Square b);
 
     constexpr static bool
     is_piece_obstructed(const Square a, const Square b, Bitboard occupancy);
@@ -290,6 +390,8 @@ class Bitboard
         m_diagonal_masks = init_diagonal_masks();
     inline static constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
         m_antidiagonal_masks = init_antidiagonal_masks();
+    inline static constexpr Directional_Ray_Table m_directional_ray_table =
+        init_between_directional_rays_table();
 };
 
 using Bitboard_Array = multi_array<Bitboard, NUM_OF_SQUARES_ON_CHESS_BOARD>;
@@ -423,6 +525,12 @@ constexpr Bitboard Bitboard::get_infinite_ray(const Square& a, const Square& b)
     }
 
     return Bitboard();
+}
+
+constexpr Directional_Ray Bitboard::get_directional_ray(const Square a,
+                                                        const Square b)
+{
+    return m_directional_ray_table[a.get_index()][b.get_index()];
 }
 
 constexpr bool Bitboard::is_piece_obstructed(const Square a,
