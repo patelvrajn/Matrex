@@ -305,6 +305,16 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
                     get_all_interleaved_attackers(target_square,
                                                   ~previous_attacker.color,
                                                   only_kings);
+
+                // If there is not only kings but only this king and less than
+                // or equal to 1 attackers total, then we can return because the
+                // king cannot capture a guarded piece. 
+                if ((!only_kings) && (attackers.size() <= 2))
+                {
+                    reset_occupancy_bitboards();
+                    return (score * score_scaler);
+                }
+      
                 if (!only_kings) { break; }
 
                 // If there is only an enemy king left attacking the target

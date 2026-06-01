@@ -57,6 +57,14 @@ TEST(see_tests, king_is_always_last_attacker)
     ASSERT_EQ(see_two.evaluate(Square(ESQUARE::F1), PIECES::QUEEN, 1), 50);
 }
 
+TEST(see_tests, king_cannot_capture_guarded_piece)
+{
+    Chess_Board position;
+    position.set_from_fen("4r2k/1p4rp/2p1N1p1/p7/P2BB1nq/1P3P2/4R3/2Q2RK1 w - - 1 35");
+    Static_Exchange_Evaluator<int64_t> see(position);
+    EXPECT_EQ(see.evaluate(Square(ESQUARE::G7), PIECES::KNIGHT, 1), 50);
+}
+
 TEST(see_tests, a_cheaper_hidden_attacker)
 {
     Chess_Board position;
