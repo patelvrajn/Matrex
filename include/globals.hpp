@@ -43,6 +43,8 @@ constexpr std::string_view ENGINE_VERSION = "0.0.1";
 #define FORCE_INLINE    inline __attribute__((always_inline, flatten))
 #define FORCE_NO_INLINE [[gnu::noinline]]
 
+#define MAYBE_UNUSED [[maybe_unused]]
+
 constexpr uint64_t CACHE_LINE_SIZE = 64;
 #define CACHE_ALIGN alignas(CACHE_LINE_SIZE)
 
