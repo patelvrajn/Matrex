@@ -622,6 +622,136 @@ void Chess_Board::set_from_fen(const std::string& fen)
     m_state.hash_history_length             = 1;
 }
 
+std::string Chess_Board::to_fen()
+{
+    std::string fen = "";
+
+    // Loop to add all the pieces to the FEN string square by square.
+    uint8_t empty_square_count = 0;
+    for (uint8_t square_index = 0; square_index < NUM_OF_SQUARES_ON_CHESS_BOARD; square_index++)
+    {
+        Square s(square_index);
+        auto [piece_color, piece_type] = what_piece_is_on_square(s);
+
+        // New rank condition except the first rank.
+        if (((square_index % NUM_OF_FILES_ON_CHESS_BOARD) == 0) && (square_index != 0))
+        {
+            // At the end of a rank, we output the non-zero empty square count
+            // and reset the count for the next rank. 
+            if (empty_square_count > 0)
+            {
+                fen += std::to_string(empty_square_count);
+                empty_square_count = 0;
+            }
+
+            // Add rank separator at the start of each rank.
+            fen += "/"; 
+        }
+        
+        // If there is a piece on this square and the empty square count is non-
+        // zero, we need to output the count to the FEN string and reset the 
+        // count.
+        if ((piece_type != PIECES::NO_PIECE) && (empty_square_count > 0))
+        {
+            fen += std::to_string(empty_square_count);
+            empty_square_count = 0;
+        }
+
+        // If this is the last square and it is empty, do the same for an empty
+        // square above except output 1 more than the existing count. Since, 
+        // there is no existing count and the piece type is NO_PIECE the above 
+        // logic for the empty square count will not trigger. 
+        if ((piece_type == PIECES::NO_PIECE) && (square_index == (NUM_OF_SQUARES_ON_CHESS_BOARD - 1)))
+        {
+            fen += std::to_string(empty_square_count + 1);
+            break;
+        }
+
+        // Piece to string conversion for squares with a piece.
+        if (piece_type != PIECES::NO_PIECE)
+        {
+            char piece_char = ' ';
+
+            switch (piece_type)
+            {
+                case PIECES::PAWN:   piece_char = 'P'; break;
+                case PIECES::KNIGHT: piece_char = 'N'; break;
+                case PIECES::BISHOP: piece_char = 'B'; break;
+                case PIECES::ROOK:   piece_char = 'R'; break;
+                case PIECES::QUEEN:  piece_char = 'Q'; break;
+                case PIECES::KING:   piece_char = 'K'; break;
+                default:             piece_char = ' '; break;
+            }
+
+            if (piece_color == PIECE_COLOR::BLACK)
+            {
+                piece_char = std::tolower(piece_char);
+            }
+
+            fen += piece_char;
+        }
+        // Empty square count is increased every consecutive empty square.
+        else
+        {
+            empty_square_count++;
+        }
+    }
+
+    // Side to move.
+    if (m_state.side_to_move == PIECE_COLOR::WHITE)
+    {
+        fen += " w ";
+    }
+    else
+    {
+        fen += " b ";
+    }
+
+    // Castling rights.
+    if (m_state.castling_rights == 0)
+    {
+        fen += "- ";
+    }
+
+    if (m_state.castling_rights & CASTLING_RIGHTS_FLAGS::W_KINGSIDE)
+    {
+        fen += "K";
+    }
+
+    if (m_state.castling_rights & CASTLING_RIGHTS_FLAGS::W_QUEENSIDE)
+    {
+        fen += "Q";
+    }
+    
+    if (m_state.castling_rights & CASTLING_RIGHTS_FLAGS::B_KINGSIDE)
+    {
+        fen += "k";
+    }
+    
+    if (m_state.castling_rights & CASTLING_RIGHTS_FLAGS::B_QUEENSIDE)
+    {
+        fen += "q";
+    }
+
+    // En-passant square.
+    if (m_state.enpassant_square != NO_SQUARE)
+    {
+        fen += (" " + SQUARE_STRINGS[m_state.enpassant_square] + " ");
+    }
+    else
+    {
+        fen += " - ";
+    }
+
+    // Half-move clock.
+    fen += std::to_string(m_state.half_move_clock) + " ";
+
+    // Full move count.
+    fen += std::to_string(m_state.full_move_count);
+
+    return fen;
+}
+
 // Helper: take a substring describing a single rank (e.g. "rnbqkbnr" or
 // "p3pppp") and place the corresponding pieces into bitboards
 void Chess_Board::place_pieces_from_fen(const std::string& rank_description,

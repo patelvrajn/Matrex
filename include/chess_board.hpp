@@ -9,16 +9,18 @@
 #include "globals.hpp"
 #include "zobrist_hash.hpp"
 
-constexpr uint8_t NUM_OF_CASTLING_TYPES = 2;
-
 constexpr uint8_t     HALF_MOVE_CLOCK_MAXIMUM = 100;
 constexpr std::size_t HASH_HISTORY_SIZE       = HALF_MOVE_CLOCK_MAXIMUM;
+
+constexpr uint8_t NUM_OF_CASTLING_TYPES = 2;
 
 enum CASTLING_TYPE
 {
     KINGSIDE,
     QUEENSIDE
 };
+
+constexpr uint8_t NUM_OF_CASTLING_RIGHTS_FLAGS = 4;
 
 enum CASTLING_RIGHTS_FLAGS
 {
@@ -83,6 +85,8 @@ class Chess_Board
     what_piece_is_on_square(const Square& s) const;
 
     void set_from_fen(const std::string& fen);
+
+    std::string to_fen();
 
     Bitboard get_both_color_occupancies() const;
 
