@@ -5,36 +5,6 @@
 
 #include "globals.hpp"
 
-Bitboard::Iterator::Iterator(uint64_t board) : m_board(board) {}
-
-Square Bitboard::Iterator::operator*() const
-{
-    return Square(__builtin_ctzll(m_board));
-}
-
-Bitboard::Iterator& Bitboard::Iterator::operator++()
-{
-    m_board &= (m_board - 1);
-    return *this;
-}
-
-bool Bitboard::Iterator::operator==(const Iterator& other) const
-{
-    return (other.m_board == m_board);
-}
-
-bool Bitboard::Iterator::operator!=(const Iterator& other) const
-{
-    return (other.m_board != m_board);
-}
-
-Bitboard::Iterator Bitboard::begin() const
-{
-    return Bitboard::Iterator(m_board);
-}
-
-Bitboard::Iterator Bitboard::end() const { return Bitboard::Iterator(0ULL); }
-
 void Bitboard::pretty_print() const
 {
     std::cout << "Bitboard: " << m_board << " (0x" << std::hex << m_board << ")"

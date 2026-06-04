@@ -79,104 +79,6 @@ init_between_squares_masks()
     return between_squares_masks;
 }
 
-enum DIRECTION : int8_t
-{
-    NORTHWEST    = -9,
-    NORTH        = -8,
-    NORTHEAST    = -7,
-    WEST         = -1,
-    NO_DIRECTION = 0,
-    EAST         = 1,
-    SOUTHWEST    = 7,
-    SOUTH        = 8,
-    SOUTHEAST    = 9
-};
-
-struct Directional_Ray
-{
-    uint64_t  ray       = 0;
-    DIRECTION direction = NO_DIRECTION;
-};
-
-using Directional_Ray_Table = multi_array<Directional_Ray,
-                                          NUM_OF_SQUARES_ON_CHESS_BOARD,
-                                          NUM_OF_SQUARES_ON_CHESS_BOARD>;
-
-constexpr Directional_Ray generate_directional_ray(const Square& a,
-                                                   const Square& b)
-{
-    uint64_t  mask  = 0;
-    DIRECTION delta = NO_DIRECTION;
-
-    // There are no squares in between a and b if they are the same square.
-    if (a == b) { return {.ray = mask, .direction = delta}; }
-
-    const int8_t distance = b.get_index() - a.get_index();
-
-    if (a.get_file() == b.get_file())
-    { // Squares a and b are on the same file.
-
-        delta = ((distance > 0) ? SOUTH : NORTH); // Move along the file.
-    }
-    else if (b.get_rank() == a.get_rank())
-    { // Squares a and b are on the same rank.
-
-        delta = ((distance > 0) ? EAST : WEST); // Move along the rank.
-    }
-    else if ((distance % 9) == 0)
-    { // Squares a and b are on a diagonal.
-
-        delta = ((distance > 0) ? SOUTHEAST
-                                : NORTHWEST); // Move along the diagonal.
-    }
-    else if ((distance % 7) == 0)
-    { // Squares a and b are on another diagonal.
-
-        delta = ((distance > 0) ? SOUTHWEST
-                                : NORTHEAST); // Move along the diagonal.
-    }
-    else
-    {
-        return {
-            .ray = mask,
-            .direction =
-                delta}; // No diagonal or orthogonal path between the squares.
-    }
-
-    // Starting from square a travel in the direction of square b until you
-    // cannot travel any further.
-    int square_index = a.get_index();
-    while ((Square(square_index).get_rank() < NUM_OF_RANKS_ON_CHESS_BOARD)
-           && (Square(square_index).get_file() < NUM_OF_FILES_ON_CHESS_BOARD))
-    {
-        mask         |= Square(square_index).get_mask();
-        square_index += delta;
-    }
-
-    return {.ray = mask, .direction = delta};
-}
-
-constexpr Directional_Ray_Table init_between_directional_rays_table()
-{
-    Directional_Ray_Table table;
-
-    for (uint8_t outer_square_idx = 0;
-         outer_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         outer_square_idx++)
-    {
-        for (uint8_t inner_square_idx = 0;
-             inner_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-             inner_square_idx++)
-        {
-            table[outer_square_idx][inner_square_idx] =
-                generate_directional_ray(Square(outer_square_idx),
-                                         Square(inner_square_idx));
-        }
-    }
-
-    return table;
-}
-
 constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_rank_masks()
 {
     std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> rank_masks;
@@ -300,10 +202,17 @@ init_antidiagonal_masks()
     return antidiagonal_masks;
 }
 
+enum Bitboard_Iteration_Order
+{
+    LSB_TO_MSB,
+    MSB_TO_LSB
+};
+
 class Bitboard
 {
   public:
 
+    template <Bitboard_Iteration_Order iteration_order = LSB_TO_MSB>
     class Iterator
     {
       public:
@@ -319,8 +228,11 @@ class Bitboard
         uint64_t m_board;
     };
 
-    Iterator begin() const;
-    Iterator end() const;
+    template <Bitboard_Iteration_Order iteration_order = LSB_TO_MSB>
+    Iterator<iteration_order> begin() const;
+
+    template <Bitboard_Iteration_Order iteration_order = LSB_TO_MSB>
+    Iterator<iteration_order> end() const;
 
     constexpr Bitboard();
     constexpr Bitboard(uint64_t board);
@@ -351,8 +263,6 @@ class Bitboard
     constexpr static Bitboard        get_antidiagonal_mask(const Square& s);
     constexpr static Bitboard        get_infinite_ray(const Square& a,
                                                       const Square& b);
-    constexpr static Directional_Ray get_directional_ray(const Square a,
-                                                         const Square b);
 
     constexpr static bool
     is_piece_obstructed(const Square a, const Square b, Bitboard occupancy);
@@ -390,11 +300,78 @@ class Bitboard
         m_diagonal_masks = init_diagonal_masks();
     inline static constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
         m_antidiagonal_masks = init_antidiagonal_masks();
-    inline static constexpr Directional_Ray_Table m_directional_ray_table =
-        init_between_directional_rays_table();
 };
 
 using Bitboard_Array = multi_array<Bitboard, NUM_OF_SQUARES_ON_CHESS_BOARD>;
+
+template <Bitboard_Iteration_Order iteration_order>
+Bitboard::Iterator<iteration_order>::Iterator(uint64_t board) : m_board(board) {}
+
+template <Bitboard_Iteration_Order iteration_order>
+Square Bitboard::Iterator<iteration_order>::operator*() const
+{
+    if constexpr (iteration_order == LSB_TO_MSB)
+    {
+        return Square(__builtin_ctzll(m_board));
+    }
+
+    if constexpr (iteration_order == MSB_TO_LSB)
+    {
+        return Square((NUM_OF_SQUARES_ON_CHESS_BOARD - 1) - std::countl_zero(m_board));
+    }
+}
+
+template <Bitboard_Iteration_Order iteration_order>
+Bitboard::Iterator<iteration_order>& Bitboard::Iterator<iteration_order>::operator++()
+{
+    if constexpr (iteration_order == LSB_TO_MSB)
+    {
+        m_board &= (m_board - 1);
+    }
+
+    if constexpr (iteration_order == MSB_TO_LSB)
+    {
+        const Square square((NUM_OF_SQUARES_ON_CHESS_BOARD - 1) - std::countl_zero(m_board));
+        m_board &= ~square.get_mask();
+    }
+    
+    return *this;
+}
+
+template <Bitboard_Iteration_Order iteration_order>
+bool Bitboard::Iterator<iteration_order>::operator==(const Iterator& other) const
+{
+    return (other.m_board == m_board);
+}
+
+template <Bitboard_Iteration_Order iteration_order>
+bool Bitboard::Iterator<iteration_order>::operator!=(const Iterator& other) const
+{
+    return (other.m_board != m_board);
+}
+
+template <Bitboard_Iteration_Order iteration_order>
+Bitboard::Iterator<iteration_order> Bitboard::begin() const
+{
+    return Bitboard::Iterator<iteration_order>(m_board);
+}
+
+template <Bitboard_Iteration_Order iteration_order>
+Bitboard::Iterator<iteration_order> Bitboard::end() const {
+    return Bitboard::Iterator<iteration_order>(0ULL); 
+}
+
+// An iterable wrapper around the Bitboard class to allow for range-based for 
+// loops with a specific iteration order.
+template <Bitboard_Iteration_Order Order>
+struct Bitboard_Iterable {
+    const Bitboard& bb;
+
+    Bitboard_Iterable(const Bitboard& bitboard) : bb(bitboard) {}
+
+    auto begin() const { return bb.begin<Order>(); }
+    auto end()   const { return bb.end<Order>(); }
+};
 
 constexpr Bitboard::Bitboard() : m_board(0) {}
 
@@ -525,12 +502,6 @@ constexpr Bitboard Bitboard::get_infinite_ray(const Square& a, const Square& b)
     }
 
     return Bitboard();
-}
-
-constexpr Directional_Ray Bitboard::get_directional_ray(const Square a,
-                                                        const Square b)
-{
-    return m_directional_ray_table[a.get_index()][b.get_index()];
 }
 
 constexpr bool Bitboard::is_piece_obstructed(const Square a,

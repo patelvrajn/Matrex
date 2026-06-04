@@ -51,6 +51,10 @@ class Static_Exchange_Evaluator
                                   bool&             only_kings) const;
 
     void reset_occupancy_bitboards();
+
+    inline Placed_Piece find_hidden_attacker(const Placed_Piece& previous_attacker, Square target_square, const PIECE_COLOR side) const;
+
+    inline void insert_hidden_attacker(SEE_Interleaved_Attackers_Array& attackers, const Placed_Piece& hidden_attacker) const;
 };
 
 template <typename Integral_Type>
@@ -248,6 +252,105 @@ void Static_Exchange_Evaluator<Integral_Type>::reset_occupancy_bitboards()
 }
 
 template <typename Integral_Type>
+inline Placed_Piece Static_Exchange_Evaluator<Integral_Type>::find_hidden_attacker(const Placed_Piece& previous_attacker, Square target_square, const PIECE_COLOR side) const
+{
+    // Attacker ray - The ray going in the direction of the previous attacker 
+    // from the target square until it reaches the edge of the board.
+    const auto& attacker_ray = Attacks::get_directional_ray(target_square, previous_attacker.square);
+
+    // All occupancies along the attacker ray.
+    Bitboard occupancies = attacker_ray.ray & m_all_occupancies;
+
+    // Eliminate occupanices that cannot be attackers - the attackers are not 
+    // the previous attacker or the piece on the target square being evaluated 
+    // for capture.
+    occupancies.unset_square(previous_attacker.square);
+    occupancies.unset_square(target_square);
+
+    // Get the first occupied square after the previous attacker on the ray.
+    constexpr bool START_FROM_START_SQUARE = true;
+    constexpr uint8_t FIRST_OCCUPIED_INDEX = 0;
+    const Square first_occupied_square = attacker_ray.travel_occupied_ray<START_FROM_START_SQUARE>(FIRST_OCCUPIED_INDEX, occupancies);
+
+    // A bishop attacks the target square.
+    if (m_piece_bitboards[side][PIECES::BISHOP].get_square(first_occupied_square))
+    {
+        return {.color = side, .piece = PIECES::BISHOP, .square = first_occupied_square};
+    }
+
+    // A rook attacks the target square.
+    if (m_piece_bitboards[side][PIECES::ROOK].get_square(first_occupied_square))
+    {
+        return {.color = side, .piece = PIECES::ROOK, .square = first_occupied_square};
+    }
+
+    // A queen attacks the target square.
+    if (m_piece_bitboards[side][PIECES::QUEEN].get_square(first_occupied_square))
+    {
+        return {.color = side, .piece = PIECES::QUEEN, .square = first_occupied_square};
+    }
+
+    // No sliding pieces attack the square therefore, there is no hidden
+    // attackers on the ray.
+    return Placed_Piece();
+}
+
+template <typename Integral_Type>
+inline void Static_Exchange_Evaluator<Integral_Type>::insert_hidden_attacker(SEE_Interleaved_Attackers_Array& attackers, const Placed_Piece& hidden_attacker) const
+{
+    // There are no current attackers, just return and let the algorithm 
+    // generate new attackers.
+    if (attackers.size() == 0)
+    {
+        return;
+    }
+
+    // Find the position in the array where the hidden attacker should be 
+    // inserted based on only material value.
+    auto material_position = std::lower_bound (
+        attackers.begin(),
+        attackers.end(),
+        hidden_attacker,
+        [](const Placed_Piece& a, const Placed_Piece& b)
+        {
+            return (m_material_weights[a.piece] >= m_material_weights[b.piece]);
+        }
+    );
+
+    // If the hidden attacker is higher in material value than all attackers in
+    // the array, return.
+    if (material_position == attackers.end())
+    {
+        return;
+    }
+
+    // Based on the material value we are in the correct locality of the array 
+    // but we need to insert the hidden attacker where its opposite in color to
+    // the adjacent elements. Since, the attackers array is in descending 
+    // interleaved order we can just go an index back from the current index if
+    // the color isn't the same. 
+    std::size_t insert_index = static_cast<std::size_t>(std::distance(attackers.begin(), material_position));
+    if ((attackers[insert_index].color != hidden_attacker.color) && (insert_index != 0))
+    {
+        insert_index--;
+    }
+
+    // If the hidden attacker is not the same color as the last attacker and it 
+    // belongs at that position or before, return.
+    if ((insert_index == 0) && (attackers[insert_index].color != hidden_attacker.color))
+    {
+        return;
+    }
+
+    // Insert the hidden attacker into the array via swapping.
+    auto value = hidden_attacker;
+    for (int8_t i = insert_index; i >= 0; i -= NUM_OF_PLAYERS)
+    {
+        std::swap(value, attackers[i]);
+    }
+}
+
+template <typename Integral_Type>
 Integral_Type
 Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
                                                    PIECES        moving_piece,
@@ -360,17 +463,18 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
             previous_attacker = attacker;
             attackers.pop();
 
-            // if (attackers.size() == 0)
-            // {
-            //     break;
-            // }
+            // Find if a hidden attacker was revealed for either side.
+            Placed_Piece hidden_attacker = find_hidden_attacker(previous_attacker, target_square, ~previous_attacker.color);
+            if (hidden_attacker == Placed_Piece())
+            {
+                hidden_attacker = find_hidden_attacker(previous_attacker, target_square, previous_attacker.color);
+            }
 
-            // Placed_Piece hidden_attacker =
-            // find_hidden_attacker(previous_attacker, target_square); if
-            // (hidden_attacker.piece != PIECES::NO_PIECE)
-            // {
-            //     insert_hidden_attacker(attackers, hidden_attacker);
-            // }
+            // If we found a hidden attacker insert it into the attackers array.
+            if (hidden_attacker != Placed_Piece())
+            {
+                insert_hidden_attacker(attackers, hidden_attacker);
+            }
         }
 
         // Generate next set of attackers that may have been hidden behind other
@@ -379,6 +483,7 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
                                                   ~previous_attacker.color,
                                                   only_kings);
     }
+
     reset_occupancy_bitboards();
     return (score * score_scaler);
 }
