@@ -71,5 +71,5 @@ TEST(see_tests, a_cheaper_hidden_attacker)
     position.set_from_fen(
         "r4rk1/p1p3pp/bp1n1n2/5p2/4p3/3P2N1/PPB2PPP/R1B1QRK1 w - - 0 1");
     Static_Exchange_Evaluator<int64_t> see(position);
-    EXPECT_EQ(see.evaluate(Square(ESQUARE::E4), PIECES::PAWN, 1), -5);
+    EXPECT_EQ(see.evaluate(Square(ESQUARE::E4), PIECES::PAWN, 1), 5);
 }

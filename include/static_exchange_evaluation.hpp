@@ -335,18 +335,37 @@ inline void Static_Exchange_Evaluator<Integral_Type>::insert_hidden_attacker(SEE
         insert_index--;
     }
 
-    // If the hidden attacker is not the same color as the last attacker and it 
-    // belongs at that position or before, return.
-    if ((insert_index == 0) && (attackers[insert_index].color != hidden_attacker.color))
+    // Handle the edge case of insert index 0 - only replace the current 
+    // attacker at that index if the hidden attacker is of the same color and of
+    // lesser value.  
+    if ((insert_index == 0) && (attackers[insert_index].piece != PIECES::KING)
+       && (attackers[insert_index].color == hidden_attacker.color) 
+       && (m_material_weights[attackers[insert_index].piece] >= m_material_weights[hidden_attacker.piece]))
+    {
+        attackers[insert_index] = hidden_attacker;
+    }
+    // The above handles the case where the attacker at insert index is not a 
+    // king however, if it is a king we can replace it with the hidden attacker
+    // because everything is cheaper than the king.
+    else if ((insert_index == 0) 
+            && (attackers[insert_index].piece == PIECES::KING)
+            && (attackers[insert_index].color == hidden_attacker.color))
+    {
+        attackers[insert_index] = hidden_attacker;
+    }
+    // If the above edge cases do not match when the insert index is 0, return.
+    else if (insert_index == 0)
     {
         return;
     }
-
-    // Insert the hidden attacker into the array via swapping.
-    auto value = hidden_attacker;
-    for (int8_t i = insert_index; i >= 0; i -= NUM_OF_PLAYERS)
+    // Otherwise, just insert the hidden attacker into the array via swapping. 
+    else
     {
-        std::swap(value, attackers[i]);
+        auto value = hidden_attacker;
+        for (int8_t i = insert_index; i >= 0; i -= NUM_OF_PLAYERS)
+        {
+            std::swap(value, attackers[i]);
+        }
     }
 }
 
