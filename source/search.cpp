@@ -41,6 +41,8 @@ Search_Engine::negamax(Chess_Board&              position,
                        Score                     alpha,
                        Score                     beta)
 {
+    const uint32_t depth_squared = (depth * depth);
+
     // The parent's PV must be cleared between negamax calls because sibling
     // moves could influence each other.
     principal_variation.clear();
@@ -169,10 +171,22 @@ Search_Engine::negamax(Chess_Board&              position,
     Chess_Move               best_move  = Chess_Move();
     Score                    best_score = Score(FP_NEGATIVE_INFINITY);
 
-    bool is_first_move = true;
+    Static_Exchange_Evaluator<int64_t> see(position);
 
+    bool is_first_move = true;
     for (const Chess_Move& move : moves)
     {
+        // Static Exchange Evaluation Pruning (Captures Only)
+        if (move.is_capture)
+        {
+            const auto see_evaluation = see.evaluate(move.destination_square, move.moving_piece, 1);
+
+            if (see_evaluation < see.negamax_threshold(depth_squared))
+            {
+                continue;
+            }
+        }
+
         // Ensure each child has its own principal variation and is unaffected
         // by moves from the previous sibling.
         child_principal_variation.clear();

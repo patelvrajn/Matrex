@@ -22,6 +22,7 @@ class Static_Exchange_Evaluator
                            PIECES        moving_piece,
                            Integral_Type score_scaler);
     
+    constexpr Integral_Type negamax_threshold(uint32_t search_depth_squared);
     constexpr Integral_Type quiescence_threshold();
 
   private:
@@ -507,6 +508,12 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
 
     reset_occupancy_bitboards();
     return (score * score_scaler);
+}
+
+template <typename Integral_Type>
+constexpr Integral_Type Static_Exchange_Evaluator<Integral_Type>::negamax_threshold(uint32_t search_depth_squared)
+{
+    return ((-1 * m_material_weights[PIECES::PAWN]) * search_depth_squared);
 }
 
 template <typename Integral_Type>
