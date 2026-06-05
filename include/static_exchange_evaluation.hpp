@@ -4,6 +4,44 @@
 
 #include "evaluate.hpp"
 
+// =============================================================================
+// Static Exchange Evaluation (SEE) Class
+//
+// Performs and evaluates any sequence of captures that can happen on a 
+// specified square in a specified chess position. The implementation calculates
+// the attackers to a square from a side and pushes each attacker in order of 
+// descending material value into a Partially Filled Array. Once each side's
+// array of attackers is calculated, the two arrays are interleaved so that the
+// side to move alternates and the side that is currently is moving is at the 
+// end of the array. We chose the order of descending material and the fact that
+// the side to move is at the back of the array because popping from the end of 
+// an array is alot cheaper than popping from the beginning and shifting (which
+// involves copying) elements over -1 index. The interleaved array is then 
+// processed in a loop where we simply pop off the current attacker in the array
+// and add on the material value of the previous attacker (because the current 
+// attacker captures it). In addition, during each iteration, we look for hidden
+// attackers that may have access to the square because the attacker that moved
+// gave it a path to the target square (these attackers can only be slider 
+// pieces so we only consider those). This is supposed to be a quick and cheap
+// calculation for the scoring of captures and it has the following uses in 
+// search:   
+//
+// → Negamax Capture Move Pruning (Implemented and passes SPRT)
+// → Negamax Quiet Move Pruning (TBD)
+// → Quiescence Search Move Pruning (Implemented and passes SPRT)
+// → Move Ordering (Currently, does not pass SPRT.)
+//
+// If the moving piece at the start of capture sequence of the move given during 
+// search does not match the cheapest attacker that SEE calculates we simply 
+// penalize it, this is to avoid any logic reordering of the arrays which could
+// be expensive.
+// 
+// The following are additional features that can be implemented:
+// 
+// → Pinned piece detection
+// → En passant
+// =============================================================================
+
 constexpr std::size_t SEE_ATTACKERS_ARRAY_SIZE = NUM_OF_PIECES_PER_PLAYER;
 
 using SEE_Attackers_Array =
