@@ -54,8 +54,8 @@ void Move_Ordering::move_scorer()
             move.score =
                 m_mvv_lva_array[move.moving_piece][move.captured_piece];
 
-            move.score +=
-                m_see.evaluate(move.destination_square, move.moving_piece, 15);
+            // move.score +=
+            //     m_see.evaluate(move.destination_square, move.moving_piece, 15);
         }
         // Enpassant is a capture but not labeled under is_capture for move
         // generator implementation reasons. The moving/attacking piece is the

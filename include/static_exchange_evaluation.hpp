@@ -21,6 +21,8 @@ class Static_Exchange_Evaluator
     Integral_Type evaluate(Square        target_square,
                            PIECES        moving_piece,
                            Integral_Type score_scaler);
+    
+    constexpr Integral_Type quiescence_threshold();
 
   private:
 
@@ -505,4 +507,10 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
 
     reset_occupancy_bitboards();
     return (score * score_scaler);
+}
+
+template <typename Integral_Type>
+constexpr Integral_Type Static_Exchange_Evaluator<Integral_Type>::quiescence_threshold()
+{
+    return (-2 * m_material_weights[PIECES::PAWN]);
 }

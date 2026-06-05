@@ -1,7 +1,7 @@
 #include "search.hpp"
-
 #include "evaluate.hpp"
 #include "evaluation_terms.hpp"
+#include "static_exchange_evaluation.hpp"
 
 Search_Engine::Search_Engine() :
     m_timer_expired_during_search(false), m_num_of_nodes_searched(0)
@@ -483,8 +483,21 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         }
     }
 
+    Static_Exchange_Evaluator<int64_t> see(position);
+
     for (const Chess_Move& move : moves)
     {
+        // Static Exchange Evaluation Pruning
+        if (move.is_capture)
+        {
+            const auto see_evaluation = see.evaluate(move.destination_square, move.moving_piece, 1);
+
+            if (see_evaluation < see.quiescence_threshold())
+            {
+                continue;
+            }
+        }
+
         // Explore the child move's subtree for it's evaluation. Negate
         // the result to compare it's score to the parent's scores
         // (alpha, evaluation, etc).
