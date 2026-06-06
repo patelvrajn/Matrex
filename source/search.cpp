@@ -255,14 +255,12 @@ Search_Engine::negamax(Chess_Board&              position,
             alpha       = child_score;
         }
 
-        // Update the best score and best move found so far at this node even if
-        // the child is expected to cause pruning because the information that
-        // this node caused a beta cutoff is still needed for the parent node's
-        // move.
+        // Update the best score found so far at this node even if the child is 
+        // expected to cause pruning because the information that this node 
+        // caused a beta cutoff is still needed for the parent node's move.
         if (child_score > best_score)
         {
             best_score = child_score;
-            best_move  = move;
         }
 
         // When alpha of the parent becomes greater than or equal to beta, a
@@ -299,11 +297,12 @@ Search_Engine::negamax(Chess_Board&              position,
         }
 
         // If the child's score raised alpha and was within alpha < score <
-        // beta, then the child's move is the principal variation move for the
-        // current ply.
+        // beta, then the child's move is the new best move and a principal 
+        // variation move for the current ply.
         if (is_child_score_better_than_alpha)
         {
-            principal_variation.push_and_copy(move, child_principal_variation);
+            best_move = move;
+            principal_variation.push_and_copy(best_move, child_principal_variation);
         }
 
         is_first_move = false;
@@ -522,18 +521,19 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         const Score child_score = -child_result.second;
         position.undo_move(undo_move);
 
+        bool is_child_score_better_than_alpha = child_score > alpha;
+
         // Update alpha if the child's score is better than the alpha.
-        if (child_score > alpha)
+        if (is_child_score_better_than_alpha)
         {
             score_bound = Score_Bound_Type::EXACT;
             alpha       = child_score;
         }
 
-        // Update best score and best move based on child's score.
+        // Update best score based on child's score.
         if (child_score > best_score)
         {
             best_score = child_score;
-            best_move  = move;
         }
 
         // Alpha-beta pruning based on child's score.
@@ -541,6 +541,13 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         {
             score_bound = Score_Bound_Type::LOWER_BOUND;
             break;
+        }
+
+        // A best move is found if the score is exact and it is greater than 
+        // alpha.
+        if (is_child_score_better_than_alpha)
+        {
+            best_move = move;
         }
     }
 

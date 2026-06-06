@@ -733,14 +733,19 @@ std::string Chess_Board::to_fen()
         fen += "q";
     }
 
+    if (m_state.castling_rights != 0)
+    {
+        fen += " ";
+    }
+
     // En-passant square.
     if (m_state.enpassant_square != NO_SQUARE)
     {
-        fen += (" " + SQUARE_STRINGS[m_state.enpassant_square] + " ");
+        fen += (SQUARE_STRINGS[m_state.enpassant_square] + " ");
     }
     else
     {
-        fen += " - ";
+        fen += "- ";
     }
 
     // Half-move clock.

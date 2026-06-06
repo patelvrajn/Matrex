@@ -374,10 +374,11 @@ constexpr Fixed_Point_Integer<F>
 Fixed_Point_Integer<F>::operator+(const Fixed_Point_Integer other) const
 {
     // Clamp in case of overflow.
+    int64_t result = static_cast<int64_t>(m_value) + static_cast<int64_t>(other.m_value);
     Fixed_Point_Int_Storage_Type return_value =
-        std::clamp((m_value + other.m_value),
-                   std::numeric_limits<Fixed_Point_Int_Storage_Type>::min(),
-                   std::numeric_limits<Fixed_Point_Int_Storage_Type>::max());
+        std::clamp(result,
+                   static_cast<int64_t>(std::numeric_limits<Fixed_Point_Int_Storage_Type>::min()),
+                   static_cast<int64_t>(std::numeric_limits<Fixed_Point_Int_Storage_Type>::max()));
     return Fixed_Point_Integer::from_value(return_value);
 }
 
@@ -386,10 +387,11 @@ constexpr Fixed_Point_Integer<F>
 Fixed_Point_Integer<F>::operator-(const Fixed_Point_Integer other) const
 {
     // Clamp in case of overflow.
+    int64_t result = static_cast<int64_t>(m_value) - static_cast<int64_t>(other.m_value);
     Fixed_Point_Int_Storage_Type return_value =
-        std::clamp((m_value - other.m_value),
-                   std::numeric_limits<Fixed_Point_Int_Storage_Type>::min(),
-                   std::numeric_limits<Fixed_Point_Int_Storage_Type>::max());
+        std::clamp(result,
+                   static_cast<int64_t>(std::numeric_limits<Fixed_Point_Int_Storage_Type>::min()),
+                   static_cast<int64_t>(std::numeric_limits<Fixed_Point_Int_Storage_Type>::max()));
     return Fixed_Point_Integer::from_value(return_value);
 }
 
