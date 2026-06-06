@@ -1,7 +1,7 @@
 #include "search.hpp"
-
 #include "evaluate.hpp"
 #include "evaluation_terms.hpp"
+#include "static_exchange_evaluation.hpp"
 
 Search_Engine::Search_Engine() :
     m_timer_expired_during_search(false), m_num_of_nodes_searched(0)
@@ -41,6 +41,8 @@ Search_Engine::negamax(Chess_Board&              position,
                        Score                     alpha,
                        Score                     beta)
 {
+    const uint32_t depth_squared = (depth * depth);
+
     // The parent's PV must be cleared between negamax calls because sibling
     // moves could influence each other.
     principal_variation.clear();
@@ -169,10 +171,22 @@ Search_Engine::negamax(Chess_Board&              position,
     Chess_Move               best_move  = Chess_Move();
     Score                    best_score = Score(FP_NEGATIVE_INFINITY);
 
-    bool is_first_move = true;
+    Static_Exchange_Evaluator<int64_t> see(position);
 
+    bool is_first_move = true;
     for (const Chess_Move& move : moves)
     {
+        // Static Exchange Evaluation Pruning (Captures Only)
+        if (move.is_capture)
+        {
+            const auto see_evaluation = see.evaluate(move.destination_square, move.moving_piece, 1);
+
+            if (see_evaluation < see.negamax_threshold(depth_squared))
+            {
+                continue;
+            }
+        }
+
         // Ensure each child has its own principal variation and is unaffected
         // by moves from the previous sibling.
         child_principal_variation.clear();
@@ -241,14 +255,12 @@ Search_Engine::negamax(Chess_Board&              position,
             alpha       = child_score;
         }
 
-        // Update the best score and best move found so far at this node even if
-        // the child is expected to cause pruning because the information that
-        // this node caused a beta cutoff is still needed for the parent node's
-        // move.
+        // Update the best score found so far at this node even if the child is 
+        // expected to cause pruning because the information that this node 
+        // caused a beta cutoff is still needed for the parent node's move.
         if (child_score > best_score)
         {
             best_score = child_score;
-            best_move  = move;
         }
 
         // When alpha of the parent becomes greater than or equal to beta, a
@@ -285,11 +297,12 @@ Search_Engine::negamax(Chess_Board&              position,
         }
 
         // If the child's score raised alpha and was within alpha < score <
-        // beta, then the child's move is the principal variation move for the
-        // current ply.
+        // beta, then the child's move is the new best move and a principal 
+        // variation move for the current ply.
         if (is_child_score_better_than_alpha)
         {
-            principal_variation.push_and_copy(move, child_principal_variation);
+            best_move = move;
+            principal_variation.push_and_copy(best_move, child_principal_variation);
         }
 
         is_first_move = false;
@@ -483,8 +496,21 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         }
     }
 
+    Static_Exchange_Evaluator<int64_t> see(position);
+
     for (const Chess_Move& move : moves)
     {
+        // Static Exchange Evaluation Pruning
+        if (move.is_capture)
+        {
+            const auto see_evaluation = see.evaluate(move.destination_square, move.moving_piece, 1);
+
+            if (see_evaluation < see.quiescence_threshold())
+            {
+                continue;
+            }
+        }
+
         // Explore the child move's subtree for it's evaluation. Negate
         // the result to compare it's score to the parent's scores
         // (alpha, evaluation, etc).
@@ -495,18 +521,19 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         const Score child_score = -child_result.second;
         position.undo_move(undo_move);
 
+        bool is_child_score_better_than_alpha = child_score > alpha;
+
         // Update alpha if the child's score is better than the alpha.
-        if (child_score > alpha)
+        if (is_child_score_better_than_alpha)
         {
             score_bound = Score_Bound_Type::EXACT;
             alpha       = child_score;
         }
 
-        // Update best score and best move based on child's score.
+        // Update best score based on child's score.
         if (child_score > best_score)
         {
             best_score = child_score;
-            best_move  = move;
         }
 
         // Alpha-beta pruning based on child's score.
@@ -514,6 +541,13 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         {
             score_bound = Score_Bound_Type::LOWER_BOUND;
             break;
+        }
+
+        // A best move is found if the score is exact and it is greater than 
+        // alpha.
+        if (is_child_score_better_than_alpha)
+        {
+            best_move = move;
         }
     }
 

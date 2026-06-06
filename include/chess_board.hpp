@@ -9,16 +9,18 @@
 #include "globals.hpp"
 #include "zobrist_hash.hpp"
 
-constexpr uint8_t NUM_OF_CASTLING_TYPES = 2;
-
 constexpr uint8_t     HALF_MOVE_CLOCK_MAXIMUM = 100;
 constexpr std::size_t HASH_HISTORY_SIZE       = HALF_MOVE_CLOCK_MAXIMUM;
+
+constexpr uint8_t NUM_OF_CASTLING_TYPES = 2;
 
 enum CASTLING_TYPE
 {
     KINGSIDE,
     QUEENSIDE
 };
+
+constexpr uint8_t NUM_OF_CASTLING_RIGHTS_FLAGS = 4;
 
 enum CASTLING_RIGHTS_FLAGS
 {
@@ -68,6 +70,11 @@ class Chess_Board
 
     Chess_Board_State m_state;
 
+    multi_array<Bitboard, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+        m_piece_bitboards;
+
+    multi_array<Bitboard, NUM_OF_PLAYERS> m_color_occupancy_bitboards;
+
   public:
 
     Chess_Board();
@@ -79,6 +86,8 @@ class Chess_Board
 
     void set_from_fen(const std::string& fen);
 
+    std::string to_fen();
+
     Bitboard get_both_color_occupancies() const;
 
     Bitboard get_color_occupancies(PIECE_COLOR c) const;
@@ -86,6 +95,8 @@ class Chess_Board
     Bitboard get_piece_occupancies(PIECE_COLOR c, PIECES p) const;
 
     Bitboard get_piece_occupancies(PIECES p) const;
+
+    auto get_piece_occupancies() const { return m_piece_bitboards; }
 
     uint8_t get_piece_count(PIECES p) const;
 
@@ -134,11 +145,6 @@ class Chess_Board
     bool operator==(const Chess_Board& other) const;
 
   private:
-
-    std::array<std::array<Bitboard, NUM_OF_UNIQUE_PIECES_PER_PLAYER>,
-               NUM_OF_PLAYERS>
-                                         m_piece_bitboards;
-    std::array<Bitboard, NUM_OF_PLAYERS> m_color_occupancy_bitboards;
 
     Zobrist_Hash m_zobrist_hash;
 

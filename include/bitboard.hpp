@@ -17,7 +17,7 @@ constexpr uint64_t generate_between_squares_mask(const Square& a,
 
     const int8_t distance = b.get_index() - a.get_index();
 
-    if ((distance & 7) == 0)
+    if (a.get_file() == b.get_file())
     { // Squares a and b are on the same file.
 
         delta = ((distance > 0) ? 8 : -8); // Move along the file.
@@ -202,10 +202,17 @@ init_antidiagonal_masks()
     return antidiagonal_masks;
 }
 
+enum Bitboard_Iteration_Order
+{
+    LSB_TO_MSB,
+    MSB_TO_LSB
+};
+
 class Bitboard
 {
   public:
 
+    template <Bitboard_Iteration_Order iteration_order = LSB_TO_MSB>
     class Iterator
     {
       public:
@@ -221,8 +228,11 @@ class Bitboard
         uint64_t m_board;
     };
 
-    Iterator begin() const;
-    Iterator end() const;
+    template <Bitboard_Iteration_Order iteration_order = LSB_TO_MSB>
+    Iterator<iteration_order> begin() const;
+
+    template <Bitboard_Iteration_Order iteration_order = LSB_TO_MSB>
+    Iterator<iteration_order> end() const;
 
     constexpr Bitboard();
     constexpr Bitboard(uint64_t board);
@@ -245,14 +255,14 @@ class Bitboard
     constexpr Bitboard get_backward_squares_mask(const Square& s,
                                                  PIECE_COLOR   side) const;
 
-    constexpr static Bitboard get_between_squares_mask(const Square& a,
-                                                       const Square& b);
-    constexpr static Bitboard get_rank_mask(const Square& s);
-    constexpr static Bitboard get_file_mask(const Square& s);
-    constexpr static Bitboard get_diagonal_mask(const Square& s);
-    constexpr static Bitboard get_antidiagonal_mask(const Square& s);
-    constexpr static Bitboard get_infinite_ray(const Square& a,
-                                               const Square& b);
+    constexpr static Bitboard        get_between_squares_mask(const Square& a,
+                                                              const Square& b);
+    constexpr static Bitboard        get_rank_mask(const Square& s);
+    constexpr static Bitboard        get_file_mask(const Square& s);
+    constexpr static Bitboard        get_diagonal_mask(const Square& s);
+    constexpr static Bitboard        get_antidiagonal_mask(const Square& s);
+    constexpr static Bitboard        get_infinite_ray(const Square& a,
+                                                      const Square& b);
 
     constexpr static bool
     is_piece_obstructed(const Square a, const Square b, Bitboard occupancy);
@@ -293,6 +303,75 @@ class Bitboard
 };
 
 using Bitboard_Array = multi_array<Bitboard, NUM_OF_SQUARES_ON_CHESS_BOARD>;
+
+template <Bitboard_Iteration_Order iteration_order>
+Bitboard::Iterator<iteration_order>::Iterator(uint64_t board) : m_board(board) {}
+
+template <Bitboard_Iteration_Order iteration_order>
+Square Bitboard::Iterator<iteration_order>::operator*() const
+{
+    if constexpr (iteration_order == LSB_TO_MSB)
+    {
+        return Square(__builtin_ctzll(m_board));
+    }
+
+    if constexpr (iteration_order == MSB_TO_LSB)
+    {
+        return Square((NUM_OF_SQUARES_ON_CHESS_BOARD - 1) - std::countl_zero(m_board));
+    }
+}
+
+template <Bitboard_Iteration_Order iteration_order>
+Bitboard::Iterator<iteration_order>& Bitboard::Iterator<iteration_order>::operator++()
+{
+    if constexpr (iteration_order == LSB_TO_MSB)
+    {
+        m_board &= (m_board - 1);
+    }
+
+    if constexpr (iteration_order == MSB_TO_LSB)
+    {
+        const Square square((NUM_OF_SQUARES_ON_CHESS_BOARD - 1) - std::countl_zero(m_board));
+        m_board &= ~square.get_mask();
+    }
+    
+    return *this;
+}
+
+template <Bitboard_Iteration_Order iteration_order>
+bool Bitboard::Iterator<iteration_order>::operator==(const Iterator& other) const
+{
+    return (other.m_board == m_board);
+}
+
+template <Bitboard_Iteration_Order iteration_order>
+bool Bitboard::Iterator<iteration_order>::operator!=(const Iterator& other) const
+{
+    return (other.m_board != m_board);
+}
+
+template <Bitboard_Iteration_Order iteration_order>
+Bitboard::Iterator<iteration_order> Bitboard::begin() const
+{
+    return Bitboard::Iterator<iteration_order>(m_board);
+}
+
+template <Bitboard_Iteration_Order iteration_order>
+Bitboard::Iterator<iteration_order> Bitboard::end() const {
+    return Bitboard::Iterator<iteration_order>(0ULL); 
+}
+
+// An iterable wrapper around the Bitboard class to allow for range-based for 
+// loops with a specific iteration order.
+template <Bitboard_Iteration_Order Order>
+struct Bitboard_Iterable {
+    const Bitboard& bb;
+
+    Bitboard_Iterable(const Bitboard& bitboard) : bb(bitboard) {}
+
+    auto begin() const { return bb.begin<Order>(); }
+    auto end()   const { return bb.end<Order>(); }
+};
 
 constexpr Bitboard::Bitboard() : m_board(0) {}
 

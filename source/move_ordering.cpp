@@ -7,7 +7,7 @@ mvv_lva_array Move_Ordering::m_mvv_lva_array =
 
 Move_Ordering::Move_Ordering(const Chess_Board& cb,
                              const Chess_Move&  hash_move) :
-    m_chess_board(cb), m_hash_move(hash_move)
+    m_chess_board(cb), m_hash_move(hash_move), m_see(cb)
 {
 }
 
@@ -53,6 +53,9 @@ void Move_Ordering::move_scorer()
         {
             move.score =
                 m_mvv_lva_array[move.moving_piece][move.captured_piece];
+
+            // move.score +=
+            //     m_see.evaluate(move.destination_square, move.moving_piece, 15);
         }
         // Enpassant is a capture but not labeled under is_capture for move
         // generator implementation reasons. The moving/attacking piece is the

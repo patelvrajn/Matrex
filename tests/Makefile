@@ -1,6 +1,6 @@
 # To compile using all available cores use: -j$(shell nproc)
-# Only compile using 2 cores because of memory consumption.
-MAKEFLAGS += -j2
+# Only compile using 1 core because of memory consumption.
+MAKEFLAGS += -j1
 
 # Recursive wildcard make function; recursively searches for files matching 
 # given wildcard pattern.
@@ -56,7 +56,7 @@ clean:
 
 # The final product depends on the object files.
 $(PROJECT_NAME) : $(prog_objs) $(test_objs)
-	$(CXX) $(CXXFLAGS) -o $@ $^ /usr/local/lib/libgtest.a -lstdc++_libbacktrace
+	$(CXX) $(CXXFLAGS) -o $@ $^ /usr/local/lib/libgtest.a -lstdc++exp
 
 # An object file depends on the respective cpp file.
 %.o: %.cpp

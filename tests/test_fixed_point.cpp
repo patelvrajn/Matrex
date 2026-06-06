@@ -64,6 +64,19 @@ TEST(fixed_point_tests, mixed_addition)
     EXPECT_EQ(sum_one.get_value(), expected_sum);
 }
 
+TEST(fixed_point_tests, test_addition_overflow)
+{
+    Fixed_Point_Int_Storage_Type addend_one = std::numeric_limits<Fixed_Point_Int_Storage_Type>::max();
+    Fixed_Point_Int_Storage_Type addend_two = std::numeric_limits<Fixed_Point_Int_Storage_Type>::max();
+    Fixed_Point_Int_Storage_Type sum = std::numeric_limits<Fixed_Point_Int_Storage_Type>::max();
+
+    Matrex_FP_Int fp_addend_one = Matrex_FP_Int::from_value(addend_one);
+    Matrex_FP_Int fp_addend_two = Matrex_FP_Int::from_value(addend_two);
+    Matrex_FP_Int fp_sum        = fp_addend_one + fp_addend_two;
+
+    EXPECT_EQ(fp_sum.get_value(), sum);
+}
+
 TEST(fixed_point_tests, value_subtraction)
 {
     Fixed_Point_Int_Storage_Type subtrahend              = 1210;
@@ -137,6 +150,19 @@ TEST(fixed_point_tests, mixed_subtraction)
     EXPECT_EQ(difference_one.get_value(), expected_difference_one);
     EXPECT_EQ(difference_two.get_value(), expected_difference_two);
     EXPECT_NE(difference_one, difference_two);
+}
+
+TEST(fixed_point_tests, test_subtraction_overflow)
+{
+    Fixed_Point_Int_Storage_Type subtrahend = std::numeric_limits<Fixed_Point_Int_Storage_Type>::min();
+    Fixed_Point_Int_Storage_Type minuend = std::numeric_limits<Fixed_Point_Int_Storage_Type>::max();
+    Fixed_Point_Int_Storage_Type difference = std::numeric_limits<Fixed_Point_Int_Storage_Type>::min();
+
+    Matrex_FP_Int fp_subtrahend = Matrex_FP_Int::from_value(subtrahend);
+    Matrex_FP_Int fp_minuend = Matrex_FP_Int::from_value(minuend);
+    Matrex_FP_Int fp_difference = fp_subtrahend - fp_minuend;
+
+    EXPECT_EQ(fp_difference.get_value(), difference);
 }
 
 TEST(fixed_point_tests, value_multiplication)

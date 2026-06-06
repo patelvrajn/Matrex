@@ -11,7 +11,7 @@
 constexpr std::size_t MAXIMUM_NUM_OF_MOVES_IN_A_POSITION = 256;
 constexpr std::size_t PRINCIPAL_VARIATION_LIST_CAPACITY  = 256;
 
-typedef uint16_t Move_Score; // Not the same as a search evaluation score.
+typedef int16_t Move_Score; // Not the same as a search evaluation score.
 
 struct Chess_Move
 {

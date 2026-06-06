@@ -48,6 +48,8 @@ class Square
 
     constexpr bool operator==(const Square& other) const;
 
+    friend std::ostream& operator<<(std::ostream& os, const Square s);
+
   private:
 
     uint8_t m_index;
