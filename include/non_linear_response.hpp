@@ -33,6 +33,17 @@ struct NLR_Parameters
         (arr)[(idx)].q_plus, (arr)[(idx)].q_minus, (arr)[(idx)].r_plus,        \
         (arr)[(idx)].r_minus, (arr)[(idx)].g_plus, (arr)[(idx)].g_minus
 
+#define NLR_2D_ARRAY_FIELDS(arr, outer_idx, inner_idx)                         \
+    (arr)[(outer_idx)][(inner_idx)].h_plus,                                    \ 
+    (arr)[(outer_idx)][(inner_idx)].h_minus,                                   \
+    (arr)[(outer_idx)][(inner_idx)].z, (arr)[(outer_idx)][(inner_idx)].k,      \
+    (arr)[(outer_idx)][(inner_idx)].q_plus,                                    \
+    (arr)[(outer_idx)][(inner_idx)].q_minus,                                   \
+    (arr)[(outer_idx)][(inner_idx)].r_plus,                                    \
+    (arr)[(outer_idx)][(inner_idx)].r_minus,                                   \
+    (arr)[(outer_idx)][(inner_idx)].g_plus,                                    \
+    (arr)[(outer_idx)][(inner_idx)].g_minus
+
 #define NLR_FIELDS(x)                                                          \
     (x).h_plus, (x).h_minus, (x).z, (x).k, (x).q_plus, (x).q_minus,            \
         (x).r_plus, (x).r_minus, (x).g_plus, (x).g_minus

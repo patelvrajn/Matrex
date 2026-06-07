@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "chess_board.hpp"
+#include "globals.hpp"
 #include "move_generator.hpp"
 #include "non_linear_response.hpp"
 #include "score.hpp"
@@ -11,6 +12,8 @@ template <typename T>
 class Evaluation_Weights
 {
 
+    using Piece_Square_Table_Type = multi_array<T, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER, NUM_OF_SQUARES_ON_CHESS_BOARD>;
+
     // clang-format off
   using Evaluation_Weights_Reference_Array = Reference_Array<
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
@@ -18,7 +21,12 @@ class Evaluation_Weights
       T, multi_array<T, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>, T, T, T, T, T,
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
-      T, T, T, T, T, T, T, T, T, T>;
+      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, 
+      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, 
+      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, 
+      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, 
+      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, 
+      T, T, T, T, T, Piece_Square_Table_Type>;
     // clang-format on
 
   public:
@@ -32,6 +40,8 @@ class Evaluation_Weights
         knight_movement_mobility(T {}),
         multi_movement_mobility(T {}),
         backwards_movement_mobility(T {}),
+        piece_square_NLR_parameters {},
+        piece_square_tables {},
         m_weight_ref_array(
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::PAWN),
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::KNIGHT),
@@ -49,7 +59,21 @@ class Evaluation_Weights
             orthogonal_mobility,
             knight_movement_mobility,
             multi_movement_mobility,
-            backwards_movement_mobility)
+            backwards_movement_mobility,
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::WHITE, PIECES::PAWN),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::WHITE, PIECES::KNIGHT),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::WHITE, PIECES::BISHOP),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::WHITE, PIECES::ROOK),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::WHITE, PIECES::QUEEN),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::WHITE, PIECES::KING),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::PAWN),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::KNIGHT),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::BISHOP),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::ROOK),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::QUEEN),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::KING),
+            piece_square_tables
+        )
     {
     }
 
@@ -63,7 +87,9 @@ class Evaluation_Weights
         T   orthogonal_mobility_weight,
         T   knight_movement_mobility_weight,
         T   multi_movement_mobility_weight,
-        T   backwards_movement_mobility_weight) :
+        T   backwards_movement_mobility_weight,
+        multi_array<NLR_Parameters<T>, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER> piece_square_NLR_weights,
+        Piece_Square_Table_Type piece_square_weights):
         material_NLR_parameters(material_NLR_weights),
         material(material_weights),
         piece_mobility_NLR_parameters(piece_mobility_NLR_weights),
@@ -72,6 +98,8 @@ class Evaluation_Weights
         knight_movement_mobility(knight_movement_mobility_weight),
         multi_movement_mobility(multi_movement_mobility_weight),
         backwards_movement_mobility(backwards_movement_mobility_weight),
+        piece_square_NLR_parameters(piece_mobility_NLR_weights),
+        piece_square_tables(piece_square_weights),
         m_weight_ref_array(
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::PAWN),
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::KNIGHT),
@@ -89,7 +117,21 @@ class Evaluation_Weights
             orthogonal_mobility,
             knight_movement_mobility,
             multi_movement_mobility,
-            backwards_movement_mobility)
+            backwards_movement_mobility,
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::WHITE, PIECES::PAWN),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::WHITE, PIECES::KNIGHT),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::WHITE, PIECES::BISHOP),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::WHITE, PIECES::ROOK),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::WHITE, PIECES::QUEEN),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::WHITE, PIECES::KING),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::PAWN),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::KNIGHT),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::BISHOP),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::ROOK),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::QUEEN),
+            NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::KING),
+            piece_square_tables
+        )
     {
     }
 
@@ -111,6 +153,10 @@ class Evaluation_Weights
     T   knight_movement_mobility;
     T   multi_movement_mobility;
     T   backwards_movement_mobility;
+
+    // Piece Square Tables
+    Piece_Square_Table_Type piece_square_tables;
+    multi_array<NLR_Parameters<T>, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER> piece_square_NLR_parameters;
 
     T&       operator[](std::size_t index);
     const T& operator[](std::size_t index) const;
