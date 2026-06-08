@@ -1409,12 +1409,162 @@ inline T Evaluator<T>::piece_square_score() const
            (nlr_opposing_value + nlr_opposing_king_value + nlr_opposing_queen_value + nlr_opposing_rook_value + nlr_opposing_bishop_value + nlr_opposing_knight_value + nlr_opposing_pawn_value);
 }
 
-// template <typename T>
-// template <PIECE_COLOR moving_side>
-// inline Evaluation_Weights<T> Evaluator<T>::derivative_piece_square_score() const
-// {
+template <typename T>
+template <PIECE_COLOR moving_side>
+inline Evaluation_Weights<T> Evaluator<T>::derivative_piece_square_score() const
+{
+    constexpr PIECE_COLOR opposing_side = ~moving_side;
 
-// }
+    Evaluation_Weights<T> grad;
+
+    multi_array<T, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+        color_piece_values{};
+
+    for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK; ++color)
+    {
+        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
+        {
+            for (uint8_t square_idx = 0;
+                 square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
+                 ++square_idx)
+            {
+                const T occupied =
+                    (m_chess_board
+                         .get_piece_occupancies((PIECE_COLOR) color,
+                                                (PIECES) piece)
+                         .get_square(Square(square_idx))
+                     > 0);
+
+                color_piece_values[color][piece] +=
+                    occupied * m_weights.piece_square_tables[color][piece][square_idx];
+            }
+        }
+    }
+
+    auto add_nlr_parameter_derivatives =
+        [&](const NLR_Parameters<T>&      params,
+            const Non_Linear_Response<T>& nlr,
+            T                             F,
+            T                             multiplier)
+    {
+        grad[m_weights.get_index_of(params.h_plus)] +=
+            multiplier * nlr.partial_derivative_h_plus(F);
+        grad[m_weights.get_index_of(params.h_minus)] +=
+            multiplier * nlr.partial_derivative_h_minus(F);
+        grad[m_weights.get_index_of(params.z)] +=
+            multiplier * nlr.partial_derivative_z(F);
+        grad[m_weights.get_index_of(params.k)] +=
+            multiplier * nlr.partial_derivative_k(F);
+        grad[m_weights.get_index_of(params.q_plus)] +=
+            multiplier * nlr.partial_derivative_q_plus(F);
+        grad[m_weights.get_index_of(params.q_minus)] +=
+            multiplier * nlr.partial_derivative_q_minus(F);
+        grad[m_weights.get_index_of(params.r_plus)] +=
+            multiplier * nlr.partial_derivative_r_plus(F);
+        grad[m_weights.get_index_of(params.r_minus)] +=
+            multiplier * nlr.partial_derivative_r_minus(F);
+        grad[m_weights.get_index_of(params.g_plus)] +=
+            multiplier * nlr.partial_derivative_g_plus(F);
+        grad[m_weights.get_index_of(params.g_minus)] +=
+            multiplier * nlr.partial_derivative_g_minus(F);
+    };
+
+    auto add_color_derivatives =
+        [&](PIECE_COLOR color, T side_sign)
+    {
+        T piece_nlr_values[NUM_OF_UNIQUE_PIECES_PER_PLAYER]{};
+        T piece_nlr_dF[NUM_OF_UNIQUE_PIECES_PER_PLAYER]{};
+
+        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
+        {
+            const T F = color_piece_values[color][piece];
+
+            const Non_Linear_Response<T> nlr(
+                m_weights.piece_square_NLR_parameters[color][piece]);
+
+            piece_nlr_values[piece] = nlr.value(F);
+            piece_nlr_dF[piece]     = nlr.partial_derivative_u(F);
+        }
+
+        T interaction_F = static_cast<T>(1);
+
+        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
+        {
+            interaction_F *= piece_nlr_values[piece];
+        }
+
+        const Non_Linear_Response<T> interaction_nlr(
+            m_weights.interactive_piece_square_NLR_parameters[color]);
+
+        const T d_interaction_value_d_interaction_F =
+            interaction_nlr.partial_derivative_u(interaction_F);
+
+        // Derivatives w.r.t. interactive NLR parameters.
+        add_nlr_parameter_derivatives(
+            m_weights.interactive_piece_square_NLR_parameters[color],
+            interaction_nlr,
+            interaction_F,
+            side_sign);
+
+        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
+        {
+            const T F = color_piece_values[color][piece];
+
+            const Non_Linear_Response<T> piece_nlr(
+                m_weights.piece_square_NLR_parameters[color][piece]);
+
+            T d_interaction_F_d_piece_value = static_cast<T>(1);
+
+            for (uint8_t other_piece = PIECES::PAWN;
+                 other_piece <= PIECES::KING;
+                 ++other_piece)
+            {
+                if (other_piece == piece) { continue; }
+
+                d_interaction_F_d_piece_value *=
+                    piece_nlr_values[other_piece];
+            }
+
+            const T piece_multiplier =
+                side_sign
+                * (static_cast<T>(1)
+                   + d_interaction_value_d_interaction_F
+                         * d_interaction_F_d_piece_value);
+
+            // Derivatives w.r.t. this piece's NLR parameters.
+            add_nlr_parameter_derivatives(
+                m_weights.piece_square_NLR_parameters[color][piece],
+                piece_nlr,
+                F,
+                piece_multiplier);
+
+            // Derivatives w.r.t. piece-square table entries.
+            //
+            // F_piece = sum_s occupied(piece, s) * PST[color][piece][s]
+            //
+            // dScore / dPST = dScore/dPieceNLR * dPieceNLR/dF * occupied
+            for (uint8_t square_idx = 0;
+                 square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
+                 ++square_idx)
+            {
+                const T occupied =
+                    (m_chess_board
+                         .get_piece_occupancies(color, (PIECES) piece)
+                         .get_square(Square(square_idx))
+                     > 0);
+
+                grad[m_weights.get_index_of(
+                    m_weights.piece_square_tables[color][piece][square_idx])] +=
+                    piece_multiplier * piece_nlr_dF[piece] * occupied;
+            }
+        }
+    };
+
+    add_color_derivatives(moving_side, static_cast<T>(1));
+    add_color_derivatives(opposing_side, static_cast<T>(-1));
+
+    return grad;
+}
 
 /*******************************************************************************
  *
