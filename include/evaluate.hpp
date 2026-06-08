@@ -26,7 +26,8 @@ class Evaluation_Weights
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, 
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, 
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, 
-      T, T, T, T, T, Piece_Square_Table_Type>;
+      T, T, T, T, T, Piece_Square_Table_Type, T, T, T, T, T, T, T, T, T, T, T,
+      T, T, T, T, T, T, T, T, T>;
     // clang-format on
 
   public:
@@ -42,6 +43,7 @@ class Evaluation_Weights
         backwards_movement_mobility(T {}),
         piece_square_NLR_parameters {},
         piece_square_tables {},
+        interactive_piece_square_NLR_parameters {},
         m_weight_ref_array(
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::PAWN),
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::KNIGHT),
@@ -72,7 +74,9 @@ class Evaluation_Weights
             NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::ROOK),
             NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::QUEEN),
             NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::KING),
-            piece_square_tables
+            piece_square_tables,
+            NLR_ARRAY_FIELDS(interactive_piece_square_NLR_parameters, PIECE_COLOR::WHITE),
+            NLR_ARRAY_FIELDS(interactive_piece_square_NLR_parameters, PIECE_COLOR::BLACK)
         )
     {
     }
@@ -89,7 +93,8 @@ class Evaluation_Weights
         T   multi_movement_mobility_weight,
         T   backwards_movement_mobility_weight,
         multi_array<NLR_Parameters<T>, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER> piece_square_NLR_weights,
-        Piece_Square_Table_Type piece_square_weights):
+        Piece_Square_Table_Type piece_square_weights,
+        multi_array<NLR_Parameters<T>, NUM_OF_PLAYERS> interactive_piece_square_NLR_weights):
         material_NLR_parameters(material_NLR_weights),
         material(material_weights),
         piece_mobility_NLR_parameters(piece_mobility_NLR_weights),
@@ -100,6 +105,7 @@ class Evaluation_Weights
         backwards_movement_mobility(backwards_movement_mobility_weight),
         piece_square_NLR_parameters(piece_square_NLR_weights),
         piece_square_tables(piece_square_weights),
+        interactive_piece_square_NLR_parameters(interactive_piece_square_NLR_weights),
         m_weight_ref_array(
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::PAWN),
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::KNIGHT),
@@ -130,7 +136,9 @@ class Evaluation_Weights
             NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::ROOK),
             NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::QUEEN),
             NLR_2D_ARRAY_FIELDS(piece_square_NLR_parameters, PIECE_COLOR::BLACK, PIECES::KING),
-            piece_square_tables
+            piece_square_tables,
+            NLR_ARRAY_FIELDS(interactive_piece_square_NLR_parameters, PIECE_COLOR::WHITE),
+            NLR_ARRAY_FIELDS(interactive_piece_square_NLR_parameters, PIECE_COLOR::BLACK)
         )
     {
     }
@@ -157,6 +165,7 @@ class Evaluation_Weights
     // Piece Square Tables
     multi_array<NLR_Parameters<T>, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER> piece_square_NLR_parameters;
     Piece_Square_Table_Type piece_square_tables;
+    multi_array<NLR_Parameters<T>, NUM_OF_PLAYERS> interactive_piece_square_NLR_parameters;
 
     T&       operator[](std::size_t index);
     const T& operator[](std::size_t index) const;
@@ -489,6 +498,12 @@ class Evaluator
 
     template <PIECE_COLOR moving_side>
     inline Evaluation_Weights<T> derivative_mobility_score() const;
+
+    template <PIECE_COLOR moving_side>
+    inline T piece_square_score() const;
+
+    template <PIECE_COLOR moving_side>
+    inline Evaluation_Weights<T> derivative_piece_square_score() const;
 
     // Helpers
     template <PIECE_COLOR side>
@@ -1314,6 +1329,92 @@ inline Evaluation_Weights<T> Evaluator<T>::derivative_mobility_score() const
 
     return derivative_weights;
 }
+
+template <typename T>
+template <PIECE_COLOR moving_side>
+inline T Evaluator<T>::piece_square_score() const
+{
+    constexpr PIECE_COLOR opposing_side = ~moving_side;
+
+    // Accumulate the piece-square values from the piece-square tables for the
+    // present state of the board. The accumulations are per piece per side.
+    multi_array<T, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER> color_piece_values{};
+    for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK; color++)
+    {
+        for (uint8_t piece = PIECES::KNIGHT; piece <= PIECES::KING; piece++)
+        {
+            for (uint8_t square_idx = 0; square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD; square_idx++)
+            {
+                color_piece_values[color][piece] += (m_chess_board.get_piece_occupancies((PIECE_COLOR) color, (PIECES) piece).get_square(Square(square_idx)) > 0)
+                * m_weights.piece_square_tables[color][piece][square_idx];
+            }
+        }
+    }
+
+    // NLR objects for this side's pieces.
+    const Non_Linear_Response<T> nlr_this_king(
+        m_weights.piece_square_NLR_parameters[moving_side][PIECES::KING]);
+    const Non_Linear_Response<T> nlr_this_queen(
+        m_weights.piece_square_NLR_parameters[moving_side][PIECES::QUEEN]);
+    const Non_Linear_Response<T> nlr_this_rook(
+        m_weights.piece_square_NLR_parameters[moving_side][PIECES::ROOK]);
+    const Non_Linear_Response<T> nlr_this_bishop(
+        m_weights.piece_square_NLR_parameters[moving_side][PIECES::BISHOP]);
+    const Non_Linear_Response<T> nlr_this_knight(
+        m_weights.piece_square_NLR_parameters[moving_side][PIECES::KNIGHT]);
+    const Non_Linear_Response<T> nlr_this_pawn(
+        m_weights.piece_square_NLR_parameters[moving_side][PIECES::PAWN]);
+
+    // NLR values for this side's pieces and their interaction.
+    const T nlr_this_king_value = nlr_this_king.value(color_piece_values[moving_side][PIECES::KING]);
+    const T nlr_this_queen_value = nlr_this_queen.value(color_piece_values[moving_side][PIECES::QUEEN]);
+    const T nlr_this_rook_value = nlr_this_rook.value(color_piece_values[moving_side][PIECES::ROOK]);
+    const T nlr_this_bishop_value = nlr_this_bishop.value(color_piece_values[moving_side][PIECES::BISHOP]);
+    const T nlr_this_knight_value = nlr_this_knight.value(color_piece_values[moving_side][PIECES::KNIGHT]);
+    const T nlr_this_pawn_value = nlr_this_pawn.value(color_piece_values[moving_side][PIECES::PAWN]);
+    const T nlr_this_interaction_value = nlr_this_king_value * nlr_this_queen_value * nlr_this_rook_value * nlr_this_bishop_value * nlr_this_knight_value * nlr_this_pawn_value;
+
+    // NLR objects for opposing side's pieces.
+    const Non_Linear_Response<T> nlr_opposing_king(
+        m_weights.piece_square_NLR_parameters[opposing_side][PIECES::KING]);
+    const Non_Linear_Response<T> nlr_opposing_queen(
+        m_weights.piece_square_NLR_parameters[opposing_side][PIECES::QUEEN]);
+    const Non_Linear_Response<T> nlr_opposing_rook(
+        m_weights.piece_square_NLR_parameters[opposing_side][PIECES::ROOK]);
+    const Non_Linear_Response<T> nlr_opposing_bishop(
+        m_weights.piece_square_NLR_parameters[opposing_side][PIECES::BISHOP]);
+    const Non_Linear_Response<T> nlr_opposing_knight(
+        m_weights.piece_square_NLR_parameters[opposing_side][PIECES::KNIGHT]);
+    const Non_Linear_Response<T> nlr_opposing_pawn(
+        m_weights.piece_square_NLR_parameters[opposing_side][PIECES::PAWN]);
+
+    // NLR values for opposing side's pieces and their interaction.
+    const T nlr_opposing_king_value = nlr_opposing_king.value(color_piece_values[opposing_side][PIECES::KING]);
+    const T nlr_opposing_queen_value = nlr_opposing_queen.value(color_piece_values[opposing_side][PIECES::QUEEN]);
+    const T nlr_opposing_rook_value = nlr_opposing_rook.value(color_piece_values[opposing_side][PIECES::ROOK]);
+    const T nlr_opposing_bishop_value = nlr_opposing_bishop.value(color_piece_values[opposing_side][PIECES::BISHOP]);
+    const T nlr_opposing_knight_value = nlr_opposing_knight.value(color_piece_values[opposing_side][PIECES::KNIGHT]);
+    const T nlr_opposing_pawn_value = nlr_opposing_pawn.value(color_piece_values[opposing_side][PIECES::PAWN]);
+    const T nlr_opposing_interaction_value = nlr_opposing_king_value * nlr_opposing_queen_value * nlr_opposing_rook_value * nlr_opposing_bishop_value * nlr_opposing_knight_value * nlr_opposing_pawn_value;
+
+    // Explicit interactive term NLR objects per side.
+    const Non_Linear_Response<T> nlr_this_side(m_weights.interactive_piece_square_NLR_parameters[moving_side]);
+    const Non_Linear_Response<T> nlr_opposing_side(m_weights.interactive_piece_square_NLR_parameters[opposing_side]);
+
+    // Explicit interactive term NLR values per side.
+    const T nlr_this_value = nlr_this_side.value(nlr_this_interaction_value);
+    const T nlr_opposing_value = nlr_opposing_side.value(nlr_opposing_interaction_value);
+
+    return (nlr_this_value + nlr_this_king_value + nlr_this_queen_value + nlr_this_rook_value + nlr_this_bishop_value + nlr_this_knight_value + nlr_this_pawn_value) - 
+           (nlr_opposing_value + nlr_opposing_king_value + nlr_opposing_queen_value + nlr_opposing_rook_value + nlr_opposing_bishop_value + nlr_opposing_knight_value + nlr_opposing_pawn_value);
+}
+
+// template <typename T>
+// template <PIECE_COLOR moving_side>
+// inline Evaluation_Weights<T> Evaluator<T>::derivative_piece_square_score() const
+// {
+
+// }
 
 /*******************************************************************************
  *

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "evaluate.hpp"
+#include "fixed_point.hpp"
 #include "globals.hpp"
 
 constexpr multi_array<NLR_Parameters<Matrex_FP_Int>,
@@ -140,6 +141,8 @@ constexpr multi_array<Matrex_FP_Int, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PL
 
 constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER> TUNED_PIECE_SQUARE_NLR_WEIGHTS{};
 
+constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, NUM_OF_PLAYERS> TUNED_INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS{};
+
 const Evaluation_Weights<Matrex_FP_Int>
     TUNED_EVALUATION_WEIGHTS(TUNED_MATERIAL_NLR_WEIGHTS,
                              TUNED_MATERIAL_WEIGHTS,
@@ -150,4 +153,5 @@ const Evaluation_Weights<Matrex_FP_Int>
                              TUNED_MULTI_MOVEMENT_MOBILITY_WEIGHT,
                              TUNED_BACKWARDS_MOVEMENT_MOBILITY_WEIGHT,
                              TUNED_PIECE_SQUARE_NLR_WEIGHTS,
-                             TUNED_PIECE_SQUARE_TABLE);
+                             TUNED_PIECE_SQUARE_TABLE,
+                             TUNED_INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS);
