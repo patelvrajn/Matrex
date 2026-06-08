@@ -98,7 +98,7 @@ class Evaluation_Weights
         knight_movement_mobility(knight_movement_mobility_weight),
         multi_movement_mobility(multi_movement_mobility_weight),
         backwards_movement_mobility(backwards_movement_mobility_weight),
-        piece_square_NLR_parameters(piece_mobility_NLR_weights),
+        piece_square_NLR_parameters(piece_square_NLR_weights),
         piece_square_tables(piece_square_weights),
         m_weight_ref_array(
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::PAWN),
@@ -155,8 +155,8 @@ class Evaluation_Weights
     T   backwards_movement_mobility;
 
     // Piece Square Tables
-    Piece_Square_Table_Type piece_square_tables;
     multi_array<NLR_Parameters<T>, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER> piece_square_NLR_parameters;
+    Piece_Square_Table_Type piece_square_tables;
 
     T&       operator[](std::size_t index);
     const T& operator[](std::size_t index) const;

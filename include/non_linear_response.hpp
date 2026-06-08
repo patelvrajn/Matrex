@@ -34,7 +34,7 @@ struct NLR_Parameters
         (arr)[(idx)].r_minus, (arr)[(idx)].g_plus, (arr)[(idx)].g_minus
 
 #define NLR_2D_ARRAY_FIELDS(arr, outer_idx, inner_idx)                         \
-    (arr)[(outer_idx)][(inner_idx)].h_plus,                                    \ 
+    (arr)[(outer_idx)][(inner_idx)].h_plus,                                    \
     (arr)[(outer_idx)][(inner_idx)].h_minus,                                   \
     (arr)[(outer_idx)][(inner_idx)].z, (arr)[(outer_idx)][(inner_idx)].k,      \
     (arr)[(outer_idx)][(inner_idx)].q_plus,                                    \
