@@ -1341,7 +1341,7 @@ inline T Evaluator<T>::piece_square_score() const
     multi_array<T, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER> color_piece_values{};
     for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK; color++)
     {
-        for (uint8_t piece = PIECES::KNIGHT; piece <= PIECES::KING; piece++)
+        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
         {
             for (uint8_t square_idx = 0; square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD; square_idx++)
             {
