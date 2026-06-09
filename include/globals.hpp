@@ -430,6 +430,26 @@ class multi_array
     {
         return data == other.data;
     }
+
+    constexpr auto begin()
+    {
+        return data.begin();
+    }
+
+    constexpr auto end()
+    {
+        return data.end();
+    }
+
+    constexpr auto begin() const
+    {
+        return data.begin();
+    }
+
+    constexpr auto end() const
+    {
+        return data.end();
+    }
 };
 
 // Base case: single-dimension multi_array
@@ -470,6 +490,26 @@ class multi_array<T, this_size>
     constexpr bool operator==(const multi_array& other) const
     {
         return data == other.data;
+    }
+
+    constexpr auto begin()
+    {
+        return data.begin();
+    }
+
+    constexpr auto end()
+    {
+        return data.end();
+    }
+
+    constexpr auto begin() const
+    {
+        return data.begin();
+    }
+
+    constexpr auto end() const
+    {
+        return data.end();
     }
 };
 

@@ -69,6 +69,27 @@ Evaluation_Weights<double> Tuner::init_weights()
     weights.multi_movement_mobility       = perturb(1.0L);
     weights.backwards_movement_mobility   = perturb(0.36L);
 
+    for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK; color++)
+    {
+        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
+        {
+            weights.piece_square_NLR_parameters[color][piece] = random_nlr(1);
+        }
+    }
+
+    weights.interactive_piece_square_NLR_parameters = {random_nlr(1), random_nlr(1)};
+
+    for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK; color++)
+    {
+        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
+        {
+            for (uint8_t square_idx = 0; square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD; square_idx++)
+            {
+                weights.piece_square_tables[color][piece][square_idx] = 1.0;
+            }
+        }
+    }
+
     return weights;
 }
 
@@ -669,15 +690,32 @@ void Tuner::print_header_file(const Evaluation_Weights<double>& weights)
              << Matrex_FP_Int::from_double(weights.backwards_movement_mobility)
              << ");" << std::endl;
 
+    // Piece Square Tables
+    m_output << "constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER> TUNED_PIECE_SQUARE_NLR_WEIGHTS = "; 
+    print_multi_array_as_cpp(m_output, weights.piece_square_NLR_parameters);
+    m_output << ";" << std::endl;
+
+    m_output << "constexpr multi_array<Matrex_FP_Int, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER, NUM_OF_SQUARES_ON_CHESS_BOARD> TUNED_PIECE_SQUARE_TABLE = ";
+    print_multi_array_as_cpp(m_output, weights.piece_square_tables);
+    m_output << ";" << std::endl;
+
+    m_output << "constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, NUM_OF_PLAYERS> TUNED_INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS = ";
+    print_multi_array_as_cpp(m_output, weights.interactive_piece_square_NLR_parameters);
+    m_output << ";" << std::endl;
+
     // Weights
     m_output
-        << "const Evaluation_Weights<Matrex_FP_Int> "
-           "TUNED_EVALUATION_WEIGHTS(TUNED_MATERIAL_NLR_WEIGHTS, "
-           "TUNED_MATERIAL_WEIGHTS, TUNED_PIECE_MOBILITY_NLR_WEIGHTS, "
-           "TUNED_DIAGONAL_MOBILITY_WEIGHT, TUNED_ORTHOGONAL_MOBILITY_WEIGHT, "
-           "TUNED_KNIGHT_MOVEMENT_MOBILITY_WEIGHT, "
-           "TUNED_MULTI_MOVEMENT_MOBILITY_WEIGHT, "
-           "TUNED_BACKWARDS_MOVEMENT_MOBILITY_WEIGHT);";
+        << "const Evaluation_Weights<Matrex_FP_Int> TUNED_EVALUATION_WEIGHTS(TUNED_MATERIAL_NLR_WEIGHTS,"
+                                                   "TUNED_MATERIAL_WEIGHTS,"
+                                                   "TUNED_PIECE_MOBILITY_NLR_WEIGHTS,"
+                                                   "TUNED_DIAGONAL_MOBILITY_WEIGHT,"
+                                                   "TUNED_ORTHOGONAL_MOBILITY_WEIGHT,"
+                                                   "TUNED_KNIGHT_MOVEMENT_MOBILITY_WEIGHT,"
+                                                   "TUNED_MULTI_MOVEMENT_MOBILITY_WEIGHT,"
+                                                   "TUNED_BACKWARDS_MOVEMENT_MOBILITY_WEIGHT,"
+                                                   "TUNED_PIECE_SQUARE_NLR_WEIGHTS,"
+                                                   "TUNED_PIECE_SQUARE_TABLE,"
+                                                   "TUNED_INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS);";
     m_output.flush();
 }
 
