@@ -1,4 +1,5 @@
 #include "search.hpp"
+
 #include "evaluate.hpp"
 #include "evaluation_terms.hpp"
 #include "static_exchange_evaluation.hpp"
@@ -179,7 +180,8 @@ Search_Engine::negamax(Chess_Board&              position,
         // Static Exchange Evaluation Pruning (Captures Only)
         if (move.is_capture)
         {
-            const auto see_evaluation = see.evaluate(move.destination_square, move.moving_piece, 1);
+            const auto see_evaluation =
+                see.evaluate(move.destination_square, move.moving_piece, 1);
 
             if (see_evaluation < see.negamax_threshold(depth_squared))
             {
@@ -255,13 +257,10 @@ Search_Engine::negamax(Chess_Board&              position,
             alpha       = child_score;
         }
 
-        // Update the best score found so far at this node even if the child is 
-        // expected to cause pruning because the information that this node 
+        // Update the best score found so far at this node even if the child is
+        // expected to cause pruning because the information that this node
         // caused a beta cutoff is still needed for the parent node's move.
-        if (child_score > best_score)
-        {
-            best_score = child_score;
-        }
+        if (child_score > best_score) { best_score = child_score; }
 
         // When alpha of the parent becomes greater than or equal to beta, a
         // beta cutoff (fail-high) or pruning of the node is needed because the
@@ -297,12 +296,13 @@ Search_Engine::negamax(Chess_Board&              position,
         }
 
         // If the child's score raised alpha and was within alpha < score <
-        // beta, then the child's move is the new best move and a principal 
+        // beta, then the child's move is the new best move and a principal
         // variation move for the current ply.
         if (is_child_score_better_than_alpha)
         {
             best_move = move;
-            principal_variation.push_and_copy(best_move, child_principal_variation);
+            principal_variation.push_and_copy(best_move,
+                                              child_principal_variation);
         }
 
         is_first_move = false;
@@ -381,7 +381,10 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     {
         mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
     }
-    else { mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>(); }
+    else
+    {
+        mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>();
+    }
     Move_Generation_List&  moves              = mo.get_sorted_moves();
     Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
 
@@ -503,12 +506,10 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         // Static Exchange Evaluation Pruning
         if (move.is_capture)
         {
-            const auto see_evaluation = see.evaluate(move.destination_square, move.moving_piece, 1);
+            const auto see_evaluation =
+                see.evaluate(move.destination_square, move.moving_piece, 1);
 
-            if (see_evaluation < see.quiescence_threshold())
-            {
-                continue;
-            }
+            if (see_evaluation < see.quiescence_threshold()) { continue; }
         }
 
         // Explore the child move's subtree for it's evaluation. Negate
@@ -531,10 +532,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         }
 
         // Update best score based on child's score.
-        if (child_score > best_score)
-        {
-            best_score = child_score;
-        }
+        if (child_score > best_score) { best_score = child_score; }
 
         // Alpha-beta pruning based on child's score.
         if (alpha >= beta)
@@ -543,12 +541,9 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
             break;
         }
 
-        // A best move is found if the score is exact and it is greater than 
+        // A best move is found if the score is exact and it is greater than
         // alpha.
-        if (is_child_score_better_than_alpha)
-        {
-            best_move = move;
-        }
+        if (is_child_score_better_than_alpha) { best_move = move; }
     }
 
     // Cache the position's best move and evaluation in the transposition table.

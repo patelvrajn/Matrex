@@ -202,7 +202,7 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position,
     // regardless of the next move white makes (the opponent hasn't had a chance
     // to revert his move), it will not be a repetition.
     MAYBE_UNUSED constexpr uint16_t MINIMUM_PLY_FOR_THREE_FOLD_REPETITION = 4;
-    uint8_t repetition_count = 0;
+    uint8_t                         repetition_count                      = 0;
 
     // Its important to know that the opponent is the opponent relative to the
     // root position's side to move in the repetition stack.

@@ -119,41 +119,41 @@ struct Directional_Ray
 
     constexpr bool is_diagonal() const
     {
-        return ((direction == NORTHWEST) || (direction == NORTHEAST) || (direction == SOUTHWEST) || (direction == SOUTHEAST));
+        return ((direction == NORTHWEST) || (direction == NORTHEAST)
+                || (direction == SOUTHWEST) || (direction == SOUTHEAST));
     }
 
     constexpr bool is_orthogonal() const
     {
-        return ((direction == NORTH) || (direction == SOUTH) || (direction == EAST) || (direction == WEST));
+        return ((direction == NORTH) || (direction == SOUTH)
+                || (direction == EAST) || (direction == WEST));
     }
 
-    constexpr bool is_increasing_square_index() const 
+    constexpr bool is_increasing_square_index() const
     {
-        return (direction > 0); 
+        return (direction > 0);
     }
-    
-    constexpr bool is_decreasing_square_index() const 
-    { 
-        return (direction < 0); 
+
+    constexpr bool is_decreasing_square_index() const
+    {
+        return (direction < 0);
     }
 
     template <bool start_from_start_square>
-    constexpr Square travel_occupied_ray (uint8_t index, Bitboard occupied) const
+    constexpr Square travel_occupied_ray(uint8_t index, Bitboard occupied) const
     {
-        Bitboard occupied_ray = ray & occupied;
-        uint8_t occupied_count = 0;
+        Bitboard occupied_ray   = ray & occupied;
+        uint8_t  occupied_count = 0;
 
         // Starts from start square.
         if constexpr (start_from_start_square)
         {
             if (is_increasing_square_index())
             {
-                for (const Square& square : Bitboard_Iterable<LSB_TO_MSB>(occupied_ray))
+                for (const Square& square :
+                     Bitboard_Iterable<LSB_TO_MSB>(occupied_ray))
                 {
-                    if (occupied_count == index)
-                    {
-                        return square;
-                    }
+                    if (occupied_count == index) { return square; }
 
                     ++occupied_count;
                 }
@@ -161,12 +161,10 @@ struct Directional_Ray
 
             if (is_decreasing_square_index())
             {
-                for (const Square& square : Bitboard_Iterable<MSB_TO_LSB>(occupied_ray))
+                for (const Square& square :
+                     Bitboard_Iterable<MSB_TO_LSB>(occupied_ray))
                 {
-                    if (occupied_count == index)
-                    {
-                        return square;
-                    }
+                    if (occupied_count == index) { return square; }
 
                     ++occupied_count;
                 }
@@ -178,12 +176,10 @@ struct Directional_Ray
         {
             if (is_increasing_square_index())
             {
-                for (const Square& square : Bitboard_Iterable<MSB_TO_LSB>(occupied_ray))
+                for (const Square& square :
+                     Bitboard_Iterable<MSB_TO_LSB>(occupied_ray))
                 {
-                    if (occupied_count == index)
-                    {
-                        return square;
-                    }
+                    if (occupied_count == index) { return square; }
 
                     ++occupied_count;
                 }
@@ -191,12 +187,10 @@ struct Directional_Ray
 
             if (is_decreasing_square_index())
             {
-                for (const Square& square : Bitboard_Iterable<LSB_TO_MSB>(occupied_ray))
+                for (const Square& square :
+                     Bitboard_Iterable<LSB_TO_MSB>(occupied_ray))
                 {
-                    if (occupied_count == index)
-                    {
-                        return square;
-                    }
+                    if (occupied_count == index) { return square; }
 
                     ++occupied_count;
                 }
@@ -224,17 +218,17 @@ constexpr Directional_Ray generate_directional_ray(const Square a,
 
     // Squares a and b are on the same file.
     if (a.get_file() == b.get_file())
-    { 
+    {
         delta = ((distance > 0) ? SOUTH : NORTH); // Move along the file.
     }
     // Squares a and b are on the same rank.
     else if (b.get_rank() == a.get_rank())
-    { 
+    {
         delta = ((distance > 0) ? EAST : WEST); // Move along the rank.
     }
     // Squares a and b are on a diagonal.
     else if ((distance % 9) == 0)
-    { 
+    {
         delta = ((distance > 0) ? SOUTHEAST
                                 : NORTHWEST); // Move along the diagonal.
     }
@@ -247,7 +241,7 @@ constexpr Directional_Ray generate_directional_ray(const Square a,
     // No diagonal or orthogonal path between the squares.
     else
     {
-        return Directional_Ray(); 
+        return Directional_Ray();
     }
 
     // Starting from square a travel in the direction of square b until you
@@ -328,7 +322,7 @@ class Attacks
     // Leaper Attack Tables
     static constexpr Leaper_Attack_Tables m_leaper_table =
         init_leaper_attacks();
-    
+
     // Directional Ray Table
     inline static constexpr Directional_Ray_Table m_directional_ray_table =
         init_between_directional_rays_table();

@@ -25,7 +25,10 @@ int main(int argc, char* argv[])
             Tuner         tuner(log_file, dataset_file, output_file);
             tuner.tune();
         }
-        else { std::cerr << "Invalid argument." << std::endl; }
+        else
+        {
+            std::cerr << "Invalid argument." << std::endl;
+        }
     }
 
     return 0;

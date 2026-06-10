@@ -44,9 +44,11 @@ NLR_Parameters<double> Tuner::random_nlr(double h_mean)
 
 Evaluation_Weights<double> Tuner::init_weights()
 {
-    std::random_device rd;
-    std::mt19937_64 rng(rd());
-    std::uniform_real_distribution<double> distribution(Matrex_FP_Int::safe_minimum(), Matrex_FP_Int::safe_maximum());
+    std::random_device                     rd;
+    std::mt19937_64                        rng(rd());
+    std::uniform_real_distribution<double> distribution(
+        Matrex_FP_Int::safe_minimum(),
+        Matrex_FP_Int::safe_maximum());
 
     Evaluation_Weights<double> weights;
 
@@ -73,7 +75,8 @@ Evaluation_Weights<double> Tuner::init_weights()
     weights.multi_movement_mobility       = perturb(1.0L);
     weights.backwards_movement_mobility   = perturb(0.36L);
 
-    for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK; color++)
+    for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK;
+         color++)
     {
         for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
         {
@@ -81,15 +84,20 @@ Evaluation_Weights<double> Tuner::init_weights()
         }
     }
 
-    weights.interactive_piece_square_NLR_parameters = {random_nlr(1), random_nlr(1)};
+    weights.interactive_piece_square_NLR_parameters = {random_nlr(1),
+                                                       random_nlr(1)};
 
-    for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK; color++)
+    for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK;
+         color++)
     {
         for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
         {
-            for (uint8_t square_idx = 0; square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD; square_idx++)
+            for (uint8_t square_idx = 0;
+                 square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
+                 square_idx++)
             {
-                weights.piece_square_tables[color][piece][square_idx] = distribution(rng);
+                weights.piece_square_tables[color][piece][square_idx] =
+                    distribution(rng);
             }
         }
     }
@@ -314,7 +322,10 @@ Tuner::projected_gradient(Evaluation_Weights<double> weights,
                   << Matrex_FP_Int::safe_minimum() << std::endl;
             m_log << "Resultant gradient is now " << result[i] << std::endl;
         }
-        else { result[i] = gradient[i]; }
+        else
+        {
+            result[i] = gradient[i];
+        }
     }
 
     return result;
@@ -578,7 +589,10 @@ double Tuner::compute_max_data_loss(const Dataset& d)
         for (std::size_t i = 0; i < mini_batch.fens.size(); i++)
         {
             if (mini_batch.scores[i] != 0.5L) { num_of_decisive_games++; }
-            else { num_of_draws++; }
+            else
+            {
+                num_of_draws++;
+            }
         }
     }
 
@@ -695,31 +709,37 @@ void Tuner::print_header_file(const Evaluation_Weights<double>& weights)
              << ");" << std::endl;
 
     // Piece Square Tables
-    m_output << "constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER> TUNED_PIECE_SQUARE_NLR_WEIGHTS = "; 
+    m_output << "constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, "
+                "NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER> "
+                "TUNED_PIECE_SQUARE_NLR_WEIGHTS = ";
     print_multi_array_as_cpp(m_output, weights.piece_square_NLR_parameters);
     m_output << ";" << std::endl;
 
-    m_output << "constexpr multi_array<Matrex_FP_Int, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER, NUM_OF_SQUARES_ON_CHESS_BOARD> TUNED_PIECE_SQUARE_TABLE = ";
+    m_output << "constexpr multi_array<Matrex_FP_Int, NUM_OF_PLAYERS, "
+                "NUM_OF_UNIQUE_PIECES_PER_PLAYER, "
+                "NUM_OF_SQUARES_ON_CHESS_BOARD> TUNED_PIECE_SQUARE_TABLE = ";
     print_multi_array_as_cpp(m_output, weights.piece_square_tables);
     m_output << ";" << std::endl;
 
-    m_output << "constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, NUM_OF_PLAYERS> TUNED_INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS = ";
-    print_multi_array_as_cpp(m_output, weights.interactive_piece_square_NLR_parameters);
+    m_output << "constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, "
+                "NUM_OF_PLAYERS> TUNED_INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS = ";
+    print_multi_array_as_cpp(m_output,
+                             weights.interactive_piece_square_NLR_parameters);
     m_output << ";" << std::endl;
 
     // Weights
-    m_output
-        << "const Evaluation_Weights<Matrex_FP_Int> TUNED_EVALUATION_WEIGHTS(TUNED_MATERIAL_NLR_WEIGHTS,"
-                                                   "TUNED_MATERIAL_WEIGHTS,"
-                                                   "TUNED_PIECE_MOBILITY_NLR_WEIGHTS,"
-                                                   "TUNED_DIAGONAL_MOBILITY_WEIGHT,"
-                                                   "TUNED_ORTHOGONAL_MOBILITY_WEIGHT,"
-                                                   "TUNED_KNIGHT_MOVEMENT_MOBILITY_WEIGHT,"
-                                                   "TUNED_MULTI_MOVEMENT_MOBILITY_WEIGHT,"
-                                                   "TUNED_BACKWARDS_MOVEMENT_MOBILITY_WEIGHT,"
-                                                   "TUNED_PIECE_SQUARE_NLR_WEIGHTS,"
-                                                   "TUNED_PIECE_SQUARE_TABLE,"
-                                                   "TUNED_INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS);";
+    m_output << "const Evaluation_Weights<Matrex_FP_Int> "
+                "TUNED_EVALUATION_WEIGHTS(TUNED_MATERIAL_NLR_WEIGHTS,"
+                "TUNED_MATERIAL_WEIGHTS,"
+                "TUNED_PIECE_MOBILITY_NLR_WEIGHTS,"
+                "TUNED_DIAGONAL_MOBILITY_WEIGHT,"
+                "TUNED_ORTHOGONAL_MOBILITY_WEIGHT,"
+                "TUNED_KNIGHT_MOVEMENT_MOBILITY_WEIGHT,"
+                "TUNED_MULTI_MOVEMENT_MOBILITY_WEIGHT,"
+                "TUNED_BACKWARDS_MOVEMENT_MOBILITY_WEIGHT,"
+                "TUNED_PIECE_SQUARE_NLR_WEIGHTS,"
+                "TUNED_PIECE_SQUARE_TABLE,"
+                "TUNED_INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS);";
     m_output.flush();
 }
 

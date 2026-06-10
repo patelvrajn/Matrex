@@ -212,7 +212,8 @@ template <std::size_t N, class F>
 constexpr decltype(auto) index_sequence_unpacker(F&& f)
 {
     return []<std::size_t... Is>(std::index_sequence<Is...>,
-                                 F&& f) -> decltype(auto) {
+                                 F&& f) -> decltype(auto)
+    {
         return static_cast<F&&>(f).template operator()<Is...>();
     }(std::make_index_sequence<N> {}, static_cast<F&&>(f));
 }
@@ -223,8 +224,7 @@ template <class In, template <class...> class Out>
 struct Extract_Template_Parameters;
 
 template <template <class...> class In,
-          template <class...>
-          class Out,
+          template <class...> class Out,
           class... Ts>
 struct Extract_Template_Parameters<In<Ts...>, Out>
 {
@@ -282,7 +282,8 @@ class Parameter_Pack_Container
     constexpr void move(Parameter_Pack_Container&& other)
     {
         return index_sequence_unpacker<move_length>(
-            [&]<std::size_t... index>() {
+            [&]<std::size_t... index>()
+            {
                 ((std::get<index>(m_p) = std::move(std::get<index>(other.m_p))),
                  ...);
             });
@@ -431,25 +432,13 @@ class multi_array
         return data == other.data;
     }
 
-    constexpr auto begin()
-    {
-        return data.begin();
-    }
+    constexpr auto begin() { return data.begin(); }
 
-    constexpr auto end()
-    {
-        return data.end();
-    }
+    constexpr auto end() { return data.end(); }
 
-    constexpr auto begin() const
-    {
-        return data.begin();
-    }
+    constexpr auto begin() const { return data.begin(); }
 
-    constexpr auto end() const
-    {
-        return data.end();
-    }
+    constexpr auto end() const { return data.end(); }
 };
 
 // Base case: single-dimension multi_array
@@ -492,25 +481,13 @@ class multi_array<T, this_size>
         return data == other.data;
     }
 
-    constexpr auto begin()
-    {
-        return data.begin();
-    }
+    constexpr auto begin() { return data.begin(); }
 
-    constexpr auto end()
-    {
-        return data.end();
-    }
+    constexpr auto end() { return data.end(); }
 
-    constexpr auto begin() const
-    {
-        return data.begin();
-    }
+    constexpr auto begin() const { return data.begin(); }
 
-    constexpr auto end() const
-    {
-        return data.end();
-    }
+    constexpr auto end() const { return data.end(); }
 };
 
 // =============================================================================
@@ -781,7 +758,10 @@ class Compile_Time_Jagged_Array
                     throw std::out_of_range(
                         "RUNTIME ERROR: Jagged Array indexed monostate.");
                 }
-                else { return array[element_index]; }
+                else
+                {
+                    return array[element_index];
+                }
             },
             m_parameter_pack[inner_array_index]);
     }
@@ -909,7 +889,7 @@ T& Partially_Filled_Array<T, capacity>::operator[](std::size_t index)
     int64_t index_i64 = static_cast<int64_t>(index);
 
     // Caution: This allows writes above the max index but below the capacity.
-    // Thus, if you intend only index upto the max index do not use the [] 
+    // Thus, if you intend only index upto the max index do not use the []
     // operator.
     if ((index_i64 > m_max_index) && (index < capacity))
     {
