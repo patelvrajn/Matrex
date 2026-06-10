@@ -537,19 +537,22 @@ T Evaluator<T>::evaluate_template_typed() const
 
     T material;
     T mobility;
+    T piece_square;
 
     if (moving_side == PIECE_COLOR::WHITE)
     {
         material = material_score<PIECE_COLOR::WHITE>();
         mobility = mobility_score<PIECE_COLOR::WHITE>();
+        piece_square = piece_square_score<PIECE_COLOR::WHITE>();
     }
     else
     {
         material = material_score<PIECE_COLOR::BLACK>();
         mobility = mobility_score<PIECE_COLOR::BLACK>();
+        piece_square = piece_square_score<PIECE_COLOR::BLACK>();
     }
 
-    T evaluation = material + mobility;
+    T evaluation = material + mobility + piece_square;
 
     return evaluation;
 }
@@ -572,19 +575,22 @@ Evaluation_Weights<T> Evaluator<T>::derivative_evaluate() const
 
     Evaluation_Weights<T> material;
     Evaluation_Weights<T> mobility;
+    Evaluation_Weights<T> piece_square;
 
     if (moving_side == PIECE_COLOR::WHITE)
     {
         material = derivative_material_score<PIECE_COLOR::WHITE>();
         mobility = derivative_mobility_score<PIECE_COLOR::WHITE>();
+        piece_square = derivative_piece_square_score<PIECE_COLOR::WHITE>();
     }
     else
     {
         material = derivative_material_score<PIECE_COLOR::BLACK>();
         mobility = derivative_mobility_score<PIECE_COLOR::BLACK>();
+        piece_square = derivative_piece_square_score<PIECE_COLOR::BLACK>();
     }
 
-    Evaluation_Weights<T> evaluation = material + mobility;
+    Evaluation_Weights<T> evaluation = material + mobility + piece_square;
 
     return evaluation;
 }

@@ -44,6 +44,10 @@ NLR_Parameters<double> Tuner::random_nlr(double h_mean)
 
 Evaluation_Weights<double> Tuner::init_weights()
 {
+    std::random_device rd;
+    std::mt19937_64 rng(rd());
+    std::uniform_real_distribution<double> distribution(Matrex_FP_Int::safe_minimum(), Matrex_FP_Int::safe_maximum());
+
     Evaluation_Weights<double> weights;
 
     weights.material_NLR_parameters = {random_nlr(0.25L),
@@ -85,7 +89,7 @@ Evaluation_Weights<double> Tuner::init_weights()
         {
             for (uint8_t square_idx = 0; square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD; square_idx++)
             {
-                weights.piece_square_tables[color][piece][square_idx] = 1.0;
+                weights.piece_square_tables[color][piece][square_idx] = distribution(rng);
             }
         }
     }
