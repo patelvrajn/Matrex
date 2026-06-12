@@ -4,6 +4,8 @@
 #include <numbers>
 #include <random>
 
+#include "threads.hpp"
+
 Tuner::Tuner(std::ostream&  logging,
              std::ifstream& dataset_file,
              std::ofstream& output) :
