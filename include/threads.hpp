@@ -24,27 +24,29 @@ class Threads_Shared_Data
     // stores references to the arguments passed in (which are expected to
     // live longer than the Threads Shared Data object).
     template <typename... Args>
-    Threads_Shared_Data(Args&... args)
+    explicit Threads_Shared_Data(Args&... args)
     {
         (m_data.emplace_back(std::ref(args)), ...);
     }
 
     // This performs a write to the shared data guarded by the mutex.
     template <typename T>
-    void write(std::size_t index, T data)
+    std::size_t write(std::reference_wrapper<T> data)
     {
         std::scoped_lock<std::mutex> lock(m_mutex);
 
-        auto ref  = std::any_cast<std::reference_wrapper<T>>(m_data[index]);
-        ref.get() = std::move(data);
+        m_data.push_back(data);
+
+        return (m_data.size() - 1);
     }
 
     // This performs a read to the shared data guarded by the mutex.
+    template <typename T>
     auto read(std::size_t index)
     {
         std::scoped_lock<std::mutex> lock(m_mutex);
 
-        return m_data[index];
+        return std::any_cast<std::reference_wrapper<T>>(m_data[index]);
     }
 
     // Call any function on the shared data object guarded by the mutex.
@@ -81,8 +83,6 @@ class Thread_Job
 {
   public:
 
-    Thread_Job() : m_shared_data() {}
-
     // Constructor - takes shared data as a parameter.
     explicit Thread_Job(Threads_Shared_Data& shared_data) :
         m_shared_data(shared_data)
@@ -103,10 +103,10 @@ class Thread_Job
     };
 
     // A method such that the worker can label the job as complete.
-    void set_complete(bool complete) { m_complete = complete; }
+    void set_complete(bool complete) { m_complete.store(complete); }
 
     // A method to obtain if a job has been marked completed.
-    bool is_complete() const { return m_complete; }
+    bool is_complete() const { return m_complete.load(); }
 
     // If the job is assigned to a thread, it will carry the thread ID with
     // it. The ID is -1 if unassigned - telling the dispatcher it may need
@@ -157,15 +157,17 @@ class Thread_Job
     }
 
     // Any job needs to be able to write to shared data.
-    void write_to_shared_data(std::size_t index, std::any data)
+    template <typename T>
+    std::size_t write_to_shared_data(std::reference_wrapper<T> data)
     {
-        m_shared_data.value().get().write(index, data);
+        return m_shared_data.get().write(data);
     }
 
     // Any job needs to be able to read from shared data.
+    template <typename T>
     auto read_shared_data(std::size_t index)
     {
-        return m_shared_data.value().get().read(index);
+        return m_shared_data.get().read<T>(index);
     }
 
     // Any job needs to be able to call functions on shared data.
@@ -174,15 +176,15 @@ class Thread_Job
     template <typename Expected_Obj_Type, typename Function_Type>
     decltype(auto) call_shared_data(std::size_t index, Function_Type&& func)
     {
-        return m_shared_data.value().get().call<Expected_Obj_Type>(index, func);
+        return m_shared_data.get().call<Expected_Obj_Type>(index, func);
     }
 
   private:
 
-    int64_t                                m_assigned_thread_index = -1;
-    bool                                   m_complete              = false;
-    std::vector<std::unique_ptr<std::any>> m_private_data;
-    std::optional<std::reference_wrapper<Threads_Shared_Data>> m_shared_data;
+    int64_t                                     m_assigned_thread_index = -1;
+    std::atomic<bool>                           m_complete {false};
+    std::vector<std::unique_ptr<std::any>>      m_private_data;
+    std::reference_wrapper<Threads_Shared_Data> m_shared_data;
 };
 
 // =============================================================================
@@ -203,8 +205,8 @@ class Thread_Worker
 
     // An overloaded constructor to assign an initial job to the worker thread.
     Thread_Worker(Thread_Job& job) :
-        m_thread([this](std::stop_token stop) { worker_loop(stop); }),
-        m_job(job)
+        m_job(job),
+        m_thread([this](std::stop_token stop) { worker_loop(stop); })
     {
     }
 
@@ -234,8 +236,8 @@ class Thread_Worker
   private:
 
     // The thread for the worker and it's job.
-    std::jthread                                      m_thread;
     std::optional<std::reference_wrapper<Thread_Job>> m_job;
+    std::jthread                                      m_thread;
 
     // Mutex and conditional variable for when the thread is being assigned a
     // job or is waiting for a job to be assigned.
@@ -327,7 +329,17 @@ class Thread_Pool
         m_dispatcher.request_stop();
     }
 
+    // Waits for all pushed jobs to complete.
+    void wait_for_jobs_to_complete() { m_are_jobs_done.wait(false); }
+
+    // Upon destruction of the pool, terminate all the threads.
+    ~Thread_Pool() { terminate_all(); }
+
   private:
+
+    // Atomic signifying if the dispatcher has an empty job queue and all jobs
+    // requested are complete.
+    std::atomic<bool> m_are_jobs_done {false};
 
     // The threads vector and the maximum number of threads allowed to be
     // spawned concurrently.
@@ -364,6 +376,20 @@ class Thread_Pool
                 m_jobs,
                 [](const auto& job)
                 { return (!job->has_assigned_thread_index()); });
+
+            // If there is no job that needs to be assigned and the jobs vector
+            // is empty, ensure the jobs done atomic boolean is set true and all
+            // threads (that may be waiting based on this atomic) are notified.
+            // Otherwise, set it to false.
+            if ((next_job_iterator == m_jobs.end()) && (m_jobs.size() == 0))
+            {
+                m_are_jobs_done.store(true);
+                m_are_jobs_done.notify_all();
+            }
+            else
+            {
+                m_are_jobs_done.store(false);
+            }
 
             // If there is no job that needs to be assigned, do nothing.
             if (next_job_iterator == m_jobs.end()) { continue; }
