@@ -16,7 +16,6 @@ class Thread_Addition_Job : public Thread_Job
     {
         m_index_to_addend_one = write_to_private_data<int64_t>(addend_one);
         m_index_to_addend_two = write_to_private_data<int64_t>(addend_two);
-        m_index_to_result     = write_to_shared_data(result);
     }
 
     virtual bool has_job() const override { return true; }
@@ -40,7 +39,7 @@ class Thread_Addition_Job : public Thread_Job
 
     std::size_t m_index_to_addend_one;
     std::size_t m_index_to_addend_two;
-    std::size_t m_index_to_result;
+    constexpr static std::size_t m_index_to_result = 0;
 };
 
 TEST(multi_threading_tests, single_thread)
