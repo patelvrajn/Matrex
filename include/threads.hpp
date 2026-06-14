@@ -1,3 +1,5 @@
+#pragma once
+
 #include <any>
 #include <condition_variable>
 #include <cstddef>
