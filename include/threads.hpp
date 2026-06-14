@@ -113,15 +113,20 @@ class Thread_Job
     // If the job is assigned to a thread, it will carry the thread ID with
     // it. The ID is -1 if unassigned - telling the dispatcher it may need
     // to assign a thread this job.
-    bool has_assigned_thread_index() const
+    bool has_assigned_thread_id() const
     {
-        return (m_assigned_thread_index != -1);
+        return (m_assigned_thread_id != -1);
     }
 
     // Set the ID of the thread assigned this job.
-    void set_assigned_thread_index(std::size_t thread_index)
+    void set_assigned_thread_id(std::size_t thread_index)
     {
-        m_assigned_thread_index = thread_index;
+        m_assigned_thread_id = thread_index;
+    }
+
+    int64_t get_assigned_thread_id()
+    {
+        return m_assigned_thread_id;
     }
 
     // Any job needs to be able to write to their private data.
@@ -183,7 +188,7 @@ class Thread_Job
 
   private:
 
-    int64_t                                     m_assigned_thread_index = -1;
+    int64_t                                     m_assigned_thread_id = -1;
     std::atomic<bool>                           m_complete {false};
     std::vector<std::unique_ptr<std::any>>      m_private_data;
     std::reference_wrapper<Threads_Shared_Data> m_shared_data;
@@ -200,13 +205,15 @@ class Thread_Worker
 
     // Construct the thread worker - mainly, assign the worker thread the task
     // of the worker loop.
-    Thread_Worker() :
+    Thread_Worker(std::size_t id) :
+        m_id(id),
         m_thread([this](std::stop_token stop) { worker_loop(stop); })
     {
     }
 
     // An overloaded constructor to assign an initial job to the worker thread.
-    Thread_Worker(Thread_Job& job) :
+    Thread_Worker(std::size_t id, Thread_Job& job) :
+        m_id(id),
         m_job(job),
         m_thread([this](std::stop_token stop) { worker_loop(stop); })
     {
@@ -236,6 +243,10 @@ class Thread_Worker
     }
 
   private:
+
+    // Identifier for the thread worker normally assigned by the dispatcher 
+    // based on what place in it's threads vector it is placed.
+    std::size_t m_id;
 
     // The thread for the worker and it's job.
     std::optional<std::reference_wrapper<Thread_Job>> m_job;
@@ -377,7 +388,7 @@ class Thread_Pool
             auto next_job_iterator = std::ranges::find_if(
                 m_jobs,
                 [](const auto& job)
-                { return (!job->has_assigned_thread_index()); });
+                { return (!job->has_assigned_thread_id()); });
 
             // If there is no job that needs to be assigned and the jobs vector
             // is empty, ensure the jobs done atomic boolean is set true and all
@@ -422,15 +433,16 @@ class Thread_Pool
             if (next_thread_iterator == m_threads.end())
             {
                 m_jobs.at(next_job_index)
-                    ->set_assigned_thread_index(m_threads.size());
+                    ->set_assigned_thread_id(m_threads.size());
                 m_threads.emplace_back(std::make_unique<Thread_Worker>(
+                    next_thread_index,
                     *m_jobs.at(next_job_index)));
             }
             // There is a free thread, assign it the next job.
             else
             {
                 m_jobs.at(next_job_index)
-                    ->set_assigned_thread_index(next_thread_index);
+                    ->set_assigned_thread_id(next_thread_index);
                 m_threads.at(next_thread_index)
                     ->assign_job(*m_jobs.at(next_job_index));
             }

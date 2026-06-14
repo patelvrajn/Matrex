@@ -8,10 +8,9 @@ class Thread_Addition_Job : public Thread_Job
 {
   public:
 
-    Thread_Addition_Job(Threads_Shared_Data&            shared_data,
-                        int64_t                         addend_one,
-                        int64_t                         addend_two,
-                        std::reference_wrapper<int64_t> result) :
+    Thread_Addition_Job(Threads_Shared_Data& shared_data,
+                        int64_t              addend_one,
+                        int64_t              addend_two) :
         Thread_Job(shared_data)
     {
         m_index_to_addend_one = write_to_private_data<int64_t>(addend_one);
@@ -48,7 +47,7 @@ TEST(multi_threading_tests, single_thread)
     Threads_Shared_Data shared_data(result);
 
     std::unique_ptr<Thread_Job> job =
-        std::make_unique<Thread_Addition_Job>(shared_data, 3, 4, result);
+        std::make_unique<Thread_Addition_Job>(shared_data, 3, 4);
 
     Thread_Pool pool;
     pool.push_job(std::move(job));
@@ -63,17 +62,17 @@ TEST(multi_threading_tests, multiple_threads)
     Threads_Shared_Data shared_data(result);
 
     std::unique_ptr<Thread_Job> job_one =
-        std::make_unique<Thread_Addition_Job>(shared_data, 13, 14, result);
+        std::make_unique<Thread_Addition_Job>(shared_data, 13, 14);
     std::unique_ptr<Thread_Job> job_two =
-        std::make_unique<Thread_Addition_Job>(shared_data, 21, 45, result);
+        std::make_unique<Thread_Addition_Job>(shared_data, 21, 45);
     std::unique_ptr<Thread_Job> job_three =
-        std::make_unique<Thread_Addition_Job>(shared_data, 71, 66, result);
+        std::make_unique<Thread_Addition_Job>(shared_data, 71, 66);
     std::unique_ptr<Thread_Job> job_four =
-        std::make_unique<Thread_Addition_Job>(shared_data, 90, 1, result);
+        std::make_unique<Thread_Addition_Job>(shared_data, 90, 1);
     std::unique_ptr<Thread_Job> job_five =
-        std::make_unique<Thread_Addition_Job>(shared_data, 67, 48, result);
+        std::make_unique<Thread_Addition_Job>(shared_data, 67, 48);
     std::unique_ptr<Thread_Job> job_six =
-        std::make_unique<Thread_Addition_Job>(shared_data, 0, 55, result);
+        std::make_unique<Thread_Addition_Job>(shared_data, 0, 55);
 
     Thread_Pool pool;
     pool.push_job(std::move(job_one));
