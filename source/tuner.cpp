@@ -9,7 +9,7 @@
 Tuner::Tuner(std::ostream&  logging,
              std::ifstream& dataset_file,
              std::ofstream& output) :
-    m_log(logging), m_output(output)
+    m_log(logging), m_output(output), m_thread_pool(TUNER_NUM_OF_THREADS)
 {
     parse_dataset_file(dataset_file, m_training_dataset, m_validation_dataset);
 
@@ -109,13 +109,13 @@ Evaluation_Weights<double> Tuner::init_weights()
 
 Evaluation_Weights<double> Tuner::tune()
 {
-    Evaluation_Weights<double> weights = init_weights();
+    Tuner_Step_State           global_state;
+    Evaluation_Weights<double> previous_global_model_update;
+    global_state.weights = init_weights();
 
-    m_log << "[INFO] Initial weights: " << weights << std::endl;
+    m_log << "[INFO] Initial weights: " << global_state.weights << std::endl;
 
-    Evaluation_Weights<double> best_weights = weights;
-    Evaluation_Weights<double> first_moment;
-    Evaluation_Weights<double> second_moment;
+    Evaluation_Weights<double> best_weights = global_state.weights;
 
     const std::size_t num_of_mini_batches =
         m_training_dataset.mini_batches.size();
@@ -171,59 +171,71 @@ Evaluation_Weights<double> Tuner::tune()
 
         for (const Mini_Batch& mini_batch : m_training_dataset.mini_batches)
         {
-            // Calculate gradient
-            Evaluation_Weights<double> gradient =
-                compute_gradient(weights, mini_batch);
+            // Create a split of the mini batch for every worker thread.
+            Worker_Batches worker_data = create_worker_batches(mini_batch);
 
-            gradient = projected_gradient(weights, gradient);
+            // Create an array for each thread to store it's state.
+            Tuner_Step_States_Array thread_states;
 
-            // First moment calculation
-            first_moment = (first_moment * TUNER_DECAY_FACTOR)
-                         + (gradient * (1.0L - TUNER_DECAY_FACTOR));
+            // Create the shared data object for the threads.
+            Threads_Shared_Data shared_data(learning_rate,
+                                            global_state,
+                                            thread_states,
+                                            weight_update_magnitude_average,
+                                            t);
 
-            // Second moment calculation
-            second_moment = (second_moment * TUNER_NU)
-                          + ((gradient * gradient) * (1.0L - TUNER_NU));
+            // Push as many jobs as there are threads assigning each tuner step
+            // job a different split of the mini-batch.
+            for (std::size_t i = 0; i < TUNER_NUM_OF_THREADS; i++)
+            {
+                std::unique_ptr<Thread_Job> job =
+                    std::make_unique<Tuner_Step>(shared_data,
+                                                 (*this),
+                                                 worker_data.batches[i]);
 
-            // Bias-corrected first moment calculation
-            const Evaluation_Weights<double> first_moment_corrected =
-                ((first_moment * TUNER_DECAY_FACTOR)
-                 / (1.0L - std::pow(TUNER_DECAY_FACTOR, (t + 1))))
-                + ((gradient * (1.0L - TUNER_DECAY_FACTOR))
-                   / (1.0L - std::pow(TUNER_DECAY_FACTOR, t)));
+                m_thread_pool.push_job(std::move(job));
+            }
 
-            // Bias-corrected second moment calculation
-            const Evaluation_Weights<double> second_moment_corrected =
-                (second_moment * TUNER_NU) / (1.0L - std::pow(TUNER_NU, t));
+            // Wait for all threads in the pool to complete their jobs.
+            m_thread_pool.wait_for_jobs_to_complete();
 
-            const Evaluation_Weights<double> weight_update =
-                ((learning_rate
-                  / (second_moment_corrected + TUNER_EPSILON).sqrt())
-                 * first_moment_corrected);
-            const double weight_update_magnitude  = weight_update.magnitude();
-            weight_update_magnitude_average      += weight_update_magnitude;
+            // Calculate the average state (average moments and average weights)
+            // from the thread states array. Note that all threads have
+            // completed execution so their is no need for synchronization
+            // primitives to access their final states.
+            Tuner_Step_State average_state;
+            for (const auto& state : thread_states)
+            {
+                average_state.first_moment =
+                    average_state.first_moment + state.first_moment;
+                average_state.second_moment =
+                    average_state.second_moment + state.second_moment;
+                average_state.weights = average_state.weights + state.weights;
+            }
+            average_state.first_moment =
+                average_state.first_moment
+                / static_cast<double>(TUNER_NUM_OF_THREADS);
+            average_state.second_moment =
+                average_state.second_moment
+                / static_cast<double>(TUNER_NUM_OF_THREADS);
+            average_state.weights = average_state.weights
+                                  / static_cast<double>(TUNER_NUM_OF_THREADS);
 
-            m_log << "[INFO] Weight update with magnitude "
-                  << weight_update_magnitude << " at timestep " << t << "; "
-                  << weight_update << std::endl;
+            // Apply blockwise model-update filtering (BMUF) algorithm.
+            Evaluation_Weights<double> global_model_update =
+                average_state.weights - global_state.weights;
+            global_model_update =
+                (previous_global_model_update * TUNER_BLOCK_MOMENTUM)
+                + (global_model_update * TUNER_BLOCK_LEARNING_RATE);
+            previous_global_model_update = global_model_update;
 
-            const Evaluation_Weights<double> decoupled_weight_decay =
-                weights * TUNER_REGULARIZATION_LAMBDA;
-            const Evaluation_Weights<double> weight_decay_update =
-                decoupled_weight_decay * learning_rate;
+            // Assign the new global state.
+            global_state = {.first_moment  = average_state.first_moment,
+                            .second_moment = average_state.second_moment,
+                            .weights =
+                                (global_state.weights + global_model_update)};
 
-            m_log << "[INFO] Weight decay update at timestep " << t << "; "
-                  << weight_decay_update << std::endl;
-
-            const Evaluation_Weights<double> total_weight_update =
-                weight_update + weight_decay_update;
-
-            // Parameter update
-            weights = projected_weight_change(weights, total_weight_update);
-
-            m_log << "[INFO] Weights at timestep " << t << "; " << weights
-                  << std::endl;
-
+            // Increment timestep.
             t++;
         }
 
@@ -231,13 +243,14 @@ Evaluation_Weights<double> Tuner::tune()
             weight_update_magnitude_average / num_of_mini_batches;
 
         const double validation_loss =
-            compute_loss(m_validation_dataset, weights);
+            compute_loss(m_validation_dataset, global_state.weights);
         const double validation_loss_percent =
             100.0L * (validation_loss / max_validation_data_loss);
         const double validation_loss_improvement =
             previous_epoch_validation_loss - validation_loss;
 
-        const double training_loss = compute_loss(m_training_dataset, weights);
+        const double training_loss =
+            compute_loss(m_training_dataset, global_state.weights);
         const double training_loss_percent =
             100.0L * (training_loss / max_training_data_loss);
         const double training_loss_improvement =
@@ -262,7 +275,10 @@ Evaluation_Weights<double> Tuner::tune()
         }
         else
         { // Not converged.
-            if (validation_loss_improvement > 0) { best_weights = weights; }
+            if (validation_loss_improvement > 0)
+            {
+                best_weights = global_state.weights;
+            }
             epoch_patience_count = 0;
         }
 
@@ -284,8 +300,8 @@ Evaluation_Weights<double> Tuner::tune()
 // algorithm from jumping back and forth between the valid range and outside the
 // valid range because of momentum.
 Evaluation_Weights<double>
-Tuner::projected_gradient(Evaluation_Weights<double> weights,
-                          Evaluation_Weights<double> gradient)
+Tuner::projected_gradient(const Evaluation_Weights<double>& weights,
+                          const Evaluation_Weights<double>& gradient) const
 {
     Evaluation_Weights<double> result;
 
@@ -305,24 +321,14 @@ Tuner::projected_gradient(Evaluation_Weights<double> weights,
                 std::abs(weights[i] - Matrex_FP_Int::safe_maximum());
             result[i] = std::copysign(distance_from_boundary, gradient[i])
                       / PROJECTED_GRADIENT_SCALE;
-            m_log << "Weight with value " << weights[i]
-                  << " and gradient with value " << gradient[i]
-                  << " is greater than the maximum "
-                  << Matrex_FP_Int::safe_maximum() << std::endl;
-            m_log << "Resultant gradient is now " << result[i] << std::endl;
-            // Simalaur logic as the maximum clamp.
         }
+        // Simalaur logic as the maximum clamp.
         else if (weights_with_step < Matrex_FP_Int::safe_minimum())
         {
             double distance_from_boundary =
                 std::abs(weights[i] - Matrex_FP_Int::safe_minimum());
             result[i] = std::copysign(distance_from_boundary, gradient[i])
                       / PROJECTED_GRADIENT_SCALE;
-            m_log << "Weight with value " << weights[i]
-                  << " and gradient with value " << gradient[i]
-                  << " is less than the minimum "
-                  << Matrex_FP_Int::safe_minimum() << std::endl;
-            m_log << "Resultant gradient is now " << result[i] << std::endl;
         }
         else
         {
@@ -336,9 +342,9 @@ Tuner::projected_gradient(Evaluation_Weights<double> weights,
 // Here we are using a concept from projected gradient descent where we project
 // the weights back into a valid range for the fixed point math we are using for
 // static evaluation.
-Evaluation_Weights<double>
-Tuner::projected_weight_change(Evaluation_Weights<double> weights,
-                               Evaluation_Weights<double> weight_update)
+Evaluation_Weights<double> Tuner::projected_weight_change(
+    const Evaluation_Weights<double>& weights,
+    const Evaluation_Weights<double>& weight_update) const
 {
     Evaluation_Weights<double> result;
 
@@ -464,7 +470,37 @@ Dataset Tuner::create_mini_batches(const Mini_Batch& aggregate_batch)
     return returned_dataset;
 }
 
-Tuner_Eval_Params Tuner::compute_eval_params(const Mini_Batch& mini_batch)
+Worker_Batches Tuner::create_worker_batches(const Mini_Batch& mini_batch)
+{
+    Worker_Batches returned_batches;
+
+    const std::size_t mini_batch_size = mini_batch.fens.size();
+    const std::size_t worker_batch_size =
+        mini_batch_size / TUNER_NUM_OF_THREADS;
+
+    for (std::size_t i = 0; i < TUNER_NUM_OF_THREADS; i++)
+    {
+        Mini_Batch batch;
+
+        std::size_t batch_start = worker_batch_size * i;
+        std::size_t batch_end   = (worker_batch_size * (i + 1)) - 1;
+
+        if (batch_end >= mini_batch_size) { batch_end = mini_batch_size - 1; }
+
+        batch.fens =
+            std::vector<std::string>(mini_batch.fens.begin() + batch_start,
+                                     mini_batch.fens.begin() + batch_end);
+        batch.scores =
+            std::vector<double>(mini_batch.scores.begin() + batch_start,
+                                mini_batch.scores.begin() + batch_end);
+
+        returned_batches.batches[i] = batch;
+    }
+
+    return returned_batches;
+}
+
+Tuner_Eval_Params Tuner::compute_eval_params(const Mini_Batch& mini_batch) const
 {
     Tuner_Eval_Params return_value;
     return_value.boards.reserve(mini_batch.fens.size());
@@ -505,7 +541,7 @@ Tuner_Eval_Params Tuner::compute_eval_params(const Mini_Batch& mini_batch)
 
 Evaluation_Weights<double>
 Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
-                        const Mini_Batch&                 mini_batch)
+                        const Mini_Batch&                 mini_batch) const
 {
     Evaluation_Weights<double> gradient;
 

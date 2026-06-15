@@ -238,10 +238,10 @@ class Evaluation_Weights
     Evaluation_Weights operator*(const Evaluation_Weights& other) const;
 
     // Arithmetic operators with T.
-    Evaluation_Weights operator+(T value) const;
-    Evaluation_Weights operator-(T value) const;
-    Evaluation_Weights operator*(T value) const;
-    Evaluation_Weights operator/(T value) const;
+    Evaluation_Weights operator+(const T value) const;
+    Evaluation_Weights operator-(const T value) const;
+    Evaluation_Weights operator*(const T value) const;
+    Evaluation_Weights operator/(const T value) const;
 
     Evaluation_Weights sqrt() const;
     T                  magnitude() const;
@@ -387,7 +387,7 @@ Evaluation_Weights<T>::operator*(const Evaluation_Weights& other) const
 }
 
 template <typename T>
-Evaluation_Weights<T> Evaluation_Weights<T>::operator+(T value) const
+Evaluation_Weights<T> Evaluation_Weights<T>::operator+(const T value) const
 {
     Evaluation_Weights result;
 
@@ -400,7 +400,7 @@ Evaluation_Weights<T> Evaluation_Weights<T>::operator+(T value) const
 }
 
 template <typename T>
-Evaluation_Weights<T> Evaluation_Weights<T>::operator-(T value) const
+Evaluation_Weights<T> Evaluation_Weights<T>::operator-(const T value) const
 {
     Evaluation_Weights result;
 
@@ -413,7 +413,7 @@ Evaluation_Weights<T> Evaluation_Weights<T>::operator-(T value) const
 }
 
 template <typename T>
-Evaluation_Weights<T> Evaluation_Weights<T>::operator*(T value) const
+Evaluation_Weights<T> Evaluation_Weights<T>::operator*(const T value) const
 {
     Evaluation_Weights result;
 
@@ -426,7 +426,7 @@ Evaluation_Weights<T> Evaluation_Weights<T>::operator*(T value) const
 }
 
 template <typename T>
-Evaluation_Weights<T> Evaluation_Weights<T>::operator/(T value) const
+Evaluation_Weights<T> Evaluation_Weights<T>::operator/(const T value) const
 {
     Evaluation_Weights result;
 
@@ -439,7 +439,8 @@ Evaluation_Weights<T> Evaluation_Weights<T>::operator/(T value) const
 }
 
 template <typename T>
-Evaluation_Weights<T> operator/(T scalar, const Evaluation_Weights<T>& weights)
+Evaluation_Weights<T> operator/(const T                      scalar,
+                                const Evaluation_Weights<T>& weights)
 {
     Evaluation_Weights<T> result;
 

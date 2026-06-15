@@ -31,7 +31,9 @@ class Threads_Shared_Data
         (m_data.emplace_back(std::ref(args)), ...);
     }
 
-    // This performs a write to the shared data guarded by the mutex.
+    // This performs a write of a reference to data (the reference is expected
+    // to live longer than this shared data instance) to the shared data guarded
+    // by the mutex.
     template <typename T>
     std::size_t write(std::reference_wrapper<T> data)
     {
@@ -113,10 +115,7 @@ class Thread_Job
     // If the job is assigned to a thread, it will carry the thread ID with
     // it. The ID is -1 if unassigned - telling the dispatcher it may need
     // to assign a thread this job.
-    bool has_assigned_thread_id() const
-    {
-        return (m_assigned_thread_id != -1);
-    }
+    bool has_assigned_thread_id() const { return (m_assigned_thread_id != -1); }
 
     // Set the ID of the thread assigned this job.
     void set_assigned_thread_id(std::size_t thread_index)
@@ -124,10 +123,7 @@ class Thread_Job
         m_assigned_thread_id = thread_index;
     }
 
-    int64_t get_assigned_thread_id()
-    {
-        return m_assigned_thread_id;
-    }
+    int64_t get_assigned_thread_id() { return m_assigned_thread_id; }
 
     // Any job needs to be able to write to their private data.
     template <typename T, typename... Args>
@@ -206,8 +202,7 @@ class Thread_Worker
     // Construct the thread worker - mainly, assign the worker thread the task
     // of the worker loop.
     Thread_Worker(std::size_t id) :
-        m_id(id),
-        m_thread([this](std::stop_token stop) { worker_loop(stop); })
+        m_id(id), m_thread([this](std::stop_token stop) { worker_loop(stop); })
     {
     }
 
@@ -244,7 +239,7 @@ class Thread_Worker
 
   private:
 
-    // Identifier for the thread worker normally assigned by the dispatcher 
+    // Identifier for the thread worker normally assigned by the dispatcher
     // based on what place in it's threads vector it is placed.
     std::size_t m_id;
 

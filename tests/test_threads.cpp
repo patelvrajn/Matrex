@@ -36,8 +36,8 @@ class Thread_Addition_Job : public Thread_Job
 
   private:
 
-    std::size_t m_index_to_addend_one;
-    std::size_t m_index_to_addend_two;
+    std::size_t                  m_index_to_addend_one;
+    std::size_t                  m_index_to_addend_two;
     constexpr static std::size_t m_index_to_result = 0;
 };
 
