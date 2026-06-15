@@ -235,6 +235,8 @@ Evaluation_Weights<double> Tuner::tune()
                             .weights =
                                 (global_state.weights + global_model_update)};
 
+            m_log << "Weights at timestep " << t << " are; " << global_state.weights << std::endl;
+
             // Increment timestep.
             t++;
         }
