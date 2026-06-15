@@ -269,7 +269,7 @@ class Tuner_Step : public Thread_Job
         // Calculate the final weights and commit them to this thread's local
         // state in shared memory.
         const Evaluation_Weights<double> weights =
-            tuner_instance.projected_weight_change(weights,
+            tuner_instance.projected_weight_change(global_state.weights,
                                                    total_weight_update);
         call_shared_data<Tuner_Step_States_Array>(
             m_index_to_local_states,

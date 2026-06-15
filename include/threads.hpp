@@ -326,6 +326,7 @@ class Thread_Pool
     void push_job(std::unique_ptr<Thread_Job> job)
     {
         std::scoped_lock lock(m_jobs_mutex);
+        m_are_jobs_done.store(false);
         m_jobs.push_back(std::move(job));
     }
 

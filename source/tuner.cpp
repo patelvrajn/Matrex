@@ -484,10 +484,10 @@ Worker_Batches Tuner::create_worker_batches(const Mini_Batch& mini_batch)
     {
         Mini_Batch batch;
 
-        std::size_t batch_start = worker_batch_size * i;
-        std::size_t batch_end   = (worker_batch_size * (i + 1)) - 1;
-
-        if (batch_end >= mini_batch_size) { batch_end = mini_batch_size - 1; }
+        const std::size_t batch_start = worker_batch_size * i;
+        const std::size_t batch_end = (i == (TUNER_NUM_OF_THREADS - 1))
+            ? mini_batch_size
+            : worker_batch_size * (i + 1);
 
         batch.fens =
             std::vector<std::string>(mini_batch.fens.begin() + batch_start,
