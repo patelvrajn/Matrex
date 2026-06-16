@@ -109,8 +109,7 @@ Evaluation_Weights<double> Tuner::init_weights()
 
 Evaluation_Weights<double> Tuner::tune()
 {
-    Tuner_Step_State           global_state;
-    Evaluation_Weights<double> previous_global_model_update;
+    Tuner_Step_State global_state;
     global_state.weights = init_weights();
 
     m_log << "[INFO] Initial weights: " << global_state.weights << std::endl;
@@ -221,19 +220,8 @@ Evaluation_Weights<double> Tuner::tune()
             average_state.weights = average_state.weights
                                   / static_cast<double>(TUNER_NUM_OF_THREADS);
 
-            // Apply blockwise model-update filtering (BMUF) algorithm.
-            Evaluation_Weights<double> global_model_update =
-                average_state.weights - global_state.weights;
-            global_model_update =
-                (previous_global_model_update * TUNER_BLOCK_MOMENTUM)
-                + (global_model_update * TUNER_BLOCK_LEARNING_RATE);
-            previous_global_model_update = global_model_update;
-
-            // Assign the new global state.
-            global_state = {.first_moment  = average_state.first_moment,
-                            .second_moment = average_state.second_moment,
-                            .weights =
-                                (global_state.weights + global_model_update)};
+            // Assign the new global state as the average.
+            global_state = average_state;
 
             m_log << "Weights at timestep " << t << " are; " << global_state.weights << std::endl;
 
