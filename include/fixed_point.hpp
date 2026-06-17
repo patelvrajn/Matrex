@@ -503,8 +503,8 @@ Fixed_Point_Integer<F>::operator/(const Fixed_Point_Integer other) const
                                  - bit_width(other.m_value)
                                  - (FIXED_POINT_BIT_WIDTH - 1) + 1;
 
-    // An additional bit of scaling is needed if the product is negative because
-    // bit_width doesn't account for the sign of the product.
+    // An additional bit of scaling is needed if the quotient is negative 
+    // because bit_width doesn't account for the sign of the quotient.
     if (((m_value < 0) || (other.m_value < 0))
         && (!((m_value < 0) && (other.m_value < 0))))
     {
@@ -517,23 +517,22 @@ Fixed_Point_Integer<F>::operator/(const Fixed_Point_Integer other) const
     // We scale the numerator up for the same reason we scale down the product
     // in multiplication.
     int64_t numerator = static_cast<int64_t>(m_value) * scale();
-    int64_t denominator =
-        static_cast<int64_t>(other.m_value) >> anti_overflow_scaling;
+    int64_t denominator = static_cast<int64_t>(other.m_value);
 
-    // Prevent division by zero by clamping to the smallest denominator.
-    if (denominator == 0) { denominator = (other.m_value >= 0) ? 1 : -1; }
-
-    // We scale both the numerator and denominator (see above) down because this
-    // maintains the same result - the scaling factor cancels out - but prevents
-    // overflow.
+    // We scale the numerator down by the anti-overflow scaling but not the 
+    // denominator. Although it would keep the result approximately the same 
+    // because the scaling factor would cancel, we calculated the scaling factor
+    // based on the original bit width of the denominator so it would cause 
+    // overflow issues if we scaled down the denominator because dividing by a
+    // smaller integer would lead to a bigger result. 
     numerator = numerator >> anti_overflow_scaling;
 
     int64_t quotient = numerator / denominator;
 
     MATREX_ASSERT(Fixed_Point_Integer<F>::is_representable(
                       static_cast<double>(quotient) * precision()),
-                  "FIXED POINT DIVISION ERROR: Quotient exceeded what was "
-                  "representable.");
+                  "FIXED POINT DIVISION ERROR: Quotient {} ({} / {}) exceeded"
+                  " what was representable.", quotient, numerator, denominator);
 
     return Fixed_Point_Integer::from_value(
         static_cast<Fixed_Point_Int_Storage_Type>(quotient));

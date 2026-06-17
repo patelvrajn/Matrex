@@ -387,8 +387,6 @@ TEST(fixed_point_tests, test_division_overflow)
         std::max(static_cast<uint8_t>(0), anti_overflow_scaling);
 
     // This is the expected result after overflow handling.
-    denominator = (denominator >> anti_overflow_scaling);
-    denominator = (denominator == 0) ? operand_two : denominator;
     Fixed_Point_Int_Storage_Type expected_quotient =
         (numerator >> anti_overflow_scaling) / denominator;
 
