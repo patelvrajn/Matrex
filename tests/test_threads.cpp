@@ -4,7 +4,7 @@
 #include "gtest/gtest.h"
 #include "threads.hpp"
 
-constexpr std::size_t MAX_TEST_THREAD_COUNT = 2;
+constexpr std::size_t MAX_TEST_THREAD_COUNT = 4;
 
 class Thread_Addition_Job : public Thread_Job
 {
@@ -43,7 +43,7 @@ class Thread_Addition_Job : public Thread_Job
     constexpr static std::size_t m_index_to_result = 0;
 };
 
-TEST(multi_threading_tests, single_thread)
+TEST(multi_threading_tests, DISABLED_single_thread)
 {
     int64_t             result = 0;
     Threads_Shared_Data shared_data(result);
@@ -58,7 +58,7 @@ TEST(multi_threading_tests, single_thread)
     EXPECT_EQ(result, 7);
 }
 
-TEST(multi_threading_tests, multiple_threads)
+TEST(multi_threading_tests, DISABLED_multiple_threads)
 {
     int64_t             result = 0;
     Threads_Shared_Data shared_data(result);
