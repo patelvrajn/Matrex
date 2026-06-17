@@ -4,6 +4,8 @@
 #include "gtest/gtest.h"
 #include "threads.hpp"
 
+constexpr std::size_t MAX_TEST_THREAD_COUNT = 2;
+
 class Thread_Addition_Job : public Thread_Job
 {
   public:
@@ -49,7 +51,7 @@ TEST(multi_threading_tests, single_thread)
     std::unique_ptr<Thread_Job> job =
         std::make_unique<Thread_Addition_Job>(shared_data, 3, 4);
 
-    Thread_Pool pool;
+    Thread_Pool pool(MAX_TEST_THREAD_COUNT);
     pool.push_job(std::move(job));
     pool.wait_for_jobs_to_complete();
 
@@ -74,7 +76,7 @@ TEST(multi_threading_tests, multiple_threads)
     std::unique_ptr<Thread_Job> job_six =
         std::make_unique<Thread_Addition_Job>(shared_data, 0, 55);
 
-    Thread_Pool pool;
+    Thread_Pool pool(MAX_TEST_THREAD_COUNT);
     pool.push_job(std::move(job_one));
     pool.push_job(std::move(job_two));
     pool.push_job(std::move(job_three));
