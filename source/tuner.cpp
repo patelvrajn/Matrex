@@ -223,7 +223,8 @@ Evaluation_Weights<double> Tuner::tune()
             // Assign the new global state as the average.
             global_state = average_state;
 
-            m_log << "Weights at timestep " << t << " are; " << global_state.weights << std::endl;
+            m_log << "Weights at timestep " << t << " are; "
+                  << global_state.weights << std::endl;
 
             // Increment timestep.
             t++;
@@ -473,9 +474,9 @@ Worker_Batches Tuner::create_worker_batches(const Mini_Batch& mini_batch)
         Mini_Batch batch;
 
         const std::size_t batch_start = worker_batch_size * i;
-        const std::size_t batch_end = (i == (TUNER_NUM_OF_THREADS - 1))
-            ? mini_batch_size
-            : worker_batch_size * (i + 1);
+        const std::size_t batch_end   = (i == (TUNER_NUM_OF_THREADS - 1))
+                                          ? mini_batch_size
+                                          : worker_batch_size * (i + 1);
 
         batch.fens =
             std::vector<std::string>(mini_batch.fens.begin() + batch_start,
