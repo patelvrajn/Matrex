@@ -21,7 +21,10 @@ void Bitboard::pretty_print() const
             Square s(rank, file);
 
             if (get_square(s)) { std::cout << 1 << " "; }
-            else { std::cout << 0 << " "; }
+            else
+            {
+                std::cout << 0 << " ";
+            }
         }
 
         std::cout << std::endl;

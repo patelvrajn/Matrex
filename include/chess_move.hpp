@@ -62,7 +62,10 @@ struct Chess_Move
             destination_square_str =
                 SQUARE_STRINGS[castling_rook_source_square];
         }
-        else { destination_square_str = SQUARE_STRINGS[destination_square]; }
+        else
+        {
+            destination_square_str = SQUARE_STRINGS[destination_square];
+        }
 
         std::string promotion_string = "";
 
@@ -196,7 +199,10 @@ Chess_Move_List<capacity>::push_and_copy(const Chess_Move&         move,
         std::copy(move_list.begin(), move_list.end(), (m_list.begin() + 1));
         m_max_index = move_list.m_max_index + 1;
     }
-    else { m_max_index = 0; }
+    else
+    {
+        m_max_index = 0;
+    }
 }
 
 template <std::size_t capacity>

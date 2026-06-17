@@ -382,7 +382,10 @@ Bitboard Move_Generator::get_pin_mask(const Bitboard& pinned,
     {
         return Bitboard::get_infinite_ray(our_king_square, source_square);
     }
-    else { return Bitboard((uint64_t) -1); }
+    else
+    {
+        return Bitboard((uint64_t) -1);
+    }
 }
 
 // ======================================================================
