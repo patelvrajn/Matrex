@@ -650,6 +650,12 @@ class Evaluator
     template <PIECE_COLOR moving_side>
     inline T material_score() const;
 
+    template <PIECE_COLOR moving_side>
+    inline T mobility_score() const;
+
+    template <PIECE_COLOR moving_side>
+    inline T piece_square_score() const;
+
     // Helpers
     template <PIECE_COLOR side>
     inline T calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
