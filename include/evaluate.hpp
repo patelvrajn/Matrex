@@ -237,11 +237,22 @@ class Evaluation_Weights
     Evaluation_Weights operator/(const Evaluation_Weights& other) const;
     Evaluation_Weights operator*(const Evaluation_Weights& other) const;
 
+    Evaluation_Weights& operator+=(const Evaluation_Weights& other);
+    Evaluation_Weights& operator-=(const Evaluation_Weights& other);
+    Evaluation_Weights& operator/=(const Evaluation_Weights& other);
+    Evaluation_Weights& operator*=(const Evaluation_Weights& other);
+    Evaluation_Weights operator-() const;
+
     // Arithmetic operators with T.
     Evaluation_Weights operator+(const T value) const;
     Evaluation_Weights operator-(const T value) const;
     Evaluation_Weights operator*(const T value) const;
     Evaluation_Weights operator/(const T value) const;
+
+    Evaluation_Weights& operator+=(const T other);
+    Evaluation_Weights& operator-=(const T other);
+    Evaluation_Weights& operator/=(const T other);
+    Evaluation_Weights& operator*=(const T other);
 
     Evaluation_Weights sqrt() const;
     T                  magnitude() const;
@@ -309,20 +320,12 @@ Evaluation_Weights<T>::operator=(Evaluation_Weights&& other) noexcept
 template <typename T>
 T& Evaluation_Weights<T>::operator[](std::size_t index)
 {
-    if (index >= m_weight_ref_array.size)
-    {
-        throw std::out_of_range("Index out of range in Evaluation_Weights");
-    }
     return m_weight_ref_array.get_array()[index].value().get();
 }
 
 template <typename T>
 const T& Evaluation_Weights<T>::operator[](std::size_t index) const
 {
-    if (index >= m_weight_ref_array.size)
-    {
-        throw std::out_of_range("Index out of range in Evaluation_Weights");
-    }
     return m_weight_ref_array.get_array()[index].value().get();
 }
 
@@ -387,6 +390,59 @@ Evaluation_Weights<T>::operator*(const Evaluation_Weights& other) const
 }
 
 template <typename T>
+Evaluation_Weights<T>& Evaluation_Weights<T>::operator+=(const Evaluation_Weights<T>& other)
+{
+    Evaluation_Weights<T> sum = (*this) + other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = sum[i]; }
+
+    return *this;
+}
+
+template <typename T>
+Evaluation_Weights<T>& Evaluation_Weights<T>::operator-=(const Evaluation_Weights<T>& other)
+{
+    Evaluation_Weights<T> difference = (*this) - other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = difference[i]; }
+
+    return *this;
+}
+
+template <typename T>
+Evaluation_Weights<T>& Evaluation_Weights<T>::operator/=(const Evaluation_Weights& other)
+{
+    Evaluation_Weights<T> quotient = (*this) / other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = quotient[i]; }
+
+    return *this;
+}
+
+template <typename T>
+Evaluation_Weights<T>& Evaluation_Weights<T>::operator*=(const Evaluation_Weights& other)
+{
+    Evaluation_Weights<T> product = (*this) * other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = product[i]; }
+
+    return *this;
+}
+
+template <typename T>
+Evaluation_Weights<T> Evaluation_Weights<T>::operator-() const
+{
+    Evaluation_Weights result;
+
+    for (std::size_t i = 0; i < m_weight_ref_array.size; ++i)
+    {
+        result[i] = -m_weight_ref_array.get_array()[i].value().get();
+    }
+
+    return result;
+}
+
+template <typename T>
 Evaluation_Weights<T> Evaluation_Weights<T>::operator+(const T value) const
 {
     Evaluation_Weights result;
@@ -436,6 +492,46 @@ Evaluation_Weights<T> Evaluation_Weights<T>::operator/(const T value) const
     }
 
     return result;
+}
+
+template <typename T>
+Evaluation_Weights<T>& Evaluation_Weights<T>::operator+=(const T other)
+{
+    Evaluation_Weights<T> sum = (*this) + other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = sum[i]; }
+
+    return *this;
+}
+
+template <typename T>
+Evaluation_Weights<T>& Evaluation_Weights<T>::operator-=(const T other)
+{
+    Evaluation_Weights<T> difference = (*this) - other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = difference[i]; }
+
+    return *this;
+}
+
+template <typename T>
+Evaluation_Weights<T>& Evaluation_Weights<T>::operator/=(const T other)
+{
+    Evaluation_Weights<T> quotient = (*this) / other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = quotient[i]; }
+
+    return *this;
+}
+
+template <typename T>
+Evaluation_Weights<T>& Evaluation_Weights<T>::operator*=(const T other)
+{
+    Evaluation_Weights<T> product = (*this) * other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = product[i]; }
+
+    return *this;
 }
 
 template <typename T>

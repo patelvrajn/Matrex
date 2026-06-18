@@ -1,4 +1,5 @@
 #include "evaluate.hpp"
+#include "fixed_point.hpp"
 
 template<typename T>
 struct Value_Gradient_Pair
@@ -182,3 +183,57 @@ struct Value_Gradient_Pair
         return *this;
     }
 };
+
+namespace Matrex
+{
+    template <typename T>
+    Value_Gradient_Pair<T> tanh(Value_Gradient_Pair<T>& x) 
+    { 
+        const T tanh_value = std::tanh(x.value); 
+        const T dy_dx = (1.0 - (tanh_value * tanh_value));
+
+        return 
+        {
+            .value = tanh_value, 
+            .gradient = x.gradient * dy_dx
+        };
+    }
+
+    template <typename T>
+    Value_Gradient_Pair<T> pow(Value_Gradient_Pair<T>& base, Value_Gradient_Pair<T>& exponent)
+    {
+        const T pow_value = std::pow(base.value, exponent.value);
+        const T dy_dx = exponent.value * std::pow(base.value, (exponent.value - 1.0));
+
+        return 
+        {
+            .value = pow_value, 
+            .gradient = base.gradient * dy_dx
+        };
+    }
+
+    template <typename T>
+    Value_Gradient_Pair<T> sqrt(Value_Gradient_Pair<T> x) 
+    {
+        const T sqrt_value = std::sqrt(x.value); 
+        const T dy_dx = 1.0 / (2.0 * sqrt_value);
+
+        return 
+        {
+            .value = sqrt_value, 
+            .gradient = x.gradient * dy_dx
+        };
+    }
+
+    template <typename T>
+    Value_Gradient_Pair<T> exp(Value_Gradient_Pair<T> x) 
+    {
+        const T exp_value = std::exp(x.value);
+
+        return 
+        {
+            .value = exp_value, 
+            .gradient = x.gradient * exp_value
+        };
+    }
+} // namespace Matrex
