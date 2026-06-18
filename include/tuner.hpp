@@ -112,6 +112,10 @@ class Tuner
 
     Tuner_Eval_Params compute_eval_params(const Mini_Batch& mini_batch) const;
 
+    Evaluation_Weights<Value_Gradient_Pair<double>>
+    create_gradient_pair_weights(
+        const Evaluation_Weights<double>& weights) const;
+
     double compute_loss(const Dataset&                    d,
                         const Evaluation_Weights<double>& weights);
 

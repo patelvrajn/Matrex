@@ -4,8 +4,6 @@
 #include <numbers>
 #include <random>
 
-#include "threads.hpp"
-
 Tuner::Tuner(std::ostream&  logging,
              std::ifstream& dataset_file,
              std::ofstream& output) :
@@ -530,6 +528,24 @@ Tuner_Eval_Params Tuner::compute_eval_params(const Mini_Batch& mini_batch) const
     return return_value;
 }
 
+Evaluation_Weights<Value_Gradient_Pair<double>>
+Tuner::create_gradient_pair_weights(
+    const Evaluation_Weights<double>& weights) const
+{
+    Evaluation_Weights<Value_Gradient_Pair<double>> output;
+
+    for (std::size_t i = 0; i < weights.get_size(); ++i)
+    {
+        Evaluation_Weights<double> one_hot_basis;
+        one_hot_basis[i] = 0;
+
+        output[i] =
+            Value_Gradient_Pair<double>::variable(weights[i], one_hot_basis);
+    }
+
+    return output;
+}
+
 Evaluation_Weights<double>
 Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
                         const Mini_Batch&                 mini_batch) const
@@ -540,9 +556,11 @@ Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
 
     Tuner_Eval_Params eval_params = compute_eval_params(mini_batch);
 
+    auto gradient_pair_weights = create_gradient_pair_weights(weights);
+
     for (std::size_t i = 0; i < N; i++)
     {
-        Evaluator e(weights,
+        Evaluator e(gradient_pair_weights,
                     eval_params.boards[i],
                     eval_params.moving_side_matrices[i],
                     eval_params.opposing_side_matrices[i]);
@@ -551,16 +569,16 @@ Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
             (eval_params.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)
                 ? 1.0L
                 : -1.0L;
-        const double evaluation = e.evaluate_template_typed();
+        const auto   result = e.evaluate_template_typed();
         const double evaluation_white =
-            sign * evaluation; // Convert side-to-move's evaluation to white's
-                               // perspective.
+            sign * result.value; // Convert side-to-move's evaluation to white's
+                                 // perspective.
         const double target_evaluation = mini_batch.scores[i];
         const double error = target_evaluation - sigmoid(evaluation_white);
         const double huber_loss_derivative = derivative_huber_loss(error);
         const double sigmoid_derivative = derivative_sigmoid(evaluation_white);
         const Evaluation_Weights<double> evaluation_deriative =
-            (e.derivative_evaluate() * sign);
+            (result.gradient * sign);
 
         gradient = gradient
                  + (evaluation_deriative

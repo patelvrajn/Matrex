@@ -2,6 +2,9 @@
 
 #include <cmath>
 
+#include "value_gradient_pair.hpp" // This must be first because of how
+                                   // compilation works when seeing qualified
+                                   // names like Matrex::*.
 #include "chess_board.hpp"
 #include "globals.hpp"
 #include "move_generator.hpp"
@@ -241,7 +244,7 @@ class Evaluation_Weights
     Evaluation_Weights& operator-=(const Evaluation_Weights& other);
     Evaluation_Weights& operator/=(const Evaluation_Weights& other);
     Evaluation_Weights& operator*=(const Evaluation_Weights& other);
-    Evaluation_Weights operator-() const;
+    Evaluation_Weights  operator-() const;
 
     // Arithmetic operators with T.
     Evaluation_Weights operator+(const T value) const;
@@ -390,7 +393,8 @@ Evaluation_Weights<T>::operator*(const Evaluation_Weights& other) const
 }
 
 template <typename T>
-Evaluation_Weights<T>& Evaluation_Weights<T>::operator+=(const Evaluation_Weights<T>& other)
+Evaluation_Weights<T>&
+Evaluation_Weights<T>::operator+=(const Evaluation_Weights<T>& other)
 {
     Evaluation_Weights<T> sum = (*this) + other;
 
@@ -400,7 +404,8 @@ Evaluation_Weights<T>& Evaluation_Weights<T>::operator+=(const Evaluation_Weight
 }
 
 template <typename T>
-Evaluation_Weights<T>& Evaluation_Weights<T>::operator-=(const Evaluation_Weights<T>& other)
+Evaluation_Weights<T>&
+Evaluation_Weights<T>::operator-=(const Evaluation_Weights<T>& other)
 {
     Evaluation_Weights<T> difference = (*this) - other;
 
@@ -410,7 +415,8 @@ Evaluation_Weights<T>& Evaluation_Weights<T>::operator-=(const Evaluation_Weight
 }
 
 template <typename T>
-Evaluation_Weights<T>& Evaluation_Weights<T>::operator/=(const Evaluation_Weights& other)
+Evaluation_Weights<T>&
+Evaluation_Weights<T>::operator/=(const Evaluation_Weights& other)
 {
     Evaluation_Weights<T> quotient = (*this) / other;
 
@@ -420,7 +426,8 @@ Evaluation_Weights<T>& Evaluation_Weights<T>::operator/=(const Evaluation_Weight
 }
 
 template <typename T>
-Evaluation_Weights<T>& Evaluation_Weights<T>::operator*=(const Evaluation_Weights& other)
+Evaluation_Weights<T>&
+Evaluation_Weights<T>::operator*=(const Evaluation_Weights& other)
 {
     Evaluation_Weights<T> product = (*this) * other;
 
@@ -796,12 +803,12 @@ inline T Evaluator<T>::piece_square_score() const
                  square_idx++)
             {
                 color_piece_values[color][piece] +=
-                    (m_chess_board
-                         .get_piece_occupancies((PIECE_COLOR) color,
-                                                (PIECES) piece)
-                         .get_square(Square(square_idx))
-                     > 0)
-                    * m_weights.piece_square_tables[color][piece][square_idx];
+                    m_weights.piece_square_tables[color][piece][square_idx]
+                    * (m_chess_board
+                           .get_piece_occupancies((PIECE_COLOR) color,
+                                                  (PIECES) piece)
+                           .get_square(Square(square_idx))
+                       > 0);
             }
         }
     }
@@ -921,7 +928,7 @@ Evaluator<T>::calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
             mb.bitboard.get_backward_squares_mask(mb.square, side);
 
         const T diagonal_mobility =
-            diagonal_movements.high_bit_count() * m_weights.diagonal_mobility;
+            m_weights.diagonal_mobility * diagonal_movements.high_bit_count();
         const T orthogonal_mobility = orthogonal_movements.high_bit_count()
                                     * m_weights.orthogonal_mobility;
         const T backward_mobility = backward_movements.high_bit_count()
