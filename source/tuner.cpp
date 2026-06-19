@@ -528,24 +528,6 @@ Tuner_Eval_Params Tuner::compute_eval_params(const Mini_Batch& mini_batch) const
     return return_value;
 }
 
-Evaluation_Weights<Value_Gradient_Pair<double>>
-Tuner::create_gradient_pair_weights(
-    const Evaluation_Weights<double>& weights) const
-{
-    Evaluation_Weights<Value_Gradient_Pair<double>> output;
-
-    for (std::size_t i = 0; i < weights.get_size(); ++i)
-    {
-        Evaluation_Weights<double> one_hot_basis;
-        one_hot_basis[i] = 0;
-
-        output[i] =
-            Value_Gradient_Pair<double>::variable(weights[i], one_hot_basis);
-    }
-
-    return output;
-}
-
 Evaluation_Weights<double>
 Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
                         const Mini_Batch&                 mini_batch) const
@@ -560,7 +542,7 @@ Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
 
     for (std::size_t i = 0; i < N; i++)
     {
-        Evaluator e(gradient_pair_weights,
+        Evaluator e((*gradient_pair_weights),
                     eval_params.boards[i],
                     eval_params.moving_side_matrices[i],
                     eval_params.opposing_side_matrices[i]);

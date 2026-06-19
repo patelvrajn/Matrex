@@ -112,9 +112,22 @@ class Tuner
 
     Tuner_Eval_Params compute_eval_params(const Mini_Batch& mini_batch) const;
 
-    Evaluation_Weights<Value_Gradient_Pair<double>>
-    create_gradient_pair_weights(
-        const Evaluation_Weights<double>& weights) const;
+    auto create_gradient_pair_weights(
+        const Evaluation_Weights<double>& weights) const
+    {
+        auto output = std::make_unique<Evaluation_Weights<Value_Gradient_Pair<double>>>();
+
+        for (std::size_t i = 0; i < weights.get_size(); ++i)
+        {
+            Evaluation_Weights<double> one_hot_basis;
+            one_hot_basis[i] = 1.0;
+
+            (*output)[i] =
+                Value_Gradient_Pair<double>::variable(weights[i], one_hot_basis);
+        }
+
+        return output;
+    }
 
     double compute_loss(const Dataset&                    d,
                         const Evaluation_Weights<double>& weights);
