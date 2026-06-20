@@ -9,13 +9,6 @@
 
 #include "globals.hpp"
 
-// Forward declarations to avoid circular dependencies.
-template <typename T>
-struct Value_Gradient_Pair;
-
-template <typename T>
-class Evaluation_Weights;
-
 using Fixed_Point_Int_Storage_Type = int32_t;
 
 constexpr uint8_t FIXED_POINT_BIT_WIDTH =
@@ -330,11 +323,6 @@ constexpr T explicit_fp_integer_conversion(Fixed_Point_Int_Storage_Type value)
     {
         return T::from_integer(value);
     }
-    else if constexpr (std::is_same_v<T, Value_Gradient_Pair<double>>)
-    {
-        return {.value    = static_cast<double>(value),
-                .gradient = Evaluation_Weights<double>()};
-    }
 }
 
 template <typename T>
@@ -344,10 +332,6 @@ constexpr T explicit_fp_double_conversion(double value)
     else if constexpr (std::is_same_v<T, Matrex_FP_Int>)
     {
         return T::from_double(value);
-    }
-    else if constexpr (std::is_same_v<T, Value_Gradient_Pair<double>>)
-    {
-        return {.value = value, .gradient = Evaluation_Weights<double>()};
     }
 }
 

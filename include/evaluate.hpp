@@ -2,9 +2,6 @@
 
 #include <cmath>
 
-#include "value_gradient_pair.hpp" // This must be first because of how
-                                   // compilation works when seeing qualified
-                                   // names like Matrex::*.
 #include "chess_board.hpp"
 #include "globals.hpp"
 #include "move_generator.hpp"

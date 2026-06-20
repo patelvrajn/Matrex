@@ -534,40 +534,38 @@ Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
 {
     Evaluation_Weights<double> gradient;
 
-    std::size_t N = mini_batch.fens.size();
+    // std::size_t N = mini_batch.fens.size();
 
-    Tuner_Eval_Params eval_params = compute_eval_params(mini_batch);
+    // Tuner_Eval_Params eval_params = compute_eval_params(mini_batch);
 
-    auto gradient_pair_weights = create_gradient_pair_weights(weights);
+    // for (std::size_t i = 0; i < N; i++)
+    // {
+    //     Evaluator e(weights,
+    //                 eval_params.boards[i],
+    //                 eval_params.moving_side_matrices[i],
+    //                 eval_params.opposing_side_matrices[i]);
 
-    for (std::size_t i = 0; i < N; i++)
-    {
-        Evaluator e((*gradient_pair_weights),
-                    eval_params.boards[i],
-                    eval_params.moving_side_matrices[i],
-                    eval_params.opposing_side_matrices[i]);
+    //     const double sign =
+    //         (eval_params.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)
+    //             ? 1.0L
+    //             : -1.0L;
+    //     const auto   result = e.evaluate_template_typed();
+    //     const double evaluation_white =
+    //         sign * result.value; // Convert side-to-move's evaluation to white's
+    //                              // perspective.
+    //     const double target_evaluation = mini_batch.scores[i];
+    //     const double error = target_evaluation - sigmoid(evaluation_white);
+    //     const double huber_loss_derivative = derivative_huber_loss(error);
+    //     const double sigmoid_derivative = derivative_sigmoid(evaluation_white);
+    //     const Evaluation_Weights<double> evaluation_deriative =
+    //         (result.gradient * sign);
 
-        const double sign =
-            (eval_params.boards[i].get_side_to_move() == PIECE_COLOR::WHITE)
-                ? 1.0L
-                : -1.0L;
-        const auto   result = e.evaluate_template_typed();
-        const double evaluation_white =
-            sign * result.value; // Convert side-to-move's evaluation to white's
-                                 // perspective.
-        const double target_evaluation = mini_batch.scores[i];
-        const double error = target_evaluation - sigmoid(evaluation_white);
-        const double huber_loss_derivative = derivative_huber_loss(error);
-        const double sigmoid_derivative = derivative_sigmoid(evaluation_white);
-        const Evaluation_Weights<double> evaluation_deriative =
-            (result.gradient * sign);
+    //     gradient = gradient
+    //              + (evaluation_deriative
+    //                 * (huber_loss_derivative * sigmoid_derivative));
+    // }
 
-        gradient = gradient
-                 + (evaluation_deriative
-                    * (huber_loss_derivative * sigmoid_derivative));
-    }
-
-    gradient = gradient / static_cast<double>(N);
+    // gradient = gradient / static_cast<double>(N);
 
     return gradient;
 }
