@@ -2,6 +2,8 @@
 
 #include "reverse_auto_differentiation.hpp"
 
+AD_Adjoint::AD_Adjoint() {}
+
 AD_Adjoint::AD_Adjoint(double value) : m_value(value) {}
 
 AD_Adjoint::AD_Adjoint(double value, double& parent_node) :
@@ -112,6 +114,8 @@ void AD_Adjoint_Pow::operator()(MAYBE_UNUSED std::initializer_list<double> args)
         (value() * this_node_value * std::log(base_node_value));
 }
 
+AD_Node::AD_Node() : m_adjoint(nullptr) {}
+
 AD_Node::AD_Node(double value, AD_Adjoint_Pointer adjoint) :
     m_value(value), m_adjoint(std::move(adjoint))
 {
@@ -121,3 +125,7 @@ AD_Node::AD_Node(double value, AD_Adjoint_Pointer adjoint, double& weight) :
     m_value(value), m_adjoint(std::move(adjoint)), m_weight(weight)
 {
 }
+
+AD_Tape::AD_Tape() { m_tape.reserve(AD_TAPE_RESERVE_SIZE); }
+
+void AD_Tape::push(AD_Node&& node) { m_tape.push_back(std::move(node)); }

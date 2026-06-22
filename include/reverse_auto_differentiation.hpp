@@ -5,6 +5,7 @@
 class AD_Adjoint
 {
   public:
+    AD_Adjoint();
 
     AD_Adjoint(double value);
 
@@ -119,6 +120,7 @@ using AD_Adjoint_Pointer = std::unique_ptr<AD_Adjoint>;
 class AD_Node
 {
   public:
+    AD_Node();
 
     AD_Node(double value, AD_Adjoint_Pointer adjoint);
 
@@ -130,4 +132,19 @@ class AD_Node
     AD_Adjoint_Pointer m_adjoint;
 
     std::optional<std::reference_wrapper<double>> m_weight;
+};
+
+constexpr std::size_t AD_TAPE_RESERVE_SIZE = 32;
+
+class AD_Tape
+{
+  public:
+
+    AD_Tape();
+
+    void push(AD_Node&& node);
+
+  private:
+
+    std::vector<AD_Node> m_tape;
 };
