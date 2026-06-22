@@ -6,13 +6,13 @@ AD_Adjoint::AD_Adjoint() {}
 
 AD_Adjoint::AD_Adjoint(double value) : m_value(value) {}
 
-AD_Adjoint::AD_Adjoint(double value, AD_Node& parent_node) :
-    m_value(value), m_left_node(parent_node)
+AD_Adjoint::AD_Adjoint(AD_Node& parent_node) : 
+    m_left_node(parent_node)
 {
 }
 
-AD_Adjoint::AD_Adjoint(double value, AD_Node& left_node, AD_Node& right_node) :
-    m_value(value), m_left_node(left_node), m_right_node(right_node)
+AD_Adjoint::AD_Adjoint(AD_Node& left_node, AD_Node& right_node) :
+    m_left_node(left_node), m_right_node(right_node)
 {
 }
 
