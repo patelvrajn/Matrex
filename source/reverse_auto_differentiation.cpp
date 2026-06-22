@@ -6,14 +6,26 @@ AD_Adjoint::AD_Adjoint() {}
 
 AD_Adjoint::AD_Adjoint(double value) : m_value(value) {}
 
-AD_Adjoint::AD_Adjoint(double value, double& parent_node) :
+AD_Adjoint::AD_Adjoint(double value, AD_Node& parent_node) :
     m_value(value), m_left_node(parent_node)
 {
 }
 
-AD_Adjoint::AD_Adjoint(double value, double& left_node, double& right_node) :
+AD_Adjoint::AD_Adjoint(double value, AD_Node& left_node, AD_Node& right_node) :
     m_value(value), m_left_node(left_node), m_right_node(right_node)
 {
+}
+
+AD_Adjoint AD_Adjoint::operator+= (const AD_Adjoint& other)
+{
+    this->m_value += other.m_value;
+    return (*this);
+}
+
+AD_Adjoint AD_Adjoint::operator-= (const AD_Adjoint& other)
+{
+    this->m_value -= other.m_value;
+    return (*this);
 }
 
 void AD_Adjoint_No_Op::operator()(
@@ -24,46 +36,30 @@ void AD_Adjoint_No_Op::operator()(
 void AD_Adjoint_Addition::operator()(
     MAYBE_UNUSED std::initializer_list<double> args)
 {
-    left_node().value()  += value();
-    right_node().value() += value();
+    left_node().adjoint() += value();
+    right_node().adjoint() += value();
 }
 
 void AD_Adjoint_Subtraction::operator()(
     MAYBE_UNUSED std::initializer_list<double> args)
 {
-    left_node().value()  += value();
-    right_node().value() -= value();
+    left_node().adjoint()  += value();
+    right_node().adjoint() -= value();
 }
 
 void AD_Adjoint_Multiplication::operator()(
     MAYBE_UNUSED std::initializer_list<double> args)
 {
-    MATREX_ASSERT(
-        (args.size() == 2),
-        "Automatic Differentation Adjoint Multiplication requires 2 arguments; "
-        "(1) Left parent node's value (2) Right parent node's value.");
-
-    const double& left_node_value  = (args.begin())[0];
-    const double& right_node_value = (args.begin())[1];
-
-    left_node().value()  += (value() * right_node_value);
-    right_node().value() += (value() * left_node_value);
+    left_node().adjoint()  += (value() * right_node().value());
+    right_node().adjoint() += (value() * left_node().value());
 }
 
 void AD_Adjoint_Division::operator()(
     MAYBE_UNUSED std::initializer_list<double> args)
 {
-    MATREX_ASSERT(
-        (args.size() == 2),
-        "Automatic Differentation Adjoint Division requires 2 arguments; (1) "
-        "Left parent node's value (2) Right parent node's value.");
-
-    const double& left_node_value  = (args.begin())[0];
-    const double& right_node_value = (args.begin())[1];
-
-    left_node().value() += (value() / right_node_value);
-    right_node().value() -=
-        (value() * left_node_value) / (right_node_value * right_node_value);
+    left_node().adjoint() += (value() / right_node().value());
+    right_node().adjoint() -=
+        (value() * left_node().value()) / (right_node().value() * right_node().value());
 }
 
 void AD_Adjoint_Tanh::operator()(
@@ -75,7 +71,7 @@ void AD_Adjoint_Tanh::operator()(
 
     const double& this_node_value = (args.begin())[0];
 
-    left_node().value() +=
+    left_node().adjoint() +=
         (value() * (1.0 - (this_node_value * this_node_value)));
 }
 
@@ -87,7 +83,7 @@ void AD_Adjoint_Exp::operator()(MAYBE_UNUSED std::initializer_list<double> args)
 
     const double& this_node_value = (args.begin())[0];
 
-    left_node().value() += (value() * this_node_value);
+    left_node().adjoint() += (value() * this_node_value);
 }
 
 void AD_Adjoint_Sqrt::operator()(
@@ -99,24 +95,22 @@ void AD_Adjoint_Sqrt::operator()(
 
     const double& this_node_value = (args.begin())[0];
 
-    left_node().value() += (value() / (2 * this_node_value));
+    left_node().adjoint() += (value() / (2 * this_node_value));
 }
 
 void AD_Adjoint_Pow::operator()(MAYBE_UNUSED std::initializer_list<double> args)
 {
     MATREX_ASSERT(
         (args.size() == 3),
-        "Automatic Differentation Adjoint pow requires 3 arguments; (1) This "
-        "node's value (2) Base node's value (3) Exponents node's value.");
+        "Automatic Differentation Adjoint pow requires 1 argument; (1) This "
+        "node's value");
 
-    const double& this_node_value     = (args.begin())[0];
-    const double& base_node_value     = (args.begin())[1];
-    const double& exponent_node_value = (args.begin())[2];
+    const double& this_node_value = (args.begin())[0];
 
-    left_node().value() +=
-        (value() * exponent_node_value * this_node_value / base_node_value);
-    left_node().value() +=
-        (value() * this_node_value * std::log(base_node_value));
+    left_node().adjoint() +=
+        (value() * right_node().value() * this_node_value / left_node().value());
+    right_node().adjoint() +=
+        (value() * this_node_value * std::log(left_node().value()));
 }
 
 AD_Node::AD_Node() : m_adjoint(nullptr) {}
@@ -133,7 +127,7 @@ AD_Node::AD_Node(double value, AD_Adjoint_Pointer adjoint, double& weight) :
 {
 }
 
-double AD_Node::value() { return m_value; }
+double& AD_Node::value() { return m_value; }
 
 AD_Tape::AD_Tape() { m_tape.reserve(AD_TAPE_RESERVE_SIZE); }
 
