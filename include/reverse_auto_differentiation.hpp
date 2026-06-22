@@ -1,3 +1,5 @@
+#include <memory>
+
 #include "globals.hpp"
 
 class AD_Adjoint
@@ -18,16 +20,16 @@ class AD_Adjoint
     auto& left_node() // Value of the left parent's adjoint.
     {
         return m_left_node;
-    } 
+    }
 
     auto& right_node() // Value of the right parent's adjoint.
     {
         return m_right_node;
-    } 
+    }
 
   private:
 
-    double                                        m_value;
+    double                                        m_value = 0.0;
     std::optional<std::reference_wrapper<double>> m_left_node;
     std::optional<std::reference_wrapper<double>> m_right_node;
 };
@@ -110,4 +112,22 @@ class AD_Adjoint_Pow : public AD_Adjoint
 
     virtual void
     operator()(MAYBE_UNUSED std::initializer_list<double> args) override;
+};
+
+using AD_Adjoint_Pointer = std::unique_ptr<AD_Adjoint>;
+
+class AD_Node
+{
+  public:
+
+    AD_Node(double value, AD_Adjoint_Pointer adjoint);
+
+    AD_Node(double value, AD_Adjoint_Pointer adjoint, double& weight);
+
+  private:
+
+    double             m_value = 0.0;
+    AD_Adjoint_Pointer m_adjoint;
+
+    std::optional<std::reference_wrapper<double>> m_weight;
 };
