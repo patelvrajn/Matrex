@@ -8,6 +8,7 @@
 #include <stdexcept>
 
 #include "globals.hpp"
+#include "reverse_auto_differentiation.hpp"
 
 using Fixed_Point_Int_Storage_Type = int32_t;
 
@@ -826,11 +827,15 @@ namespace Matrex
 
     double tanh(double x);
 
+    AD_Value tanh(AD_Value x);
+
     template <uint8_t F>
     Fixed_Point_Integer<F> pow(const Fixed_Point_Integer<F> base,
                                const Fixed_Point_Integer<F> exponent);
 
     double pow(double base, double exponent);
+
+    AD_Value pow(AD_Value base, AD_Value exponent);
 
     template <uint8_t F>
     Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input);
@@ -851,10 +856,14 @@ namespace Matrex
 
     double sqrt(double x);
 
+    AD_Value sqrt(AD_Value x);
+
     template <uint8_t F>
     Fixed_Point_Integer<F> exp(const Fixed_Point_Integer<F> input);
 
     double exp(double x);
+
+    AD_Value exp(AD_Value x);
 
     // NOTE: Do not use a pade approximation, this method is exponentially more
     // accurate.
