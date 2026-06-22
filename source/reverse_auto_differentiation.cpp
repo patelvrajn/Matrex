@@ -16,6 +16,11 @@ AD_Adjoint::AD_Adjoint(double value, double& left_node, double& right_node) :
 {
 }
 
+void AD_Adjoint_No_Op::operator()(
+    MAYBE_UNUSED std::initializer_list<double> args)
+{
+}
+
 void AD_Adjoint_Addition::operator()(
     MAYBE_UNUSED std::initializer_list<double> args)
 {
@@ -116,6 +121,8 @@ void AD_Adjoint_Pow::operator()(MAYBE_UNUSED std::initializer_list<double> args)
 
 AD_Node::AD_Node() : m_adjoint(nullptr) {}
 
+AD_Node::AD_Node(double value) : m_value(value), m_adjoint(nullptr) {}
+
 AD_Node::AD_Node(double value, AD_Adjoint_Pointer adjoint) :
     m_value(value), m_adjoint(std::move(adjoint))
 {
@@ -126,6 +133,12 @@ AD_Node::AD_Node(double value, AD_Adjoint_Pointer adjoint, double& weight) :
 {
 }
 
+double AD_Node::value() { return m_value; }
+
 AD_Tape::AD_Tape() { m_tape.reserve(AD_TAPE_RESERVE_SIZE); }
 
-void AD_Tape::push(AD_Node&& node) { m_tape.push_back(std::move(node)); }
+std::reference_wrapper<AD_Node> AD_Tape::push(AD_Node&& node)
+{
+    m_tape.push_back(std::move(node));
+    return std::ref(m_tape.back());
+}
