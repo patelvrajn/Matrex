@@ -16,6 +16,11 @@ AD_Adjoint::AD_Adjoint(AD_Node& left_node, AD_Node& right_node) :
 {
 }
 
+void AD_Adjoint::set_value(double value)
+{
+    m_value = value;
+}
+
 AD_Adjoint AD_Adjoint::operator+= (const AD_Adjoint& other)
 {
     this->m_value += other.m_value;
@@ -62,6 +67,12 @@ void AD_Adjoint_Division::operator()(
         (value() * left_node().value()) / (right_node().value() * right_node().value());
 }
 
+void AD_Adjoint_Negation::operator()(
+    MAYBE_UNUSED std::initializer_list<double> args) 
+{
+    left_node().adjoint() -= value();
+}
+
 void AD_Adjoint_Tanh::operator()(
     MAYBE_UNUSED std::initializer_list<double> args)
 {
@@ -101,7 +112,7 @@ void AD_Adjoint_Sqrt::operator()(
 void AD_Adjoint_Pow::operator()(MAYBE_UNUSED std::initializer_list<double> args)
 {
     MATREX_ASSERT(
-        (args.size() == 3),
+        (args.size() == 1),
         "Automatic Differentation Adjoint pow requires 1 argument; (1) This "
         "node's value");
 
@@ -122,17 +133,22 @@ AD_Node::AD_Node(double value, AD_Adjoint_Pointer adjoint) :
 {
 }
 
-AD_Node::AD_Node(double value, AD_Adjoint_Pointer adjoint, double& weight) :
-    m_value(value), m_adjoint(std::move(adjoint)), m_weight(weight)
+AD_Node::AD_Node(double value, AD_Adjoint_Pointer adjoint, std::size_t weight_index) :
+    m_value(value), m_adjoint(std::move(adjoint)), m_weight_index(weight_index)
 {
 }
 
 double& AD_Node::value() { return m_value; }
 
-AD_Tape::AD_Tape() { m_tape.reserve(AD_TAPE_RESERVE_SIZE); }
+AD_Tape::AD_Tape() {}
 
 std::reference_wrapper<AD_Node> AD_Tape::push(AD_Node&& node)
 {
     m_tape.push_back(std::move(node));
     return std::ref(m_tape.back());
+}
+
+void AD_Tape::clear()
+{
+    m_tape.clear();
 }

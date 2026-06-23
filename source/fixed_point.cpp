@@ -19,8 +19,8 @@ namespace Matrex
 
         return {
             .tape = x.tape,
-            .node = x.tape.get().push(
-                AD_Node(result_value, std::make_unique<AD_Adjoint_Tanh>(x.node)))};
+            .node = x.tape.value().get().push(
+                AD_Node(result_value, std::make_unique<AD_Adjoint_Tanh>(x.node.value())))};
     }
 
     AD_Value pow(AD_Value base, AD_Value exponent)
@@ -29,8 +29,8 @@ namespace Matrex
 
         return {
             .tape = base.tape,
-            .node = base.tape.get().push(
-                AD_Node(result_value, std::make_unique<AD_Adjoint_Pow>(base.node, exponent.node)))};
+            .node = base.tape.value().get().push(
+                AD_Node(result_value, std::make_unique<AD_Adjoint_Pow>(base.node.value(), exponent.node.value())))};
     }
     
     AD_Value sqrt(AD_Value x)
@@ -39,8 +39,8 @@ namespace Matrex
 
         return {
             .tape = x.tape,
-            .node = x.tape.get().push(
-                AD_Node(result_value, std::make_unique<AD_Adjoint_Sqrt>(x.node)))};
+            .node = x.tape.value().get().push(
+                AD_Node(result_value, std::make_unique<AD_Adjoint_Sqrt>(x.node.value())))};
     }
 
     AD_Value exp(AD_Value x)
@@ -49,7 +49,7 @@ namespace Matrex
 
         return {
             .tape = x.tape,
-            .node = x.tape.get().push(
-                AD_Node(result_value, std::make_unique<AD_Adjoint_Exp>(x.node)))};
+            .node = x.tape.value().get().push(
+                AD_Node(result_value, std::make_unique<AD_Adjoint_Exp>(x.node.value())))};
     }
 } // namespace Matrex

@@ -660,17 +660,20 @@ class Evaluator
     template <PIECE_COLOR moving_side>
     inline T piece_square_score() const;
 
-    // Helpers
-    template <PIECE_COLOR side>
-    inline T calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
-                                      PIECES                       piece) const;
-
   private:
 
     const Evaluation_Weights<T>& m_weights;
     const Chess_Board&           m_chess_board;
     const Moves_Bitboard_Matrix& m_moving_side_matrix;
     const Moves_Bitboard_Matrix& m_opposing_side_matrix;
+
+    // Helpers
+    template <PIECE_COLOR side>
+    inline T calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
+                                      PIECES                       piece) const;
+
+    T constant_conversion(double value) const;
+
 };
 
 template <typename T>
@@ -729,11 +732,11 @@ inline T Evaluator<T>::material_score() const
 {
     constexpr PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
 
-    T return_value = explicit_fp_double_conversion<T>(0.0);
+    T return_value = constant_conversion(0.0);
 
     for (uint8_t piece = PIECES::PAWN; piece <= PIECES::QUEEN; piece++)
     {
-        T material_difference = explicit_fp_double_conversion<T>(0.0);
+        T material_difference = constant_conversion(0.0);
 
         material_difference +=
             (m_weights.material[piece]
@@ -759,7 +762,7 @@ inline T Evaluator<T>::mobility_score() const
 {
     constexpr PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
 
-    T mobility = explicit_fp_double_conversion<T>(0.0);
+    T mobility = constant_conversion(0.0);
 
     for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
     {
@@ -909,7 +912,7 @@ Evaluator<T>::calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
 
     std::vector<Moves_Bitboard> moves_bitboards;
     matrix.get_piece_moves_bitboards(side, piece, moves_bitboards);
-    T piece_mobility = explicit_fp_double_conversion<T>(0.0);
+    T piece_mobility = constant_conversion(0.0);
     for (Moves_Bitboard& mb : moves_bitboards)
     {
         const Bitboard diagonal_movements =
@@ -944,4 +947,13 @@ Evaluator<T>::calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
     }
 
     return piece_mobility;
+}
+
+template <typename T>
+T Evaluator<T>::constant_conversion(double value) const
+{
+    if constexpr (std::is_same_v<T, AD_Value>)
+        return AD_Value::constant(m_weights[0].tape.value(), value);
+    else
+        return explicit_fp_double_conversion<T>(value);
 }

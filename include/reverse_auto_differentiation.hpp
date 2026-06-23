@@ -1,4 +1,5 @@
 #include <memory>
+#include <deque>
 
 #include "globals.hpp"
 
@@ -19,6 +20,7 @@ class AD_Adjoint
     virtual void operator()(MAYBE_UNUSED std::initializer_list<double> args) {};
 
     double& value() { return m_value; } // Value of this node's adjoint.
+    const double& value() const { return m_value; }
 
     auto& left_node() // Value of the left parent's adjoint.
     {
@@ -29,6 +31,8 @@ class AD_Adjoint
     {
         return m_right_node.value().get();
     }
+
+    void set_value(double value);
 
     AD_Adjoint operator+= (const AD_Adjoint& other);
     AD_Adjoint operator-= (const AD_Adjoint& other);
@@ -90,6 +94,16 @@ class AD_Adjoint_Division : public AD_Adjoint
     operator()(MAYBE_UNUSED std::initializer_list<double> args = {}) override;
 };
 
+class AD_Adjoint_Negation : public AD_Adjoint
+{
+  public:
+
+    using AD_Adjoint::AD_Adjoint;
+
+    virtual void
+    operator()(MAYBE_UNUSED std::initializer_list<double> args = {}) override;
+};
+
 class AD_Adjoint_Tanh : public AD_Adjoint
 {
   public:
@@ -142,7 +156,7 @@ class AD_Node
 
     AD_Node(double value, AD_Adjoint_Pointer adjoint);
 
-    AD_Node(double value, AD_Adjoint_Pointer adjoint, double& weight);
+    AD_Node(double value, AD_Adjoint_Pointer adjoint, std::size_t weight_index);
 
     double& value();
 
@@ -151,12 +165,22 @@ class AD_Node
         return (*m_adjoint);
     }
 
+    const auto& adjoint() const
+    {
+        return (*m_adjoint);
+    }
+
+    const auto& weight_index() const
+    {
+        return m_weight_index;
+    }
+
   private:
 
     double             m_value   = 0.0;
     AD_Adjoint_Pointer m_adjoint = nullptr;
 
-    std::optional<std::reference_wrapper<double>> m_weight;
+    int64_t m_weight_index = -1;
 };
 
 constexpr std::size_t AD_TAPE_RESERVE_SIZE = 32;
@@ -169,31 +193,41 @@ class AD_Tape
 
     std::reference_wrapper<AD_Node> push(AD_Node&& node);
 
+    void clear();
+
+    auto begin() { return m_tape.begin(); }
+
+    auto end() { return m_tape.end(); }
+
+    auto begin() const { return m_tape.begin(); }
+
+    auto end() const { return m_tape.end(); }
+
   private:
 
-    std::vector<AD_Node> m_tape;
+    std::deque<AD_Node> m_tape;
 };
 
 struct AD_Value
 {
-    std::reference_wrapper<AD_Tape> tape;
-    std::reference_wrapper<AD_Node> node;
+    std::optional<std::reference_wrapper<AD_Tape>> tape;
+    std::optional<std::reference_wrapper<AD_Node>> node;
 
-    double& value() { return node.get().value(); }
+    double& value() { return node.value().get().value(); }
 
-    const double& value() const { return node.get().value(); }
+    const double& value() const { return node.value().get().value(); }
 
-    static AD_Value constant(AD_Tape& tape, double value)
+    static AD_Value constant(std::optional<std::reference_wrapper<AD_Tape>> tape, double value)
     {
-        return {.tape = tape, .node = tape.push(AD_Node(value))};
+        return {.tape = tape, .node = tape.value().get().push(AD_Node(value))};
     }
 
-    static AD_Value variable(AD_Tape& tape, double value, double& weight)
+    static AD_Value variable(std::optional<std::reference_wrapper<AD_Tape>> tape, double value, std::size_t weight_index)
     {
         return {
             .tape = tape,
-            .node = tape.push(
-                AD_Node(value, std::make_unique<AD_Adjoint_No_Op>(), weight))};
+            .node = tape.value().get().push(
+                AD_Node(value, std::make_unique<AD_Adjoint_No_Op>(), weight_index))};
     }
 
     AD_Value operator+(const AD_Value& other) const
@@ -202,8 +236,8 @@ struct AD_Value
 
         return {
             .tape = this->tape,
-            .node = tape.get().push(
-                AD_Node(result_value, std::make_unique<AD_Adjoint_Addition>(node, other.node)))};
+            .node = tape.value().get().push(
+                AD_Node(result_value, std::make_unique<AD_Adjoint_Addition>(node.value(), other.node.value())))};
     }
 
     AD_Value operator-(const AD_Value& other) const
@@ -212,8 +246,8 @@ struct AD_Value
 
         return {
             .tape = this->tape,
-            .node = tape.get().push(
-                AD_Node(result_value, std::make_unique<AD_Adjoint_Subtraction>(node, other.node)))};
+            .node = tape.value().get().push(
+                AD_Node(result_value, std::make_unique<AD_Adjoint_Subtraction>(node.value(), other.node.value())))};
     }
 
     AD_Value operator/(const AD_Value& other) const
@@ -222,8 +256,8 @@ struct AD_Value
 
         return {
             .tape = this->tape,
-            .node = tape.get().push(
-                AD_Node(result_value, std::make_unique<AD_Adjoint_Division>(node, other.node)))};
+            .node = tape.value().get().push(
+                AD_Node(result_value, std::make_unique<AD_Adjoint_Division>(node.value(), other.node.value())))};
     }
 
     AD_Value operator*(const AD_Value& other) const
@@ -232,8 +266,18 @@ struct AD_Value
 
         return {
             .tape = this->tape,
-            .node = tape.get().push(
-                AD_Node(result_value, std::make_unique<AD_Adjoint_Multiplication>(node, other.node)))};
+            .node = tape.value().get().push(
+                AD_Node(result_value, std::make_unique<AD_Adjoint_Multiplication>(node.value(), other.node.value())))};
+    }
+
+    AD_Value operator-() const
+    {
+        double result_value = -value();
+
+        return {
+            .tape = this->tape,
+            .node = tape.value().get().push(
+                AD_Node(result_value, std::make_unique<AD_Adjoint_Negation>(node.value())))};
     }
 
     AD_Value operator+=(const AD_Value& other)
@@ -335,4 +379,50 @@ struct AD_Value
 
         return (*this);
     }
+
+    auto operator<=>(const AD_Value& other) const
+    {
+        return value() <=> other.value();
+    }
+
+    template <typename T>
+    auto operator<=>(T other) const 
+    {
+        return value() <=> other; 
+    }
+
+    bool operator==(const AD_Value& other) const
+    {
+        return value() == other.value();
+    }
+
+    template <typename T>
+    bool operator==(T other) const 
+    {
+        return value() == other; 
+    }
 };
+
+template <typename T>
+constexpr AD_Value operator+(const T other, const AD_Value& value)
+{
+    return AD_Value::constant(value.tape, other) + value;
+}
+
+template <typename T>
+constexpr AD_Value operator-(const T other, const AD_Value& value)
+{    
+    return AD_Value::constant(value.tape, other) - value;
+}
+
+template <typename T>
+constexpr AD_Value operator/(const T other, const AD_Value& value)
+{
+    return AD_Value::constant(value.tape, other) / value;
+}
+
+template <typename T>
+constexpr AD_Value operator*(const T other, const AD_Value& value)
+{    
+    return AD_Value::constant(value.tape, other) * value;
+}
