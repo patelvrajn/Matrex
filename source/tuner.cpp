@@ -529,26 +529,27 @@ Tuner_Eval_Params Tuner::compute_eval_params(const Mini_Batch& mini_batch) const
     return return_value;
 }
 
-Evaluation_Weights<double> Tuner::ad_backward_pass(AD_Tape& tape, AD_Value output) const
+Evaluation_Weights<double> Tuner::ad_backward_pass(AD_Tape& tape,
+                                                   AD_Value output) const
 {
     // The partial derivative of the output scalar with respect to itself is 1.
     output.node.value().get().adjoint().set_value(1.0);
 
     // Each tape node has to backpropagate it's adjoint to it's parent(s), this
-    // is simply done by calling the respective adjoint functors with their 
+    // is simply done by calling the respective adjoint functors with their
     // respective parameters.
     for (auto& node : std::views::reverse(tape))
     {
-        auto& adjoint = node.adjoint(); 
+        auto& adjoint = node.adjoint();
 
-        if ((typeid(adjoint) == typeid(AD_Adjoint_Tanh)) 
-            || (typeid(adjoint) == typeid(AD_Adjoint_Exp)) 
+        if ((typeid(adjoint) == typeid(AD_Adjoint_Tanh))
+            || (typeid(adjoint) == typeid(AD_Adjoint_Exp))
             || (typeid(adjoint) == typeid(AD_Adjoint_Sqrt))
             || (typeid(adjoint) == typeid(AD_Adjoint_Pow)))
         {
             adjoint({node.value()});
         }
-        else 
+        else
         {
             adjoint({});
         }
@@ -565,7 +566,7 @@ Evaluation_Weights<double> Tuner::ad_backward_pass(AD_Tape& tape, AD_Value outpu
         }
     }
 
-    // After the backward pass, we can clear the tape of all nodes used to 
+    // After the backward pass, we can clear the tape of all nodes used to
     // calculate this gradient.
     tape.clear();
 
@@ -586,8 +587,8 @@ Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
 
     for (std::size_t i = 0; i < N; i++)
     {
-        // The auto-differentiation weights must be recreated every iteration 
-        // because the tape is cleared after every backward pass and since we 
+        // The auto-differentiation weights must be recreated every iteration
+        // because the tape is cleared after every backward pass and since we
         // use references to nodes on the tape in AD Values - we must create new
         // nodes to reference otherwise, referencing cleared nodes is equivalent
         // to a dangling reference.
@@ -604,13 +605,13 @@ Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
                 : -1.0L;
         const auto   result = e.evaluate_template_typed();
         const double evaluation_white =
-            sign * result.value(); // Convert side-to-move's evaluation to white's
-                                   // perspective.
+            sign * result.value(); // Convert side-to-move's evaluation to
+                                   // white's perspective.
         const double target_evaluation = mini_batch.scores[i];
         const double error = target_evaluation - sigmoid(evaluation_white);
         const double huber_loss_derivative = derivative_huber_loss(error);
         const double sigmoid_derivative = derivative_sigmoid(evaluation_white);
-        const Evaluation_Weights<double> evaluation_deriative = 
+        const Evaluation_Weights<double> evaluation_deriative =
             ad_backward_pass(tape, result) * sign;
 
         gradient = gradient

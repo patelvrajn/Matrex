@@ -6,28 +6,22 @@ AD_Adjoint::AD_Adjoint() {}
 
 AD_Adjoint::AD_Adjoint(double value) : m_value(value) {}
 
-AD_Adjoint::AD_Adjoint(AD_Node& parent_node) : 
-    m_left_node(parent_node)
-{
-}
+AD_Adjoint::AD_Adjoint(AD_Node& parent_node) : m_left_node(parent_node) {}
 
 AD_Adjoint::AD_Adjoint(AD_Node& left_node, AD_Node& right_node) :
     m_left_node(left_node), m_right_node(right_node)
 {
 }
 
-void AD_Adjoint::set_value(double value)
-{
-    m_value = value;
-}
+void AD_Adjoint::set_value(double value) { m_value = value; }
 
-AD_Adjoint AD_Adjoint::operator+= (const AD_Adjoint& other)
+AD_Adjoint AD_Adjoint::operator+=(const AD_Adjoint& other)
 {
     this->m_value += other.m_value;
     return (*this);
 }
 
-AD_Adjoint AD_Adjoint::operator-= (const AD_Adjoint& other)
+AD_Adjoint AD_Adjoint::operator-=(const AD_Adjoint& other)
 {
     this->m_value -= other.m_value;
     return (*this);
@@ -41,7 +35,7 @@ void AD_Adjoint_No_Op::operator()(
 void AD_Adjoint_Addition::operator()(
     MAYBE_UNUSED std::initializer_list<double> args)
 {
-    left_node().adjoint() += value();
+    left_node().adjoint()  += value();
     right_node().adjoint() += value();
 }
 
@@ -62,13 +56,13 @@ void AD_Adjoint_Multiplication::operator()(
 void AD_Adjoint_Division::operator()(
     MAYBE_UNUSED std::initializer_list<double> args)
 {
-    left_node().adjoint() += (value() / right_node().value());
-    right_node().adjoint() -=
-        (value() * left_node().value()) / (right_node().value() * right_node().value());
+    left_node().adjoint()  += (value() / right_node().value());
+    right_node().adjoint() -= (value() * left_node().value())
+                            / (right_node().value() * right_node().value());
 }
 
 void AD_Adjoint_Negation::operator()(
-    MAYBE_UNUSED std::initializer_list<double> args) 
+    MAYBE_UNUSED std::initializer_list<double> args)
 {
     left_node().adjoint() -= value();
 }
@@ -118,8 +112,8 @@ void AD_Adjoint_Pow::operator()(MAYBE_UNUSED std::initializer_list<double> args)
 
     const double& this_node_value = (args.begin())[0];
 
-    left_node().adjoint() +=
-        (value() * right_node().value() * this_node_value / left_node().value());
+    left_node().adjoint() += (value() * right_node().value() * this_node_value
+                              / left_node().value());
     right_node().adjoint() +=
         (value() * this_node_value * std::log(left_node().value()));
 }
@@ -133,7 +127,9 @@ AD_Node::AD_Node(double value, AD_Adjoint_Pointer adjoint) :
 {
 }
 
-AD_Node::AD_Node(double value, AD_Adjoint_Pointer adjoint, std::size_t weight_index) :
+AD_Node::AD_Node(double             value,
+                 AD_Adjoint_Pointer adjoint,
+                 std::size_t        weight_index) :
     m_value(value), m_adjoint(std::move(adjoint)), m_weight_index(weight_index)
 {
 }
@@ -148,7 +144,4 @@ std::reference_wrapper<AD_Node> AD_Tape::push(AD_Node&& node)
     return std::ref(m_tape.back());
 }
 
-void AD_Tape::clear()
-{
-    m_tape.clear();
-}
+void AD_Tape::clear() { m_tape.clear(); }

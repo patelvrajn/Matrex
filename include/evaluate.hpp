@@ -326,7 +326,9 @@ T& Evaluation_Weights<T>::operator[](std::size_t index)
 template <typename T>
 const T& Evaluation_Weights<T>::operator[](std::size_t index) const
 {
-    MATREX_ASSERT(m_weight_ref_array.get_array()[index].has_value(), "Accessed element of Evaluation Weights that has an optional reference of no value.");
+    MATREX_ASSERT(m_weight_ref_array.get_array()[index].has_value(),
+                  "Accessed element of Evaluation Weights that has an optional "
+                  "reference of no value.");
 
     return m_weight_ref_array.get_array()[index].value().get();
 }
@@ -675,7 +677,6 @@ class Evaluator
                                       PIECES                       piece) const;
 
     T constant_conversion(double value) const;
-
 };
 
 template <typename T>
@@ -804,10 +805,10 @@ inline T Evaluator<T>::piece_square_score() const
                  square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
                  square_idx++)
             {
-                // Initialize the array value for the case of T = AD Value which 
+                // Initialize the array value for the case of T = AD Value which
                 // contains optionals.
                 color_piece_values[color][piece] = constant_conversion(0.0);
-                
+
                 color_piece_values[color][piece] +=
                     m_weights.piece_square_tables[color][piece][square_idx]
                     * (m_chess_board
@@ -959,7 +960,11 @@ template <typename T>
 T Evaluator<T>::constant_conversion(double value) const
 {
     if constexpr (std::is_same_v<T, AD_Value>)
+    {
         return AD_Value::constant(m_weights[0].tape.value(), value);
+    }
     else
+    {
         return explicit_fp_double_conversion<T>(value);
+    }
 }

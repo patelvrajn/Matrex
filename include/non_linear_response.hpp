@@ -167,16 +167,24 @@ T Non_Linear_Response<T>::calculate_function_G(T F) const
     if (negative_u >= G_EXPONENT_CLAMP)
     {
         if constexpr (std::is_same_v<T, AD_Value>)
+        {
             return AD_Value::constant(u.tape.value(), 0.0);
+        }
         else
+        {
             return explicit_fp_double_conversion<T>(0.0);
+        }
     }
     else if (negative_u <= -G_EXPONENT_CLAMP)
     {
         if constexpr (std::is_same_v<T, AD_Value>)
+        {
             return AD_Value::constant(u.tape.value(), 1.0);
+        }
         else
+        {
             return explicit_fp_double_conversion<T>(1.0);
+        }
     }
 
     const T exponent = (negative_u * NON_LINEAR_RESPONSE_T);
