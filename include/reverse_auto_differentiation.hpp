@@ -24,11 +24,13 @@ class AD_Adjoint
 
     auto& left_node() // Value of the left parent's adjoint.
     {
+        MATREX_ASSERT(m_left_node.has_value(), "Accessed AD Adjoint's left node that has an optional reference of no value.");
         return m_left_node.value().get();
     }
 
     auto& right_node() // Value of the right parent's adjoint.
     {
+        MATREX_ASSERT(m_right_node.has_value(), "Accessed AD Adjoint's right node that has an optional reference of no value.");
         return m_right_node.value().get();
     }
 
@@ -183,8 +185,6 @@ class AD_Node
     int64_t m_weight_index = -1;
 };
 
-constexpr std::size_t AD_TAPE_RESERVE_SIZE = 32;
-
 class AD_Tape
 {
   public:
@@ -213,13 +213,23 @@ struct AD_Value
     std::optional<std::reference_wrapper<AD_Tape>> tape;
     std::optional<std::reference_wrapper<AD_Node>> node;
 
-    double& value() { return node.value().get().value(); }
+    double& value() 
+    { 
+        MATREX_ASSERT(node.has_value(), "Tried to access a node's value via AD Value but it has no value.");
 
-    const double& value() const { return node.value().get().value(); }
+        return node.value().get().value(); 
+    }
+
+    const double& value() const 
+    {
+        MATREX_ASSERT(node.has_value(), "Tried to access a node's value via AD Value but it has no value.");
+
+        return node.value().get().value(); 
+    }
 
     static AD_Value constant(std::optional<std::reference_wrapper<AD_Tape>> tape, double value)
     {
-        return {.tape = tape, .node = tape.value().get().push(AD_Node(value))};
+        return {.tape = tape, .node = tape.value().get().push(AD_Node(value, std::make_unique<AD_Adjoint_No_Op>()))};
     }
 
     static AD_Value variable(std::optional<std::reference_wrapper<AD_Tape>> tape, double value, std::size_t weight_index)

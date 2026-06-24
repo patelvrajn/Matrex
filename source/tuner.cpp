@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <numbers>
 #include <random>
+#include <ranges>
 
 Tuner::Tuner(std::ostream&  logging,
              std::ifstream& dataset_file,
@@ -536,7 +537,7 @@ Evaluation_Weights<double> Tuner::ad_backward_pass(AD_Tape& tape, AD_Value outpu
     // Each tape node has to backpropagate it's adjoint to it's parent(s), this
     // is simply done by calling the respective adjoint functors with their 
     // respective parameters.
-    for (auto& node : tape)
+    for (auto& node : std::views::reverse(tape))
     {
         auto& adjoint = node.adjoint(); 
 
@@ -583,10 +584,15 @@ Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
 
     AD_Tape tape;
 
-    auto ad_weights = create_ad_weights(tape, weights);
-
     for (std::size_t i = 0; i < N; i++)
     {
+        // The auto-differentiation weights must be recreated every iteration 
+        // because the tape is cleared after every backward pass and since we 
+        // use references to nodes on the tape in AD Values - we must create new
+        // nodes to reference otherwise, referencing cleared nodes is equivalent
+        // to a dangling reference.
+        auto ad_weights = create_ad_weights(tape, weights);
+
         Evaluator e(ad_weights,
                     eval_params.boards[i],
                     eval_params.moving_side_matrices[i],
@@ -605,7 +611,7 @@ Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
         const double huber_loss_derivative = derivative_huber_loss(error);
         const double sigmoid_derivative = derivative_sigmoid(evaluation_white);
         const Evaluation_Weights<double> evaluation_deriative = 
-            ad_backward_pass(tape, result);
+            ad_backward_pass(tape, result) * sign;
 
         gradient = gradient
                  + (evaluation_deriative
