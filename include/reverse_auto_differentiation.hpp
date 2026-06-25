@@ -7,18 +7,18 @@
 // Reverse-Mode Automatic Differentiation
 //
 // Automatic differentiation is a set of techniques used to find the gradient of
-// a function in a computer program. Reverse-mode specifically finds the 
-// gradient in O(m) time where m is the number of outputs of the function. It 
-// does this by propagating adjoint values from the output node(s) of the 
-// computational graph (which is represented as a tape or Wengert list) of the 
-// function to it's parent nodes, following a reverse topological ordering of 
-// graph traversal. An adjoint for any node u in the graph is by definition; 
-// u_bar = dv/du. 
+// a function in a computer program. Reverse-mode specifically finds the
+// gradient in O(m) time where m is the number of outputs of the function. It
+// does this by propagating adjoint values from the output node(s) of the
+// computational graph (which is represented as a tape or Wengert list) of the
+// function to it's parent nodes, following a reverse topological ordering of
+// graph traversal. An adjoint for any node u in the graph is by definition;
+// u_bar = dv/du.
 //
-// Now, suppose an output function L(y, z) exists and in the expression's 
+// Now, suppose an output function L(y, z) exists and in the expression's
 // dependency graph we perform two operations:
 //    node y = f(x)
-//    node z = g(x)   
+//    node z = g(x)
 // Then we can say that the adjoints for nodes x, y, and z are
 //    x_bar = dL/dx
 //    y_bar = dL/dy
@@ -27,16 +27,16 @@
 //    dL/dx = (dL/dy) * (dy/dx) + (dL/dz) (dz/dx)
 // So in terms of adjoints the chain rule says,
 //    x_bar = y_bar * (dy/dx) + z_bar * (dz/dx)
-// Notice that in general for any intermediates h_i between x and L(y, z), the 
+// Notice that in general for any intermediates h_i between x and L(y, z), the
 // update to adjoint x_bar is:
 //    x_bar += h_i * (dh_i/dx)
-// This is the general form of the rule for backpropagating adjoints and once 
-// the adjoints backpropagate to the start of the computational graph, the 
-// vector of adjoint values of the variables at the start of the computational 
-// graph are the partial derivative values with respect to that variable for the 
+// This is the general form of the rule for backpropagating adjoints and once
+// the adjoints backpropagate to the start of the computational graph, the
+// vector of adjoint values of the variables at the start of the computational
+// graph are the partial derivative values with respect to that variable for the
 // gradient.
 //
-// Our use case for reverse automatic differentiation in Matrex is for our NADAM 
+// Our use case for reverse automatic differentiation in Matrex is for our NADAM
 // tuner which needs to calculate the gradient of the evaluation function.
 // =============================================================================
 
@@ -45,12 +45,12 @@ class AD_Node;
 //==============================================================================
 // Automatic Differentiation Adjoint Class
 //
-// This class is an abstraction of an adjoint update - it takes references to 
-// the parent nodes and when called as a functor performs the backpropagation. 
-// Notice, this class is just the parent class of the derived classes which 
-// specify the functor definition depending on the operation in the 
+// This class is an abstraction of an adjoint update - it takes references to
+// the parent nodes and when called as a functor performs the backpropagation.
+// Notice, this class is just the parent class of the derived classes which
+// specify the functor definition depending on the operation in the
 // computational graph (e.g. pow, tanh, addition, multiplication, etc).
-//============================================================================== 
+//==============================================================================
 class AD_Adjoint
 {
   public:
@@ -202,9 +202,9 @@ using AD_Adjoint_Pointer = std::unique_ptr<AD_Adjoint>;
 //==============================================================================
 // Automatic Differentiation Node Class
 //
-// This class is an abstraction of a computational graph's node which is an 
+// This class is an abstraction of a computational graph's node which is an
 // element of the AD Tape class.
-//============================================================================== 
+//==============================================================================
 class AD_Node
 {
   public:
@@ -237,7 +237,7 @@ class AD_Node
 // Automatic Differentiation Node Class
 //
 // This class is an abstraction of a computational graph.
-//============================================================================== 
+//==============================================================================
 class AD_Tape
 {
   public:
@@ -265,10 +265,10 @@ class AD_Tape
 // Automatic Differentiation Node Class
 //
 // This class is the data type for each evaluation weight when passed into the
-// evaluator. Through operator and function overloading, it automatically fills 
-// the tape with the nodes that represent the computational graph of the 
-// evaluation function.  
-//============================================================================== 
+// evaluator. Through operator and function overloading, it automatically fills
+// the tape with the nodes that represent the computational graph of the
+// evaluation function.
+//==============================================================================
 struct AD_Value
 {
     std::optional<std::reference_wrapper<AD_Tape>> tape;
