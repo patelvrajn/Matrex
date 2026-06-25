@@ -107,7 +107,10 @@ bool Move_Generator::is_side_to_move_in_check()
     {
         generate_check_mask<PIECE_COLOR::WHITE>();
     }
-    else { generate_check_mask<PIECE_COLOR::BLACK>(); }
+    else
+    {
+        generate_check_mask<PIECE_COLOR::BLACK>();
+    }
     return m_side_to_move_in_check;
 }
 

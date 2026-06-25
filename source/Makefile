@@ -1,3 +1,7 @@
+# To compile using all available cores use: -j$(shell nproc)
+# Only compile using 1 core because of memory consumption.
+MAKEFLAGS += -j1
+
 # Recursive wildcard make function; recursively searches for files matching 
 # given wildcard pattern.
 rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
@@ -17,18 +21,19 @@ PROJECT_NAME = matrex
 # Compiler and compiler flags.
 CXX      = g++
 CXXFLAGS = \
-		      -g \
-		      -std=gnu++23 \
+		    -g \
+		    -std=gnu++23 \
+			-fconstexpr-depth=8192 \
 	        -O3 \
-					-flto \
+			-flto \
 	        -MMD \
 	        -MP \
 	        -Wall \
 	        -Wextra \
 	        -Wpedantic \
-		      -fpie \
+		    -fpie \
 	        -pie \
-		      -I ../include
+		    -I ../include
 
 .PHONY: all clean
 
@@ -48,10 +53,10 @@ clean:
 # The final product depends on the object files.
 ifndef DEBUG
 $(PROJECT_NAME) : $(objs)
-	$(CXX) $(CXXFLAGS) -o $@ $^ -lstdc++_libbacktrace
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lstdc++exp
 else
 $(PROJECT_NAME)_debug : $(objs)
-	$(CXX) $(CXXFLAGS) -o $@ $^ -lstdc++_libbacktrace
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lstdc++exp
 endif
 
 # An object file depends on the respective cpp file.

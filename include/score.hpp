@@ -55,9 +55,9 @@ struct Score_Fields
     // the total number of bits here must be less than 32.
     uint32_t value : 14 + MATREX_FP_INT_FRACTIONAL_BITS;
     uint32_t mate  : 1;
-    uint32_t
-        sign : 1; // Needed in order to distinguish between friendly and
-                  // enemy checkmates because plys to mate would equal zero.
+    uint32_t sign
+        : 1; // Needed in order to distinguish between friendly and
+             // enemy checkmates because plys to mate would equal zero.
 };
 
 class Score
@@ -88,6 +88,8 @@ class Score
 
     Score& operator+=(const Score& other);
     Score& operator-=(const Score& other);
+
+    friend std::ostream& operator<<(std::ostream& os, const Score s);
 
     Score_Fields m_fields;
 };

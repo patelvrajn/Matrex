@@ -14,6 +14,9 @@ Chess_Board::Chess_Board()
     m_state.side_to_move        = PIECE_COLOR::WHITE;
     m_state.half_move_clock     = 0;
     m_state.full_move_count     = 0;
+    m_hash_history              = {};
+    m_state.hash_history_start  = 0;
+    m_state.hash_history_length = 0;
     m_piece_bitboards           = {};
     m_color_occupancy_bitboards = {};
     m_zobrist_hash              = Zobrist_Hash();
@@ -35,6 +38,18 @@ Bitboard Chess_Board::get_color_occupancies(PIECE_COLOR c) const
 Bitboard Chess_Board::get_piece_occupancies(PIECE_COLOR c, PIECES p) const
 {
     return m_piece_bitboards[c][p];
+}
+
+Bitboard Chess_Board::get_piece_occupancies(PIECES p) const
+{
+    return m_piece_bitboards[PIECE_COLOR::WHITE][p]
+         | m_piece_bitboards[PIECE_COLOR::BLACK][p];
+}
+
+uint8_t Chess_Board::get_piece_count(PIECES p) const
+{
+    return (get_piece_occupancies(PIECE_COLOR::WHITE, p).high_bit_count()
+            + get_piece_occupancies(PIECE_COLOR::BLACK, p).high_bit_count());
 }
 
 Square Chess_Board::get_en_passant_square() const
@@ -89,7 +104,10 @@ Chess_Board::get_castling_rook_source_square(PIECE_COLOR   color,
     {
         return m_state.castling_rooks[color].kingside;
     }
-    else { return m_state.castling_rooks[color].queenside; }
+    else
+    {
+        return m_state.castling_rooks[color].queenside;
+    }
 }
 
 void Chess_Board::pretty_print() const
@@ -119,7 +137,10 @@ void Chess_Board::pretty_print() const
 
                 std::cout << UNICODE_PIECES[unicode_idx] << " ";
             }
-            else { std::cout << "▢" << " "; }
+            else
+            {
+                std::cout << "▢" << " ";
+            }
         }
 
         std::cout << std::endl;
@@ -203,18 +224,25 @@ Chess_Board::what_piece_is_on_square(const Square& s) const
 
 Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
 {
-    Undo_Chess_Move undo_move = {.move             = move,
-                                 .castling_rights  = m_state.castling_rights,
-                                 .half_move_clock  = m_state.half_move_clock,
-                                 .enpassant_square = m_state.enpassant_square};
+    Undo_Chess_Move undo_move = {
+        .move                = move,
+        .castling_rights     = m_state.castling_rights,
+        .half_move_clock     = m_state.half_move_clock,
+        .enpassant_square    = m_state.enpassant_square,
+        .hash_history_start  = m_state.hash_history_start,
+        .hash_history_length = m_state.hash_history_length};
 
     calculate_next_board_state(m_state.side_to_move, move);
 
-    if ((move.moving_piece == PIECES::PAWN) || (move.is_capture))
+    const bool is_move_irreversible =
+        ((move.moving_piece == PIECES::PAWN) || (move.is_capture)
+         || (move.is_en_passant));
+
+    if (is_move_irreversible) { m_state.half_move_clock = 0; }
+    else
     {
-        m_state.half_move_clock = 0;
+        m_state.half_move_clock = m_state.half_move_clock + 1;
     }
-    else { m_state.half_move_clock = m_state.half_move_clock + 1; }
 
     if (m_state.side_to_move == PIECE_COLOR::BLACK)
     {
@@ -233,7 +261,10 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
             m_state.enpassant_square = ESQUARE(move.destination_square - 8);
         }
     }
-    else { m_state.enpassant_square = ESQUARE::NO_SQUARE; }
+    else
+    {
+        m_state.enpassant_square = ESQUARE::NO_SQUARE;
+    }
     m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
 
     const uint8_t previous_castling_rights = m_state.castling_rights;
@@ -326,6 +357,18 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
     m_state.side_to_move = (PIECE_COLOR) ((~m_state.side_to_move) & 0x1);
     m_zobrist_hash.flip_side_to_move();
 
+    if (is_move_irreversible)
+    {
+        m_state.hash_history_start                 = m_state.half_move_clock;
+        m_hash_history[m_state.hash_history_start] = m_zobrist_hash;
+        m_state.hash_history_length                = 1;
+    }
+    else if (!is_draw_by_fifty_move_rule())
+    {
+        m_hash_history[m_state.half_move_clock] = m_zobrist_hash;
+        ++m_state.hash_history_length;
+    }
+
     return undo_move;
 }
 
@@ -351,6 +394,9 @@ void Chess_Board::undo_move(Undo_Chess_Move undo_move)
 
     m_state.side_to_move = opposing_side;
     m_zobrist_hash.flip_side_to_move();
+
+    m_state.hash_history_start  = undo_move.hash_history_start;
+    m_state.hash_history_length = undo_move.hash_history_length;
 }
 
 void Chess_Board::make_moves_from_string(const std::string& moves_str,
@@ -363,7 +409,7 @@ void Chess_Board::make_moves_from_string(const std::string& moves_str,
     while (iss >> move_str)
     { // Loop over space seperated moves string.
         Move_Generator        mg(*this);
-        Chess_Move_List       moves;
+        Move_Generation_List  moves;
         Moves_Bitboard_Matrix dummy_matrix;
         mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves, dummy_matrix);
 
@@ -582,6 +628,139 @@ void Chess_Board::set_from_fen(const std::string& fen)
     // Convert to unsigned long long (because we apparently expect games
     // lasting until the heat death of the universe)
     m_state.full_move_count = std::stoull(full_move_count);
+
+    m_hash_history[m_state.half_move_clock] = m_zobrist_hash;
+    m_state.hash_history_start              = m_state.half_move_clock;
+    m_state.hash_history_length             = 1;
+}
+
+std::string Chess_Board::to_fen()
+{
+    std::string fen = "";
+
+    // Loop to add all the pieces to the FEN string square by square.
+    uint8_t empty_square_count = 0;
+    for (uint8_t square_index = 0; square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
+         square_index++)
+    {
+        Square s(square_index);
+        auto [piece_color, piece_type] = what_piece_is_on_square(s);
+
+        // New rank condition except the first rank.
+        if (((square_index % NUM_OF_FILES_ON_CHESS_BOARD) == 0)
+            && (square_index != 0))
+        {
+            // At the end of a rank, we output the non-zero empty square count
+            // and reset the count for the next rank.
+            if (empty_square_count > 0)
+            {
+                fen                += std::to_string(empty_square_count);
+                empty_square_count  = 0;
+            }
+
+            // Add rank separator at the start of each rank.
+            fen += "/";
+        }
+
+        // If there is a piece on this square and the empty square count is non-
+        // zero, we need to output the count to the FEN string and reset the
+        // count.
+        if ((piece_type != PIECES::NO_PIECE) && (empty_square_count > 0))
+        {
+            fen                += std::to_string(empty_square_count);
+            empty_square_count  = 0;
+        }
+
+        // If this is the last square and it is empty, do the same for an empty
+        // square above except output 1 more than the existing count. Since,
+        // there is no existing count and the piece type is NO_PIECE the above
+        // logic for the empty square count will not trigger.
+        if ((piece_type == PIECES::NO_PIECE)
+            && (square_index == (NUM_OF_SQUARES_ON_CHESS_BOARD - 1)))
+        {
+            fen += std::to_string(empty_square_count + 1);
+            break;
+        }
+
+        // Piece to string conversion for squares with a piece.
+        if (piece_type != PIECES::NO_PIECE)
+        {
+            char piece_char = ' ';
+
+            switch (piece_type)
+            {
+                case PIECES::PAWN  : piece_char = 'P'; break;
+                case PIECES::KNIGHT: piece_char = 'N'; break;
+                case PIECES::BISHOP: piece_char = 'B'; break;
+                case PIECES::ROOK  : piece_char = 'R'; break;
+                case PIECES::QUEEN : piece_char = 'Q'; break;
+                case PIECES::KING  : piece_char = 'K'; break;
+                default            : piece_char = ' '; break;
+            }
+
+            if (piece_color == PIECE_COLOR::BLACK)
+            {
+                piece_char = std::tolower(piece_char);
+            }
+
+            fen += piece_char;
+        }
+        // Empty square count is increased every consecutive empty square.
+        else
+        {
+            empty_square_count++;
+        }
+    }
+
+    // Side to move.
+    if (m_state.side_to_move == PIECE_COLOR::WHITE) { fen += " w "; }
+    else
+    {
+        fen += " b ";
+    }
+
+    // Castling rights.
+    if (m_state.castling_rights == 0) { fen += "- "; }
+
+    if (m_state.castling_rights & CASTLING_RIGHTS_FLAGS::W_KINGSIDE)
+    {
+        fen += "K";
+    }
+
+    if (m_state.castling_rights & CASTLING_RIGHTS_FLAGS::W_QUEENSIDE)
+    {
+        fen += "Q";
+    }
+
+    if (m_state.castling_rights & CASTLING_RIGHTS_FLAGS::B_KINGSIDE)
+    {
+        fen += "k";
+    }
+
+    if (m_state.castling_rights & CASTLING_RIGHTS_FLAGS::B_QUEENSIDE)
+    {
+        fen += "q";
+    }
+
+    if (m_state.castling_rights != 0) { fen += " "; }
+
+    // En-passant square.
+    if (m_state.enpassant_square != NO_SQUARE)
+    {
+        fen += (SQUARE_STRINGS[m_state.enpassant_square] + " ");
+    }
+    else
+    {
+        fen += "- ";
+    }
+
+    // Half-move clock.
+    fen += std::to_string(m_state.half_move_clock) + " ";
+
+    // Full move count.
+    fen += std::to_string(m_state.full_move_count);
+
+    return fen;
 }
 
 // Helper: take a substring describing a single rank (e.g. "rnbqkbnr" or
@@ -711,6 +890,42 @@ void Chess_Board::place_pieces_from_fen(const std::string& rank_description,
             file++;
         }
     }
+}
+
+bool Chess_Board::is_draw_by_fifty_move_rule() const
+{
+    return (m_state.half_move_clock >= HALF_MOVE_CLOCK_MAXIMUM);
+}
+
+bool Chess_Board::has_insufficient_mating_material() const
+{
+    const uint8_t total_pieces = get_both_color_occupancies().high_bit_count();
+
+    // Only 2 kings left on the board - return true.
+    if (total_pieces == 2) { return true; }
+
+    // First Condition: No queens, rooks, or pawns on the board.
+    const bool first_condition =
+        ((get_piece_count(PIECES::PAWN) + get_piece_count(PIECES::ROOK)
+          + get_piece_count(PIECES::QUEEN))
+         == 0);
+
+    // Second Condition: Only same color bishops exist.
+    const Bitboard bishop_occupancies = get_piece_occupancies(PIECES::BISHOP);
+    const bool     second_condition =
+        ((bishop_occupancies & LIGHT_SQUARES_BITBOARD) == bishop_occupancies)
+        || ((bishop_occupancies & DARK_SQUARES_BITBOARD) == bishop_occupancies);
+
+    // Third Condition: Both at least one bishop and one knight have to exist
+    // for there to be sufficient mating material.
+    const bool third_condition = !((get_piece_count(PIECES::BISHOP) > 0)
+                                   && (get_piece_count(PIECES::KNIGHT) > 0));
+
+    // Fourth Condition: There is less than 2 knights.
+    const bool fourth_condition = (get_piece_count(PIECES::KNIGHT) < 2);
+
+    return (first_condition && second_condition && third_condition
+            && fourth_condition);
 }
 
 bool Chess_Board::operator==(const Chess_Board& other) const

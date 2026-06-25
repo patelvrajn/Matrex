@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <iostream>
 
@@ -7,28 +8,49 @@
 #include "score.hpp"
 #include "square.hpp"
 
-constexpr uint16_t MAXIMUM_NUM_OF_MOVES_IN_A_POSITION = 256;
+constexpr std::size_t MAXIMUM_NUM_OF_MOVES_IN_A_POSITION = 256;
+constexpr std::size_t PRINCIPAL_VARIATION_LIST_CAPACITY  = 256;
 
-typedef uint16_t Move_Score; // Not the same as a search evaluation score.
+typedef int16_t Move_Score; // Not the same as a search evaluation score.
 
 struct Chess_Move
 {
-    ESQUARE    source_square                    : 7;      // 7
-    ESQUARE    destination_square               : 7;      // 14
-    PIECES     moving_piece                     : 4;      // 18
-    PIECES     promoted_piece                   : 4;      // 22
-    PIECES     captured_piece                   : 4;      // 26
-    bool       is_capture                       : 1;      // 27
-    bool       is_short_castling                : 1;      // 28
-    bool       is_long_castling                 : 1;      // 29
-    ESQUARE    castling_rook_source_square      : 7;      // 36
-    ESQUARE    castling_rook_destination_square : 7;      // 43
-    bool       is_double_pawn_push              : 1;      // 44
-    bool       is_en_passant                    : 1;      // 45
-    ESQUARE    en_passant_victim_square         : 7;      // 52
-    bool       is_promotion                     : 1;      // 53
-    uint16_t   padding                          : 11 = 0; // 64
-    Move_Score score                                 = 0; // 80
+    ESQUARE    source_square                    : 7  = NO_SQUARE; // 7
+    ESQUARE    destination_square               : 7  = NO_SQUARE; // 14
+    PIECES     moving_piece                     : 4  = NO_PIECE;  // 18
+    PIECES     promoted_piece                   : 4  = NO_PIECE;  // 22
+    PIECES     captured_piece                   : 4  = NO_PIECE;  // 26
+    bool       is_capture                       : 1  = false;     // 27
+    bool       is_short_castling                : 1  = false;     // 28
+    bool       is_long_castling                 : 1  = false;     // 29
+    ESQUARE    castling_rook_source_square      : 7  = NO_SQUARE; // 36
+    ESQUARE    castling_rook_destination_square : 7  = NO_SQUARE; // 43
+    bool       is_double_pawn_push              : 1  = false;     // 44
+    bool       is_en_passant                    : 1  = false;     // 45
+    ESQUARE    en_passant_victim_square         : 7  = NO_SQUARE; // 52
+    bool       is_promotion                     : 1  = false;     // 53
+    uint16_t   padding                          : 11 = 0;         // 64
+    Move_Score score                                 = 0;         // 80
+
+    constexpr static Chess_Move
+    reversible_move(PIECES piece, Square source, Square destination)
+    {
+        return Chess_Move {
+            .source_square      = static_cast<ESQUARE>(source.get_index()),
+            .destination_square = static_cast<ESQUARE>(destination.get_index()),
+            .moving_piece       = piece,
+            .promoted_piece     = static_cast<PIECES>(0),
+            .captured_piece     = static_cast<PIECES>(0),
+            .is_capture         = false,
+            .is_short_castling  = false,
+            .is_long_castling   = false,
+            .castling_rook_source_square      = static_cast<ESQUARE>(0),
+            .castling_rook_destination_square = static_cast<ESQUARE>(0),
+            .is_double_pawn_push              = false,
+            .is_en_passant                    = false,
+            .en_passant_victim_square         = static_cast<ESQUARE>(0),
+            .is_promotion                     = false};
+    }
 
     std::string to_coordinate_notation(bool is_frc) const
     {
@@ -40,7 +62,10 @@ struct Chess_Move
             destination_square_str =
                 SQUARE_STRINGS[castling_rook_source_square];
         }
-        else { destination_square_str = SQUARE_STRINGS[destination_square]; }
+        else
+        {
+            destination_square_str = SQUARE_STRINGS[destination_square];
+        }
 
         std::string promotion_string = "";
 
@@ -80,7 +105,7 @@ struct Chess_Move
                   << "\tScore: " << score << std::endl;
     }
 
-    bool is_same_move(const Chess_Move& m) const
+    constexpr bool is_same_move(const Chess_Move& m) const
     {
         return (m.source_square == source_square)
             && (m.destination_square == destination_square)
@@ -118,18 +143,26 @@ static_assert(sizeof(Chess_Move) == 12,
 struct Undo_Chess_Move
 {
     Chess_Move move;
-    uint8_t    castling_rights  : 4;
-    uint8_t    half_move_clock  : 6;
-    ESQUARE    enpassant_square : 7;
+    uint8_t    castling_rights     : 4;
+    uint8_t    half_move_clock     : 6;
+    ESQUARE    enpassant_square    : 7;
+    uint16_t   hash_history_start  : 7;
+    uint16_t   hash_history_length : 7;
 };
 
+// A partially filled array class specialized for Chess Moves.
+template <std::size_t capacity>
 class Chess_Move_List
 {
   public:
 
     Chess_Move_List();
 
+    template <std::size_t S>
+    inline void push_and_copy(const Chess_Move&         move,
+                              const Chess_Move_List<S>& move_list);
     inline void append(const Chess_Move& move);
+    inline void clear();
 
     Chess_Move* begin() const;
     Chess_Move* end() const;
@@ -140,14 +173,101 @@ class Chess_Move_List
 
     void sort();
 
+    template <std::size_t S>
+    friend std::ostream& operator<<(std::ostream&            os,
+                                    const Chess_Move_List<S> moves);
+
   private:
 
-    int16_t                                                    m_max_index;
-    std::array<Chess_Move, MAXIMUM_NUM_OF_MOVES_IN_A_POSITION> m_list;
+    int16_t                          m_max_index;
+    std::array<Chess_Move, capacity> m_list;
 };
 
-inline void Chess_Move_List::append(const Chess_Move& move)
+template <std::size_t capacity>
+Chess_Move_List<capacity>::Chess_Move_List() : m_max_index(-1)
+{
+}
+
+// This operation is used for collecting the principal variation. As you go down
+// the search tree, the principal variation is built by pushing any move that
+// raised alpha to the parent's principal variation list and copying the child's
+// principal variation list after the pushed move. The reason we push to the
+// front is because as you go back up the search tree, plies decrease.
+template <std::size_t capacity>
+template <std::size_t S>
+inline void
+Chess_Move_List<capacity>::push_and_copy(const Chess_Move&         move,
+                                         const Chess_Move_List<S>& move_list)
+{
+    m_list[0] = move;
+
+    if (move_list.get_max_index() != -1)
+    {
+        std::copy(move_list.begin(), move_list.end(), (m_list.begin() + 1));
+        m_max_index = move_list.m_max_index + 1;
+    }
+    else
+    {
+        m_max_index = 0;
+    }
+}
+
+template <std::size_t capacity>
+inline void Chess_Move_List<capacity>::append(const Chess_Move& move)
 {
     m_max_index++;
     m_list[m_max_index] = move;
 }
+
+template <std::size_t capacity>
+inline void Chess_Move_List<capacity>::clear()
+{
+    m_max_index = -1;
+}
+
+template <std::size_t capacity>
+Chess_Move* Chess_Move_List<capacity>::begin() const
+{
+    return (Chess_Move*) &m_list[0];
+}
+
+template <std::size_t capacity>
+Chess_Move* Chess_Move_List<capacity>::end() const
+{
+    return (Chess_Move*) &m_list[m_max_index + 1];
+}
+
+template <std::size_t capacity>
+int16_t Chess_Move_List<capacity>::get_max_index() const
+{
+    return m_max_index;
+}
+
+template <std::size_t capacity>
+Chess_Move& Chess_Move_List<capacity>::operator[](uint16_t index)
+{
+    return m_list[index];
+}
+
+// Sort moves according to their score in non-ascending order.
+template <std::size_t capacity>
+void Chess_Move_List<capacity>::sort()
+{
+    std::stable_sort(begin(), end(), std::greater<Chess_Move>());
+}
+
+template <std::size_t S>
+std::ostream& operator<<(std::ostream& os, const Chess_Move_List<S> moves)
+{
+    for (const Chess_Move& move : moves)
+    {
+        os << " " << move.to_coordinate_notation(false);
+    }
+
+    return os;
+}
+
+using Move_Generation_List =
+    Chess_Move_List<MAXIMUM_NUM_OF_MOVES_IN_A_POSITION>;
+using Principal_Variation_List =
+    Chess_Move_List<PRINCIPAL_VARIATION_LIST_CAPACITY>;
