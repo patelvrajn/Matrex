@@ -8,6 +8,7 @@
 #include <stdexcept>
 
 #include "globals.hpp"
+#include "reverse_auto_differentiation.hpp"
 
 using Fixed_Point_Int_Storage_Type = int32_t;
 
@@ -313,7 +314,7 @@ constexpr uint8_t MATREX_FP_INT_FRACTIONAL_BITS = 16;
 using Matrex_FP_Int = Fixed_Point_Integer<MATREX_FP_INT_FRACTIONAL_BITS>;
 
 template <typename T>
-consteval T explicit_fp_integer_conversion(Fixed_Point_Int_Storage_Type value)
+constexpr T explicit_fp_integer_conversion(Fixed_Point_Int_Storage_Type value)
 {
     if constexpr (std::is_same_v<T, Fixed_Point_Int_Storage_Type>)
     {
@@ -326,7 +327,7 @@ consteval T explicit_fp_integer_conversion(Fixed_Point_Int_Storage_Type value)
 }
 
 template <typename T>
-consteval T explicit_fp_double_conversion(double value)
+constexpr T explicit_fp_double_conversion(double value)
 {
     if constexpr (std::is_same_v<T, double>) { return value; }
     else if constexpr (std::is_same_v<T, Matrex_FP_Int>)
@@ -503,7 +504,7 @@ Fixed_Point_Integer<F>::operator/(const Fixed_Point_Integer other) const
                                  - bit_width(other.m_value)
                                  - (FIXED_POINT_BIT_WIDTH - 1) + 1;
 
-    // An additional bit of scaling is needed if the quotient is negative 
+    // An additional bit of scaling is needed if the quotient is negative
     // because bit_width doesn't account for the sign of the quotient.
     if (((m_value < 0) || (other.m_value < 0))
         && (!((m_value < 0) && (other.m_value < 0))))
@@ -516,15 +517,15 @@ Fixed_Point_Integer<F>::operator/(const Fixed_Point_Integer other) const
 
     // We scale the numerator up for the same reason we scale down the product
     // in multiplication.
-    int64_t numerator = static_cast<int64_t>(m_value) * scale();
+    int64_t numerator   = static_cast<int64_t>(m_value) * scale();
     int64_t denominator = static_cast<int64_t>(other.m_value);
 
-    // We scale the numerator down by the anti-overflow scaling but not the 
-    // denominator. Although it would keep the result approximately the same 
+    // We scale the numerator down by the anti-overflow scaling but not the
+    // denominator. Although it would keep the result approximately the same
     // because the scaling factor would cancel, we calculated the scaling factor
-    // based on the original bit width of the denominator so it would cause 
+    // based on the original bit width of the denominator so it would cause
     // overflow issues if we scaled down the denominator because dividing by a
-    // smaller integer would lead to a bigger result. 
+    // smaller integer would lead to a bigger result.
     numerator = numerator >> anti_overflow_scaling;
 
     int64_t quotient = numerator / denominator;
@@ -532,7 +533,10 @@ Fixed_Point_Integer<F>::operator/(const Fixed_Point_Integer other) const
     MATREX_ASSERT(Fixed_Point_Integer<F>::is_representable(
                       static_cast<double>(quotient) * precision()),
                   "FIXED POINT DIVISION ERROR: Quotient {} ({} / {}) exceeded"
-                  " what was representable.", quotient, numerator, denominator);
+                  " what was representable.",
+                  quotient,
+                  numerator,
+                  denominator);
 
     return Fixed_Point_Integer::from_value(
         static_cast<Fixed_Point_Int_Storage_Type>(quotient));
@@ -823,11 +827,15 @@ namespace Matrex
 
     double tanh(double x);
 
+    AD_Value tanh(AD_Value x);
+
     template <uint8_t F>
     Fixed_Point_Integer<F> pow(const Fixed_Point_Integer<F> base,
                                const Fixed_Point_Integer<F> exponent);
 
     double pow(double base, double exponent);
+
+    AD_Value pow(AD_Value base, AD_Value exponent);
 
     template <uint8_t F>
     Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input);
@@ -848,10 +856,14 @@ namespace Matrex
 
     double sqrt(double x);
 
+    AD_Value sqrt(AD_Value x);
+
     template <uint8_t F>
     Fixed_Point_Integer<F> exp(const Fixed_Point_Integer<F> input);
 
     double exp(double x);
+
+    AD_Value exp(AD_Value x);
 
     // NOTE: Do not use a pade approximation, this method is exponentially more
     // accurate.

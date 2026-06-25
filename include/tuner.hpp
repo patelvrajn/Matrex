@@ -112,6 +112,22 @@ class Tuner
 
     Tuner_Eval_Params compute_eval_params(const Mini_Batch& mini_batch) const;
 
+    auto create_ad_weights(AD_Tape&                          tape,
+                           const Evaluation_Weights<double>& weights) const
+    {
+        Evaluation_Weights<AD_Value> output;
+
+        for (std::size_t i = 0; i < weights.get_size(); ++i)
+        {
+            output[i] = AD_Value::variable(tape, weights[i], i);
+        }
+
+        return output;
+    }
+
+    Evaluation_Weights<double> ad_backward_pass(AD_Tape& tape,
+                                                AD_Value output) const;
+
     double compute_loss(const Dataset&                    d,
                         const Evaluation_Weights<double>& weights);
 

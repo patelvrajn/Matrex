@@ -237,11 +237,22 @@ class Evaluation_Weights
     Evaluation_Weights operator/(const Evaluation_Weights& other) const;
     Evaluation_Weights operator*(const Evaluation_Weights& other) const;
 
+    Evaluation_Weights& operator+=(const Evaluation_Weights& other);
+    Evaluation_Weights& operator-=(const Evaluation_Weights& other);
+    Evaluation_Weights& operator/=(const Evaluation_Weights& other);
+    Evaluation_Weights& operator*=(const Evaluation_Weights& other);
+    Evaluation_Weights  operator-() const;
+
     // Arithmetic operators with T.
     Evaluation_Weights operator+(const T value) const;
     Evaluation_Weights operator-(const T value) const;
     Evaluation_Weights operator*(const T value) const;
     Evaluation_Weights operator/(const T value) const;
+
+    Evaluation_Weights& operator+=(const T other);
+    Evaluation_Weights& operator-=(const T other);
+    Evaluation_Weights& operator/=(const T other);
+    Evaluation_Weights& operator*=(const T other);
 
     Evaluation_Weights sqrt() const;
     T                  magnitude() const;
@@ -309,20 +320,16 @@ Evaluation_Weights<T>::operator=(Evaluation_Weights&& other) noexcept
 template <typename T>
 T& Evaluation_Weights<T>::operator[](std::size_t index)
 {
-    if (index >= m_weight_ref_array.size)
-    {
-        throw std::out_of_range("Index out of range in Evaluation_Weights");
-    }
     return m_weight_ref_array.get_array()[index].value().get();
 }
 
 template <typename T>
 const T& Evaluation_Weights<T>::operator[](std::size_t index) const
 {
-    if (index >= m_weight_ref_array.size)
-    {
-        throw std::out_of_range("Index out of range in Evaluation_Weights");
-    }
+    MATREX_ASSERT(m_weight_ref_array.get_array()[index].has_value(),
+                  "Accessed element of Evaluation Weights that has an optional "
+                  "reference of no value.");
+
     return m_weight_ref_array.get_array()[index].value().get();
 }
 
@@ -387,6 +394,63 @@ Evaluation_Weights<T>::operator*(const Evaluation_Weights& other) const
 }
 
 template <typename T>
+Evaluation_Weights<T>&
+Evaluation_Weights<T>::operator+=(const Evaluation_Weights<T>& other)
+{
+    Evaluation_Weights<T> sum = (*this) + other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = sum[i]; }
+
+    return *this;
+}
+
+template <typename T>
+Evaluation_Weights<T>&
+Evaluation_Weights<T>::operator-=(const Evaluation_Weights<T>& other)
+{
+    Evaluation_Weights<T> difference = (*this) - other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = difference[i]; }
+
+    return *this;
+}
+
+template <typename T>
+Evaluation_Weights<T>&
+Evaluation_Weights<T>::operator/=(const Evaluation_Weights& other)
+{
+    Evaluation_Weights<T> quotient = (*this) / other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = quotient[i]; }
+
+    return *this;
+}
+
+template <typename T>
+Evaluation_Weights<T>&
+Evaluation_Weights<T>::operator*=(const Evaluation_Weights& other)
+{
+    Evaluation_Weights<T> product = (*this) * other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = product[i]; }
+
+    return *this;
+}
+
+template <typename T>
+Evaluation_Weights<T> Evaluation_Weights<T>::operator-() const
+{
+    Evaluation_Weights result;
+
+    for (std::size_t i = 0; i < m_weight_ref_array.size; ++i)
+    {
+        result[i] = -m_weight_ref_array.get_array()[i].value().get();
+    }
+
+    return result;
+}
+
+template <typename T>
 Evaluation_Weights<T> Evaluation_Weights<T>::operator+(const T value) const
 {
     Evaluation_Weights result;
@@ -436,6 +500,46 @@ Evaluation_Weights<T> Evaluation_Weights<T>::operator/(const T value) const
     }
 
     return result;
+}
+
+template <typename T>
+Evaluation_Weights<T>& Evaluation_Weights<T>::operator+=(const T other)
+{
+    Evaluation_Weights<T> sum = (*this) + other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = sum[i]; }
+
+    return *this;
+}
+
+template <typename T>
+Evaluation_Weights<T>& Evaluation_Weights<T>::operator-=(const T other)
+{
+    Evaluation_Weights<T> difference = (*this) - other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = difference[i]; }
+
+    return *this;
+}
+
+template <typename T>
+Evaluation_Weights<T>& Evaluation_Weights<T>::operator/=(const T other)
+{
+    Evaluation_Weights<T> quotient = (*this) / other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = quotient[i]; }
+
+    return *this;
+}
+
+template <typename T>
+Evaluation_Weights<T>& Evaluation_Weights<T>::operator*=(const T other)
+{
+    Evaluation_Weights<T> product = (*this) * other;
+
+    for (std::size_t i = 0; i < get_size(); ++i) { (*this)[i] = product[i]; }
+
+    return *this;
 }
 
 template <typename T>
@@ -548,32 +652,17 @@ class Evaluator
               const Moves_Bitboard_Matrix& moving_side_matrix,
               const Moves_Bitboard_Matrix& opposing_side_matrix);
 
-    T                     evaluate_template_typed() const;
-    Score                 evaluate() const;
-    Evaluation_Weights<T> derivative_evaluate() const;
+    T     evaluate_template_typed() const;
+    Score evaluate() const;
 
     template <PIECE_COLOR moving_side>
     inline T material_score() const;
 
     template <PIECE_COLOR moving_side>
-    inline Evaluation_Weights<T> derivative_material_score() const;
-
-    template <PIECE_COLOR moving_side>
     inline T mobility_score() const;
 
     template <PIECE_COLOR moving_side>
-    inline Evaluation_Weights<T> derivative_mobility_score() const;
-
-    template <PIECE_COLOR moving_side>
     inline T piece_square_score() const;
-
-    template <PIECE_COLOR moving_side>
-    inline Evaluation_Weights<T> derivative_piece_square_score() const;
-
-    // Helpers
-    template <PIECE_COLOR side>
-    inline T calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
-                                      PIECES                       piece) const;
 
   private:
 
@@ -581,6 +670,13 @@ class Evaluator
     const Chess_Board&           m_chess_board;
     const Moves_Bitboard_Matrix& m_moving_side_matrix;
     const Moves_Bitboard_Matrix& m_opposing_side_matrix;
+
+    // Helpers
+    template <PIECE_COLOR side>
+    inline T calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
+                                      PIECES                       piece) const;
+
+    T constant_conversion(double value) const;
 };
 
 template <typename T>
@@ -634,43 +730,16 @@ Score Evaluator<T>::evaluate() const
 }
 
 template <typename T>
-Evaluation_Weights<T> Evaluator<T>::derivative_evaluate() const
-{
-    PIECE_COLOR moving_side = m_chess_board.get_side_to_move();
-
-    Evaluation_Weights<T> material;
-    Evaluation_Weights<T> mobility;
-    Evaluation_Weights<T> piece_square;
-
-    if (moving_side == PIECE_COLOR::WHITE)
-    {
-        material     = derivative_material_score<PIECE_COLOR::WHITE>();
-        mobility     = derivative_mobility_score<PIECE_COLOR::WHITE>();
-        piece_square = derivative_piece_square_score<PIECE_COLOR::WHITE>();
-    }
-    else
-    {
-        material     = derivative_material_score<PIECE_COLOR::BLACK>();
-        mobility     = derivative_mobility_score<PIECE_COLOR::BLACK>();
-        piece_square = derivative_piece_square_score<PIECE_COLOR::BLACK>();
-    }
-
-    Evaluation_Weights<T> evaluation = material + mobility + piece_square;
-
-    return evaluation;
-}
-
-template <typename T>
 template <PIECE_COLOR moving_side>
 inline T Evaluator<T>::material_score() const
 {
     constexpr PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
 
-    T return_value = explicit_fp_double_conversion<T>(0.0);
+    T return_value = constant_conversion(0.0);
 
     for (uint8_t piece = PIECES::PAWN; piece <= PIECES::QUEEN; piece++)
     {
-        T material_difference = explicit_fp_double_conversion<T>(0.0);
+        T material_difference = constant_conversion(0.0);
 
         material_difference +=
             (m_weights.material[piece]
@@ -692,76 +761,11 @@ inline T Evaluator<T>::material_score() const
 
 template <typename T>
 template <PIECE_COLOR moving_side>
-inline Evaluation_Weights<T> Evaluator<T>::derivative_material_score() const
-{
-    constexpr PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
-
-    Evaluation_Weights<T> grad;
-
-    for (uint8_t piece = PIECES::PAWN; piece <= PIECES::QUEEN; ++piece)
-    {
-        const int c_plus =
-            (int) m_chess_board
-                .get_piece_occupancies(moving_side, (PIECES) piece)
-                .high_bit_count();
-
-        const int c_minus =
-            (int) m_chess_board
-                .get_piece_occupancies(opposing_side, (PIECES) piece)
-                .high_bit_count();
-
-        const int delta = c_plus - c_minus;
-        const T   w     = m_weights.material[piece];
-        const T   F     = w * (T) delta;
-
-        Non_Linear_Response nlr(m_weights.material_NLR_parameters[piece]);
-
-        const T dYdF = (T) nlr.partial_derivative_u(F);
-
-        // 1) Gradient w.r.t. linear material weight w_p
-        {
-            const std::size_t idx_w =
-                m_weights.get_index_of(m_weights.material[piece]);
-            grad[idx_w] += dYdF * (T) delta;
-        }
-
-        // 2) Gradients w.r.t. this piece's NLR parameters
-        {
-            const auto& p = m_weights.material_NLR_parameters[piece];
-
-            grad[m_weights.get_index_of(p.h_plus)] +=
-                (T) nlr.partial_derivative_h_plus(F);
-            grad[m_weights.get_index_of(p.h_minus)] +=
-                (T) nlr.partial_derivative_h_minus(F);
-            grad[m_weights.get_index_of(p.z)] +=
-                (T) nlr.partial_derivative_z(F);
-            grad[m_weights.get_index_of(p.k)] +=
-                (T) nlr.partial_derivative_k(F);
-            grad[m_weights.get_index_of(p.q_plus)] +=
-                (T) nlr.partial_derivative_q_plus(F);
-            grad[m_weights.get_index_of(p.q_minus)] +=
-                (T) nlr.partial_derivative_q_minus(F);
-            grad[m_weights.get_index_of(p.r_plus)] +=
-                (T) nlr.partial_derivative_r_plus(F);
-            grad[m_weights.get_index_of(p.r_minus)] +=
-                (T) nlr.partial_derivative_r_minus(F);
-            grad[m_weights.get_index_of(p.g_plus)] +=
-                (T) nlr.partial_derivative_g_plus(F);
-            grad[m_weights.get_index_of(p.g_minus)] +=
-                (T) nlr.partial_derivative_g_minus(F);
-        }
-    }
-
-    return grad;
-}
-
-template <typename T>
-template <PIECE_COLOR moving_side>
 inline T Evaluator<T>::mobility_score() const
 {
     constexpr PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
 
-    T mobility = explicit_fp_double_conversion<T>(0.0);
+    T mobility = constant_conversion(0.0);
 
     for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
     {
@@ -784,628 +788,6 @@ inline T Evaluator<T>::mobility_score() const
 
 template <typename T>
 template <PIECE_COLOR moving_side>
-inline Evaluation_Weights<T> Evaluator<T>::derivative_mobility_score() const
-{
-    constexpr PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
-
-    Attacks               a;
-    Evaluation_Weights<T> derivative_weights;
-
-    struct Counts
-    {
-        int16_t diagonal_movement   = 0;
-        int16_t orthogonal_movement = 0;
-        int16_t knight_movement     = 0;
-        int16_t multi_movement      = 0;
-        int16_t backwards_movement  = 0;
-    };
-
-    Counts piece_movement_counts[NUM_OF_UNIQUE_PIECES_PER_PLAYER];
-
-    for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
-    {
-        std::vector<Moves_Bitboard> moving_side_moves_bitboards;
-        m_moving_side_matrix.get_piece_moves_bitboards(
-            moving_side,
-            (PIECES) piece,
-            moving_side_moves_bitboards);
-        for (Moves_Bitboard& mb : moving_side_moves_bitboards)
-        {
-            const uint16_t diagonal_movements =
-                (mb.bitboard
-                 & (a.get_bishop_attacks(
-                     mb.square,
-                     m_chess_board.get_both_color_occupancies())))
-                    .high_bit_count();
-            const uint16_t orthogonal_movements =
-                (mb.bitboard
-                 & (a.get_rook_attacks(
-                     mb.square,
-                     m_chess_board.get_both_color_occupancies())))
-                    .high_bit_count();
-            const uint16_t backward_movements =
-                mb.bitboard.get_backward_squares_mask(mb.square, moving_side)
-                    .high_bit_count();
-            const uint16_t multi_movement =
-                ((diagonal_movements > 0) && (orthogonal_movements > 0));
-            const uint16_t knight_movements =
-                mb.bitboard.high_bit_count() * (piece == PIECES::KNIGHT);
-
-            piece_movement_counts[piece].diagonal_movement +=
-                diagonal_movements;
-            piece_movement_counts[piece].orthogonal_movement +=
-                orthogonal_movements;
-            piece_movement_counts[piece].backwards_movement +=
-                backward_movements;
-            piece_movement_counts[piece].multi_movement  += multi_movement;
-            piece_movement_counts[piece].knight_movement += knight_movements;
-        }
-
-        std::vector<Moves_Bitboard> opposing_side_moves_bitboards;
-        m_opposing_side_matrix.get_piece_moves_bitboards(
-            opposing_side,
-            (PIECES) piece,
-            opposing_side_moves_bitboards);
-        for (Moves_Bitboard& mb : opposing_side_moves_bitboards)
-        {
-            const uint16_t diagonal_movements =
-                (mb.bitboard
-                 & (a.get_bishop_attacks(
-                     mb.square,
-                     m_chess_board.get_both_color_occupancies())))
-                    .high_bit_count();
-            const uint16_t orthogonal_movements =
-                (mb.bitboard
-                 & (a.get_rook_attacks(
-                     mb.square,
-                     m_chess_board.get_both_color_occupancies())))
-                    .high_bit_count();
-            const uint16_t backward_movements =
-                mb.bitboard.get_backward_squares_mask(mb.square, opposing_side)
-                    .high_bit_count();
-            const uint16_t multi_movement =
-                ((diagonal_movements > 0) && (orthogonal_movements > 0));
-            const uint16_t knight_movements =
-                mb.bitboard.high_bit_count() * (piece == PIECES::KNIGHT);
-
-            piece_movement_counts[piece].diagonal_movement -=
-                diagonal_movements;
-            piece_movement_counts[piece].orthogonal_movement -=
-                orthogonal_movements;
-            piece_movement_counts[piece].backwards_movement -=
-                backward_movements;
-            piece_movement_counts[piece].multi_movement  -= multi_movement;
-            piece_movement_counts[piece].knight_movement -= knight_movements;
-        }
-    }
-
-    T f_k = piece_movement_counts[PIECES::KING].diagonal_movement
-              * m_weights.diagonal_mobility
-          + piece_movement_counts[PIECES::KING].orthogonal_movement
-                * m_weights.orthogonal_mobility
-          + piece_movement_counts[PIECES::KING].multi_movement
-                * m_weights.multi_movement_mobility
-          + piece_movement_counts[PIECES::KING].backwards_movement
-                * m_weights.backwards_movement_mobility;
-    T f_q = piece_movement_counts[PIECES::QUEEN].diagonal_movement
-              * m_weights.diagonal_mobility
-          + piece_movement_counts[PIECES::QUEEN].orthogonal_movement
-                * m_weights.orthogonal_mobility
-          + piece_movement_counts[PIECES::QUEEN].multi_movement
-                * m_weights.multi_movement_mobility
-          + piece_movement_counts[PIECES::QUEEN].backwards_movement
-                * m_weights.backwards_movement_mobility;
-    T f_r = piece_movement_counts[PIECES::ROOK].orthogonal_movement
-              * m_weights.orthogonal_mobility
-          + piece_movement_counts[PIECES::ROOK].backwards_movement
-                * m_weights.backwards_movement_mobility;
-    T f_b = piece_movement_counts[PIECES::BISHOP].diagonal_movement
-              * m_weights.diagonal_mobility
-          + piece_movement_counts[PIECES::BISHOP].backwards_movement
-                * m_weights.backwards_movement_mobility;
-    T f_n = piece_movement_counts[PIECES::KNIGHT].knight_movement
-              * m_weights.knight_movement_mobility
-          + piece_movement_counts[PIECES::KNIGHT].backwards_movement
-                * m_weights.backwards_movement_mobility;
-    T f_p = piece_movement_counts[PIECES::PAWN].diagonal_movement
-              * m_weights.diagonal_mobility
-          + piece_movement_counts[PIECES::PAWN].orthogonal_movement
-                * m_weights.orthogonal_mobility
-          + piece_movement_counts[PIECES::PAWN].multi_movement
-                * m_weights.multi_movement_mobility;
-
-    Non_Linear_Response nlr_king(
-        m_weights.piece_mobility_NLR_parameters[PIECES::KING]);
-    Non_Linear_Response nlr_queen(
-        m_weights.piece_mobility_NLR_parameters[PIECES::QUEEN]);
-    Non_Linear_Response nlr_rook(
-        m_weights.piece_mobility_NLR_parameters[PIECES::ROOK]);
-    Non_Linear_Response nlr_bishop(
-        m_weights.piece_mobility_NLR_parameters[PIECES::BISHOP]);
-    Non_Linear_Response nlr_knight(
-        m_weights.piece_mobility_NLR_parameters[PIECES::KNIGHT]);
-    Non_Linear_Response nlr_pawn(
-        m_weights.piece_mobility_NLR_parameters[PIECES::PAWN]);
-
-    for (uint64_t i = 0; i < derivative_weights.get_size(); i++)
-    {
-        if (i == m_weights.get_index_of(m_weights.diagonal_mobility))
-        {
-            derivative_weights[i] =
-                nlr_king.partial_derivative_u(f_k)
-                    * piece_movement_counts[PIECES::KING].diagonal_movement
-                + nlr_queen.partial_derivative_u(f_q)
-                      * piece_movement_counts[PIECES::QUEEN].diagonal_movement
-                + nlr_bishop.partial_derivative_u(f_b)
-                      * piece_movement_counts[PIECES::BISHOP].diagonal_movement
-                + nlr_pawn.partial_derivative_u(f_p)
-                      * piece_movement_counts[PIECES::PAWN].diagonal_movement;
-        }
-        else if (i == m_weights.get_index_of(m_weights.orthogonal_mobility))
-        {
-            derivative_weights[i] =
-                nlr_king.partial_derivative_u(f_k)
-                    * piece_movement_counts[PIECES::KING].orthogonal_movement
-                + nlr_queen.partial_derivative_u(f_q)
-                      * piece_movement_counts[PIECES::QUEEN].orthogonal_movement
-                + nlr_rook.partial_derivative_u(f_r)
-                      * piece_movement_counts[PIECES::ROOK].orthogonal_movement
-                + nlr_pawn.partial_derivative_u(f_p)
-                      * piece_movement_counts[PIECES::PAWN].orthogonal_movement;
-        }
-        else if (i
-                 == m_weights.get_index_of(m_weights.knight_movement_mobility))
-        {
-            derivative_weights[i] =
-                nlr_knight.partial_derivative_u(f_n)
-                * piece_movement_counts[PIECES::KNIGHT].knight_movement;
-        }
-        else if (i == m_weights.get_index_of(m_weights.multi_movement_mobility))
-        {
-            derivative_weights[i] =
-                nlr_king.partial_derivative_u(f_k)
-                    * piece_movement_counts[PIECES::KING].multi_movement
-                + nlr_queen.partial_derivative_u(f_q)
-                      * piece_movement_counts[PIECES::QUEEN].multi_movement
-                + nlr_pawn.partial_derivative_u(f_p)
-                      * piece_movement_counts[PIECES::PAWN].multi_movement;
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.backwards_movement_mobility))
-        {
-            derivative_weights[i] =
-                nlr_king.partial_derivative_u(f_k)
-                    * piece_movement_counts[PIECES::KING].backwards_movement
-                + nlr_queen.partial_derivative_u(f_q)
-                      * piece_movement_counts[PIECES::QUEEN].backwards_movement
-                + nlr_rook.partial_derivative_u(f_r)
-                      * piece_movement_counts[PIECES::ROOK].backwards_movement
-                + nlr_bishop.partial_derivative_u(f_b)
-                      * piece_movement_counts[PIECES::BISHOP].backwards_movement
-                + nlr_knight.partial_derivative_u(f_n)
-                      * piece_movement_counts[PIECES::KNIGHT]
-                            .backwards_movement;
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KING]
-                         .h_plus))
-        {
-            derivative_weights[i] = nlr_king.partial_derivative_h_plus(f_k);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KING]
-                         .h_minus))
-        {
-            derivative_weights[i] = nlr_king.partial_derivative_h_minus(f_k);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KING].z))
-        {
-            derivative_weights[i] = nlr_king.partial_derivative_z(f_k);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KING].k))
-        {
-            derivative_weights[i] = nlr_king.partial_derivative_k(f_k);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KING]
-                         .q_plus))
-        {
-            derivative_weights[i] = nlr_king.partial_derivative_q_plus(f_k);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KING]
-                         .q_minus))
-        {
-            derivative_weights[i] = nlr_king.partial_derivative_q_minus(f_k);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KING]
-                         .r_plus))
-        {
-            derivative_weights[i] = nlr_king.partial_derivative_r_plus(f_k);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KING]
-                         .r_minus))
-        {
-            derivative_weights[i] = nlr_king.partial_derivative_r_minus(f_k);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KING]
-                         .g_plus))
-        {
-            derivative_weights[i] = nlr_king.partial_derivative_g_plus(f_k);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KING]
-                         .g_minus))
-        {
-            derivative_weights[i] = nlr_king.partial_derivative_g_minus(f_k);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::QUEEN]
-                         .h_plus))
-        {
-            derivative_weights[i] = nlr_queen.partial_derivative_h_plus(f_q);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::QUEEN]
-                         .h_minus))
-        {
-            derivative_weights[i] = nlr_queen.partial_derivative_h_minus(f_q);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::QUEEN].z))
-        {
-            derivative_weights[i] = nlr_queen.partial_derivative_z(f_q);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::QUEEN].k))
-        {
-            derivative_weights[i] = nlr_queen.partial_derivative_k(f_q);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::QUEEN]
-                         .q_plus))
-        {
-            derivative_weights[i] = nlr_queen.partial_derivative_q_plus(f_q);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::QUEEN]
-                         .q_minus))
-        {
-            derivative_weights[i] = nlr_queen.partial_derivative_q_minus(f_q);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::QUEEN]
-                         .r_plus))
-        {
-            derivative_weights[i] = nlr_queen.partial_derivative_r_plus(f_q);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::QUEEN]
-                         .r_minus))
-        {
-            derivative_weights[i] = nlr_queen.partial_derivative_r_minus(f_q);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::QUEEN]
-                         .g_plus))
-        {
-            derivative_weights[i] = nlr_queen.partial_derivative_g_plus(f_q);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::QUEEN]
-                         .g_minus))
-        {
-            derivative_weights[i] = nlr_queen.partial_derivative_g_minus(f_q);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::ROOK]
-                         .h_plus))
-        {
-            derivative_weights[i] = nlr_rook.partial_derivative_h_plus(f_r);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::ROOK]
-                         .h_minus))
-        {
-            derivative_weights[i] = nlr_rook.partial_derivative_h_minus(f_r);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::ROOK].z))
-        {
-            derivative_weights[i] = nlr_rook.partial_derivative_z(f_r);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::ROOK].k))
-        {
-            derivative_weights[i] = nlr_rook.partial_derivative_k(f_r);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::ROOK]
-                         .q_plus))
-        {
-            derivative_weights[i] = nlr_rook.partial_derivative_q_plus(f_r);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::ROOK]
-                         .q_minus))
-        {
-            derivative_weights[i] = nlr_rook.partial_derivative_q_minus(f_r);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::ROOK]
-                         .r_plus))
-        {
-            derivative_weights[i] = nlr_rook.partial_derivative_r_plus(f_r);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::ROOK]
-                         .r_minus))
-        {
-            derivative_weights[i] = nlr_rook.partial_derivative_r_minus(f_r);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::ROOK]
-                         .g_plus))
-        {
-            derivative_weights[i] = nlr_rook.partial_derivative_g_plus(f_r);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::ROOK]
-                         .g_minus))
-        {
-            derivative_weights[i] = nlr_rook.partial_derivative_g_minus(f_r);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::BISHOP]
-                         .h_plus))
-        {
-            derivative_weights[i] = nlr_bishop.partial_derivative_h_plus(f_b);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::BISHOP]
-                         .h_minus))
-        {
-            derivative_weights[i] = nlr_bishop.partial_derivative_h_minus(f_b);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::BISHOP].z))
-        {
-            derivative_weights[i] = nlr_bishop.partial_derivative_z(f_b);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::BISHOP].k))
-        {
-            derivative_weights[i] = nlr_bishop.partial_derivative_k(f_b);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::BISHOP]
-                         .q_plus))
-        {
-            derivative_weights[i] = nlr_bishop.partial_derivative_q_plus(f_b);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::BISHOP]
-                         .q_minus))
-        {
-            derivative_weights[i] = nlr_bishop.partial_derivative_q_minus(f_b);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::BISHOP]
-                         .r_plus))
-        {
-            derivative_weights[i] = nlr_bishop.partial_derivative_r_plus(f_b);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::BISHOP]
-                         .r_minus))
-        {
-            derivative_weights[i] = nlr_bishop.partial_derivative_r_minus(f_b);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::BISHOP]
-                         .g_plus))
-        {
-            derivative_weights[i] = nlr_bishop.partial_derivative_g_plus(f_b);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::BISHOP]
-                         .g_minus))
-        {
-            derivative_weights[i] = nlr_bishop.partial_derivative_g_minus(f_b);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KNIGHT]
-                         .h_plus))
-        {
-            derivative_weights[i] = nlr_knight.partial_derivative_h_plus(f_n);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KNIGHT]
-                         .h_minus))
-        {
-            derivative_weights[i] = nlr_knight.partial_derivative_h_minus(f_n);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KNIGHT].z))
-        {
-            derivative_weights[i] = nlr_knight.partial_derivative_z(f_n);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KNIGHT].k))
-        {
-            derivative_weights[i] = nlr_knight.partial_derivative_k(f_n);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KNIGHT]
-                         .q_plus))
-        {
-            derivative_weights[i] = nlr_knight.partial_derivative_q_plus(f_n);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KNIGHT]
-                         .q_minus))
-        {
-            derivative_weights[i] = nlr_knight.partial_derivative_q_minus(f_n);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KNIGHT]
-                         .r_plus))
-        {
-            derivative_weights[i] = nlr_knight.partial_derivative_r_plus(f_n);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KNIGHT]
-                         .r_minus))
-        {
-            derivative_weights[i] = nlr_knight.partial_derivative_r_minus(f_n);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KNIGHT]
-                         .g_plus))
-        {
-            derivative_weights[i] = nlr_knight.partial_derivative_g_plus(f_n);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::KNIGHT]
-                         .g_minus))
-        {
-            derivative_weights[i] = nlr_knight.partial_derivative_g_minus(f_n);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::PAWN]
-                         .h_plus))
-        {
-            derivative_weights[i] = nlr_pawn.partial_derivative_h_plus(f_p);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::PAWN]
-                         .h_minus))
-        {
-            derivative_weights[i] = nlr_pawn.partial_derivative_h_minus(f_p);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::PAWN].z))
-        {
-            derivative_weights[i] = nlr_pawn.partial_derivative_z(f_p);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::PAWN].k))
-        {
-            derivative_weights[i] = nlr_pawn.partial_derivative_k(f_p);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::PAWN]
-                         .q_plus))
-        {
-            derivative_weights[i] = nlr_pawn.partial_derivative_q_plus(f_p);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::PAWN]
-                         .q_minus))
-        {
-            derivative_weights[i] = nlr_pawn.partial_derivative_q_minus(f_p);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::PAWN]
-                         .r_plus))
-        {
-            derivative_weights[i] = nlr_pawn.partial_derivative_r_plus(f_p);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::PAWN]
-                         .r_minus))
-        {
-            derivative_weights[i] = nlr_pawn.partial_derivative_r_minus(f_p);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::PAWN]
-                         .g_plus))
-        {
-            derivative_weights[i] = nlr_pawn.partial_derivative_g_plus(f_p);
-        }
-        else if (i
-                 == m_weights.get_index_of(
-                     m_weights.piece_mobility_NLR_parameters[PIECES::PAWN]
-                         .g_minus))
-        {
-            derivative_weights[i] = nlr_pawn.partial_derivative_g_minus(f_p);
-        }
-        else
-        {
-            derivative_weights[i] = 0;
-        }
-    }
-
-    return derivative_weights;
-}
-
-template <typename T>
-template <PIECE_COLOR moving_side>
 inline T Evaluator<T>::piece_square_score() const
 {
     constexpr PIECE_COLOR opposing_side = ~moving_side;
@@ -1419,17 +801,21 @@ inline T Evaluator<T>::piece_square_score() const
     {
         for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
         {
+            // Initialize the array value for the case of T = AD Value which
+            // contains optionals.
+            color_piece_values[color][piece] = constant_conversion(0.0);
+
             for (uint8_t square_idx = 0;
                  square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
                  square_idx++)
             {
                 color_piece_values[color][piece] +=
-                    (m_chess_board
-                         .get_piece_occupancies((PIECE_COLOR) color,
-                                                (PIECES) piece)
-                         .get_square(Square(square_idx))
-                     > 0)
-                    * m_weights.piece_square_tables[color][piece][square_idx];
+                    m_weights.piece_square_tables[color][piece][square_idx]
+                    * (m_chess_board
+                           .get_piece_occupancies((PIECE_COLOR) color,
+                                                  (PIECES) piece)
+                           .get_square(Square(square_idx))
+                       > 0);
             }
         }
     }
@@ -1517,160 +903,6 @@ inline T Evaluator<T>::piece_square_score() const
             + nlr_opposing_pawn_value);
 }
 
-template <typename T>
-template <PIECE_COLOR moving_side>
-inline Evaluation_Weights<T> Evaluator<T>::derivative_piece_square_score() const
-{
-    constexpr PIECE_COLOR opposing_side = ~moving_side;
-
-    Evaluation_Weights<T> grad;
-
-    multi_array<T, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
-        color_piece_values {};
-
-    for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK;
-         ++color)
-    {
-        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
-        {
-            for (uint8_t square_idx = 0;
-                 square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-                 ++square_idx)
-            {
-                const T occupied =
-                    (m_chess_board
-                         .get_piece_occupancies((PIECE_COLOR) color,
-                                                (PIECES) piece)
-                         .get_square(Square(square_idx))
-                     > 0);
-
-                color_piece_values[color][piece] +=
-                    occupied
-                    * m_weights.piece_square_tables[color][piece][square_idx];
-            }
-        }
-    }
-
-    auto add_nlr_parameter_derivatives = [&](const NLR_Parameters<T>& params,
-                                             const Non_Linear_Response<T>& nlr,
-                                             T                             F,
-                                             T multiplier)
-    {
-        grad[m_weights.get_index_of(params.h_plus)] +=
-            multiplier * nlr.partial_derivative_h_plus(F);
-        grad[m_weights.get_index_of(params.h_minus)] +=
-            multiplier * nlr.partial_derivative_h_minus(F);
-        grad[m_weights.get_index_of(params.z)] +=
-            multiplier * nlr.partial_derivative_z(F);
-        grad[m_weights.get_index_of(params.k)] +=
-            multiplier * nlr.partial_derivative_k(F);
-        grad[m_weights.get_index_of(params.q_plus)] +=
-            multiplier * nlr.partial_derivative_q_plus(F);
-        grad[m_weights.get_index_of(params.q_minus)] +=
-            multiplier * nlr.partial_derivative_q_minus(F);
-        grad[m_weights.get_index_of(params.r_plus)] +=
-            multiplier * nlr.partial_derivative_r_plus(F);
-        grad[m_weights.get_index_of(params.r_minus)] +=
-            multiplier * nlr.partial_derivative_r_minus(F);
-        grad[m_weights.get_index_of(params.g_plus)] +=
-            multiplier * nlr.partial_derivative_g_plus(F);
-        grad[m_weights.get_index_of(params.g_minus)] +=
-            multiplier * nlr.partial_derivative_g_minus(F);
-    };
-
-    auto add_color_derivatives = [&](PIECE_COLOR color, T side_sign)
-    {
-        T piece_nlr_values[NUM_OF_UNIQUE_PIECES_PER_PLAYER] {};
-        T piece_nlr_dF[NUM_OF_UNIQUE_PIECES_PER_PLAYER] {};
-
-        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
-        {
-            const T F = color_piece_values[color][piece];
-
-            const Non_Linear_Response<T> nlr(
-                m_weights.piece_square_NLR_parameters[color][piece]);
-
-            piece_nlr_values[piece] = nlr.value(F);
-            piece_nlr_dF[piece]     = nlr.partial_derivative_u(F);
-        }
-
-        T interaction_F = static_cast<T>(1);
-
-        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
-        {
-            interaction_F *= piece_nlr_values[piece];
-        }
-
-        const Non_Linear_Response<T> interaction_nlr(
-            m_weights.interactive_piece_square_NLR_parameters[color]);
-
-        const T d_interaction_value_d_interaction_F =
-            interaction_nlr.partial_derivative_u(interaction_F);
-
-        // Derivatives w.r.t. interactive NLR parameters.
-        add_nlr_parameter_derivatives(
-            m_weights.interactive_piece_square_NLR_parameters[color],
-            interaction_nlr,
-            interaction_F,
-            side_sign);
-
-        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
-        {
-            const T F = color_piece_values[color][piece];
-
-            const Non_Linear_Response<T> piece_nlr(
-                m_weights.piece_square_NLR_parameters[color][piece]);
-
-            T d_interaction_F_d_piece_value = static_cast<T>(1);
-
-            for (uint8_t other_piece = PIECES::PAWN;
-                 other_piece <= PIECES::KING;
-                 ++other_piece)
-            {
-                if (other_piece == piece) { continue; }
-
-                d_interaction_F_d_piece_value *= piece_nlr_values[other_piece];
-            }
-
-            const T piece_multiplier = side_sign
-                                     * (static_cast<T>(1)
-                                        + d_interaction_value_d_interaction_F
-                                              * d_interaction_F_d_piece_value);
-
-            // Derivatives w.r.t. this piece's NLR parameters.
-            add_nlr_parameter_derivatives(
-                m_weights.piece_square_NLR_parameters[color][piece],
-                piece_nlr,
-                F,
-                piece_multiplier);
-
-            // Derivatives w.r.t. piece-square table entries.
-            //
-            // F_piece = sum_s occupied(piece, s) * PST[color][piece][s]
-            //
-            // dScore / dPST = dScore/dPieceNLR * dPieceNLR/dF * occupied
-            for (uint8_t square_idx = 0;
-                 square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-                 ++square_idx)
-            {
-                const T occupied =
-                    (m_chess_board.get_piece_occupancies(color, (PIECES) piece)
-                         .get_square(Square(square_idx))
-                     > 0);
-
-                grad[m_weights.get_index_of(
-                    m_weights.piece_square_tables[color][piece][square_idx])] +=
-                    piece_multiplier * piece_nlr_dF[piece] * occupied;
-            }
-        }
-    };
-
-    add_color_derivatives(moving_side, static_cast<T>(1));
-    add_color_derivatives(opposing_side, static_cast<T>(-1));
-
-    return grad;
-}
-
 /*******************************************************************************
  *
  * HELPER FUNCTIONS FOR EVALUATOR
@@ -1687,7 +919,7 @@ Evaluator<T>::calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
 
     std::vector<Moves_Bitboard> moves_bitboards;
     matrix.get_piece_moves_bitboards(side, piece, moves_bitboards);
-    T piece_mobility = explicit_fp_double_conversion<T>(0.0);
+    T piece_mobility = constant_conversion(0.0);
     for (Moves_Bitboard& mb : moves_bitboards)
     {
         const Bitboard diagonal_movements =
@@ -1703,7 +935,7 @@ Evaluator<T>::calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
             mb.bitboard.get_backward_squares_mask(mb.square, side);
 
         const T diagonal_mobility =
-            diagonal_movements.high_bit_count() * m_weights.diagonal_mobility;
+            m_weights.diagonal_mobility * diagonal_movements.high_bit_count();
         const T orthogonal_mobility = orthogonal_movements.high_bit_count()
                                     * m_weights.orthogonal_mobility;
         const T backward_mobility = backward_movements.high_bit_count()
@@ -1722,4 +954,17 @@ Evaluator<T>::calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
     }
 
     return piece_mobility;
+}
+
+template <typename T>
+T Evaluator<T>::constant_conversion(double value) const
+{
+    if constexpr (std::is_same_v<T, AD_Value>)
+    {
+        return AD_Value::constant(m_weights[0].tape.value(), value);
+    }
+    else
+    {
+        return explicit_fp_double_conversion<T>(value);
+    }
 }
