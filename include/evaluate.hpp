@@ -801,14 +801,14 @@ inline T Evaluator<T>::piece_square_score() const
     {
         for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
         {
+            // Initialize the array value for the case of T = AD Value which
+            // contains optionals.
+            color_piece_values[color][piece] = constant_conversion(0.0);
+
             for (uint8_t square_idx = 0;
                  square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
                  square_idx++)
             {
-                // Initialize the array value for the case of T = AD Value which
-                // contains optionals.
-                color_piece_values[color][piece] = constant_conversion(0.0);
-
                 color_piece_values[color][piece] +=
                     m_weights.piece_square_tables[color][piece][square_idx]
                     * (m_chess_board
