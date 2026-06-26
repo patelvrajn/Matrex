@@ -137,7 +137,7 @@ struct Undo_Chess_Move
 {
     Chess_Move move;
     uint8_t    castling_rights     : 4;
-    uint8_t    half_move_clock     : 6;
+    uint8_t    half_move_clock     : 7;
     ESQUARE    enpassant_square    : 7;
     uint16_t   hash_history_start  : 7;
     uint16_t   hash_history_length : 7;
