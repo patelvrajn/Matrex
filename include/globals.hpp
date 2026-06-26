@@ -439,6 +439,11 @@ class multi_array
     constexpr auto begin() const { return data.begin(); }
 
     constexpr auto end() const { return data.end(); }
+
+    void fill(T fill_value)
+    {
+        for (auto& element : (*this)) { element.fill(fill_value); }
+    }
 };
 
 // Base case: single-dimension multi_array
@@ -488,6 +493,11 @@ class multi_array<T, this_size>
     constexpr auto begin() const { return data.begin(); }
 
     constexpr auto end() const { return data.end(); }
+
+    void fill(T fill_value)
+    {
+        for (auto& element : (*this)) { element = fill_value; }
+    }
 };
 
 // =============================================================================

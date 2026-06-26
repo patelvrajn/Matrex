@@ -26,24 +26,6 @@ Moves_Bitboard_Matrix& Move_Ordering::get_moves_matrix()
     return m_moves_matrix;
 }
 
-mvv_lva_array Move_Ordering::generate_mvv_lva_array()
-{
-    mvv_lva_array return_value;
-
-    for (uint8_t attacker = PIECES::PAWN; attacker <= PIECES::KING; attacker++)
-    {
-        for (uint8_t victim = PIECES::PAWN; victim <= PIECES::QUEEN; victim++)
-        {
-            return_value[attacker][victim] =
-                ((MVV_LVA_ATTACKER_VALUES[victim]
-                  + NUM_OF_UNIQUE_PIECES_PER_PLAYER)
-                 - (MVV_LVA_ATTACKER_VALUES[attacker] / 10));
-        }
-    }
-
-    return return_value;
-}
-
 void Move_Ordering::move_scorer()
 {
     for (Chess_Move& move : m_move_list)
@@ -65,6 +47,11 @@ void Move_Ordering::move_scorer()
         {
             move.score = m_mvv_lva_array[move.moving_piece][move.moving_piece];
         }
+        if (move.is_quiet_move())
+        {
+            move.score = m_butterfly_history[m_chess_board.get_side_to_move()]
+                             .get_history_score(move);
+        }
         // For the hash move, give it the maximum score to ensure it is sorted
         // to the front. If the hash move is not found, it won't be scored (e.g.
         // if move is Chess_Move()).
@@ -79,4 +66,21 @@ bool Move_Ordering::is_side_to_move_in_check() const
 {
     Move_Generator mg(m_chess_board);
     return mg.is_side_to_move_in_check();
+}
+
+void Move_Ordering::update_butterfly_move_history(const Chess_Move& move)
+{
+    if (move.is_quiet_move())
+    {
+        m_butterfly_history[m_chess_board.get_side_to_move()].increment_history(
+            move);
+    }
+}
+
+void Move_Ordering::clear_all_history_heuristics()
+{
+    for (History_Table& history_table : m_butterfly_history)
+    {
+        history_table.clear();
+    }
 }

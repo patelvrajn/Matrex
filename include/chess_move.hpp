@@ -124,6 +124,13 @@ struct Chess_Move
             && (m.is_promotion == is_promotion);
     }
 
+    bool is_noisy_move() const
+    {
+        return (is_capture || is_en_passant || is_promotion);
+    }
+
+    bool is_quiet_move() const { return (!is_noisy_move()); }
+
     inline auto operator<=>(const Chess_Move& other) const
     {
         return (score <=> other.score);
