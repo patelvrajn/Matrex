@@ -203,6 +203,10 @@ Search_Engine::negamax(Chess_Board&              position,
 
         if (is_first_move)
         {
+            // Assume our move ordering puts the best move as the first move. 
+            // This also avoids a null move being the best move.
+            best_move = move;
+
             // Full alpha-beta window search for the first move which we assume
             // to be a PV node.
             child_result = negamax(position,
