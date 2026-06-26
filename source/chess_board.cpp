@@ -424,7 +424,10 @@ void Chess_Board::make_moves_from_string(const std::string& moves_str,
     }
 }
 
-Zobrist_Hash Chess_Board::get_zobrist_hash() const { return m_zobrist_hash; }
+const Zobrist_Hash& Chess_Board::get_zobrist_hash() const 
+{ 
+    return m_zobrist_hash; 
+}
 
 void Chess_Board::set_from_fen(const std::string& fen)
 {

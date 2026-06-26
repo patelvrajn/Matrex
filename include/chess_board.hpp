@@ -124,7 +124,7 @@ class Chess_Board
 
     void make_moves_from_string(const std::string& moves_str, bool is_frc);
 
-    Zobrist_Hash get_zobrist_hash() const;
+    const Zobrist_Hash& get_zobrist_hash() const;
 
     auto get_hash_history() const
         -> std::tuple<const decltype((m_hash_history)), // Extra parentheses
