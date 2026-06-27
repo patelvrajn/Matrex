@@ -28,6 +28,7 @@ struct Correction_History_Hashes
     Zobrist_Hash_Storage_Type diagonals_key = 0;
     Zobrist_Hash_Storage_Type orthogonals_key = 0;
     Zobrist_Hash_Storage_Type knights_key = 0;
+    Zobrist_Hash_Storage_Type material_key = 0;
 };
 
 constexpr Zobrist_Hash_Keys initialize_zobrist_hash_keys()
@@ -162,6 +163,8 @@ constexpr void Zobrist_Hash::update_piece(const PIECE_COLOR color,
     {
         m_corr_hist_hashes.knights_key ^= m_hash_keys.pieces[color][piece][square.get_index()];
     }
+
+    m_corr_hist_hashes.material_key ^= m_hash_keys.pieces[color][piece][square.get_index()];
 
     m_hash_value ^= m_hash_keys.pieces[color][piece][square.get_index()];
 }
