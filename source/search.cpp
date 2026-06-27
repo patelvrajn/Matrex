@@ -16,6 +16,7 @@ void Search_Engine::new_game()
     m_transposition_table.clear_statistics();
 #endif
     m_transposition_table.clear();
+    m_correction_history.clear();
 }
 
 Search_Engine_Result
