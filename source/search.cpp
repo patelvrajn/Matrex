@@ -126,6 +126,7 @@ Search_Engine::negamax(Chess_Board&              position,
     Move_Ordering mo(position, transposition_table_entry.best_move);
     mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
     Move_Generation_List& moves = mo.get_sorted_moves();
+    Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
 
     // No legal moves available, return the appropriate mate or draw score.
     if (moves.get_max_index() == -1)
@@ -167,6 +168,24 @@ Search_Engine::negamax(Chess_Board&              position,
     // as the child score and this way it doesn't affect the best move of the
     // parent.
     if (m_timer_expired_during_search) { return {moves[0], beta}; }
+
+    // Generate moves matrix for the opposing side for evaluation purposes.
+    const PIECE_COLOR opposing_side =
+        (PIECE_COLOR) ((~position.get_side_to_move()) & 0x1);
+    Move_Generation_List  not_used_moves_list;
+    Moves_Bitboard_Matrix opposing_side_matrix;
+    Move_Generator        mg(position);
+    mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,
+                                                     not_used_moves_list,
+                                                     opposing_side_matrix);
+
+    const Evaluator e(TUNED_EVALUATION_WEIGHTS,
+                      position,
+                      moving_side_matrix,
+                      opposing_side_matrix);
+
+    // Static evaluation for correction history.
+    const Score static_evaluation = e.evaluate(m_correction_history);
 
     Principal_Variation_List child_principal_variation;
     Chess_Move               best_move  = Chess_Move();
@@ -312,6 +331,8 @@ Search_Engine::negamax(Chess_Board&              position,
         is_first_move = false;
     }
 
+    m_correction_history.update(position, depth_squared, best_score, static_evaluation);
+
     // Cache the position's best move and evaluation in the transposition table
     // regardless of time because principal variation search guarantees the next
     // move found is a better move.
@@ -431,7 +452,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
                       moving_side_matrix,
                       opposing_side_matrix);
 
-    Score stand_pat = e.evaluate();
+    Score stand_pat = e.evaluate(m_correction_history);
 
     // Update stand pat evaluation based on a transposition table hit which
     // would most likely be based on a deeper search.
