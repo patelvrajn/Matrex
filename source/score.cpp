@@ -45,6 +45,11 @@ Fixed_Point_Int_Storage_Type Score::to_int() const
     }
 }
 
+Matrex_FP_Int Score::to_fixed_point() const
+{
+    return Matrex_FP_Int::from_value(to_int());
+}
+
 Score Score::from_int(Fixed_Point_Int_Storage_Type i)
 {
     Score return_score;

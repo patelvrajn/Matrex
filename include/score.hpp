@@ -70,6 +70,7 @@ class Score
     Score(Score_Fields fields);
 
     Fixed_Point_Int_Storage_Type to_int() const;
+    Matrex_FP_Int                to_fixed_point() const;
     static Score                 from_int(Fixed_Point_Int_Storage_Type i);
 
     bool     is_mating_score() const;
