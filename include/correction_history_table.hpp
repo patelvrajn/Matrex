@@ -4,9 +4,11 @@
 #include "fixed_point.hpp"
 #include "score.hpp"
 
-constexpr double CORR_HIST_EMA_SMOOTHING_FACTOR = 0.1;
-constexpr double CORR_HIST_EMA_DEPTH_FACTOR = (1.0 / 32.0);
+constexpr double CORR_HIST_EMA_SMOOTHING_FACTOR = 0.3;
+constexpr double CORR_HIST_EMA_DEPTH_FACTOR = (1.0 / 16.0);
 constexpr Matrex_FP_Int CORR_HIST_WEIGHT = Matrex_FP_Int::from_double(0.2);
+constexpr Matrex_FP_Int CORR_HIST_MIN_CORRECTION = Matrex_FP_Int::from_integer(-256);
+constexpr Matrex_FP_Int CORR_HIST_MAX_CORRECTION = Matrex_FP_Int::from_integer(256);
 
 template <std::size_t size>
 struct Correction_History_Tables_Per_Side
@@ -83,11 +85,11 @@ void Correction_History_Tables<size>::update(const Chess_Board& position, uint32
     // static evaluation scaled by depth.
     const Matrex_FP_Int difference = (search_score - static_evaluation).to_fixed_point();
     const double depth_multiplier = static_cast<double>(depth_squared) * CORR_HIST_EMA_DEPTH_FACTOR;
-    const Matrex_FP_Int correction = difference * depth_multiplier;
+    const Matrex_FP_Int correction = Matrex_FP_Int::adjustable_clamp((difference * depth_multiplier), CORR_HIST_MIN_CORRECTION, CORR_HIST_MAX_CORRECTION);
 
-    PIECE_COLOR side_to_move = position.get_side_to_move();
+    const PIECE_COLOR side_to_move = position.get_side_to_move();
 
-    Correction_History_Indices indices = get_lemire_indices(position.get_zobrist_hash());
+    const Correction_History_Indices indices = get_lemire_indices(position.get_zobrist_hash());
 
     // Grab the correction history entries for this position.
     Score& pawns_entry = m_tables[side_to_move].pawns_table[indices.pawns_index];
@@ -100,7 +102,7 @@ void Correction_History_Tables<size>::update(const Chess_Board& position, uint32
     // exponential moving average formula.
     const auto update_entry = [&](Score entry, Matrex_FP_Int update) 
     {
-        Matrex_FP_Int updated_correction = (entry.to_fixed_point() * (1.0 - CORR_HIST_EMA_SMOOTHING_FACTOR)) + (update * CORR_HIST_EMA_SMOOTHING_FACTOR);
+        const Matrex_FP_Int updated_correction = (entry.to_fixed_point() * (1.0 - CORR_HIST_EMA_SMOOTHING_FACTOR)) + (update * CORR_HIST_EMA_SMOOTHING_FACTOR);
         return Score(updated_correction);
     };
 
@@ -115,18 +117,18 @@ void Correction_History_Tables<size>::update(const Chess_Board& position, uint32
 template <std::size_t size>
 Score Correction_History_Tables<size>::get_correction(const Chess_Board& position) const
 {
-    PIECE_COLOR side_to_move = position.get_side_to_move();
+    const PIECE_COLOR side_to_move = position.get_side_to_move();
 
-    Correction_History_Indices indices = get_lemire_indices(position.get_zobrist_hash());
+    const Correction_History_Indices indices = get_lemire_indices(position.get_zobrist_hash());
 
     // Grab the correction history entries for this position.
-    auto pawns_entry = m_tables[side_to_move].pawns_table[indices.pawns_index].to_fixed_point();
-    auto diagonals_entry = m_tables[side_to_move].diagonals_table[indices.diagonals_index].to_fixed_point();
-    auto orthogonals_entry = m_tables[side_to_move].orthogonals_table[indices.orthogonals_index].to_fixed_point();
-    auto knights_entry = m_tables[side_to_move].knights_table[indices.knights_index].to_fixed_point();
-    auto material_entry = m_tables[side_to_move].material_table[indices.material_index].to_fixed_point();
+    const auto pawns_entry = m_tables[side_to_move].pawns_table[indices.pawns_index].to_fixed_point();
+    const auto diagonals_entry = m_tables[side_to_move].diagonals_table[indices.diagonals_index].to_fixed_point();
+    const auto orthogonals_entry = m_tables[side_to_move].orthogonals_table[indices.orthogonals_index].to_fixed_point();
+    const auto knights_entry = m_tables[side_to_move].knights_table[indices.knights_index].to_fixed_point();
+    const auto material_entry = m_tables[side_to_move].material_table[indices.material_index].to_fixed_point();
 
-    auto correction = (pawns_entry * CORR_HIST_WEIGHT) + (diagonals_entry * CORR_HIST_WEIGHT)
+    const auto correction = (pawns_entry * CORR_HIST_WEIGHT) + (diagonals_entry * CORR_HIST_WEIGHT)
     + (orthogonals_entry * CORR_HIST_WEIGHT) + (knights_entry * CORR_HIST_WEIGHT)
     + (material_entry * CORR_HIST_WEIGHT);
 
@@ -136,14 +138,14 @@ Score Correction_History_Tables<size>::get_correction(const Chess_Board& positio
 template <std::size_t size>
 std::size_t Correction_History_Tables<size>::get_lemire_index(Zobrist_Hash_Storage_Type hash) const
 {
-    __uint128_t product = (static_cast<__uint128_t>(hash) * static_cast<__uint128_t>(size));
+    const __uint128_t product = (static_cast<__uint128_t>(hash) * static_cast<__uint128_t>(size));
     return static_cast<std::size_t>(product >> 64);
 }
 
 template <std::size_t size>
 Correction_History_Indices Correction_History_Tables<size>::get_lemire_indices(const Zobrist_Hash& hash) const
 {
-    Correction_History_Hashes hashes = hash.get_corr_hist_hashes();
+    const Correction_History_Hashes hashes = hash.get_corr_hist_hashes();
 
     return 
     {
