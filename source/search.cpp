@@ -15,6 +15,7 @@ void Search_Engine::new_game()
     m_transposition_table.get_statistics().print();
     m_transposition_table.clear_statistics();
 #endif
+    Move_Ordering::clear_all_history_heuristics();
     m_transposition_table.clear();
     m_correction_history.clear();
 }
@@ -198,6 +199,10 @@ Search_Engine::negamax(Chess_Board&              position,
     bool is_first_move = true;
     for (const Chess_Move& move : moves)
     {
+        // Butterfly history heuristic - the number of trials (frequency) of
+        // quiet moves are tracked for purposes of dynamic move ordering.
+        mo.update_butterfly_move_history(move);
+
         // Static Exchange Evaluation Pruning (Captures Only)
         if (move.is_capture)
         {

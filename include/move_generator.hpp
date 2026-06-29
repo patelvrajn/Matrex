@@ -987,21 +987,12 @@ inline void Move_Generator::generate_minor_and_major_piece_moves(
 
             if constexpr (gen_type == MOVE_GENERATION_TYPE::TACTICAL)
             {
-                if (m_chess_board.get_color_occupancies(opposing_side)
-                        .get_board()
-                    & destination_square.get_mask())
-                {
-                    output.append(move);
-                }
+                if (move.is_capture) { output.append(move); }
             }
 
             if constexpr (gen_type == MOVE_GENERATION_TYPE::QUIET)
             {
-                if ((~(both_color_occupancies)).get_board()
-                    & destination_square.get_mask())
-                {
-                    output.append(move);
-                }
+                if (!move.is_capture) { output.append(move); }
             }
 
             if constexpr (gen_type == MOVE_GENERATION_TYPE::ALL)
@@ -1060,20 +1051,12 @@ Move_Generator::generate_king_moves(Move_Generation_List&  output,
 
         if constexpr (gen_type == MOVE_GENERATION_TYPE::TACTICAL)
         {
-            if (m_chess_board.get_color_occupancies(opposing_side).get_board()
-                & destination_square.get_mask())
-            {
-                output.append(move);
-            }
+            if (move.is_capture) { output.append(move); }
         }
 
         if constexpr (gen_type == MOVE_GENERATION_TYPE::QUIET)
         {
-            if ((~(both_color_occupancies)).get_board()
-                & destination_square.get_mask())
-            {
-                output.append(move);
-            }
+            if (!move.is_capture) { output.append(move); }
         }
 
         if constexpr (gen_type == MOVE_GENERATION_TYPE::ALL)
