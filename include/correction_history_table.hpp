@@ -102,7 +102,7 @@ void Correction_History_Tables<size>::update(const Chess_Board& position,
                                              Score              search_score,
                                              Score static_evaluation)
 {
-    // Calculate correction for the position based on the difference between the 
+    // Calculate correction for the position based on the difference between the
     // search score and the static evaluation scaled by depth and a scale factor
     // (heuristic).
     const Matrex_FP_Int difference =
@@ -152,8 +152,8 @@ Score Correction_History_Tables<size>::get_correction(
     const Correction_History_Indices indices =
         get_lemire_indices(position.get_zobrist_hash());
 
-    // Grab the correction history entries for this position which are the 
-    // "substantially important" piece placement features of the position. 
+    // Grab the correction history entries for this position which are the
+    // "substantially important" piece placement features of the position.
     const auto pawns_entry = m_tables[side_to_move]
                                  .pawns_table[indices.pawns_index]
                                  .to_fixed_point();

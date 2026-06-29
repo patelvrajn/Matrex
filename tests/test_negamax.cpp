@@ -185,10 +185,13 @@ TEST(negamax, DISABLED_debug)
         opposing_side_moves_list,
         opposing_side_matrix);
 
+    constexpr std::size_t TEST_CORR_HIST_TABLE_SIZE = 16384;
+    Correction_History_Tables<TEST_CORR_HIST_TABLE_SIZE> corr_hist_table;
+
     Evaluator   e(TUNED_EVALUATION_WEIGHTS,
                 cb,
                 moving_side_matrix,
                 opposing_side_matrix);
-    const Score evaluation = e.evaluate();
+    const Score evaluation = e.evaluate(corr_hist_table);
     std::cout << "Evaluation: " << evaluation.to_int() << std::endl;
 }
