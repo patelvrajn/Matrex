@@ -5,7 +5,7 @@
 #include "score.hpp"
 
 constexpr double CORR_HIST_FRACTIONAL_UPDATE = 0.15;
-constexpr double CORR_HIST_EMA_DEPTH_FACTOR  = (1.0 / 8.0);
+constexpr double CORR_HIST_SCALE             = (1.0 / 8.0);
 
 constexpr Matrex_FP_Int CORR_HIST_MIN_CORRECTION =
     Matrex_FP_Int::from_integer(-256);
@@ -58,7 +58,7 @@ class Correction_History_Tables
     void clear();
 
     void update(const Chess_Board& position,
-                uint32_t           depth_squared,
+                uint16_t           depth,
                 Score              search_score,
                 Score              static_evaluation);
 
@@ -98,20 +98,20 @@ void Correction_History_Tables<size>::clear()
 
 template <std::size_t size>
 void Correction_History_Tables<size>::update(const Chess_Board& position,
-                                             uint32_t           depth,
+                                             uint16_t           depth,
                                              Score              search_score,
                                              Score static_evaluation)
 {
-    // Calculate correction for the difference between the search score and the
-    // static evaluation scaled by depth.
+    // Calculate correction for the position based on the difference between the 
+    // search score and the static evaluation scaled by depth and a scale factor
+    // (heuristic).
     const Matrex_FP_Int difference =
         (search_score - static_evaluation).to_fixed_point();
-    const double depth_multiplier =
-        static_cast<double>(depth) * CORR_HIST_EMA_DEPTH_FACTOR;
-    const Matrex_FP_Int correction =
-        Matrex_FP_Int::adjustable_clamp((difference * depth_multiplier),
-                                        CORR_HIST_MIN_CORRECTION,
-                                        CORR_HIST_MAX_CORRECTION);
+    const double        depth_multiplier = static_cast<double>(depth);
+    const Matrex_FP_Int correction       = Matrex_FP_Int::adjustable_clamp(
+        (difference * depth_multiplier * CORR_HIST_SCALE),
+        CORR_HIST_MIN_CORRECTION,
+        CORR_HIST_MAX_CORRECTION);
 
     const PIECE_COLOR side_to_move = position.get_side_to_move();
 
@@ -131,7 +131,7 @@ void Correction_History_Tables<size>::update(const Chess_Board& position,
         m_tables[side_to_move].material_table[indices.material_index];
 
     // Establish the lambda that will return the new correction based on an
-    // exponential moving average formula.
+    // additive correction.
     const auto update_entry = [&](Score& entry)
     { entry += Score(correction * CORR_HIST_FRACTIONAL_UPDATE); };
 
@@ -152,7 +152,8 @@ Score Correction_History_Tables<size>::get_correction(
     const Correction_History_Indices indices =
         get_lemire_indices(position.get_zobrist_hash());
 
-    // Grab the correction history entries for this position.
+    // Grab the correction history entries for this position which are the 
+    // "substantially important" piece placement features of the position. 
     const auto pawns_entry = m_tables[side_to_move]
                                  .pawns_table[indices.pawns_index]
                                  .to_fixed_point();

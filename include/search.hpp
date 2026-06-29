@@ -135,6 +135,12 @@ class Search_Engine
                                          const uint16_t depth,
                                          const Transposition_Table_Entry& entry,
                                          const Score                      eval);
+
+    inline bool should_update_correction_history(Chess_Move best_move,
+                                                 Score      best_score,
+                                                 Score      static_evaluation,
+                                                 Score_Bound_Type score_bound,
+                                                 bool is_side_to_move_in_check);
 };
 
 inline Score Search_Engine::get_mate_score(const Move_Ordering& mo,
@@ -203,4 +209,20 @@ inline bool Search_Engine::should_use_transposition_table_score(
                 && entry.score >= eval)
             || (entry.score_bound == Score_Bound_Type::UPPER_BOUND
                 && entry.score <= eval));
+}
+
+inline bool
+Search_Engine::should_update_correction_history(Chess_Move best_move,
+                                                Score      best_score,
+                                                Score      static_evaluation,
+                                                Score_Bound_Type score_bound,
+                                                bool is_side_to_move_in_check)
+{
+    return (best_move.is_quiet_move()
+            && ((score_bound == Score_Bound_Type::EXACT)
+                || ((score_bound == Score_Bound_Type::UPPER_BOUND)
+                    && (best_score < static_evaluation))
+                || ((score_bound == Score_Bound_Type::LOWER_BOUND)
+                    && (best_score > static_evaluation)))
+            && (!is_side_to_move_in_check));
 }

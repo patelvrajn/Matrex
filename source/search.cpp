@@ -333,18 +333,12 @@ Search_Engine::negamax(Chess_Board&              position,
         is_first_move = false;
     }
 
-    // If the best move is a quiet move (quiet position) and the static
-    // evaluation is not bounded by the search score if it is a lower or upper
-    // bound OR if the search score is an exact score, we want to update the
-    // correction history in order for future static evaluations to take into
-    // account this error.
-    if ((best_move.is_quiet_move())
-        && ((score_bound == Score_Bound_Type::EXACT)
-            || ((score_bound == Score_Bound_Type::UPPER_BOUND)
-                && (best_score < static_evaluation))
-            || ((score_bound == Score_Bound_Type::LOWER_BOUND)
-                && (best_score > static_evaluation)))
-        && (!is_side_to_move_in_check))
+    // Correction History Update.
+    if (should_update_correction_history(best_move,
+                                         best_score,
+                                         static_evaluation,
+                                         score_bound,
+                                         is_side_to_move_in_check))
     {
         m_correction_history.update(position,
                                     depth,
