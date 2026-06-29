@@ -653,10 +653,11 @@ class Evaluator
               const Moves_Bitboard_Matrix& moving_side_matrix,
               const Moves_Bitboard_Matrix& opposing_side_matrix);
 
-    T     evaluate_template_typed() const;
+    T evaluate_template_typed() const;
 
     template <std::size_t corr_hist_table_size>
-    Score evaluate(const Correction_History_Tables<corr_hist_table_size>& corr_hist_tables) const;
+    Score evaluate(const Correction_History_Tables<corr_hist_table_size>&
+                       corr_hist_tables) const;
 
     template <PIECE_COLOR moving_side>
     inline T material_score() const;
@@ -723,9 +724,13 @@ T Evaluator<T>::evaluate_template_typed() const
 
 template <typename T>
 template <std::size_t corr_hist_table_size>
-Score Evaluator<T>::evaluate(const Correction_History_Tables<corr_hist_table_size>& corr_hist_tables) const
+Score Evaluator<T>::evaluate(
+    const Correction_History_Tables<corr_hist_table_size>& corr_hist_tables)
+    const
 {
-    const Score corrected_evaluation = Score(evaluate_template_typed()) + corr_hist_tables.get_correction(m_chess_board);
+    const Score corrected_evaluation =
+        Score(evaluate_template_typed())
+        + corr_hist_tables.get_correction(m_chess_board);
     T clamped_evaluation =
         Matrex_FP_Int(std::clamp(corrected_evaluation.to_int(),
                                  FP_EVALUATION_MIN,
