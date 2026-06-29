@@ -16,6 +16,7 @@ void Search_Engine::new_game()
     m_transposition_table.clear_statistics();
 #endif
     m_transposition_table.clear();
+    m_correction_history.clear();
 }
 
 Search_Engine_Result
@@ -125,7 +126,9 @@ Search_Engine::negamax(Chess_Board&              position,
 
     Move_Ordering mo(position, transposition_table_entry.best_move);
     mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
-    Move_Generation_List& moves = mo.get_sorted_moves();
+    Move_Generation_List&  moves              = mo.get_sorted_moves();
+    Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
+    const bool is_side_to_move_in_check       = mo.is_side_to_move_in_check();
 
     // No legal moves available, return the appropriate mate or draw score.
     if (moves.get_max_index() == -1)
@@ -168,6 +171,24 @@ Search_Engine::negamax(Chess_Board&              position,
     // parent.
     if (m_timer_expired_during_search) { return {moves[0], beta}; }
 
+    // Generate moves matrix for the opposing side for evaluation purposes.
+    const PIECE_COLOR opposing_side =
+        (PIECE_COLOR) ((~position.get_side_to_move()) & 0x1);
+    Move_Generation_List  not_used_moves_list;
+    Moves_Bitboard_Matrix opposing_side_matrix;
+    Move_Generator        mg(position);
+    mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,
+                                                     not_used_moves_list,
+                                                     opposing_side_matrix);
+
+    const Evaluator e(TUNED_EVALUATION_WEIGHTS,
+                      position,
+                      moving_side_matrix,
+                      opposing_side_matrix);
+
+    // Static evaluation for correction history.
+    const Score static_evaluation = e.evaluate(m_correction_history);
+
     Principal_Variation_List child_principal_variation;
     Chess_Move               best_move  = Chess_Move();
     Score                    best_score = Score(FP_NEGATIVE_INFINITY);
@@ -203,7 +224,7 @@ Search_Engine::negamax(Chess_Board&              position,
 
         if (is_first_move)
         {
-            // Assume our move ordering puts the best move as the first move. 
+            // Assume our move ordering puts the best move as the first move.
             // This also avoids a null move being the best move.
             best_move = move;
 
@@ -310,6 +331,19 @@ Search_Engine::negamax(Chess_Board&              position,
         }
 
         is_first_move = false;
+    }
+
+    // Correction History Update.
+    if (should_update_correction_history(best_move,
+                                         best_score,
+                                         static_evaluation,
+                                         score_bound,
+                                         is_side_to_move_in_check))
+    {
+        m_correction_history.update(position,
+                                    depth,
+                                    best_score,
+                                    static_evaluation);
     }
 
     // Cache the position's best move and evaluation in the transposition table
@@ -431,7 +465,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
                       moving_side_matrix,
                       opposing_side_matrix);
 
-    Score stand_pat = e.evaluate();
+    Score stand_pat = e.evaluate(m_correction_history);
 
     // Update stand pat evaluation based on a transposition table hit which
     // would most likely be based on a deeper search.

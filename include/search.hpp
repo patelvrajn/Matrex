@@ -10,6 +10,7 @@
 #include "score.hpp"
 #include "timer.hpp"
 #include "transposition_table.hpp"
+#include "correction_history_table.hpp"
 
 // 5898.5 is the theoritical maximum number of moves (2-ply) in a chess game.
 constexpr uint16_t MAX_SEARCH_DEPTH = (5899 * NUM_OF_PLAYERS);
@@ -17,6 +18,8 @@ constexpr uint16_t MAX_SEARCH_DEPTH = (5899 * NUM_OF_PLAYERS);
 constexpr uint16_t QUIESCENCE_SEARCH_DEPTH = 0;
 
 constexpr Matrex_FP_Int PV_WINDOW_SIZE = Matrex_FP_Int::from_integer(1);
+
+constexpr std::size_t CORRECTION_HISTORY_TABLE_SIZE = 16384;
 
 struct Time_Control
 {
@@ -98,6 +101,8 @@ class Search_Engine
     uint16_t                 m_current_search_depth;
     Principal_Variation_List m_principal_variation;
     const Cuckoo_RM_Table    m_cuckoo_rm_table;
+    Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>
+        m_correction_history;
 
     Search_Engine_Result negamax(Chess_Board&              position,
                                  uint16_t                  depth,
@@ -130,6 +135,12 @@ class Search_Engine
                                          const uint16_t depth,
                                          const Transposition_Table_Entry& entry,
                                          const Score                      eval);
+
+    inline bool should_update_correction_history(Chess_Move best_move,
+                                                 Score      best_score,
+                                                 Score      static_evaluation,
+                                                 Score_Bound_Type score_bound,
+                                                 bool is_side_to_move_in_check);
 };
 
 inline Score Search_Engine::get_mate_score(const Move_Ordering& mo,
@@ -198,4 +209,20 @@ inline bool Search_Engine::should_use_transposition_table_score(
                 && entry.score >= eval)
             || (entry.score_bound == Score_Bound_Type::UPPER_BOUND
                 && entry.score <= eval));
+}
+
+inline bool
+Search_Engine::should_update_correction_history(Chess_Move best_move,
+                                                Score      best_score,
+                                                Score      static_evaluation,
+                                                Score_Bound_Type score_bound,
+                                                bool is_side_to_move_in_check)
+{
+    return (best_move.is_quiet_move()
+            && ((score_bound == Score_Bound_Type::EXACT)
+                || ((score_bound == Score_Bound_Type::UPPER_BOUND)
+                    && (best_score < static_evaluation))
+                || ((score_bound == Score_Bound_Type::LOWER_BOUND)
+                    && (best_score > static_evaluation)))
+            && (!is_side_to_move_in_check));
 }

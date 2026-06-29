@@ -243,6 +243,17 @@ class Fixed_Point_Integer
         return result;
     }
 
+    static constexpr Fixed_Point_Integer<F>
+    adjustable_clamp(Fixed_Point_Integer<F> value,
+                     Fixed_Point_Integer<F> minimum,
+                     Fixed_Point_Integer<F> maximum)
+    {
+        return Fixed_Point_Integer<F>::from_value(
+            std::clamp(value.get_value(),
+                       minimum.get_value(),
+                       maximum.get_value()));
+    }
+
     static constexpr Fixed_Point_Integer
     from_integer(Fixed_Point_Int_Storage_Type integer)
     {

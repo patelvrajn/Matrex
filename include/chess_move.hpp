@@ -128,6 +128,13 @@ struct Chess_Move
     {
         return (score <=> other.score);
     }
+
+    bool is_noisy_move() const
+    {
+        return (is_capture || is_en_passant || is_promotion);
+    }
+
+    bool is_quiet_move() const { return (!is_noisy_move()); }
 };
 
 static_assert(sizeof(Chess_Move) == 12,

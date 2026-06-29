@@ -182,19 +182,19 @@ class Transposition_Table
 
     void resize(const uint64_t size_in_mib);
 
-    FORCE_INLINE void prefetch(const Zobrist_Hash hash);
+    FORCE_INLINE void prefetch(const Zobrist_Hash& hash);
 
     bool read(const uint16_t             max_depth,
-              const Zobrist_Hash         hash,
+              const Zobrist_Hash&        hash,
               Transposition_Table_Entry& output);
 
     void write(const uint16_t                   max_depth,
-               const Zobrist_Hash               hash,
+               const Zobrist_Hash&              hash,
                const Transposition_Table_Entry& entry);
 
     void clear();
 
-    static uint16_t get_partial_zobrist(const Zobrist_Hash hash);
+    static uint16_t get_partial_zobrist(const Zobrist_Hash& hash);
 
     const Transposition_Table_Statistics& get_statistics() const;
     void                                  clear_statistics();
@@ -208,7 +208,7 @@ class Transposition_Table
     Transposition_Table_Statistics m_statistics;
 #endif
 
-    uint64_t get_lemire_index(const Zobrist_Hash hash) const;
+    uint64_t get_lemire_index(const Zobrist_Hash& hash) const;
 
     bool is_priority_entry(const uint16_t                   max_depth,
                            const Transposition_Table_Entry& entry) const;
@@ -222,7 +222,7 @@ class Transposition_Table
         const Transposition_Table_Entry& new_entry);
 };
 
-FORCE_INLINE void Transposition_Table::prefetch(const Zobrist_Hash hash)
+FORCE_INLINE void Transposition_Table::prefetch(const Zobrist_Hash& hash)
 {
     constexpr uint64_t SIZE_OF_CLUSTER = sizeof(Transposition_Table_Cluster);
     constexpr bool     IS_CLUSTER_SIZE_MULTIPLE_OF_CACHE_LINE_SIZE =

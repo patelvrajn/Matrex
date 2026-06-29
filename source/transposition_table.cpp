@@ -24,7 +24,7 @@ void Transposition_Table::resize(const uint64_t size_in_mib)
 
 // To convert the hash to an index, we use Lemire's method described here:
 // https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
-uint64_t Transposition_Table::get_lemire_index(const Zobrist_Hash hash) const
+uint64_t Transposition_Table::get_lemire_index(const Zobrist_Hash& hash) const
 {
     __uint128_t product = (static_cast<__uint128_t>(hash.get_hash_value())
                            * static_cast<__uint128_t>(m_size));
@@ -78,7 +78,7 @@ bool Transposition_Table::should_replace_matched_entry(
 }
 
 bool Transposition_Table::read(const uint16_t             max_depth,
-                               const Zobrist_Hash         hash,
+                               const Zobrist_Hash&        hash,
                                Transposition_Table_Entry& output)
 {
     uint64_t index = get_lemire_index(hash);
@@ -163,7 +163,7 @@ bool Transposition_Table::read(const uint16_t             max_depth,
 }
 
 void Transposition_Table::write(const uint16_t                   max_depth,
-                                const Zobrist_Hash               hash,
+                                const Zobrist_Hash&              hash,
                                 const Transposition_Table_Entry& entry)
 {
     uint64_t index = get_lemire_index(hash);
@@ -241,7 +241,7 @@ void Transposition_Table::clear()
 }
 
 // We only store the lower 16 bits of the hash to save memory.
-uint16_t Transposition_Table::get_partial_zobrist(const Zobrist_Hash hash)
+uint16_t Transposition_Table::get_partial_zobrist(const Zobrist_Hash& hash)
 {
     return static_cast<uint16_t>(hash.get_hash_value() & PARTIAL_ZOBRIST_MASK);
 }

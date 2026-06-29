@@ -22,6 +22,15 @@ struct Zobrist_Hash_Keys
     Zobrist_Hash_Storage_Type                 black_to_move;
 };
 
+struct Correction_History_Hashes
+{
+    Zobrist_Hash_Storage_Type pawns_key       = 0;
+    Zobrist_Hash_Storage_Type diagonals_key   = 0;
+    Zobrist_Hash_Storage_Type orthogonals_key = 0;
+    Zobrist_Hash_Storage_Type knights_key     = 0;
+    Zobrist_Hash_Storage_Type material_key    = 0;
+};
+
 constexpr Zobrist_Hash_Keys initialize_zobrist_hash_keys()
 {
     Zobrist_Hash_Keys                     keys;
@@ -64,7 +73,8 @@ class Zobrist_Hash
 
     explicit constexpr Zobrist_Hash(Zobrist_Hash_Storage_Type h);
 
-    constexpr Zobrist_Hash_Storage_Type get_hash_value() const;
+    constexpr Zobrist_Hash_Storage_Type        get_hash_value() const;
+    constexpr const Correction_History_Hashes& get_corr_hist_hashes() const;
 
     constexpr void update_piece(const PIECE_COLOR color,
                                 const PIECES      piece,
@@ -82,6 +92,8 @@ class Zobrist_Hash
   private:
 
     Zobrist_Hash_Storage_Type m_hash_value;
+
+    Correction_History_Hashes m_corr_hist_hashes;
 
     inline static constexpr Zobrist_Hash_Keys m_hash_keys =
         initialize_zobrist_hash_keys();
@@ -111,7 +123,10 @@ Zobrist_Hash::operator^=(const Zobrist_Hash& other)
     return (*this);
 }
 
-constexpr Zobrist_Hash::Zobrist_Hash() : m_hash_value(0) {}
+constexpr Zobrist_Hash::Zobrist_Hash() :
+    m_hash_value(0), m_corr_hist_hashes(Correction_History_Hashes())
+{
+}
 
 constexpr Zobrist_Hash::Zobrist_Hash(Zobrist_Hash_Storage_Type h) :
     m_hash_value(h)
@@ -123,10 +138,43 @@ constexpr Zobrist_Hash_Storage_Type Zobrist_Hash::get_hash_value() const
     return m_hash_value;
 };
 
+constexpr const Correction_History_Hashes&
+Zobrist_Hash::get_corr_hist_hashes() const
+{
+    return m_corr_hist_hashes;
+}
+
 constexpr void Zobrist_Hash::update_piece(const PIECE_COLOR color,
                                           const PIECES      piece,
                                           const Square      square)
 {
+    if (piece == PIECES::PAWN)
+    {
+        m_corr_hist_hashes.pawns_key ^=
+            m_hash_keys.pieces[color][piece][square.get_index()];
+    }
+
+    if ((piece == PIECES::BISHOP) || (piece == PIECES::QUEEN))
+    {
+        m_corr_hist_hashes.diagonals_key ^=
+            m_hash_keys.pieces[color][piece][square.get_index()];
+    }
+
+    if ((piece == PIECES::ROOK) || (piece == PIECES::QUEEN))
+    {
+        m_corr_hist_hashes.orthogonals_key ^=
+            m_hash_keys.pieces[color][piece][square.get_index()];
+    }
+
+    if (piece == PIECES::KNIGHT)
+    {
+        m_corr_hist_hashes.knights_key ^=
+            m_hash_keys.pieces[color][piece][square.get_index()];
+    }
+
+    m_corr_hist_hashes.material_key ^=
+        m_hash_keys.pieces[color][piece][square.get_index()];
+
     m_hash_value ^= m_hash_keys.pieces[color][piece][square.get_index()];
 }
 
