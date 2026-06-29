@@ -4,11 +4,17 @@
 #include "fixed_point.hpp"
 #include "score.hpp"
 
-constexpr double CORR_HIST_EMA_SMOOTHING_FACTOR = 0.3;
-constexpr double CORR_HIST_EMA_DEPTH_FACTOR = (1.0 / 16.0);
-constexpr Matrex_FP_Int CORR_HIST_WEIGHT = Matrex_FP_Int::from_double(0.2);
+constexpr double CORR_HIST_FRACTIONAL_UPDATE = 0.15;
+constexpr double CORR_HIST_EMA_DEPTH_FACTOR = (1.0 / 8.0);
+
 constexpr Matrex_FP_Int CORR_HIST_MIN_CORRECTION = Matrex_FP_Int::from_integer(-256);
 constexpr Matrex_FP_Int CORR_HIST_MAX_CORRECTION = Matrex_FP_Int::from_integer(256);
+
+constexpr Matrex_FP_Int CORR_HIST_PAWNS_WEIGHT = Matrex_FP_Int::from_double(0.35);
+constexpr Matrex_FP_Int CORR_HIST_DIAGONALS_WEIGHT = Matrex_FP_Int::from_double(0.15);
+constexpr Matrex_FP_Int CORR_HIST_ORTHOGONALS_WEIGHT = Matrex_FP_Int::from_double(0.15);
+constexpr Matrex_FP_Int CORR_HIST_KNIGHTS_WEIGHT = Matrex_FP_Int::from_double(0.15);
+constexpr Matrex_FP_Int CORR_HIST_MATERIALS_WEIGHT = Matrex_FP_Int::from_double(0.2);
 
 template <std::size_t size>
 struct Correction_History_Tables_Per_Side
@@ -79,12 +85,12 @@ void Correction_History_Tables<size>::clear()
 }
 
 template <std::size_t size>
-void Correction_History_Tables<size>::update(const Chess_Board& position, uint32_t depth_squared, Score search_score, Score static_evaluation)
+void Correction_History_Tables<size>::update(const Chess_Board& position, uint32_t depth, Score search_score, Score static_evaluation)
 {
     // Calculate correction for the difference between the search score and the
     // static evaluation scaled by depth.
     const Matrex_FP_Int difference = (search_score - static_evaluation).to_fixed_point();
-    const double depth_multiplier = static_cast<double>(depth_squared) * CORR_HIST_EMA_DEPTH_FACTOR;
+    const double depth_multiplier = static_cast<double>(depth) * CORR_HIST_EMA_DEPTH_FACTOR;
     const Matrex_FP_Int correction = Matrex_FP_Int::adjustable_clamp((difference * depth_multiplier), CORR_HIST_MIN_CORRECTION, CORR_HIST_MAX_CORRECTION);
 
     const PIECE_COLOR side_to_move = position.get_side_to_move();
@@ -100,18 +106,17 @@ void Correction_History_Tables<size>::update(const Chess_Board& position, uint32
 
     // Establish the lambda that will return the new correction based on an 
     // exponential moving average formula.
-    const auto update_entry = [&](Score entry, Matrex_FP_Int update) 
+    const auto update_entry = [&](Score& entry) 
     {
-        const Matrex_FP_Int updated_correction = (entry.to_fixed_point() * (1.0 - CORR_HIST_EMA_SMOOTHING_FACTOR)) + (update * CORR_HIST_EMA_SMOOTHING_FACTOR);
-        return Score(updated_correction);
+        entry += Score(correction * CORR_HIST_FRACTIONAL_UPDATE);
     };
 
     // Update correction history entries.
-    pawns_entry = update_entry(pawns_entry, correction);
-    diagonals_entry = update_entry(diagonals_entry, correction);
-    orthogonals_entry = update_entry(orthogonals_entry, correction);
-    knights_entry = update_entry(knights_entry, correction);
-    material_entry = update_entry(material_entry, correction);
+    update_entry(pawns_entry);
+    update_entry(diagonals_entry);
+    update_entry(orthogonals_entry);
+    update_entry(knights_entry);
+    update_entry(material_entry);
 }
 
 template <std::size_t size>
@@ -128,9 +133,9 @@ Score Correction_History_Tables<size>::get_correction(const Chess_Board& positio
     const auto knights_entry = m_tables[side_to_move].knights_table[indices.knights_index].to_fixed_point();
     const auto material_entry = m_tables[side_to_move].material_table[indices.material_index].to_fixed_point();
 
-    const auto correction = (pawns_entry * CORR_HIST_WEIGHT) + (diagonals_entry * CORR_HIST_WEIGHT)
-    + (orthogonals_entry * CORR_HIST_WEIGHT) + (knights_entry * CORR_HIST_WEIGHT)
-    + (material_entry * CORR_HIST_WEIGHT);
+    const auto correction = (pawns_entry * CORR_HIST_PAWNS_WEIGHT) + (diagonals_entry * CORR_HIST_DIAGONALS_WEIGHT)
+    + (orthogonals_entry * CORR_HIST_ORTHOGONALS_WEIGHT) + (knights_entry * CORR_HIST_KNIGHTS_WEIGHT)
+    + (material_entry * CORR_HIST_MATERIALS_WEIGHT);
 
     return Score(correction);
 }

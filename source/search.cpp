@@ -343,7 +343,7 @@ Search_Engine::negamax(Chess_Board&              position,
     || ((score_bound == Score_Bound_Type::LOWER_BOUND) && (best_score > static_evaluation)))
     && (!is_side_to_move_in_check))
     {
-        m_correction_history.update(position, depth_squared, best_score, static_evaluation);
+        m_correction_history.update(position, depth, best_score, static_evaluation);
     }
 
     // Cache the position's best move and evaluation in the transposition table
