@@ -232,6 +232,57 @@ struct Extract_Template_Parameters<In<Ts...>, Out>
 };
 
 // =============================================================================
+// Optional Reference
+//
+// A container that optionally refers to an existing object without owning it.
+// =============================================================================
+template <typename T>
+class Optional_Reference
+{
+  public:
+
+    Optional_Reference();
+
+    Optional_Reference(T& ref) : m_optional_reference(std::ref(ref)) {}
+
+    // Copy semantics.
+    Optional_Reference(const Optional_Reference&)            = default;
+    Optional_Reference& operator=(const Optional_Reference&) = default;
+
+    // Move semantics.
+    Optional_Reference(Optional_Reference&&)            = default;
+    Optional_Reference& operator=(Optional_Reference&&) = default;
+
+    bool has_ref() const { return m_optional_reference.has_value(); }
+
+    explicit operator bool() const { return has_ref(); }
+
+    void unbound_ref() { m_optional_reference.reset(); }
+
+    T& get_ref()
+    {
+        MATREX_ASSERT(has_ref(),
+                      "Optional Reference Assertion FAILED; Tried to access a "
+                      "null reference.");
+
+        return m_optional_reference.value().get();
+    }
+
+    const T& get_ref() const
+    {
+        MATREX_ASSERT(has_ref(),
+                      "Optional Reference Assertion FAILED; Tried to access a "
+                      "null reference.");
+
+        return m_optional_reference.value().get();
+    }
+
+  private:
+
+    std::optional<std::reference_wrapper<T>> m_optional_reference;
+};
+
+// =============================================================================
 // Parameter Pack Container
 //
 // Description: A class used for treating parameter packs passed into functions
