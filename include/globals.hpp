@@ -862,6 +862,7 @@ class Partially_Filled_Array
     const T* end() const;
 
     int64_t get_max_index() const;
+    int64_t truncate(int64_t max_index);
 
     T& operator[](std::size_t index);
 
@@ -941,6 +942,13 @@ const T* Partially_Filled_Array<T, capacity>::end() const
 template <typename T, std::size_t capacity>
 int64_t Partially_Filled_Array<T, capacity>::get_max_index() const
 {
+    return m_max_index;
+}
+
+template <typename T, std::size_t capacity>
+int64_t Partially_Filled_Array<T, capacity>::truncate(int64_t max_index)
+{
+    m_max_index = std::min(m_max_index, max_index);
     return m_max_index;
 }
 

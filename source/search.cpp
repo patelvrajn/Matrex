@@ -223,6 +223,7 @@ Search_Engine::negamax(Chess_Board&              position,
         // to the stack indexed by ply. A history table is fetched from the
         // continuation history table which is indexed by the "previous move"
         // (this move is the previous move for it's subtree).
+        const auto cont_hist_max_idx = cont_hist_stack.stack.get_max_index();
         cont_hist_stack.bind_to_history_table(m_cont_hist_table[move], ply);
 
         // Explore the child move's subtree for it's evaluation. Negate the
@@ -282,6 +283,12 @@ Search_Engine::negamax(Chess_Board&              position,
 
         const Score child_score = -child_result.second;
         position.undo_move(undo_move);
+
+        // Truncate the continuation history stack to the previous maximum index 
+        // because the child's subtree may have added new references to history 
+        // tables and we don't want those to be considered for the next 
+        // sibling's subtree.
+        cont_hist_stack.stack.truncate(cont_hist_max_idx);
 
         bool is_child_score_better_than_alpha = child_score > alpha;
 
