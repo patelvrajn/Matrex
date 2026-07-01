@@ -111,12 +111,14 @@ class Search_Engine
     const Cuckoo_RM_Table    m_cuckoo_rm_table;
     Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>
                            m_correction_history;
+
+    Continuation_History_Table m_cont_hist_table;
     Search_Cont_Hist_Stack m_cont_hist_stack;
 
     Search_Engine_Result negamax(Chess_Board&              position,
                                  uint16_t                  depth,
                                  Principal_Variation_List& principal_variation,
-                                 Search_Cont_Hist_Stack    cont_hist_stack,
+                                 Search_Cont_Hist_Stack&   cont_hist_stack,
                                  uint16_t                  ply = 0,
                                  Score alpha = Score(FP_NEGATIVE_INFINITY),
                                  Score beta  = Score(FP_POSITIVE_INFINITY));

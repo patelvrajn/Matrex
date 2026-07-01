@@ -95,7 +95,8 @@ void History_Table::gravity_update(const Chess_Move&          move,
     // History gravity is simply the closer you are to the max history value,
     // the more the update is saturated.
     History_Score_Storage_Type gravitized_bonus =
-        (clamped_bonus * (1 - (std::abs(selected_entry) / MAX_HISTORY)));
+        static_cast<History_Score_Storage_Type>(
+            static_cast<double>(clamped_bonus) * (1.0 - (static_cast<double>(std::abs(selected_entry)) / static_cast<double>(MAX_HISTORY))));
 
     // Select whether the bonus is applied as a penalty or not at compile-time.
     if constexpr (is_malus) { selected_entry -= gravitized_bonus; }

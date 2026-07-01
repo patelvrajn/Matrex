@@ -39,7 +39,7 @@ Search_Engine_Result
 Search_Engine::negamax(Chess_Board&              position,
                        uint16_t                  depth,
                        Principal_Variation_List& principal_variation,
-                       Search_Cont_Hist_Stack    cont_hist_stack,
+                       Search_Cont_Hist_Stack&   cont_hist_stack,
                        uint16_t                  ply,
                        Score                     alpha,
                        Score                     beta)
@@ -221,7 +221,7 @@ Search_Engine::negamax(Chess_Board&              position,
         // to the stack indexed by ply. A history table is fetched from the
         // continuation history table which is indexed by the "previous move"
         // (this move is the previous move for it's subtree).
-        cont_hist_stack.bind_to_history_table(mo.cont_hist_table[move], ply);
+        cont_hist_stack.bind_to_history_table(m_cont_hist_table[move], ply);
 
         // Explore the child move's subtree for it's evaluation. Negate the
         // result to compare it's score to the parent's scores (alpha,
@@ -694,7 +694,7 @@ void Search_Engine::update_continuation_history(
             : static_cast<History_Score_Storage_Type>(depth_squared);
 
     // Give a bonus to this move and proceeding move pairs.
-    for (uint16_t i = (ply - 1); i <= (ply - lookback); i--)
+    for (uint16_t i = (ply - 1); i >= (ply - lookback); i--)
     {
         cont_hist_stack.stack[i].get_ref().gravity_update<false>(move, bonus);
     }

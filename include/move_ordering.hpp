@@ -30,8 +30,6 @@ class Move_Ordering
     Moves_Bitboard_Matrix& get_moves_matrix();
     bool                   is_side_to_move_in_check() const;
 
-    Continuation_History_Table cont_hist_table;
-
     template <MOVE_GENERATION_TYPE move_gen_type>
     void generate_moves();
 
