@@ -232,6 +232,57 @@ struct Extract_Template_Parameters<In<Ts...>, Out>
 };
 
 // =============================================================================
+// Optional Reference
+//
+// A container that optionally refers to an existing object without owning it.
+// =============================================================================
+template <typename T>
+class Optional_Reference
+{
+  public:
+
+    Optional_Reference() = default;
+
+    Optional_Reference(T& ref) : m_optional_reference(std::ref(ref)) {}
+
+    // Copy semantics.
+    Optional_Reference(const Optional_Reference&)            = default;
+    Optional_Reference& operator=(const Optional_Reference&) = default;
+
+    // Move semantics.
+    Optional_Reference(Optional_Reference&&)            = default;
+    Optional_Reference& operator=(Optional_Reference&&) = default;
+
+    bool has_ref() const { return m_optional_reference.has_value(); }
+
+    explicit operator bool() const { return has_ref(); }
+
+    void unbound_ref() { m_optional_reference.reset(); }
+
+    T& get_ref()
+    {
+        MATREX_ASSERT(has_ref(),
+                      "Optional Reference Assertion FAILED; Tried to access a "
+                      "null reference.");
+
+        return m_optional_reference.value().get();
+    }
+
+    const T& get_ref() const
+    {
+        MATREX_ASSERT(has_ref(),
+                      "Optional Reference Assertion FAILED; Tried to access a "
+                      "null reference.");
+
+        return m_optional_reference.value().get();
+    }
+
+  private:
+
+    std::optional<std::reference_wrapper<T>> m_optional_reference;
+};
+
+// =============================================================================
 // Parameter Pack Container
 //
 // Description: A class used for treating parameter packs passed into functions
@@ -811,6 +862,7 @@ class Partially_Filled_Array
     const T* end() const;
 
     int64_t get_max_index() const;
+    int64_t truncate(int64_t max_index);
 
     T& operator[](std::size_t index);
 
@@ -894,8 +946,21 @@ int64_t Partially_Filled_Array<T, capacity>::get_max_index() const
 }
 
 template <typename T, std::size_t capacity>
+int64_t Partially_Filled_Array<T, capacity>::truncate(int64_t max_index)
+{
+    m_max_index = std::min(m_max_index, max_index);
+    return m_max_index;
+}
+
+template <typename T, std::size_t capacity>
 T& Partially_Filled_Array<T, capacity>::operator[](std::size_t index)
 {
+    MATREX_ASSERT(index < capacity,
+                  "Partially_Filled_Array Assertion FAILURE: operator[] "
+                  "Indexed outside of capacity. Index: {}, Capacity: {}",
+                  index,
+                  capacity);
+
     int64_t index_i64 = static_cast<int64_t>(index);
 
     // Caution: This allows writes above the max index but below the capacity.
