@@ -110,10 +110,10 @@ class Search_Engine
     Principal_Variation_List m_principal_variation;
     const Cuckoo_RM_Table    m_cuckoo_rm_table;
     Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>
-                           m_correction_history;
+        m_correction_history;
 
     Continuation_History_Table m_cont_hist_table;
-    Search_Cont_Hist_Stack m_cont_hist_stack;
+    Search_Cont_Hist_Stack     m_cont_hist_stack;
 
     Search_Engine_Result negamax(Chess_Board&              position,
                                  uint16_t                  depth,

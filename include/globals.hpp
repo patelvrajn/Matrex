@@ -947,6 +947,12 @@ int64_t Partially_Filled_Array<T, capacity>::get_max_index() const
 template <typename T, std::size_t capacity>
 T& Partially_Filled_Array<T, capacity>::operator[](std::size_t index)
 {
+    MATREX_ASSERT(index < capacity,
+                  "Partially_Filled_Array Assertion FAILURE: operator[] "
+                  "Indexed outside of capacity. Index: {}, Capacity: {}",
+                  index,
+                  capacity);
+
     int64_t index_i64 = static_cast<int64_t>(index);
 
     // Caution: This allows writes above the max index but below the capacity.

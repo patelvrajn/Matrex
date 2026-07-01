@@ -17,6 +17,8 @@ void Search_Engine::new_game()
 #endif
     m_transposition_table.clear();
     m_correction_history.clear();
+    m_cont_hist_table.clear();
+    m_cont_hist_stack.stack.clear();
 }
 
 Search_Engine_Result
@@ -681,7 +683,7 @@ void Search_Engine::update_continuation_history(
                                  (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
         material_weights = {2, 3, 4, 5, 9};
 
-    const std::size_t lookback = std::min(cont_hist_stack.stack.size(),
+    const std::size_t lookback = std::min(static_cast<std::size_t>(ply),
                                           CONTINUATION_HISTORY_LOOKBACK_DEPTH);
 
     if (lookback == 0) { return; }
@@ -693,9 +695,16 @@ void Search_Engine::update_continuation_history(
                   material_weights[move.captured_piece] * depth_squared)
             : static_cast<History_Score_Storage_Type>(depth_squared);
 
+    const int64_t start = static_cast<int64_t>(ply) - 1;
+    const int64_t end =
+        static_cast<int64_t>(ply) - static_cast<int64_t>(lookback);
+
+    if (start < 0) { return; }
+
     // Give a bonus to this move and proceeding move pairs.
-    for (uint16_t i = (ply - 1); i >= (ply - lookback); i--)
+    for (int64_t i = start; i >= end; i--)
     {
-        cont_hist_stack.stack[i].get_ref().gravity_update<false>(move, bonus);
+        auto& entry = cont_hist_stack.stack[static_cast<std::size_t>(i)];
+        entry.get_ref().gravity_update<false>(move, bonus);
     }
 }

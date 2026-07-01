@@ -75,9 +75,8 @@ class Static_Exchange_Evaluator
 
     // These are general material weights, we don't use the evaluation weights
     // because they require computations too slow for SEE purposes.
-    static constexpr multi_array<Integral_Type,
-                                 (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
-        m_material_weights = {10, 30, 35, 50, 90};
+    static constexpr multi_array<Integral_Type, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+        m_material_weights = {10, 30, 35, 50, 90, 150};
 
     static constexpr multi_array<Integral_Type, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
         m_moving_piece_penalties = {1, 3, 4, 5, 9, 15};
@@ -323,6 +322,13 @@ Static_Exchange_Evaluator<Integral_Type>::find_hidden_attacker(
         attacker_ray.travel_occupied_ray<START_FROM_START_SQUARE>(
             FIRST_OCCUPIED_INDEX,
             occupancies);
+
+    // If there is no first occupied square, return an empty Placed_Piece
+    // because there is no hidden attacker on the ray.
+    if (first_occupied_square.get_index() >= NUM_OF_SQUARES_ON_CHESS_BOARD)
+    {
+        return Placed_Piece();
+    }
 
     // A bishop attacks the target square.
     if (m_piece_bitboards[side][PIECES::BISHOP].get_square(
