@@ -39,6 +39,7 @@ Search_Engine_Result
 Search_Engine::negamax(Chess_Board&              position,
                        uint16_t                  depth,
                        Principal_Variation_List& principal_variation,
+                       Search_Cont_Hist_Stack    cont_hist_stack,
                        uint16_t                  ply,
                        Score                     alpha,
                        Score                     beta)
@@ -124,7 +125,9 @@ Search_Engine::negamax(Chess_Board&              position,
     // otherwise.
     Score_Bound_Type score_bound = Score_Bound_Type::UPPER_BOUND;
 
-    Move_Ordering mo(position, transposition_table_entry.best_move);
+    Move_Ordering mo(position,
+                     transposition_table_entry.best_move,
+                     cont_hist_stack);
     mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
     Move_Generation_List&  moves              = mo.get_sorted_moves();
     Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
@@ -214,6 +217,12 @@ Search_Engine::negamax(Chess_Board&              position,
         // by moves from the previous sibling.
         child_principal_variation.clear();
 
+        // Bind a reference to the history table for this child move's subtree
+        // to the stack indexed by ply. A history table is fetched from the
+        // continuation history table which is indexed by the "previous move"
+        // (this move is the previous move for it's subtree).
+        cont_hist_stack.bind_to_history_table(mo.cont_hist_table[move], ply);
+
         // Explore the child move's subtree for it's evaluation. Negate the
         // result to compare it's score to the parent's scores (alpha,
         // evaluation, etc).
@@ -233,6 +242,7 @@ Search_Engine::negamax(Chess_Board&              position,
             child_result = negamax(position,
                                    (depth - 1),
                                    child_principal_variation,
+                                   cont_hist_stack,
                                    (ply + 1),
                                    -beta,
                                    -alpha);
@@ -244,6 +254,7 @@ Search_Engine::negamax(Chess_Board&              position,
             child_result = negamax(position,
                                    (depth - 1),
                                    child_principal_variation,
+                                   cont_hist_stack,
                                    (ply + 1),
                                    (-alpha - Score(PV_WINDOW_SIZE)),
                                    -alpha);
@@ -260,6 +271,7 @@ Search_Engine::negamax(Chess_Board&              position,
                 child_result = negamax(position,
                                        (depth - 1),
                                        child_principal_variation,
+                                       cont_hist_stack,
                                        (ply + 1),
                                        -beta,
                                        -alpha);
@@ -346,6 +358,16 @@ Search_Engine::negamax(Chess_Board&              position,
                                     static_evaluation);
     }
 
+    // If the best move caused a beta cutoff, then we update the continuation
+    // history.
+    if (score_bound == Score_Bound_Type::LOWER_BOUND)
+    {
+        update_continuation_history(cont_hist_stack,
+                                    best_move,
+                                    ply,
+                                    depth_squared);
+    }
+
     // Cache the position's best move and evaluation in the transposition table
     // regardless of time because principal variation search guarantees the next
     // move found is a better move.
@@ -413,8 +435,8 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     // Generate sorted tactical moves in the current position if not in
     // check, if in check, we need all moves because it is not guaranteed
     // that at least one tactical move is a check evasion move.
-    Move_Ordering mo(position, transposition_table_entry.best_move);
-    const bool    is_side_to_move_in_check = mo.is_side_to_move_in_check();
+    Move_Ordering<0> mo(position, transposition_table_entry.best_move);
+    const bool       is_side_to_move_in_check = mo.is_side_to_move_in_check();
     if (is_side_to_move_in_check)
     {
         mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
@@ -610,10 +632,12 @@ Search_Engine_Result Search_Engine::iterative_deepening()
     for (uint16_t current_depth = 1; current_depth < MAX_SEARCH_DEPTH;
          current_depth++)
     {
-        m_current_search_depth = current_depth;
-        Search_Engine_Result result =
-            negamax(m_chess_board, current_depth, m_principal_variation);
-        uint64_t current_time = m_timer.elapsed();
+        m_current_search_depth            = current_depth;
+        Search_Engine_Result result       = negamax(m_chess_board,
+                                              current_depth,
+                                              m_principal_variation,
+                                              m_cont_hist_stack);
+        uint64_t             current_time = m_timer.elapsed();
 
         UCI_Search_Information uci_search_info(m_current_search_depth,
                                                current_time,
@@ -643,4 +667,35 @@ const Transposition_Table_Statistics& Search_Engine::get_tt_statistics() const
     static const Transposition_Table_Statistics empty_stats {};
     return empty_stats;
 #endif
+}
+
+void Search_Engine::update_continuation_history(
+    Search_Cont_Hist_Stack& cont_hist_stack,
+    const Chess_Move&       move,
+    uint16_t                ply,
+    uint32_t                depth_squared)
+{
+    if (move.is_same_move(Chess_Move())) { return; }
+
+    static constexpr multi_array<History_Score_Storage_Type,
+                                 (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
+        material_weights = {2, 3, 4, 5, 9};
+
+    const std::size_t lookback = std::min(cont_hist_stack.stack.size(),
+                                          CONTINUATION_HISTORY_LOOKBACK_DEPTH);
+
+    if (lookback == 0) { return; }
+
+    // Heuristic for assigning a bonus to moves that cause beta cutoffs.
+    const History_Score_Storage_Type bonus =
+        (move.is_capture || move.is_en_passant)
+            ? static_cast<History_Score_Storage_Type>(
+                  material_weights[move.captured_piece] * depth_squared)
+            : static_cast<History_Score_Storage_Type>(depth_squared);
+
+    // Give a bonus to this move and proceeding move pairs.
+    for (uint16_t i = (ply - 1); i <= (ply - lookback); i--)
+    {
+        cont_hist_stack.stack[i].get_ref().gravity_update<false>(move, bonus);
+    }
 }

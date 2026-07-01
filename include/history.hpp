@@ -1,3 +1,5 @@
+#pragma once
+
 #include "chess_move.hpp"
 #include "globals.hpp"
 
@@ -14,6 +16,10 @@ constexpr History_Score_Storage_Type MAX_HISTORY =
 constexpr History_Score_Storage_Type MIN_HISTORY_BONUS =
     -1 * (MAX_HISTORY / 16);
 constexpr History_Score_Storage_Type MAX_HISTORY_BONUS = MAX_HISTORY / 16;
+
+// Controls placement of where in the move ordering moves causing beta cutoffs
+// are placed.
+constexpr History_Score_Storage_Type HISTORY_BETA_CUTOFF_MIN_SCORE = 100;
 
 class History_Table
 {
@@ -68,10 +74,7 @@ class Continuation_History_Stack
 
     void bind_to_history_table(History_Table& data, std::size_t index);
 
-  private:
-
-    Partially_Filled_Array<Optional_Reference<History_Table>, STACK_SIZE>
-        m_stack;
+    Partially_Filled_Array<Optional_Reference<History_Table>, STACK_SIZE> stack;
 };
 
 template <bool is_malus>
@@ -79,6 +82,11 @@ void History_Table::gravity_update(const Chess_Move&          move,
                                    History_Score_Storage_Type bonus)
 {
     auto& selected_entry = m_table[move.moving_piece][move.destination_square];
+
+    // If we are executing the function, the caller knows that this move caused
+    // a beta cutoff, give it the minimum score for proper placement in the move
+    // ordering.
+    selected_entry = std::max(selected_entry, HISTORY_BETA_CUTOFF_MIN_SCORE);
 
     // Clamp the bonus before gravity is applied.
     History_Score_Storage_Type clamped_bonus =
@@ -107,5 +115,5 @@ void Continuation_History_Stack<STACK_SIZE>::bind_to_history_table(
     History_Table& table,
     std::size_t    index)
 {
-    m_stack[index] = std::ref(table);
+    stack[index] = table;
 }

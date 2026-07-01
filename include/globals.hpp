@@ -241,7 +241,7 @@ class Optional_Reference
 {
   public:
 
-    Optional_Reference();
+    Optional_Reference() = default;
 
     Optional_Reference(T& ref) : m_optional_reference(std::ref(ref)) {}
 
