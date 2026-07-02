@@ -385,48 +385,34 @@ inline void Static_Exchange_Evaluator<Integral_Type>::insert_hidden_attacker(
     // the array, return.
     if (material_position == attackers.end()) { return; }
 
-    // Based on the material value we are in the correct locality of the array
-    // but we need to insert the hidden attacker where its opposite in color to
-    // the adjacent elements. Since, the attackers array is in descending
-    // interleaved order we can just go an index back from the current index if
-    // the color isn't the same.
-    std::size_t insert_index = static_cast<std::size_t>(
-        std::distance(attackers.begin(), material_position));
-    if ((attackers[insert_index].color != hidden_attacker.color)
-        && (insert_index != 0))
+    std::size_t insert_index = attackers.size();
+
+    for (std::size_t i = 0; i < attackers.size(); ++i)
     {
-        insert_index--;
+        // Look for an attacker of the same color to swap with the hidden 
+        // attacker.
+        if (attackers[i].color != hidden_attacker.color) { continue; }
+
+        // If the hidden attacker is cheaper than the indexed attacker, the 
+        // index of the indexed attacker is where the hidden attacker should be 
+        // inserted.
+        if (m_material_weights[hidden_attacker.piece] < m_material_weights[attackers[i].piece])
+        {
+            insert_index = i;
+            break;
+        }
     }
 
-    // Handle the edge case of insert index 0 - only replace the current
-    // attacker at that index if the hidden attacker is of the same color and of
-    // lesser value.
-    if ((insert_index == 0) && (attackers[insert_index].piece != PIECES::KING)
-        && (attackers[insert_index].color == hidden_attacker.color)
-        && (m_material_weights[attackers[insert_index].piece]
-            >= m_material_weights[hidden_attacker.piece]))
+    // No attacker of the same color was found that is more expensive than the 
+    // hidden attacker, return.
+    if (insert_index == attackers.size()) { return; }
+
+    // Swap the hidden attacker with the indexed attacker and then keep swapping 
+    // till the end of the array.
+    auto value = hidden_attacker;
+    for (int64_t i = static_cast<int64_t>(insert_index); i >= 0; i -= NUM_OF_PLAYERS)
     {
-        attackers[insert_index] = hidden_attacker;
-    }
-    // The above handles the case where the attacker at insert index is not a
-    // king however, if it is a king we can replace it with the hidden attacker
-    // because everything is cheaper than the king.
-    else if ((insert_index == 0)
-             && (attackers[insert_index].piece == PIECES::KING)
-             && (attackers[insert_index].color == hidden_attacker.color))
-    {
-        attackers[insert_index] = hidden_attacker;
-    }
-    // If the above edge cases do not match when the insert index is 0, return.
-    else if (insert_index == 0) { return; }
-    // Otherwise, just insert the hidden attacker into the array via swapping.
-    else
-    {
-        auto value = hidden_attacker;
-        for (int8_t i = insert_index; i >= 0; i -= NUM_OF_PLAYERS)
-        {
-            std::swap(value, attackers[i]);
-        }
+        std::swap(value, attackers[static_cast<std::size_t>(i)]);
     }
 }
 
