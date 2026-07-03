@@ -985,7 +985,7 @@ Partially_Filled_Array<T, capacity>::operator[](std::size_t index) const
                   index,
                   capacity);
 
-    MATREX_ASSERT(index < m_max_index,
+    MATREX_ASSERT(index <= m_max_index,
                   "Partially_Filled_Array Assertion FAILURE: operator[] "
                   "Indexed outside of max index. Index: {}, Max Index: {}",
                   index,
