@@ -864,7 +864,8 @@ class Partially_Filled_Array
     int64_t get_max_index() const;
     int64_t truncate(int64_t max_index);
 
-    T& operator[](std::size_t index);
+    T&       operator[](std::size_t index);
+    const T& operator[](std::size_t index) const;
 
   private:
 
@@ -970,6 +971,25 @@ T& Partially_Filled_Array<T, capacity>::operator[](std::size_t index)
     {
         m_max_index = index_i64;
     }
+
+    return m_list[index];
+}
+
+template <typename T, std::size_t capacity>
+const T&
+Partially_Filled_Array<T, capacity>::operator[](std::size_t index) const
+{
+    MATREX_ASSERT(index < capacity,
+                  "Partially_Filled_Array Assertion FAILURE: operator[] "
+                  "Indexed outside of capacity. Index: {}, Capacity: {}",
+                  index,
+                  capacity);
+
+    MATREX_ASSERT(index < m_max_index,
+                  "Partially_Filled_Array Assertion FAILURE: operator[] "
+                  "Indexed outside of max index. Index: {}, Max Index: {}",
+                  index,
+                  m_max_index);
 
     return m_list[index];
 }

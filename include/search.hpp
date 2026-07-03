@@ -24,8 +24,6 @@ constexpr Matrex_FP_Int PV_WINDOW_SIZE = Matrex_FP_Int::from_integer(1);
 
 constexpr std::size_t CORRECTION_HISTORY_TABLE_SIZE = 16384;
 
-constexpr std::size_t CONTINUATION_HISTORY_LOOKBACK_DEPTH = 4;
-
 struct Time_Control
 {
     uint64_t time_remaining; // Time in milliseconds.

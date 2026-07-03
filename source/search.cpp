@@ -195,8 +195,9 @@ Search_Engine::negamax(Chess_Board&              position,
     const Score static_evaluation = e.evaluate(m_correction_history);
 
     Principal_Variation_List child_principal_variation;
-    Chess_Move               best_move  = Chess_Move();
-    Score                    best_score = Score(FP_NEGATIVE_INFINITY);
+    Chess_Move               best_move        = Chess_Move();
+    Chess_Move               beta_cutoff_move = Chess_Move();
+    Score                    best_score       = Score(FP_NEGATIVE_INFINITY);
 
     Static_Exchange_Evaluator<int64_t> see(position);
 
@@ -284,9 +285,9 @@ Search_Engine::negamax(Chess_Board&              position,
         const Score child_score = -child_result.second;
         position.undo_move(undo_move);
 
-        // Truncate the continuation history stack to the previous maximum index 
-        // because the child's subtree may have added new references to history 
-        // tables and we don't want those to be considered for the next 
+        // Truncate the continuation history stack to the previous maximum index
+        // because the child's subtree may have added new references to history
+        // tables and we don't want those to be considered for the next
         // sibling's subtree.
         cont_hist_stack.stack.truncate(cont_hist_max_idx);
 
@@ -337,7 +338,8 @@ Search_Engine::negamax(Chess_Board&              position,
         // the score could of been if the other children were not pruned.
         if (alpha >= beta)
         {
-            score_bound = Score_Bound_Type::LOWER_BOUND;
+            beta_cutoff_move = move;
+            score_bound      = Score_Bound_Type::LOWER_BOUND;
             break;
         }
 
@@ -372,7 +374,7 @@ Search_Engine::negamax(Chess_Board&              position,
     if (score_bound == Score_Bound_Type::LOWER_BOUND)
     {
         update_continuation_history(cont_hist_stack,
-                                    best_move,
+                                    beta_cutoff_move,
                                     ply,
                                     depth_squared);
     }
@@ -688,7 +690,7 @@ void Search_Engine::update_continuation_history(
 
     static constexpr multi_array<History_Score_Storage_Type,
                                  (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
-        material_weights = {2, 3, 4, 5, 9};
+        material_weights = {5, 15, 18, 25, 45};
 
     const std::size_t lookback = std::min(static_cast<std::size_t>(ply),
                                           CONTINUATION_HISTORY_LOOKBACK_DEPTH);
@@ -696,11 +698,23 @@ void Search_Engine::update_continuation_history(
     if (lookback == 0) { return; }
 
     // Heuristic for assigning a bonus to moves that cause beta cutoffs.
-    const History_Score_Storage_Type bonus =
-        (move.is_capture || move.is_en_passant)
-            ? static_cast<History_Score_Storage_Type>(
-                  material_weights[move.captured_piece] * depth_squared)
-            : static_cast<History_Score_Storage_Type>(depth_squared);
+    History_Score_Storage_Type bonus = 0;
+
+    if (move.is_promotion)
+    {
+        bonus = static_cast<History_Score_Storage_Type>(
+            depth_squared + HISTORY_BETA_CUTOFF_PROMOS_ADDITION
+            + material_weights[move.promoted_piece]);
+    }
+    else if (move.is_capture || move.is_en_passant)
+    {
+        bonus = static_cast<History_Score_Storage_Type>(
+            depth_squared + material_weights[move.captured_piece]);
+    }
+    else
+    {
+        bonus = static_cast<History_Score_Storage_Type>(depth_squared);
+    }
 
     const int64_t start = static_cast<int64_t>(ply) - 1;
     const int64_t end =

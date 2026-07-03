@@ -389,28 +389,30 @@ inline void Static_Exchange_Evaluator<Integral_Type>::insert_hidden_attacker(
 
     for (std::size_t i = 0; i < attackers.size(); ++i)
     {
-        // Look for an attacker of the same color to swap with the hidden 
+        // Look for an attacker of the same color to swap with the hidden
         // attacker.
         if (attackers[i].color != hidden_attacker.color) { continue; }
 
-        // If the hidden attacker is cheaper than the indexed attacker, the 
-        // index of the indexed attacker is where the hidden attacker should be 
+        // If the hidden attacker is cheaper than the indexed attacker, the
+        // index of the indexed attacker is where the hidden attacker should be
         // inserted.
-        if (m_material_weights[hidden_attacker.piece] < m_material_weights[attackers[i].piece])
+        if (m_material_weights[hidden_attacker.piece]
+            < m_material_weights[attackers[i].piece])
         {
             insert_index = i;
             break;
         }
     }
 
-    // No attacker of the same color was found that is more expensive than the 
+    // No attacker of the same color was found that is more expensive than the
     // hidden attacker, return.
     if (insert_index == attackers.size()) { return; }
 
-    // Swap the hidden attacker with the indexed attacker and then keep swapping 
+    // Swap the hidden attacker with the indexed attacker and then keep swapping
     // till the end of the array.
     auto value = hidden_attacker;
-    for (int64_t i = static_cast<int64_t>(insert_index); i >= 0; i -= NUM_OF_PLAYERS)
+    for (int64_t i  = static_cast<int64_t>(insert_index); i >= 0;
+         i         -= NUM_OF_PLAYERS)
     {
         std::swap(value, attackers[static_cast<std::size_t>(i)]);
     }

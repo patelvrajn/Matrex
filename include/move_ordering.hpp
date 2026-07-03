@@ -155,12 +155,29 @@ void Move_Ordering<CONT_HIST_STACK_SIZE>::move_scorer()
             move.score = m_mvv_lva_array[move.moving_piece][move.moving_piece];
         }
 
-        // For ALL moves, apply continutation history score.
+        // For ALL moves that induce a beta cutoff, apply continutation history
+        // score.
         if (m_cont_hist_stack.has_ref())
         {
-            for (const auto& hist_table : m_cont_hist_stack.get_ref().stack)
+            const std::size_t ply = m_cont_hist_stack.get_ref().stack.size();
+
+            const int64_t start = static_cast<int64_t>(ply) - 1;
+            const int64_t end =
+                (ply < CONTINUATION_HISTORY_LOOKBACK_DEPTH)
+                    ? ply
+                    : static_cast<int64_t>(ply)
+                          - static_cast<int64_t>(
+                              CONTINUATION_HISTORY_LOOKBACK_DEPTH);
+
+            if ((start >= 0) && (end >= 0))
             {
-                move.score += hist_table.get_ref()[move];
+                for (int64_t i = start; i >= end; i--)
+                {
+                    const auto& hist_table =
+                        m_cont_hist_stack.get_ref()
+                            .stack[static_cast<std::size_t>(i)];
+                    move.score += hist_table.get_ref()[move];
+                }
             }
         }
 

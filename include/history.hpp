@@ -13,13 +13,19 @@ constexpr History_Score_Storage_Type MAX_HISTORY =
     std::numeric_limits<History_Score_Storage_Type>::max() - 1;
 
 // Arbitrarily selected minimum and maximum history bonuses.
-constexpr History_Score_Storage_Type MIN_HISTORY_BONUS =
-    -1 * (MAX_HISTORY / 16);
-constexpr History_Score_Storage_Type MAX_HISTORY_BONUS = MAX_HISTORY / 16;
+constexpr History_Score_Storage_Type MIN_HISTORY_BONUS = -128;
+constexpr History_Score_Storage_Type MAX_HISTORY_BONUS = 128;
 
 // Controls placement of where in the move ordering moves causing beta cutoffs
 // are placed.
 constexpr History_Score_Storage_Type HISTORY_BETA_CUTOFF_MIN_SCORE = 100;
+
+// Serves as a way to make beta-cutoff promotions first in terms of beta cutoffs
+// in the move ordering.
+constexpr History_Score_Storage_Type HISTORY_BETA_CUTOFF_PROMOS_ADDITION = 100;
+
+// Number of plies to look back in continuation history.
+constexpr std::size_t CONTINUATION_HISTORY_LOOKBACK_DEPTH = 4;
 
 class History_Table
 {
