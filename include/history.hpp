@@ -16,14 +16,6 @@ constexpr History_Score_Storage_Type MAX_HISTORY =
 constexpr History_Score_Storage_Type MIN_HISTORY_BONUS = -128;
 constexpr History_Score_Storage_Type MAX_HISTORY_BONUS = 128;
 
-// Controls placement of where in the move ordering moves causing beta cutoffs
-// are placed.
-constexpr History_Score_Storage_Type HISTORY_BETA_CUTOFF_MIN_SCORE = 100;
-
-// Serves as a way to make beta-cutoff promotions first in terms of beta cutoffs
-// in the move ordering.
-constexpr History_Score_Storage_Type HISTORY_BETA_CUTOFF_PROMOS_ADDITION = 100;
-
 // Number of plies to look back in continuation history.
 constexpr std::size_t CONTINUATION_HISTORY_LOOKBACK_DEPTH = 4;
 
@@ -88,11 +80,6 @@ void History_Table::gravity_update(const Chess_Move&          move,
                                    History_Score_Storage_Type bonus)
 {
     auto& selected_entry = m_table[move.moving_piece][move.destination_square];
-
-    // If we are executing the function, the caller knows that this move caused
-    // a beta cutoff, give it the minimum score for proper placement in the move
-    // ordering.
-    selected_entry = std::max(selected_entry, HISTORY_BETA_CUTOFF_MIN_SCORE);
 
     // Clamp the bonus before gravity is applied.
     History_Score_Storage_Type clamped_bonus =

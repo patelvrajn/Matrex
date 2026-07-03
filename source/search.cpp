@@ -369,9 +369,9 @@ Search_Engine::negamax(Chess_Board&              position,
                                     static_evaluation);
     }
 
-    // If the best move caused a beta cutoff, then we update the continuation
-    // history.
-    if (score_bound == Score_Bound_Type::LOWER_BOUND)
+    // If the move that caused a beta cutoff is a quiet move, then we update the 
+    // continuation history.
+    if ((score_bound == Score_Bound_Type::LOWER_BOUND) && (beta_cutoff_move.is_quiet_move()))
     {
         update_continuation_history(cont_hist_stack,
                                     beta_cutoff_move,
@@ -688,33 +688,10 @@ void Search_Engine::update_continuation_history(
 {
     if (move.is_same_move(Chess_Move())) { return; }
 
-    static constexpr multi_array<History_Score_Storage_Type,
-                                 (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
-        material_weights = {5, 15, 18, 25, 45};
-
     const std::size_t lookback = std::min(static_cast<std::size_t>(ply),
                                           CONTINUATION_HISTORY_LOOKBACK_DEPTH);
 
     if (lookback == 0) { return; }
-
-    // Heuristic for assigning a bonus to moves that cause beta cutoffs.
-    History_Score_Storage_Type bonus = 0;
-
-    if (move.is_promotion)
-    {
-        bonus = static_cast<History_Score_Storage_Type>(
-            depth_squared + HISTORY_BETA_CUTOFF_PROMOS_ADDITION
-            + material_weights[move.promoted_piece]);
-    }
-    else if (move.is_capture || move.is_en_passant)
-    {
-        bonus = static_cast<History_Score_Storage_Type>(
-            depth_squared + material_weights[move.captured_piece]);
-    }
-    else
-    {
-        bonus = static_cast<History_Score_Storage_Type>(depth_squared);
-    }
 
     const int64_t start = static_cast<int64_t>(ply) - 1;
     const int64_t end =
@@ -726,6 +703,6 @@ void Search_Engine::update_continuation_history(
     for (int64_t i = start; i >= end; i--)
     {
         auto& entry = cont_hist_stack.stack[static_cast<std::size_t>(i)];
-        entry.get_ref().gravity_update<false>(move, bonus);
+        entry.get_ref().gravity_update<false>(move, depth_squared);
     }
 }

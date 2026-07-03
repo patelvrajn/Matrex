@@ -155,9 +155,9 @@ void Move_Ordering<CONT_HIST_STACK_SIZE>::move_scorer()
             move.score = m_mvv_lva_array[move.moving_piece][move.moving_piece];
         }
 
-        // For ALL moves that induce a beta cutoff, apply continutation history
+        // For quiet moves that induce a beta cutoff, apply continuation history
         // score.
-        if (m_cont_hist_stack.has_ref())
+        if (move.is_quiet_move() && m_cont_hist_stack.has_ref())
         {
             const std::size_t ply = m_cont_hist_stack.get_ref().stack.size();
 
