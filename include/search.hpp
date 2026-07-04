@@ -11,9 +11,12 @@
 #include "timer.hpp"
 #include "transposition_table.hpp"
 #include "correction_history_table.hpp"
+#include "history.hpp"
 
 // 5898.5 is the theoritical maximum number of moves (2-ply) in a chess game.
 constexpr uint16_t MAX_SEARCH_DEPTH = (5899 * NUM_OF_PLAYERS);
+
+constexpr uint16_t MAX_SEARCH_DEPTH_SOFT_LIMIT = 256;
 
 constexpr uint16_t QUIESCENCE_SEARCH_DEPTH = 0;
 
@@ -76,6 +79,9 @@ struct UCI_Search_Information
 
 typedef std::pair<Chess_Move, Score> Search_Engine_Result;
 
+using Search_Cont_Hist_Stack =
+    Continuation_History_Stack<MAX_SEARCH_DEPTH_SOFT_LIMIT>;
+
 class Search_Engine
 {
   public:
@@ -104,9 +110,13 @@ class Search_Engine
     Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>
         m_correction_history;
 
+    Continuation_History_Table m_cont_hist_table;
+    Search_Cont_Hist_Stack     m_cont_hist_stack;
+
     Search_Engine_Result negamax(Chess_Board&              position,
                                  uint16_t                  depth,
                                  Principal_Variation_List& principal_variation,
+                                 Search_Cont_Hist_Stack&   cont_hist_stack,
                                  uint16_t                  ply = 0,
                                  Score alpha = Score(FP_NEGATIVE_INFINITY),
                                  Score beta  = Score(FP_POSITIVE_INFINITY));
@@ -114,7 +124,9 @@ class Search_Engine
     quiescence(Chess_Board& position, uint16_t ply, Score alpha, Score beta);
     Search_Engine_Result iterative_deepening();
 
-    inline Score get_mate_score(const Move_Ordering& mo, uint16_t ply);
+    template <std::size_t CONT_HIST_STACK_SIZE>
+    inline Score get_mate_score(const Move_Ordering<CONT_HIST_STACK_SIZE>& mo,
+                                uint16_t                                   ply);
 
     inline bool
     should_use_transposition_table_score(const bool     is_pv,
@@ -141,10 +153,21 @@ class Search_Engine
                                                  Score      static_evaluation,
                                                  Score_Bound_Type score_bound,
                                                  bool is_side_to_move_in_check);
+
+    inline bool
+    should_update_continuation_history(const Chess_Move&      beta_cutoff_move,
+                                       const Score_Bound_Type score_bound);
+
+    void update_continuation_history(Search_Cont_Hist_Stack& cont_hist_stack,
+                                     const Chess_Move&       move,
+                                     uint16_t                ply,
+                                     uint32_t                depth_squared);
 };
 
-inline Score Search_Engine::get_mate_score(const Move_Ordering& mo,
-                                           uint16_t             ply)
+template <std::size_t CONT_HIST_STACK_SIZE>
+inline Score
+Search_Engine::get_mate_score(const Move_Ordering<CONT_HIST_STACK_SIZE>& mo,
+                              uint16_t                                   ply)
 {
     Score mate_score;
 
@@ -225,4 +248,12 @@ Search_Engine::should_update_correction_history(Chess_Move best_move,
                 || ((score_bound == Score_Bound_Type::LOWER_BOUND)
                     && (best_score > static_evaluation)))
             && (!is_side_to_move_in_check));
+}
+
+inline bool Search_Engine::should_update_continuation_history(
+    const Chess_Move&      beta_cutoff_move,
+    const Score_Bound_Type score_bound)
+{
+    return (beta_cutoff_move.is_quiet_move()
+            && (score_bound == Score_Bound_Type::LOWER_BOUND));
 }
