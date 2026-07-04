@@ -162,6 +162,9 @@ class Search_Engine
                                      const Chess_Move&       move,
                                      uint16_t                ply,
                                      uint32_t                depth_squared);
+
+    inline bool should_do_see_pruning(const Chess_Move& move,
+                                      const Score       best_score);
 };
 
 template <std::size_t CONT_HIST_STACK_SIZE>
@@ -256,4 +259,12 @@ inline bool Search_Engine::should_update_continuation_history(
 {
     return (beta_cutoff_move.is_quiet_move()
             && (score_bound == Score_Bound_Type::LOWER_BOUND));
+}
+
+inline bool Search_Engine::should_do_see_pruning(const Chess_Move& move,
+                                                 const Score       best_score)
+{
+    // IMPORTANT: All move loop pruning should have the condition of
+    // !best_score.is_enemy_mate().
+    return (move.is_capture && (!best_score.is_enemy_mate()));
 }

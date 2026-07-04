@@ -207,7 +207,7 @@ Search_Engine::negamax(Chess_Board&              position,
     for (const Chess_Move& move : moves)
     {
         // Static Exchange Evaluation Pruning (Captures Only)
-        if (move.is_capture)
+        if (should_do_see_pruning(move, best_score))
         {
             const auto see_evaluation =
                 see.evaluate(move.destination_square, move.moving_piece, 1);
@@ -581,7 +581,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     for (const Chess_Move& move : moves)
     {
         // Static Exchange Evaluation Pruning
-        if (move.is_capture)
+        if (should_do_see_pruning(move, best_score))
         {
             const auto see_evaluation =
                 see.evaluate(move.destination_square, move.moving_piece, 1);
