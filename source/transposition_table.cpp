@@ -93,32 +93,28 @@ void Transposition_Table::make_mate_score_relative_to_node(
 
     constexpr bool is_write = !is_read;
 
+    const auto numerical_score = entry.score.to_fixed_point();
+
+    const auto ply = static_cast<Fixed_Point_Int_Storage_Type>(node_ply);
+
     if (entry.score.is_friendly_mate() && is_write)
     {
-        entry.score =
-            entry.score
-            + Score(static_cast<Fixed_Point_Int_Storage_Type>(node_ply));
+        entry.score = Score(numerical_score + ply);
     }
 
     if (entry.score.is_enemy_mate() && is_write)
     {
-        entry.score =
-            entry.score
-            - Score(static_cast<Fixed_Point_Int_Storage_Type>(node_ply));
+        entry.score = Score(numerical_score - ply);
     }
 
     if (entry.score.is_friendly_mate() && is_read)
     {
-        entry.score =
-            entry.score
-            - Score(static_cast<Fixed_Point_Int_Storage_Type>(node_ply));
+        entry.score = Score(numerical_score - ply);
     }
 
     if (entry.score.is_enemy_mate() && is_read)
     {
-        entry.score =
-            entry.score
-            + Score(static_cast<Fixed_Point_Int_Storage_Type>(node_ply));
+        entry.score = Score(numerical_score + ply);
     }
 }
 
@@ -143,8 +139,6 @@ bool Transposition_Table::read(const uint16_t             max_depth,
             // Output is the found entry.
             output = e;
 
-            make_mate_score_relative_to_node<true>(output, ply);
-
             // The read entry is removed from it's current position and goes to
             // the front of the deque (LRU Policy).
             m_table[index].protected_entries.move_to_front(found_entry_index);
@@ -152,6 +146,8 @@ bool Transposition_Table::read(const uint16_t             max_depth,
 #if COLLECT_TT_STATISTICS == 1
             m_statistics.protected_hits++;
 #endif
+
+            make_mate_score_relative_to_node<true>(output, ply);
 
             // We found an entry!
             return true;
@@ -175,8 +171,6 @@ bool Transposition_Table::read(const uint16_t             max_depth,
             // Output is the found entry.
             output = e;
 
-            make_mate_score_relative_to_node<true>(output, ply);
-
             constexpr uint8_t FRONT_OF_QUEUE = 0;
 
             if (found_entry_index == FRONT_OF_QUEUE)
@@ -197,6 +191,8 @@ bool Transposition_Table::read(const uint16_t             max_depth,
 #if COLLECT_TT_STATISTICS == 1
             m_statistics.probationary_hits++;
 #endif
+
+            make_mate_score_relative_to_node<true>(output, ply);
 
             // We found an entry.
             return true;
