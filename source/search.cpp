@@ -369,9 +369,8 @@ Search_Engine::negamax(Chess_Board&              position,
                                     static_evaluation);
     }
 
-    // If the move that caused a beta cutoff is a quiet move, then we update the 
-    // continuation history.
-    if ((score_bound == Score_Bound_Type::LOWER_BOUND) && (beta_cutoff_move.is_quiet_move()))
+    // Continuation History Update.
+    if (should_update_continuation_history(beta_cutoff_move, score_bound))
     {
         update_continuation_history(cont_hist_stack,
                                     beta_cutoff_move,

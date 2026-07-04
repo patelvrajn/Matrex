@@ -154,6 +154,10 @@ class Search_Engine
                                                  Score_Bound_Type score_bound,
                                                  bool is_side_to_move_in_check);
 
+    inline bool
+    should_update_continuation_history(const Chess_Move&      beta_cutoff_move,
+                                       const Score_Bound_Type score_bound);
+
     void update_continuation_history(Search_Cont_Hist_Stack& cont_hist_stack,
                                      const Chess_Move&       move,
                                      uint16_t                ply,
@@ -244,4 +248,12 @@ Search_Engine::should_update_correction_history(Chess_Move best_move,
                 || ((score_bound == Score_Bound_Type::LOWER_BOUND)
                     && (best_score > static_evaluation)))
             && (!is_side_to_move_in_check));
+}
+
+inline bool Search_Engine::should_update_continuation_history(
+    const Chess_Move&      beta_cutoff_move,
+    const Score_Bound_Type score_bound)
+{
+    return (beta_cutoff_move.is_quiet_move()
+            && (score_bound == Score_Bound_Type::LOWER_BOUND));
 }
