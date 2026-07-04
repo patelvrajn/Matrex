@@ -185,12 +185,14 @@ class Transposition_Table
     FORCE_INLINE void prefetch(const Zobrist_Hash& hash);
 
     bool read(const uint16_t             max_depth,
+              const uint16_t             ply,
               const Zobrist_Hash&        hash,
               Transposition_Table_Entry& output);
 
-    void write(const uint16_t                   max_depth,
-               const Zobrist_Hash&              hash,
-               const Transposition_Table_Entry& entry);
+    void write(const uint16_t             max_depth,
+               const uint16_t             ply,
+               const Zobrist_Hash&        hash,
+               Transposition_Table_Entry& entry);
 
     void clear();
 
@@ -220,6 +222,10 @@ class Transposition_Table
     bool should_replace_matched_entry(
         const Transposition_Table_Entry& existing_entry,
         const Transposition_Table_Entry& new_entry);
+
+    template <bool is_read>
+    void make_mate_score_relative_to_node(Transposition_Table_Entry& entry,
+                                          const uint16_t node_ply) const;
 };
 
 FORCE_INLINE void Transposition_Table::prefetch(const Zobrist_Hash& hash)

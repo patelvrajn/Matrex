@@ -97,6 +97,7 @@ Search_Engine::negamax(Chess_Board&              position,
     Transposition_Table_Entry transposition_table_entry;
     const bool                did_transposition_table_hit =
         m_transposition_table.read(m_current_search_depth,
+                                   ply,
                                    position_z_hash,
                                    transposition_table_entry);
 
@@ -152,6 +153,7 @@ Search_Engine::negamax(Chess_Board&              position,
                 Score_Bound_Type::EXACT // Mate scores are always exact.
         };
         m_transposition_table.write(m_current_search_depth,
+                                    ply,
                                     position_z_hash,
                                     transposition_table_entry);
 
@@ -389,6 +391,7 @@ Search_Engine::negamax(Chess_Board&              position,
         .depth       = depth,
         .score_bound = score_bound};
     m_transposition_table.write(m_current_search_depth,
+                                ply,
                                 position_z_hash,
                                 transposition_table_entry);
 
@@ -419,6 +422,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     Transposition_Table_Entry transposition_table_entry;
     const bool                did_transposition_table_hit =
         m_transposition_table.read(m_current_search_depth,
+                                   ply,
                                    position_z_hash,
                                    transposition_table_entry);
 
@@ -485,6 +489,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
                 Score_Bound_Type::EXACT // Mate scores are always exact.
         };
         m_transposition_table.write(m_current_search_depth,
+                                    ply,
                                     position_z_hash,
                                     transposition_table_entry);
 
@@ -523,6 +528,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
                 Score_Bound_Type::EXACT // Static evaluations are always exact.
         };
         m_transposition_table.write(m_current_search_depth,
+                                    ply,
                                     position_z_hash,
                                     transposition_table_entry);
 
@@ -562,6 +568,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
                                                   // always lower bounds.
             };
             m_transposition_table.write(m_current_search_depth,
+                                        ply,
                                         position_z_hash,
                                         transposition_table_entry);
 
@@ -625,6 +632,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         .depth       = QUIESCENCE_SEARCH_DEPTH,
         .score_bound = score_bound};
     m_transposition_table.write(m_current_search_depth,
+                                ply,
                                 position_z_hash,
                                 transposition_table_entry);
 
