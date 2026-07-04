@@ -77,7 +77,49 @@ bool Transposition_Table::should_replace_matched_entry(
             || (new_entry.score_bound == Score_Bound_Type::EXACT));
 }
 
+// When writing mate scores determined by this node's tree to the transposition
+// table, the mating score will be relative to the root node of the search tree,
+// however, when reading mate scores from the transposition table we need the
+// mate score of the position to be relative to the current node. Thus, we add
+// on the ply of the current node to make it relative since the mate score will
+// be (mate_min - distance from root) thus, adding the distance of this node to
+// the root will make it relative.
+template <bool is_read>
+void Transposition_Table::make_mate_score_relative_to_node(
+    Transposition_Table_Entry& entry,
+    const uint16_t             node_ply) const
+{
+    if (!entry.score.is_mating_score()) { return; }
+
+    constexpr bool is_write = !is_read;
+
+    const auto numerical_score = entry.score.to_fixed_point();
+
+    const auto ply = static_cast<Fixed_Point_Int_Storage_Type>(node_ply);
+
+    if (entry.score.is_friendly_mate() && is_write)
+    {
+        entry.score = Score(numerical_score + ply);
+    }
+
+    if (entry.score.is_enemy_mate() && is_write)
+    {
+        entry.score = Score(numerical_score - ply);
+    }
+
+    if (entry.score.is_friendly_mate() && is_read)
+    {
+        entry.score = Score(numerical_score - ply);
+    }
+
+    if (entry.score.is_enemy_mate() && is_read)
+    {
+        entry.score = Score(numerical_score + ply);
+    }
+}
+
 bool Transposition_Table::read(const uint16_t             max_depth,
+                               const uint16_t             ply,
                                const Zobrist_Hash&        hash,
                                Transposition_Table_Entry& output)
 {
@@ -104,6 +146,8 @@ bool Transposition_Table::read(const uint16_t             max_depth,
 #if COLLECT_TT_STATISTICS == 1
             m_statistics.protected_hits++;
 #endif
+
+            make_mate_score_relative_to_node<true>(output, ply);
 
             // We found an entry!
             return true;
@@ -148,6 +192,8 @@ bool Transposition_Table::read(const uint16_t             max_depth,
             m_statistics.probationary_hits++;
 #endif
 
+            make_mate_score_relative_to_node<true>(output, ply);
+
             // We found an entry.
             return true;
         }
@@ -162,11 +208,14 @@ bool Transposition_Table::read(const uint16_t             max_depth,
     return false;
 }
 
-void Transposition_Table::write(const uint16_t                   max_depth,
-                                const Zobrist_Hash&              hash,
-                                const Transposition_Table_Entry& entry)
+void Transposition_Table::write(const uint16_t             max_depth,
+                                const uint16_t             ply,
+                                const Zobrist_Hash&        hash,
+                                Transposition_Table_Entry& entry)
 {
     uint64_t index = get_lemire_index(hash);
+
+    make_mate_score_relative_to_node<false>(entry, ply);
 
 #if COLLECT_TT_STATISTICS == 1
     m_statistics.nodes_written++;
