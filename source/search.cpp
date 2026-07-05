@@ -17,8 +17,10 @@ void Search_Engine::new_game()
 #endif
     m_transposition_table.clear();
     m_correction_history.clear();
-    m_cont_hist_table.clear();
-    m_cont_hist_stack.stack.clear();
+    m_q_cont_hist_table.clear();
+    m_q_cont_hist_stack.stack.clear();
+    m_c_cont_hist_table.clear();
+    m_c_cont_hist_stack.stack.clear();
 }
 
 Search_Engine_Result
@@ -38,13 +40,14 @@ Search_Engine::search(const Chess_Board&        cb,
 }
 
 Search_Engine_Result
-Search_Engine::negamax(Chess_Board&              position,
-                       uint16_t                  depth,
-                       Principal_Variation_List& principal_variation,
-                       Search_Cont_Hist_Stack&   cont_hist_stack,
-                       uint16_t                  ply,
-                       Score                     alpha,
-                       Score                     beta)
+Search_Engine::negamax(Chess_Board&                    position,
+                       uint16_t                        depth,
+                       Principal_Variation_List&       principal_variation,
+                       Search_Quiet_Cont_Hist_Stack&   q_cont_hist_stack,
+                       Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
+                       uint16_t                        ply,
+                       Score                           alpha,
+                       Score                           beta)
 {
     const uint32_t depth_squared = (depth * depth);
 
@@ -130,7 +133,8 @@ Search_Engine::negamax(Chess_Board&              position,
 
     Move_Ordering mo(position,
                      transposition_table_entry.best_move,
-                     cont_hist_stack);
+                     q_cont_hist_stack,
+                     c_cont_hist_stack);
     mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
     Move_Generation_List&  moves              = mo.get_sorted_moves();
     Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
@@ -226,8 +230,13 @@ Search_Engine::negamax(Chess_Board&              position,
         // to the stack indexed by ply. A history table is fetched from the
         // continuation history table which is indexed by the "previous move"
         // (this move is the previous move for it's subtree).
-        const auto cont_hist_max_idx = cont_hist_stack.stack.get_max_index();
-        cont_hist_stack.bind_to_history_table(m_cont_hist_table[move], ply);
+        const auto q_cont_hist_max_idx =
+            q_cont_hist_stack.stack.get_max_index();
+        q_cont_hist_stack.bind_to_history_table(m_q_cont_hist_table[move], ply);
+
+        const auto c_cont_hist_max_idx =
+            c_cont_hist_stack.stack.get_max_index();
+        c_cont_hist_stack.bind_to_history_table(m_c_cont_hist_table[move], ply);
 
         // Explore the child move's subtree for it's evaluation. Negate the
         // result to compare it's score to the parent's scores (alpha,
@@ -248,7 +257,8 @@ Search_Engine::negamax(Chess_Board&              position,
             child_result = negamax(position,
                                    (depth - 1),
                                    child_principal_variation,
-                                   cont_hist_stack,
+                                   q_cont_hist_stack,
+                                   c_cont_hist_stack,
                                    (ply + 1),
                                    -beta,
                                    -alpha);
@@ -260,7 +270,8 @@ Search_Engine::negamax(Chess_Board&              position,
             child_result = negamax(position,
                                    (depth - 1),
                                    child_principal_variation,
-                                   cont_hist_stack,
+                                   q_cont_hist_stack,
+                                   c_cont_hist_stack,
                                    (ply + 1),
                                    (-alpha - Score(PV_WINDOW_SIZE)),
                                    -alpha);
@@ -277,7 +288,8 @@ Search_Engine::negamax(Chess_Board&              position,
                 child_result = negamax(position,
                                        (depth - 1),
                                        child_principal_variation,
-                                       cont_hist_stack,
+                                       q_cont_hist_stack,
+                                       c_cont_hist_stack,
                                        (ply + 1),
                                        -beta,
                                        -alpha);
@@ -291,7 +303,8 @@ Search_Engine::negamax(Chess_Board&              position,
         // because the child's subtree may have added new references to history
         // tables and we don't want those to be considered for the next
         // sibling's subtree.
-        cont_hist_stack.stack.truncate(cont_hist_max_idx);
+        q_cont_hist_stack.stack.truncate(q_cont_hist_max_idx);
+        c_cont_hist_stack.stack.truncate(c_cont_hist_max_idx);
 
         bool is_child_score_better_than_alpha = child_score > alpha;
 
@@ -372,9 +385,18 @@ Search_Engine::negamax(Chess_Board&              position,
     }
 
     // Continuation History Update.
-    if (should_update_continuation_history(beta_cutoff_move, score_bound))
+    if (should_update_quiet_continuation_history(beta_cutoff_move, score_bound))
     {
-        update_continuation_history(cont_hist_stack,
+        update_continuation_history(q_cont_hist_stack,
+                                    beta_cutoff_move,
+                                    ply,
+                                    depth_squared);
+    }
+
+    if (should_update_capture_continuation_history(beta_cutoff_move,
+                                                   score_bound))
+    {
+        update_continuation_history(c_cont_hist_stack,
                                     beta_cutoff_move,
                                     ply,
                                     depth_squared);
@@ -654,7 +676,8 @@ Search_Engine_Result Search_Engine::iterative_deepening()
         Search_Engine_Result result       = negamax(m_chess_board,
                                               current_depth,
                                               m_principal_variation,
-                                              m_cont_hist_stack);
+                                              m_q_cont_hist_stack,
+                                              m_c_cont_hist_stack);
         uint64_t             current_time = m_timer.elapsed();
 
         UCI_Search_Information uci_search_info(m_current_search_depth,
@@ -688,10 +711,10 @@ const Transposition_Table_Statistics& Search_Engine::get_tt_statistics() const
 }
 
 void Search_Engine::update_continuation_history(
-    Search_Cont_Hist_Stack& cont_hist_stack,
-    const Chess_Move&       move,
-    uint16_t                ply,
-    uint32_t                depth_squared)
+    Search_Quiet_Cont_Hist_Stack& q_cont_hist_stack,
+    const Chess_Move&             move,
+    uint16_t                      ply,
+    uint32_t                      depth_squared)
 {
     if (move.is_same_move(Chess_Move())) { return; }
 
@@ -709,7 +732,34 @@ void Search_Engine::update_continuation_history(
     // Give a bonus to this move and proceeding move pairs.
     for (int64_t i = start; i >= end; i--)
     {
-        auto& entry = cont_hist_stack.stack[static_cast<std::size_t>(i)];
+        auto& entry = q_cont_hist_stack.stack[static_cast<std::size_t>(i)];
+        entry.get_ref().gravity_update<false>(move, depth_squared);
+    }
+}
+
+void Search_Engine::update_continuation_history(
+    Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
+    const Chess_Move&               move,
+    uint16_t                        ply,
+    uint32_t                        depth_squared)
+{
+    if (move.is_same_move(Chess_Move())) { return; }
+
+    const std::size_t lookback = std::min(static_cast<std::size_t>(ply),
+                                          CONTINUATION_HISTORY_LOOKBACK_DEPTH);
+
+    if (lookback == 0) { return; }
+
+    const int64_t start = static_cast<int64_t>(ply) - 1;
+    const int64_t end =
+        static_cast<int64_t>(ply) - static_cast<int64_t>(lookback);
+
+    if (start < 0) { return; }
+
+    // Give a bonus to this move and proceeding move pairs.
+    for (int64_t i = start; i >= end; i--)
+    {
+        auto& entry = c_cont_hist_stack.stack[static_cast<std::size_t>(i)];
         entry.get_ref().gravity_update<false>(move, depth_squared);
     }
 }

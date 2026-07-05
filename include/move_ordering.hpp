@@ -21,10 +21,13 @@ class Move_Ordering
   public:
 
     Move_Ordering(const Chess_Board& cb, const Chess_Move& hash_move);
-    Move_Ordering(const Chess_Board& cb,
-                  const Chess_Move&  hash_move,
-                  const Continuation_History_Stack<CONT_HIST_STACK_SIZE>&
-                      cont_hist_stack);
+    Move_Ordering(
+        const Chess_Board& cb,
+        const Chess_Move&  hash_move,
+        const Quiet_Continuation_History_Stack<CONT_HIST_STACK_SIZE>&
+            q_cont_hist_stack,
+        const Capture_Continuation_History_Stack<CONT_HIST_STACK_SIZE>&
+            c_cont_hist_stack);
 
     Move_Generation_List&  get_sorted_moves();
     Moves_Bitboard_Matrix& get_moves_matrix();
@@ -41,8 +44,11 @@ class Move_Ordering
     Chess_Move                            m_hash_move;
     Static_Exchange_Evaluator<Move_Score> m_see;
     const Optional_Reference<
-        const Continuation_History_Stack<CONT_HIST_STACK_SIZE>>
-        m_cont_hist_stack;
+        const Quiet_Continuation_History_Stack<CONT_HIST_STACK_SIZE>>
+        m_q_cont_hist_stack;
+    const Optional_Reference<
+        const Capture_Continuation_History_Stack<CONT_HIST_STACK_SIZE>>
+        m_c_cont_hist_stack;
 
     static mvv_lva_array generate_mvv_lva_array();
     void                 move_scorer();
@@ -61,13 +67,17 @@ Move_Ordering<CONT_HIST_STACK_SIZE>::Move_Ordering(
 
 template <std::size_t CONT_HIST_STACK_SIZE>
 Move_Ordering<CONT_HIST_STACK_SIZE>::Move_Ordering(
-    const Chess_Board&                                      cb,
-    const Chess_Move&                                       hash_move,
-    const Continuation_History_Stack<CONT_HIST_STACK_SIZE>& cont_hist_stack) :
+    const Chess_Board& cb,
+    const Chess_Move&  hash_move,
+    const Quiet_Continuation_History_Stack<CONT_HIST_STACK_SIZE>&
+        q_cont_hist_stack,
+    const Capture_Continuation_History_Stack<CONT_HIST_STACK_SIZE>&
+        c_cont_hist_stack) :
     m_chess_board(cb),
     m_hash_move(hash_move),
     m_see(cb),
-    m_cont_hist_stack(cont_hist_stack)
+    m_q_cont_hist_stack(q_cont_hist_stack),
+    m_c_cont_hist_stack(c_cont_hist_stack)
 {
 }
 
@@ -157,9 +167,9 @@ void Move_Ordering<CONT_HIST_STACK_SIZE>::move_scorer()
 
         // For quiet moves that induce a beta cutoff, apply continuation history
         // score.
-        if (move.is_quiet_move() && m_cont_hist_stack.has_ref())
+        if (move.is_quiet_move() && m_q_cont_hist_stack.has_ref())
         {
-            const std::size_t ply = m_cont_hist_stack.get_ref().stack.size();
+            const std::size_t ply = m_q_cont_hist_stack.get_ref().stack.size();
 
             const int64_t start = static_cast<int64_t>(ply) - 1;
             const int64_t end =
@@ -174,7 +184,33 @@ void Move_Ordering<CONT_HIST_STACK_SIZE>::move_scorer()
                 for (int64_t i = start; i >= end; i--)
                 {
                     const auto& hist_table =
-                        m_cont_hist_stack.get_ref()
+                        m_q_cont_hist_stack.get_ref()
+                            .stack[static_cast<std::size_t>(i)];
+                    move.score += hist_table.get_ref()[move];
+                }
+            }
+        }
+
+        // For capture moves that induce a beta cutoff, apply continuation
+        // history score.
+        if (move.is_capture && m_c_cont_hist_stack.has_ref())
+        {
+            const std::size_t ply = m_c_cont_hist_stack.get_ref().stack.size();
+
+            const int64_t start = static_cast<int64_t>(ply) - 1;
+            const int64_t end =
+                (ply < CONTINUATION_HISTORY_LOOKBACK_DEPTH)
+                    ? 0
+                    : static_cast<int64_t>(ply)
+                          - static_cast<int64_t>(
+                              CONTINUATION_HISTORY_LOOKBACK_DEPTH);
+
+            if ((start >= 0) && (end >= 0))
+            {
+                for (int64_t i = start; i >= end; i--)
+                {
+                    const auto& hist_table =
+                        m_c_cont_hist_stack.get_ref()
                             .stack[static_cast<std::size_t>(i)];
                     move.score += hist_table.get_ref()[move];
                 }
