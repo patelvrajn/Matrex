@@ -718,8 +718,9 @@ void Search_Engine::update_continuation_history(
 {
     if (move.is_same_move(Chess_Move())) { return; }
 
-    const std::size_t lookback = std::min(static_cast<std::size_t>(ply),
-                                          CONTINUATION_HISTORY_LOOKBACK_DEPTH);
+    const std::size_t lookback =
+        std::min(static_cast<std::size_t>(ply),
+                 QUIET_CONTINUATION_HISTORY_LOOKBACK_DEPTH);
 
     if (lookback == 0) { return; }
 
@@ -745,8 +746,9 @@ void Search_Engine::update_continuation_history(
 {
     if (move.is_same_move(Chess_Move())) { return; }
 
-    const std::size_t lookback = std::min(static_cast<std::size_t>(ply),
-                                          CONTINUATION_HISTORY_LOOKBACK_DEPTH);
+    const std::size_t lookback =
+        std::min(static_cast<std::size_t>(ply),
+                 CAPTURE_CONTINUATION_HISTORY_LOOKBACK_DEPTH);
 
     if (lookback == 0) { return; }
 
@@ -756,10 +758,12 @@ void Search_Engine::update_continuation_history(
 
     if (start < 0) { return; }
 
+    const auto bonus = (depth_squared >> 2);
+
     // Give a bonus to this move and proceeding move pairs.
     for (int64_t i = start; i >= end; i--)
     {
         auto& entry = c_cont_hist_stack.stack[static_cast<std::size_t>(i)];
-        entry.get_ref().gravity_update<false>(move, depth_squared);
+        entry.get_ref().gravity_update<false>(move, bonus);
     }
 }

@@ -19,8 +19,9 @@ constexpr History_Score_Storage_Type MAX_QUIET_HISTORY_BONUS = 128;
 constexpr History_Score_Storage_Type MIN_CAPTURE_HISTORY_BONUS = -128;
 constexpr History_Score_Storage_Type MAX_CAPTURE_HISTORY_BONUS = 128;
 
-// Number of plies to look back in continuation history.
-constexpr std::size_t CONTINUATION_HISTORY_LOOKBACK_DEPTH = 4;
+// Number of plies to look back in continuation histories.
+constexpr std::size_t QUIET_CONTINUATION_HISTORY_LOOKBACK_DEPTH   = 4;
+constexpr std::size_t CAPTURE_CONTINUATION_HISTORY_LOOKBACK_DEPTH = 2;
 
 class Quiet_History_Table
 {

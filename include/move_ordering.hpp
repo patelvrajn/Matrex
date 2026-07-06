@@ -173,11 +173,11 @@ void Move_Ordering<CONT_HIST_STACK_SIZE>::move_scorer()
 
             const int64_t start = static_cast<int64_t>(ply) - 1;
             const int64_t end =
-                (ply < CONTINUATION_HISTORY_LOOKBACK_DEPTH)
+                (ply < QUIET_CONTINUATION_HISTORY_LOOKBACK_DEPTH)
                     ? 0
                     : static_cast<int64_t>(ply)
                           - static_cast<int64_t>(
-                              CONTINUATION_HISTORY_LOOKBACK_DEPTH);
+                              QUIET_CONTINUATION_HISTORY_LOOKBACK_DEPTH);
 
             if ((start >= 0) && (end >= 0))
             {
@@ -199,11 +199,11 @@ void Move_Ordering<CONT_HIST_STACK_SIZE>::move_scorer()
 
             const int64_t start = static_cast<int64_t>(ply) - 1;
             const int64_t end =
-                (ply < CONTINUATION_HISTORY_LOOKBACK_DEPTH)
+                (ply < CAPTURE_CONTINUATION_HISTORY_LOOKBACK_DEPTH)
                     ? 0
                     : static_cast<int64_t>(ply)
                           - static_cast<int64_t>(
-                              CONTINUATION_HISTORY_LOOKBACK_DEPTH);
+                              CAPTURE_CONTINUATION_HISTORY_LOOKBACK_DEPTH);
 
             if ((start >= 0) && (end >= 0))
             {
