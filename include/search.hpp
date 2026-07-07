@@ -79,8 +79,10 @@ struct UCI_Search_Information
 
 typedef std::pair<Chess_Move, Score> Search_Engine_Result;
 
-using Search_Cont_Hist_Stack =
-    Continuation_History_Stack<MAX_SEARCH_DEPTH_SOFT_LIMIT>;
+using Search_Quiet_Cont_Hist_Stack =
+    Quiet_Continuation_History_Stack<MAX_SEARCH_DEPTH_SOFT_LIMIT>;
+using Search_Capture_Cont_Hist_Stack =
+    Capture_Continuation_History_Stack<MAX_SEARCH_DEPTH_SOFT_LIMIT>;
 
 class Search_Engine
 {
@@ -110,16 +112,20 @@ class Search_Engine
     Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>
         m_correction_history;
 
-    Continuation_History_Table m_cont_hist_table;
-    Search_Cont_Hist_Stack     m_cont_hist_stack;
+    Quiet_Continuation_History_Table   m_q_cont_hist_table;
+    Search_Quiet_Cont_Hist_Stack       m_q_cont_hist_stack;
+    Capture_Continuation_History_Table m_c_cont_hist_table;
+    Search_Capture_Cont_Hist_Stack     m_c_cont_hist_stack;
 
-    Search_Engine_Result negamax(Chess_Board&              position,
-                                 uint16_t                  depth,
-                                 Principal_Variation_List& principal_variation,
-                                 Search_Cont_Hist_Stack&   cont_hist_stack,
-                                 uint16_t                  ply = 0,
-                                 Score alpha = Score(FP_NEGATIVE_INFINITY),
-                                 Score beta  = Score(FP_POSITIVE_INFINITY));
+    Search_Engine_Result
+    negamax(Chess_Board&                    position,
+            uint16_t                        depth,
+            Principal_Variation_List&       principal_variation,
+            Search_Quiet_Cont_Hist_Stack&   q_cont_hist_stack,
+            Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
+            uint16_t                        ply   = 0,
+            Score                           alpha = Score(FP_NEGATIVE_INFINITY),
+            Score                           beta = Score(FP_POSITIVE_INFINITY));
     Search_Engine_Result
     quiescence(Chess_Board& position, uint16_t ply, Score alpha, Score beta);
     Search_Engine_Result iterative_deepening();
@@ -154,14 +160,25 @@ class Search_Engine
                                                  Score_Bound_Type score_bound,
                                                  bool is_side_to_move_in_check);
 
-    inline bool
-    should_update_continuation_history(const Chess_Move&      beta_cutoff_move,
-                                       const Score_Bound_Type score_bound);
+    inline bool should_update_quiet_continuation_history(
+        const Chess_Move&      beta_cutoff_move,
+        const Score_Bound_Type score_bound);
 
-    void update_continuation_history(Search_Cont_Hist_Stack& cont_hist_stack,
-                                     const Chess_Move&       move,
-                                     uint16_t                ply,
-                                     uint32_t                depth_squared);
+    inline bool should_update_capture_continuation_history(
+        const Chess_Move&      beta_cutoff_move,
+        const Score_Bound_Type score_bound);
+
+    void
+    update_continuation_history(Search_Quiet_Cont_Hist_Stack& q_cont_hist_stack,
+                                const Chess_Move&             move,
+                                uint16_t                      ply,
+                                uint32_t                      depth_squared);
+
+    void update_continuation_history(
+        Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
+        const Chess_Move&               move,
+        uint16_t                        ply,
+        uint32_t                        depth_squared);
 
     inline bool should_do_see_pruning(const Chess_Move& move,
                                       const Score       best_score);
@@ -253,11 +270,19 @@ Search_Engine::should_update_correction_history(Chess_Move best_move,
             && (!is_side_to_move_in_check));
 }
 
-inline bool Search_Engine::should_update_continuation_history(
+inline bool Search_Engine::should_update_quiet_continuation_history(
     const Chess_Move&      beta_cutoff_move,
     const Score_Bound_Type score_bound)
 {
     return (beta_cutoff_move.is_quiet_move()
+            && (score_bound == Score_Bound_Type::LOWER_BOUND));
+}
+
+inline bool Search_Engine::should_update_capture_continuation_history(
+    const Chess_Move&      beta_cutoff_move,
+    const Score_Bound_Type score_bound)
+{
+    return (beta_cutoff_move.is_capture
             && (score_bound == Score_Bound_Type::LOWER_BOUND));
 }
 
