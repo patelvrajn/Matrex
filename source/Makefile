@@ -2,6 +2,12 @@
 # Only compile using 1 core because of memory consumption.
 MAKEFLAGS += -j1
 
+ifndef DEBUG
+BUILD_DIRECTORY = ../build/source/release
+else
+BUILD_DIRECTORY = ../build/source/debug
+endif
+
 # Recursive wildcard make function; recursively searches for files matching 
 # given wildcard pattern.
 rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
@@ -10,10 +16,10 @@ rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(su
 srcs = $(call rwildcard,./,*.cpp)
 
 # Object files (*.o)
-objs = $(patsubst %.cpp,%.o,$(srcs))
+objs = $(patsubst ./%.cpp,$(BUILD_DIRECTORY)%.o,$(srcs))
 
 # Dependency information files (*.d)
-depends = $(patsubst %.cpp,%.d,$(srcs))
+depends = $(patsubst ./%.cpp,$(BUILD_DIRECTORY)%.d,$(srcs))
 
 # Name of project
 PROJECT_NAME = matrex
@@ -24,6 +30,7 @@ CXXFLAGS = \
 		    -g \
 		    -std=gnu++23 \
 			-fconstexpr-depth=8192 \
+			-march=native \
 	        -O3 \
 			-flto \
 	        -MMD \
@@ -37,34 +44,24 @@ CXXFLAGS = \
 
 .PHONY: all clean
 
-ifndef DEBUG
-all: $(PROJECT_NAME)
-else
-all: $(PROJECT_NAME)_debug
-endif
+all: $(BUILD_DIRECTORY)/$(PROJECT_NAME)
 
 # Clean compile outputs from last make.
 clean:
-	find .. -name "*.d" -type f -delete
-	find .. -name "*.o" -type f -delete
-	find .. -name "$(PROJECT_NAME)" -type f -delete
-	find .. -name "$(PROJECT_NAME)_debug" -type f -delete
+	find ../build/source -name "*.d" -type f -delete
+	find ../build/source -name "*.o" -type f -delete
+	find ../build/source -name "$(PROJECT_NAME)" -type f -delete
 
 # The final product depends on the object files.
-ifndef DEBUG
-$(PROJECT_NAME) : $(objs)
+$(BUILD_DIRECTORY)/$(PROJECT_NAME) : $(objs)
 	$(CXX) $(CXXFLAGS) -o $@ $^ -lstdc++exp
-else
-$(PROJECT_NAME)_debug : $(objs)
-	$(CXX) $(CXXFLAGS) -o $@ $^ -lstdc++exp
-endif
 
 # An object file depends on the respective cpp file.
 ifndef DEBUG
-%.o: %.cpp
+$(BUILD_DIRECTORY)/%.o: %.cpp
 	$(CXX) -DNDEBUG $(CXXFLAGS) $< -o $@ -c
 else
-%.o: %.cpp
+$(BUILD_DIRECTORY)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) $< -o $@ -c
 endif
 
