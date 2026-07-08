@@ -32,9 +32,12 @@ struct Time_Control
 
 struct Search_Constraints
 {
-    bool                                     is_infinite_search;
+    int16_t                                  depth = -1;
+    bool                                     should_ignore_time;
     std::array<Time_Control, NUM_OF_PLAYERS> time_controls;
     uint64_t                                 transposition_table_size;
+
+    bool is_depth_search() { return (depth > 0); }
 };
 
 struct UCI_Search_Information
@@ -95,6 +98,8 @@ class Search_Engine
 
     Search_Engine_Result search(const Chess_Board&        cb,
                                 const Search_Constraints& constraints);
+
+    inline uint64_t get_node_count();
 
     const Transposition_Table_Statistics& get_tt_statistics() const;
 
@@ -184,6 +189,11 @@ class Search_Engine
     inline bool should_do_see_pruning(const Chess_Move& move,
                                       const Score       best_score);
 };
+
+inline uint64_t Search_Engine::get_node_count()
+{
+    return m_num_of_nodes_searched;
+}
 
 template <std::size_t CONT_HIST_STACK_SIZE>
 inline Score

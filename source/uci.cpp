@@ -119,13 +119,20 @@ void UCI::handle_go(const std::string& arguments)
 
     if (subcommand == "infinite") // Infinite search.
     {
-        // IMPORTANT: This does not yet support stop command because that 
+        // IMPORTANT: This does not yet support stop command because that
         // requires multi-threading.
-        m_search_constraints.is_infinite_search = true;
+        m_search_constraints.should_ignore_time = true;
+        m_search_constraints.depth              = -1;
+    }
+    else if (subcommand == "depth")
+    {
+        m_search_constraints.should_ignore_time = true;
+        m_search_constraints.depth              = std::stoul(tokens->at(1));
     }
     else // Timed search.
     {
-        m_search_constraints.is_infinite_search = false;
+        m_search_constraints.should_ignore_time = false;
+        m_search_constraints.depth              = -1;
 
         for (std::size_t index = 0; index < tokens->size(); index++)
         {
