@@ -20,4 +20,5 @@ jobs:
       run: |
         cd tests
         make all
+        cd ../build/tests/
         ./matrex
