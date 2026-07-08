@@ -2,7 +2,7 @@
 # Only compile using 1 core because of memory consumption.
 MAKEFLAGS += -j1
 
-BUILD_DIRECTORY = ../build/tests
+BUILD_DIRECTORY := ../build/tests
 
 # Recursive wildcard make function; recursively searches for files matching 
 # given wildcard pattern.
@@ -11,7 +11,7 @@ rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(su
 # Source files (*.cpp)
 prog_srcs_w_main = $(call rwildcard,../source,*.cpp)
 prog_srcs = $(patsubst ../source/main.cpp,,$(prog_srcs_w_main)) # Remove prog's main function by removing main.cpp otherwise, multiple main definitions.
-test_srcs = $(call rwildcard,./,*.cpp)
+test_srcs = $(call rwildcard,.,*.cpp)
 
 # Object files (*.o)
 prog_objs = $(patsubst ../source/%.cpp,$(BUILD_DIRECTORY)/%.o,$(prog_srcs))  

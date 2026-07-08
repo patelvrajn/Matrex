@@ -3,9 +3,9 @@
 MAKEFLAGS += -j1
 
 ifndef DEBUG
-BUILD_DIRECTORY = ../build/source/release
+BUILD_DIRECTORY := ../build/source/release
 else
-BUILD_DIRECTORY = ../build/source/debug
+BUILD_DIRECTORY := ../build/source/debug
 endif
 
 # Recursive wildcard make function; recursively searches for files matching 
@@ -13,13 +13,13 @@ endif
 rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 
 # Source files (*.cpp)
-srcs = $(call rwildcard,./,*.cpp)
+srcs = $(call rwildcard,.,*.cpp)
 
 # Object files (*.o)
-objs = $(patsubst ./%.cpp,$(BUILD_DIRECTORY)%.o,$(srcs))
+objs = $(patsubst ./%.cpp,$(BUILD_DIRECTORY)/%.o,$(srcs))
 
 # Dependency information files (*.d)
-depends = $(patsubst ./%.cpp,$(BUILD_DIRECTORY)%.d,$(srcs))
+depends = $(patsubst ./%.cpp,$(BUILD_DIRECTORY)/%.d,$(srcs))
 
 # Name of project
 PROJECT_NAME = matrex
