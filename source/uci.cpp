@@ -115,33 +115,46 @@ void UCI::handle_go(const std::string& arguments)
 {
     auto tokens = split_string(arguments, " ");
 
-    for (std::size_t index = 0; index < tokens->size(); index++)
-    {
-        const std::string subcommand = tokens->at(index);
+    std::string subcommand = tokens->at(0);
 
-        if (subcommand == "wtime")
+    if (subcommand == "infinite") // Infinite search.
+    {
+        // IMPORTANT: This does not yet support stop command because that 
+        // requires multi-threading.
+        m_search_constraints.is_infinite_search = true;
+    }
+    else // Timed search.
+    {
+        m_search_constraints.is_infinite_search = false;
+
+        for (std::size_t index = 0; index < tokens->size(); index++)
         {
-            index++;
-            m_search_constraints.time_controls[PIECE_COLOR::WHITE]
-                .time_remaining = std::stoull(tokens->at(index));
-        }
-        else if (subcommand == "btime")
-        {
-            index++;
-            m_search_constraints.time_controls[PIECE_COLOR::BLACK]
-                .time_remaining = std::stoull(tokens->at(index));
-        }
-        else if (subcommand == "winc")
-        {
-            index++;
-            m_search_constraints.time_controls[PIECE_COLOR::WHITE].increment =
-                std::stoull(tokens->at(index));
-        }
-        else if (subcommand == "binc")
-        {
-            index++;
-            m_search_constraints.time_controls[PIECE_COLOR::BLACK].increment =
-                std::stoull(tokens->at(index));
+            std::string subcommand = tokens->at(index);
+
+            if (subcommand == "wtime")
+            {
+                index++;
+                m_search_constraints.time_controls[PIECE_COLOR::WHITE]
+                    .time_remaining = std::stoull(tokens->at(index));
+            }
+            else if (subcommand == "btime")
+            {
+                index++;
+                m_search_constraints.time_controls[PIECE_COLOR::BLACK]
+                    .time_remaining = std::stoull(tokens->at(index));
+            }
+            else if (subcommand == "winc")
+            {
+                index++;
+                m_search_constraints.time_controls[PIECE_COLOR::WHITE]
+                    .increment = std::stoull(tokens->at(index));
+            }
+            else if (subcommand == "binc")
+            {
+                index++;
+                m_search_constraints.time_controls[PIECE_COLOR::BLACK]
+                    .increment = std::stoull(tokens->at(index));
+            }
         }
     }
 

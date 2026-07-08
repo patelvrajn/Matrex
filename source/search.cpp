@@ -173,14 +173,20 @@ Search_Engine::negamax(Chess_Board&                    position,
     m_num_of_nodes_searched++;
 
     // Check if time has expired during the search.
-    m_timer_expired_during_search = m_timer.is_search_time_expired(
-        m_constraints.time_controls[m_my_side].time_remaining,
-        m_constraints.time_controls[m_my_side].increment);
+    if (!m_constraints.is_infinite_search)
+    {
+        m_timer_expired_during_search = m_timer.is_search_time_expired(
+            m_constraints.time_controls[m_my_side].time_remaining,
+            m_constraints.time_controls[m_my_side].increment);
+    }
 
     // When time expires return beta because it will just be alpha of the parent
     // as the child score and this way it doesn't affect the best move of the
     // parent.
-    if (m_timer_expired_during_search) { return {moves[0], beta}; }
+    if ((!m_constraints.is_infinite_search) && m_timer_expired_during_search)
+    {
+        return {moves[0], beta};
+    }
 
     // Generate moves matrix for the opposing side for evaluation purposes.
     const PIECE_COLOR opposing_side =

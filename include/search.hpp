@@ -32,6 +32,7 @@ struct Time_Control
 
 struct Search_Constraints
 {
+    bool                                     is_infinite_search;
     std::array<Time_Control, NUM_OF_PLAYERS> time_controls;
     uint64_t                                 transposition_table_size;
 };
@@ -61,7 +62,7 @@ struct UCI_Search_Information
                                     const UCI_Search_Information& search_info)
     {
         const Fixed_Point_Int_Storage_Type score_cp =
-            Matrex_FP_Int::from_value(search_info.score.to_int()).get_integer();
+            search_info.score.to_fixed_point().get_integer();
         const uint64_t time_ms = search_info.time / 1e6;
         const uint64_t nps = search_info.node_count / (search_info.time / 1e9);
 
