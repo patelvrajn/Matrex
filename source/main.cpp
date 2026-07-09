@@ -2,6 +2,7 @@
 
 #include "tuner.hpp"
 #include "uci.hpp"
+#include "bench.hpp"
 
 /*******************************************************************************
     Only the entry point (main) function should be in this file because this
@@ -24,6 +25,15 @@ int main(int argc, char* argv[])
             std::ofstream output_file("assets/evaluation_terms.hpp");
             Tuner         tuner(log_file, dataset_file, output_file);
             tuner.tune();
+        }
+        else if (std::string(argv[1]) == "bench")
+        {
+            constexpr uint16_t PERFT_BENCH_DEPTH  = 4;
+            constexpr uint16_t SEARCH_BENCH_DEPTH = 6;
+
+            Performance_Bench pb;
+            pb.bench_move_generation(PERFT_BENCH_DEPTH);
+            pb.bench_search(SEARCH_BENCH_DEPTH);
         }
         else
         {

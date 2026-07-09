@@ -173,14 +173,20 @@ Search_Engine::negamax(Chess_Board&                    position,
     m_num_of_nodes_searched++;
 
     // Check if time has expired during the search.
-    m_timer_expired_during_search = m_timer.is_search_time_expired(
-        m_constraints.time_controls[m_my_side].time_remaining,
-        m_constraints.time_controls[m_my_side].increment);
+    if (!m_constraints.should_ignore_time)
+    {
+        m_timer_expired_during_search = m_timer.is_search_time_expired(
+            m_constraints.time_controls[m_my_side].time_remaining,
+            m_constraints.time_controls[m_my_side].increment);
+    }
 
     // When time expires return beta because it will just be alpha of the parent
     // as the child score and this way it doesn't affect the best move of the
     // parent.
-    if (m_timer_expired_during_search) { return {moves[0], beta}; }
+    if ((!m_constraints.should_ignore_time) && m_timer_expired_during_search)
+    {
+        return {moves[0], beta};
+    }
 
     // Generate moves matrix for the opposing side for evaluation purposes.
     const PIECE_COLOR opposing_side =
@@ -672,20 +678,29 @@ Search_Engine_Result Search_Engine::iterative_deepening()
     for (uint16_t current_depth = 1; current_depth < MAX_SEARCH_DEPTH;
          current_depth++)
     {
-        m_current_search_depth            = current_depth;
-        Search_Engine_Result result       = negamax(m_chess_board,
+        m_current_search_depth = current_depth;
+
+        Search_Engine_Result result = negamax(m_chess_board,
                                               current_depth,
                                               m_principal_variation,
                                               m_q_cont_hist_stack,
                                               m_c_cont_hist_stack);
-        uint64_t             current_time = m_timer.elapsed();
+
+        uint64_t current_time = m_timer.elapsed();
 
         UCI_Search_Information uci_search_info(m_current_search_depth,
                                                current_time,
                                                m_num_of_nodes_searched,
                                                m_principal_variation,
                                                result.second);
+
         std::cout << uci_search_info << std::endl;
+
+        if ((m_constraints.is_depth_search())
+            && (current_depth == m_constraints.depth))
+        {
+            break;
+        }
 
         best = result;
 
