@@ -174,8 +174,8 @@ class Chess_Move_List
     void sort();
 
     template <std::size_t S>
-    friend std::ostream& operator<<(std::ostream&            os,
-                                    const Chess_Move_List<S> moves);
+    friend std::ostream& operator<<(std::ostream&             os,
+                                    const Chess_Move_List<S>& moves);
 
   private:
 
@@ -257,7 +257,7 @@ void Chess_Move_List<capacity>::sort()
 }
 
 template <std::size_t S>
-std::ostream& operator<<(std::ostream& os, const Chess_Move_List<S> moves)
+std::ostream& operator<<(std::ostream& os, const Chess_Move_List<S>& moves)
 {
     for (const Chess_Move& move : moves)
     {
