@@ -340,9 +340,31 @@ class Parameter_Pack_Container
             });
     }
 
+    // Produces a compile-time array of getters function to retrieve an element
+    // at an index in the internal tuple during runtime. This avoids a templated
+    // recursive call.
+    static consteval auto make_getters()
+    {
+        return index_sequence_unpacker<size>(
+            []<std::size_t... Is>()
+            {
+                using Tuple = decltype(m_p);
+                using Getter_Function =
+                    Parameter_Pack_Variant (*)(const Tuple&);
+
+                return std::array<Getter_Function, sizeof...(Is)> {
+                    +[](const Tuple& p) -> Parameter_Pack_Variant
+                    {
+                        return Parameter_Pack_Variant(
+                            std::in_place_index<Is + 1>,
+                            std::cref(std::get<Is>(p)));
+                    }...};
+            });
+    }
+
   public:
 
-    using Parameter_Pack_Variant = std::variant<std::monostate, Pack...>;
+    using Parameter_Pack_Variant = std::variant<std::monostate, std::reference_wrapper<const Pack>...>;
 
     constexpr Parameter_Pack_Container() = default;
 
@@ -357,24 +379,21 @@ class Parameter_Pack_Container
 
     static constexpr std::size_t size = sizeof...(Pack);
 
-    // Returns a std_variant (not the array!) at an index of the internal tuple.
-    // The way this works is if the runtime index is the same as the index
-    // passed in by the template, we call get<>() otherwise, we recursively
-    // increment the template parameter of get<>().
-    template <std::size_t I = 0>
+    // Returns a std::variant at an index of the internal tuple.
     constexpr Parameter_Pack_Variant get(std::size_t index) const
     {
-        if (I == index)
-        {
-            return Parameter_Pack_Variant(std::in_place_index<I + 1>,
-                                          std::get<I>(m_p));
-        }
-        if constexpr ((I + 1) < size) { return get<I + 1>(index); }
+        static constexpr auto getters = make_getters();
 
-        return std::monostate {};
+        MATREX_ASSERT((index < size),
+                      "Parameter Pack Container Assertion FAILED: Get index "
+                      "({}) is out of bounds with size of {}.",
+                      index,
+                      size);
+
+        return getters[index](m_p);
     }
 
-    constexpr Parameter_Pack_Variant& operator[](std::size_t index)
+    constexpr Parameter_Pack_Variant operator[](std::size_t index)
     {
         return this->get(index);
     }
@@ -821,7 +840,7 @@ class Compile_Time_Jagged_Array
                 }
                 else
                 {
-                    return array[element_index];
+                    return array.get()[element_index];
                 }
             },
             m_parameter_pack[inner_array_index]);

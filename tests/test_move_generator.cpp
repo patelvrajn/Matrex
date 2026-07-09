@@ -34,10 +34,10 @@ TEST(move_generator_tests, moves_bitboard_test)
 
 TEST(move_generator_tests, standard_perft_test_suite)
 {
-    epd_perft_test("assets/standard_perft_suite.epd");
+    epd_perft_test("../../tests/assets/standard_perft_suite.epd");
 }
 
 TEST(move_generator_tests, DISABLED_frc_perft_test_suite)
 {
-    epd_perft_test("assets/frc_perft_suite.epd");
+    epd_perft_test("../../tests/assets/frc_perft_suite.epd");
 }
