@@ -981,12 +981,10 @@ T& Partially_Filled_Array<T, capacity>::operator[](std::size_t index)
                   index,
                   capacity);
 
-    int64_t index_i64 = static_cast<int64_t>(index);
+    const int64_t index_i64 = static_cast<int64_t>(index);
 
     // Caution: This allows writes above the max index but below the capacity.
-    // Thus, if you intend only index upto the max index do not use the []
-    // operator.
-    if ((index_i64 > m_max_index) && (index < capacity))
+    if (index_i64 > m_max_index)
     {
         m_max_index = index_i64;
     }
@@ -1004,7 +1002,7 @@ Partially_Filled_Array<T, capacity>::operator[](std::size_t index) const
                   index,
                   capacity);
 
-    MATREX_ASSERT(index <= m_max_index,
+    MATREX_ASSERT(static_cast<int64_t>(index) <= m_max_index,
                   "Partially_Filled_Array Assertion FAILURE: operator[] "
                   "Indexed outside of max index. Index: {}, Max Index: {}",
                   index,
