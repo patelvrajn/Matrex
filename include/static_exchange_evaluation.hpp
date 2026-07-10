@@ -307,7 +307,7 @@ Static_Exchange_Evaluator<Integral_Type>::find_hidden_attacker(
         Attacks::get_directional_ray(target_square, previous_attacker.square);
 
     // All occupancies along the attacker ray.
-    Bitboard occupancies = attacker_ray.ray & m_all_occupancies;
+    Bitboard occupancies = attacker_ray.get_ray() & m_all_occupancies;
 
     // Eliminate occupanices that cannot be attackers - the attackers are not
     // the previous attacker or the piece on the target square being evaluated

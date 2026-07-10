@@ -364,7 +364,8 @@ class Parameter_Pack_Container
 
   public:
 
-    using Parameter_Pack_Variant = std::variant<std::monostate, std::reference_wrapper<const Pack>...>;
+    using Parameter_Pack_Variant =
+        std::variant<std::monostate, std::reference_wrapper<const Pack>...>;
 
     constexpr Parameter_Pack_Container() = default;
 
@@ -984,10 +985,7 @@ T& Partially_Filled_Array<T, capacity>::operator[](std::size_t index)
     const int64_t index_i64 = static_cast<int64_t>(index);
 
     // Caution: This allows writes above the max index but below the capacity.
-    if (index_i64 > m_max_index)
-    {
-        m_max_index = index_i64;
-    }
+    if (index_i64 > m_max_index) { m_max_index = index_i64; }
 
     return m_list[index];
 }
