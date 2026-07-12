@@ -27,7 +27,8 @@ enum DIRECTION : int8_t
 // =============================================================================
 // Directional Ray
 //
-// An abstraction of what a graphical vector is.
+// An abstraction of what a graphical vector is as it relates to the chess
+// board.
 // =============================================================================
 class Directional_Ray
 {
@@ -179,8 +180,8 @@ constexpr Square
 Directional_Ray::travel_occupied_ray(const uint8_t  index,
                                      const Bitboard occupied) const
 {
-    const Bitboard occupied_ray = m_ray & occupied;
-    uint8_t occupied_count      = 0;
+    const Bitboard occupied_ray   = m_ray & occupied;
+    uint8_t        occupied_count = 0;
 
     // Starts from start square.
     if constexpr (start_from_start_square)

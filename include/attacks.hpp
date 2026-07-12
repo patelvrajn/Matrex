@@ -121,6 +121,12 @@ constexpr Directional_Ray_Table init_directional_rays_table()
     return table;
 }
 
+// =============================================================================
+// Attacks Class
+//
+// A class wrapping the engine's attack-generation infrastructure such as the
+// calculation of attacks and rays.
+// =============================================================================
 class Attacks
 {
   public:
@@ -132,23 +138,25 @@ class Attacks
                                    const PIECE_COLOR c,
                                    const Bitboard    occupancy) const;
 
-    constexpr Bitboard get_pawn_attacks(const Square& s, PIECE_COLOR c) const;
-    constexpr Bitboard get_knight_attacks(const Square& s) const;
-    constexpr Bitboard get_king_attacks(const Square& s) const;
+    constexpr Bitboard get_pawn_attacks(const Square      s,
+                                        const PIECE_COLOR c) const;
+    constexpr Bitboard get_knight_attacks(const Square s) const;
+    constexpr Bitboard get_king_attacks(const Square s) const;
 
-    constexpr Bitboard get_bishop_attacks(const Square&   s,
+    constexpr Bitboard get_bishop_attacks(const Square    s,
                                           const Bitboard& occupancy) const;
-    constexpr Bitboard get_rook_attacks(const Square&   s,
+    constexpr Bitboard get_rook_attacks(const Square    s,
                                         const Bitboard& occupancy) const;
-    constexpr Bitboard get_queen_attacks(const Square&   s,
+    constexpr Bitboard get_queen_attacks(const Square    s,
                                          const Bitboard& occupancy) const;
 
     // Caution; Direction in these functions is not the direction enum, it is
     // an index for the rays of specific directions in the slider table. See
     // init_slider_rays() above.
-    constexpr Bitboard get_bishop_rays(const Square& s,
-                                       uint8_t       direction) const;
-    constexpr Bitboard get_rook_rays(const Square& s, uint8_t direction) const;
+    constexpr Bitboard get_bishop_rays(const Square  s,
+                                       const uint8_t direction) const;
+    constexpr Bitboard get_rook_rays(const Square  s,
+                                     const uint8_t direction) const;
 
     constexpr static const Directional_Ray& get_directional_ray(const Square a,
                                                                 const Square b);
@@ -162,14 +170,11 @@ class Attacks
     const inline static constexpr Rook_Magic_Bitboards m_rook_attack_tables =
         Rook_Magic_Bitboards();
 
-    // Slider Rays Table
     static constexpr Slider_Ray_Tables m_slider_table = init_slider_rays();
 
-    // Leaper Attack Tables
     static constexpr Leaper_Attack_Tables m_leaper_table =
         init_leaper_attacks();
 
-    // Directional Ray Table
     inline static constexpr Directional_Ray_Table m_directional_ray_table =
         init_directional_rays_table();
 };
@@ -193,42 +198,42 @@ constexpr Bitboard Attacks::get_attacks(const PIECES      p,
     return output;
 }
 
-constexpr Bitboard Attacks::get_pawn_attacks(const Square& s,
-                                             PIECE_COLOR   c) const
+constexpr Bitboard Attacks::get_pawn_attacks(const Square      s,
+                                             const PIECE_COLOR c) const
 {
     return m_leaper_table.pawn[c][s.get_index()];
 }
 
-constexpr Bitboard Attacks::get_knight_attacks(const Square& s) const
+constexpr Bitboard Attacks::get_knight_attacks(const Square s) const
 {
     return m_leaper_table.knight[s.get_index()];
 }
 
-constexpr Bitboard Attacks::get_king_attacks(const Square& s) const
+constexpr Bitboard Attacks::get_king_attacks(const Square s) const
 {
     return m_leaper_table.king[s.get_index()];
 }
 
-constexpr Bitboard Attacks::get_bishop_attacks(const Square&   s,
+constexpr Bitboard Attacks::get_bishop_attacks(const Square    s,
                                                const Bitboard& occupancy) const
 {
     return m_bishop_attack_tables.get_attacks(s, occupancy);
 }
 
-constexpr Bitboard Attacks::get_rook_attacks(const Square&   s,
+constexpr Bitboard Attacks::get_rook_attacks(const Square    s,
                                              const Bitboard& occupancy) const
 {
     return m_rook_attack_tables.get_attacks(s, occupancy);
 }
 
-constexpr Bitboard Attacks::get_bishop_rays(const Square& s,
-                                            uint8_t       direction) const
+constexpr Bitboard Attacks::get_bishop_rays(const Square  s,
+                                            const uint8_t direction) const
 {
     return m_slider_table.bishop[s.get_index()][direction];
 }
 
-constexpr Bitboard Attacks::get_rook_rays(const Square& s,
-                                          uint8_t       direction) const
+constexpr Bitboard Attacks::get_rook_rays(const Square  s,
+                                          const uint8_t direction) const
 {
     return m_slider_table.rook[s.get_index()][direction];
 }
@@ -239,7 +244,7 @@ constexpr const Directional_Ray& Attacks::get_directional_ray(const Square a,
     return m_directional_ray_table[a.get_index()][b.get_index()];
 }
 
-constexpr Bitboard Attacks::get_queen_attacks(const Square&   s,
+constexpr Bitboard Attacks::get_queen_attacks(const Square    s,
                                               const Bitboard& occupancy) const
 {
     return (this->get_bishop_attacks(s, occupancy)
