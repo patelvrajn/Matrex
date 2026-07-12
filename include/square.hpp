@@ -36,6 +36,8 @@ class Square
     constexpr Square(uint8_t index);
     constexpr Square(uint8_t r, uint8_t f);
 
+    constexpr bool has_square() const;
+
     constexpr bool is_light_square() const;
     constexpr bool is_dark_square() const;
 
@@ -62,6 +64,11 @@ constexpr Square::Square(uint8_t index) : m_index(index) {}
 constexpr Square::Square(uint8_t r, uint8_t f)
 {
     m_index = (r << 3) + f; // (8 * rank) + file
+}
+
+constexpr bool Square::has_square() const
+{
+    return (m_index != ESQUARE::NO_SQUARE);
 }
 
 constexpr bool Square::is_light_square() const
@@ -109,3 +116,5 @@ constexpr bool Square::operator==(const Square& other) const
 {
     return (this->m_index == other.m_index);
 }
+
+constexpr Square NO_SQUARE_OBJ = Square(ESQUARE::NO_SQUARE);

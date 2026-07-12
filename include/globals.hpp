@@ -122,7 +122,7 @@ struct Placed_Piece
 {
     PIECE_COLOR color  = PIECE_COLOR::NO_COLOR;
     PIECES      piece  = PIECES::NO_PIECE;
-    Square      square = Square(ESQUARE::NO_SQUARE);
+    Square      square = NO_SQUARE_OBJ;
 
     bool operator==(const Placed_Piece& other) const
     {

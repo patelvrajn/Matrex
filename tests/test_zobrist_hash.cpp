@@ -118,7 +118,7 @@ TEST(zobrist_hash, zobrist_hash)
                                          | CASTLING_RIGHTS_FLAGS::B_KINGSIDE
                                          | CASTLING_RIGHTS_FLAGS::B_QUEENSIDE);
 
-    expected_hash.update_en_passant_square(Square(ESQUARE::NO_SQUARE));
+    expected_hash.update_en_passant_square(NO_SQUARE_OBJ);
 
     EXPECT_EQ(cb.get_zobrist_hash().get_hash_value(),
               expected_hash.get_hash_value());
@@ -162,7 +162,7 @@ TEST(zobrist_hash, zobrist_hash)
     //                         W    B    W    B
     cb.make_moves_from_string("d2d4 g7g6 d4d5 e7e5", false);
 
-    expected_hash.update_en_passant_square(Square(ESQUARE::NO_SQUARE));
+    expected_hash.update_en_passant_square(NO_SQUARE_OBJ);
     expected_hash.update_en_passant_square(Square(ESQUARE::E6));
 
     expected_hash.update_piece(PIECE_COLOR::WHITE,
@@ -194,7 +194,7 @@ TEST(zobrist_hash, zobrist_hash)
     cb.make_moves_from_string("d5e6", false);
 
     expected_hash.update_en_passant_square(Square(ESQUARE::E6));
-    expected_hash.update_en_passant_square(Square(ESQUARE::NO_SQUARE));
+    expected_hash.update_en_passant_square(NO_SQUARE_OBJ);
 
     expected_hash.update_piece(PIECE_COLOR::WHITE,
                                PIECES::PAWN,

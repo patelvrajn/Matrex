@@ -727,7 +727,7 @@ inline void Move_Generator::generate_en_passant_captures(
     const Square king_square = m_chess_board.get_king_square(moving_side);
 
     Square en_passant_square = m_chess_board.get_en_passant_square();
-    if (en_passant_square.get_index() != ESQUARE::NO_SQUARE)
+    if (en_passant_square.has_square())
     {
         const Bitboard en_passant_pawns =
             a.get_pawn_attacks(en_passant_square, opposing_side)
