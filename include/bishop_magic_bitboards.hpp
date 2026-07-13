@@ -75,7 +75,7 @@ constexpr Bitboard calculate_bishop_attacks(const Square   s,
         attacks.set_square(Square(r, f));
 
         // If a blocker exists on the square, stop the ray.
-        if (blockers.get_board() & Square(r, f).get_mask()) { break; }
+        if (blockers.get_square(Square(r, f))) { break; }
     }
 
     for (int8_t r = bishop_rank + 1, f = bishop_file - 1;
@@ -83,7 +83,7 @@ constexpr Bitboard calculate_bishop_attacks(const Square   s,
          r++, f--)
     {
         attacks.set_square(Square(r, f));
-        if (blockers.get_board() & Square(r, f).get_mask()) { break; }
+        if (blockers.get_square(Square(r, f))) { break; }
     }
 
     for (int8_t r = bishop_rank - 1, f = bishop_file + 1;
@@ -91,7 +91,7 @@ constexpr Bitboard calculate_bishop_attacks(const Square   s,
          r--, f++)
     {
         attacks.set_square(Square(r, f));
-        if (blockers.get_board() & Square(r, f).get_mask()) { break; }
+        if (blockers.get_square(Square(r, f))) { break; }
     }
 
     for (int8_t r = bishop_rank - 1, f = bishop_file - 1;
@@ -99,7 +99,7 @@ constexpr Bitboard calculate_bishop_attacks(const Square   s,
          r--, f--)
     {
         attacks.set_square(Square(r, f));
-        if (blockers.get_board() & Square(r, f).get_mask()) { break; }
+        if (blockers.get_square(Square(r, f))) { break; }
     }
 
     return attacks;
@@ -144,7 +144,7 @@ constexpr Magics_Array init_bishop_magics()
         Bitboard* attacks     = new Bitboard[attacks_array_size];
 
         // Generate all possible blocker boards and their corresponding bishop
-        // attacks for each square.
+        // attacks for this square.
         for (uint64_t idx = 0; idx < attacks_array_size; idx++)
         {
             occupancies[idx] =
@@ -172,12 +172,12 @@ constexpr Magics_Array init_bishop_magics()
             for (uint64_t idx = 0; idx < attacks_array_size; idx++)
             {
                 // Multiply occupancy by the magic number to generate a hash.
-                uint64_t hash = occupancies[idx].get_board() * magic;
+                const uint64_t hash = occupancies[idx].get_board() * magic;
 
                 // Extract bits for indexing the attack table. The magic index
                 // will always be at most log2(attacks array size) hence, the
                 // bit shift logic.
-                uint64_t magic_index =
+                const uint64_t magic_index =
                     hash >> (SIZE_OF_IN_BITS(hash) - num_of_high_bits_in_mask);
 
                 // If this slot is not used, assign it an attack bitboard.
