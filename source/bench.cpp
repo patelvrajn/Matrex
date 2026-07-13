@@ -20,7 +20,8 @@ double Performance_Bench::bench_move_generation(const uint16_t depth)
     }
 
     const double nps = static_cast<double>(total_leaf_node_count)
-                     / (static_cast<double>(total_time) / 1.0e9);
+                     / (static_cast<double>(total_time)
+                        / static_cast<double>(NANOSECONDS_IN_SECOND));
 
     std::cout << "=== MOVE GENERATION BENCH FOR DEPTH " << depth
               << " ===" << std::endl;
@@ -59,7 +60,8 @@ double Performance_Bench::bench_search(const uint16_t depth)
     }
 
     const double nps = static_cast<double>(total_node_count)
-                     / (static_cast<double>(total_time) / 1.0e9);
+                     / (static_cast<double>(total_time)
+                        / static_cast<double>(NANOSECONDS_IN_SECOND));
 
     std::cout << "=== SEARCH BENCH FOR DEPTH " << depth << " ===" << std::endl;
     std::cout << "Total node count is " << total_node_count << std::endl;

@@ -2,6 +2,9 @@
 
 #include <chrono>
 
+constexpr uint64_t NANOSECONDS_IN_SECOND      = 1e9;
+constexpr uint64_t NANOSECONDS_IN_MILLISECOND = 1e6;
+
 class Timer
 {
   public:
