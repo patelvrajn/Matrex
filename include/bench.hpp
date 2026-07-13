@@ -4,15 +4,21 @@
 #include <cstdint>
 #include "globals.hpp"
 
+// =============================================================================
+// Performance Bench Class
+//
+// A class with functionalities to benchmark performance for the engine's move
+// generation and search capabilities.
+// =============================================================================
 class Performance_Bench
 {
   public:
 
     Performance_Bench() = default;
 
-    double bench_move_generation(uint16_t depth);
+    double bench_move_generation(const uint16_t depth);
 
-    double bench_search(uint16_t depth);
+    double bench_search(const uint16_t depth);
 
   private:
 
