@@ -106,12 +106,12 @@ constexpr Bitboard calculate_bishop_attacks(const Square   s,
 }
 
 // =============================================================================
-// Bishop Magic Number Generator 
+// Bishop Magic Number Generator
 //
 // Used to initialize bishop magic numbers for all 64 squares of the chessboard.
-// This function attempts to find "magic numbers" (numbers that convert an 
-// occupancy bitboard to a hash used to index the attack bitboards table) for 
-// each square that allow efficient indexing into precomputed bishop attack 
+// This function attempts to find "magic numbers" (numbers that convert an
+// occupancy bitboard to a hash used to index the attack bitboards table) for
+// each square that allow efficient indexing into precomputed bishop attack
 // bitboards.
 // =============================================================================
 constexpr Magics_Array init_bishop_magics()
@@ -129,7 +129,7 @@ constexpr Magics_Array init_bishop_magics()
 
         const Bitboard mask = mask_bishop_attacks(s);
 
-        // Count how many bits are set in the mask which corresponds to how many 
+        // Count how many bits are set in the mask which corresponds to how many
         // squares can act as blockers.
         const uint8_t num_of_high_bits_in_mask = mask.high_bit_count();
 
@@ -143,7 +143,7 @@ constexpr Magics_Array init_bishop_magics()
         Bitboard* occupancies = new Bitboard[attacks_array_size];
         Bitboard* attacks     = new Bitboard[attacks_array_size];
 
-        // Generate all possible blocker boards and their corresponding bishop 
+        // Generate all possible blocker boards and their corresponding bishop
         // attacks for each square.
         for (uint64_t idx = 0; idx < attacks_array_size; idx++)
         {
@@ -152,16 +152,16 @@ constexpr Magics_Array init_bishop_magics()
             attacks[idx] = calculate_bishop_attacks(s, occupancies[idx]);
         }
 
-        // Attempt to find a suitable magic number for this square. A magic 
-        // number is valid only if maps all possible occupancy configurations to 
+        // Attempt to find a suitable magic number for this square. A magic
+        // number is valid only if maps all possible occupancy configurations to
         // a respective attack bitboard with no collisions.
         while (true)
         {
             // Allocate an array to check for hash collisions.
             Bitboard* used = new Bitboard[attacks_array_size];
 
-            // Generate a random sparse (fewer bits set) 64-bit candidate magic 
-            // number. Sparseness empirically tends to work better as magic 
+            // Generate a random sparse (fewer bits set) 64-bit candidate magic
+            // number. Sparseness empirically tends to work better as magic
             // multipliers.
             const uint64_t magic = prng.generate_sparse_random();
 
@@ -175,7 +175,7 @@ constexpr Magics_Array init_bishop_magics()
                 uint64_t hash = occupancies[idx].get_board() * magic;
 
                 // Extract bits for indexing the attack table. The magic index
-                // will always be at most log2(attacks array size) hence, the 
+                // will always be at most log2(attacks array size) hence, the
                 // bit shift logic.
                 uint64_t magic_index =
                     hash >> (SIZE_OF_IN_BITS(hash) - num_of_high_bits_in_mask);
@@ -185,7 +185,7 @@ constexpr Magics_Array init_bishop_magics()
                 {
                     used[magic_index] = attacks[idx];
                 }
-                // If slot already contains a different attack set, this is a 
+                // If slot already contains a different attack set, this is a
                 // collision and we have not found a proper magic number.
                 else if (used[magic_index] != attacks[idx])
                 {
@@ -236,9 +236,9 @@ constexpr Magics_Array bishop_magics = {
     289360742829916288ULL};
 
 // =============================================================================
-// Create Bishop Attacks Array 
+// Create Bishop Attacks Array
 //
-// Given the magic numbers, it iterates through each possible blocker 
+// Given the magic numbers, it iterates through each possible blocker
 // configuration for a bishop on the square specified and outputs the following:
 //
 // → An array of attack bitboards for the bishop (one per blocker configuration)
