@@ -70,15 +70,15 @@ class Static_Exchange_Evaluator
     PIECE_COLOR m_this_side;
 
     Bitboard m_all_occupancies;
-    multi_array<Bitboard, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+    Multi_Array<Bitboard, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
         m_piece_bitboards;
 
     // These are general material weights, we don't use the evaluation weights
     // because they require computations too slow for SEE purposes.
-    static constexpr multi_array<Integral_Type, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+    static constexpr Multi_Array<Integral_Type, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
         m_material_weights = {10, 30, 35, 50, 90, 150};
 
-    static constexpr multi_array<Integral_Type, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+    static constexpr Multi_Array<Integral_Type, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
         m_moving_piece_penalties = {1, 3, 4, 5, 9, 15};
 
     SEE_Attackers_Array

@@ -9,7 +9,7 @@
 
 struct Leaper_Attack_Tables
 {
-    multi_array<Bitboard, NUM_OF_PLAYERS, NUM_OF_SQUARES_ON_CHESS_BOARD> pawn;
+    Multi_Array<Bitboard, NUM_OF_PLAYERS, NUM_OF_SQUARES_ON_CHESS_BOARD> pawn;
     Bitboard_Array                                                       knight;
     Bitboard_Array                                                       king;
 };
@@ -41,11 +41,11 @@ constexpr uint8_t NUM_OF_ORTHOGONAL_DIRECTIONS = 4;
 
 struct Slider_Ray_Tables
 {
-    multi_array<Bitboard,
+    Multi_Array<Bitboard,
                 NUM_OF_SQUARES_ON_CHESS_BOARD,
                 NUM_OF_DIAGONAL_DIRECTIONS>
         bishop;
-    multi_array<Bitboard,
+    Multi_Array<Bitboard,
                 NUM_OF_SQUARES_ON_CHESS_BOARD,
                 NUM_OF_ORTHOGONAL_DIRECTIONS>
         rook;
@@ -96,7 +96,7 @@ constexpr Slider_Ray_Tables init_slider_rays()
     return slider_table;
 }
 
-using Directional_Ray_Table = multi_array<Directional_Ray,
+using Directional_Ray_Table = Multi_Array<Directional_Ray,
                                           NUM_OF_SQUARES_ON_CHESS_BOARD,
                                           NUM_OF_SQUARES_ON_CHESS_BOARD>;
 

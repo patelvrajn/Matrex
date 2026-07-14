@@ -49,7 +49,7 @@ struct Mini_Batch
 
 struct Worker_Batches
 {
-    multi_array<Mini_Batch, TUNER_NUM_OF_THREADS> batches;
+    Multi_Array<Mini_Batch, TUNER_NUM_OF_THREADS> batches;
 };
 
 struct Dataset
@@ -139,11 +139,11 @@ class Tuner
 
     template <typename T, std::size_t N>
     void print_multi_array_as_cpp(std::ofstream&           ofs,
-                                  const multi_array<T, N>& arr);
+                                  const Multi_Array<T, N>& arr);
 
     template <typename T, std::size_t N, std::size_t... Rest>
     void print_multi_array_as_cpp(std::ofstream&                    ofs,
-                                  const multi_array<T, N, Rest...>& arr);
+                                  const Multi_Array<T, N, Rest...>& arr);
 
     void print_header_file(const Evaluation_Weights<double>& weights);
 
@@ -162,7 +162,7 @@ struct Tuner_Step_State
 };
 
 using Tuner_Step_States_Array =
-    multi_array<Tuner_Step_State, TUNER_NUM_OF_THREADS>;
+    Multi_Array<Tuner_Step_State, TUNER_NUM_OF_THREADS>;
 
 class Tuner_Step : public Thread_Job
 {

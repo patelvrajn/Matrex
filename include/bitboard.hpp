@@ -82,8 +82,7 @@ constexpr uint64_t generate_backward_squares_mask(const PIECE_COLOR c,
 
 constexpr auto init_between_squares_masks()
 {
-    std::array<std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
-               NUM_OF_SQUARES_ON_CHESS_BOARD>
+    Multi_Array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD, NUM_OF_SQUARES_ON_CHESS_BOARD>
         between_squares_masks;
 
     for (uint8_t outer_square_idx = 0;
@@ -105,7 +104,7 @@ constexpr auto init_between_squares_masks()
 
 constexpr auto init_backward_squares_masks()
 {
-    multi_array<uint64_t, NUM_OF_PLAYERS, NUM_OF_SQUARES_ON_CHESS_BOARD>
+    Multi_Array<uint64_t, NUM_OF_PLAYERS, NUM_OF_SQUARES_ON_CHESS_BOARD>
         backward_squares_masks;
 
     uint8_t square_index = 0;
@@ -125,7 +124,7 @@ constexpr auto init_backward_squares_masks()
 
 constexpr auto init_rank_masks()
 {
-    std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> rank_masks;
+    Multi_Array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> rank_masks;
 
     for (uint8_t outer_square_index = 0;
          outer_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
@@ -155,7 +154,7 @@ constexpr auto init_rank_masks()
 
 constexpr auto init_file_masks()
 {
-    std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> file_masks;
+    Multi_Array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> file_masks;
 
     for (uint8_t outer_square_index = 0;
          outer_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
@@ -185,7 +184,7 @@ constexpr auto init_file_masks()
 
 constexpr auto init_diagonal_masks()
 {
-    std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> diagonal_masks;
+    Multi_Array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> diagonal_masks;
 
     for (uint8_t outer_square_index = 0;
          outer_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
@@ -215,7 +214,7 @@ constexpr auto init_diagonal_masks()
 
 constexpr auto init_antidiagonal_masks()
 {
-    std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> antidiagonal_masks;
+    Multi_Array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> antidiagonal_masks;
 
     for (uint8_t outer_square_index = 0;
          outer_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
@@ -343,7 +342,7 @@ class Bitboard
         init_antidiagonal_masks();
 };
 
-using Bitboard_Array = multi_array<Bitboard, NUM_OF_SQUARES_ON_CHESS_BOARD>;
+using Bitboard_Array = Multi_Array<Bitboard, NUM_OF_SQUARES_ON_CHESS_BOARD>;
 
 template <Bitboard_Iteration_Order iteration_order>
 Bitboard::Iterator<iteration_order>::Iterator(uint64_t board) : m_board(board)

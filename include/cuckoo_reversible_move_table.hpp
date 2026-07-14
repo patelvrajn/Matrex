@@ -27,8 +27,8 @@ using Cuckoo_Hash_Storage_Type = uint16_t;
 template <std::size_t capacity>
 struct Cuckoo_RM_Table_Storage
 {
-    multi_array<Zobrist_Hash, capacity> hashes_table;
-    multi_array<Chess_Move, capacity>   reversible_moves_table;
+    Multi_Array<Zobrist_Hash, capacity> hashes_table;
+    Multi_Array<Chess_Move, capacity>   reversible_moves_table;
 };
 
 constexpr Cuckoo_Hash_Storage_Type cuckoo_hash_function_1(Zobrist_Hash z)

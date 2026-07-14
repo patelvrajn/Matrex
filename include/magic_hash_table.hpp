@@ -2,7 +2,7 @@
 
 #include "bitboard.hpp"
 
-using Magics_Array = multi_array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>;
+using Magics_Array = Multi_Array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>;
 
 struct Magic_Attacks_Info_Storage
 {
@@ -11,7 +11,7 @@ struct Magic_Attacks_Info_Storage
 };
 
 using Magic_Attacks_Info_Array =
-    multi_array<Magic_Attacks_Info_Storage, NUM_OF_SQUARES_ON_CHESS_BOARD>;
+    Multi_Array<Magic_Attacks_Info_Storage, NUM_OF_SQUARES_ON_CHESS_BOARD>;
 
 template <auto magics_gen_func,
           auto attacks_gen_func,

@@ -493,21 +493,21 @@ class Parameter_Pack_Container
 // =============================================================================
 // Multi_Array Implementation
 // =============================================================================
-// Recursive multi_array definition
+// Recursive definition
 template <typename T, std::size_t this_size, std::size_t... other_sizes>
-class multi_array
+class Multi_Array
 {
-    using element_type = multi_array<T, other_sizes...>;
+    using element_type = Multi_Array<T, other_sizes...>;
 
   public:
 
     std::array<element_type, this_size> data {};
 
     // Default constructor
-    constexpr multi_array() = default;
+    constexpr Multi_Array() = default;
 
-    // Constructor from initializer list of multi_arrays
-    constexpr multi_array(std::initializer_list<element_type> init)
+    // Constructor from initializer list of Multi_Arrays
+    constexpr Multi_Array(std::initializer_list<element_type> init)
     {
         std::size_t i = 0;
         for (auto& v : init) // Only sets up to the number of elements in the
@@ -528,7 +528,7 @@ class multi_array
         return data[i];
     }
 
-    constexpr bool operator==(const multi_array& other) const
+    constexpr bool operator==(const Multi_Array& other) const
     {
         return data == other.data;
     }
@@ -547,9 +547,9 @@ class multi_array
     }
 };
 
-// Base case: single-dimension multi_array
+// Base case: single-dimension
 template <typename T, std::size_t this_size>
-class multi_array<T, this_size>
+class Multi_Array<T, this_size>
 {
     using element_type = T;
 
@@ -558,10 +558,10 @@ class multi_array<T, this_size>
     std::array<element_type, this_size> data {};
 
     // Default constructor
-    constexpr multi_array() = default;
+    constexpr Multi_Array() = default;
 
     // Constructor from initializer list
-    constexpr multi_array(std::initializer_list<T> init)
+    constexpr Multi_Array(std::initializer_list<T> init)
     {
         std::size_t i = 0;
         for (auto& v : init) // Only sets up to the number of elements in the
@@ -582,7 +582,7 @@ class multi_array<T, this_size>
         return data[i];
     }
 
-    constexpr bool operator==(const multi_array& other) const
+    constexpr bool operator==(const Multi_Array& other) const
     {
         return data == other.data;
     }
@@ -611,17 +611,17 @@ struct element_count
     static constexpr std::size_t value = 1;
 };
 
-// multi_array → product of all dimensions
+// Multi_Array → product of all dimensions
 template <typename T, std::size_t N, std::size_t... Rest>
-struct element_count<multi_array<T, N, Rest...>>
+struct element_count<Multi_Array<T, N, Rest...>>
 {
     static constexpr std::size_t value =
-        N * element_count<multi_array<T, Rest...>>::value;
+        N * element_count<Multi_Array<T, Rest...>>::value;
 };
 
 // Base case of recursion
 template <typename T, std::size_t N>
-struct element_count<multi_array<T, N>>
+struct element_count<Multi_Array<T, N>>
 {
     static constexpr std::size_t value = N;
 };
@@ -636,16 +636,16 @@ void collect_refs(T& value, Array& out, std::size_t& index)
     out[index++] = std::ref(value);
 }
 
-// Recursive case: multi_array
+// Recursive case: Multi_Array
 template <typename T, std::size_t N, typename Array>
-void collect_refs(multi_array<T, N>& arr, Array& out, std::size_t& index)
+void collect_refs(Multi_Array<T, N>& arr, Array& out, std::size_t& index)
 {
     for (std::size_t i = 0; i < N; ++i) { collect_refs(arr[i], out, index); }
 }
 
-// Recursive case: multi_array with more dimensions
+// Recursive case: Multi_Array with more dimensions
 template <typename T, std::size_t N, std::size_t... Rest, typename Array>
-void collect_refs(multi_array<T, N, Rest...>& arr,
+void collect_refs(Multi_Array<T, N, Rest...>& arr,
                   Array&                      out,
                   std::size_t&                index)
 {

@@ -26,7 +26,7 @@ constexpr Matrex_FP_Int CORR_HIST_MATERIALS_WEIGHT =
 template <std::size_t size>
 struct Correction_History_Tables_Per_Side
 {
-    using Table_Type = multi_array<Score, size>;
+    using Table_Type = Multi_Array<Score, size>;
 
     Table_Type pawns_table;
     Table_Type diagonals_table;
@@ -37,7 +37,7 @@ struct Correction_History_Tables_Per_Side
 
 template <std::size_t size>
 using Correction_History_Tables_Per_Side_Pair =
-    multi_array<Correction_History_Tables_Per_Side<size>, NUM_OF_PLAYERS>;
+    Multi_Array<Correction_History_Tables_Per_Side<size>, NUM_OF_PLAYERS>;
 
 struct Correction_History_Indices
 {

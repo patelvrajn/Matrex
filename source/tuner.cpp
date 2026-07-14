@@ -717,7 +717,7 @@ void Tuner::print_element_as_cpp(std::ofstream&                ofs,
 
 template <typename T, std::size_t N>
 void Tuner::print_multi_array_as_cpp(std::ofstream&           ofs,
-                                     const multi_array<T, N>& arr)
+                                     const Multi_Array<T, N>& arr)
 {
     ofs << "{";
     for (std::size_t i = 0; i < N; i++)
@@ -730,7 +730,7 @@ void Tuner::print_multi_array_as_cpp(std::ofstream&           ofs,
 
 template <typename T, std::size_t N, std::size_t... Rest>
 void Tuner::print_multi_array_as_cpp(std::ofstream&                    ofs,
-                                     const multi_array<T, N, Rest...>& arr)
+                                     const Multi_Array<T, N, Rest...>& arr)
 {
     ofs << "{";
     for (std::size_t i = 0; i < N; i++)
@@ -749,19 +749,19 @@ void Tuner::print_header_file(const Evaluation_Weights<double>& weights)
     m_output << "#include \"globals.hpp\"" << std::endl << std::endl;
 
     // Material
-    m_output << "constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, "
+    m_output << "constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>, "
                 "(NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)> "
                 "TUNED_MATERIAL_NLR_WEIGHTS = ";
     print_multi_array_as_cpp(m_output, weights.material_NLR_parameters);
     m_output << ";" << std::endl;
-    m_output << "constexpr multi_array<Matrex_FP_Int, "
+    m_output << "constexpr Multi_Array<Matrex_FP_Int, "
                 "(NUM_OF_UNIQUE_PIECES_PER_PLAYER "
                 "- 1)> TUNED_MATERIAL_WEIGHTS = ";
     print_multi_array_as_cpp(m_output, weights.material);
     m_output << ";" << std::endl;
 
     // Mobility
-    m_output << "constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, "
+    m_output << "constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>, "
                 "NUM_OF_UNIQUE_PIECES_PER_PLAYER> "
                 "TUNED_PIECE_MOBILITY_NLR_WEIGHTS = ";
     print_multi_array_as_cpp(m_output, weights.piece_mobility_NLR_parameters);
@@ -790,19 +790,19 @@ void Tuner::print_header_file(const Evaluation_Weights<double>& weights)
              << ");" << std::endl;
 
     // Piece Square Tables
-    m_output << "constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, "
+    m_output << "constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>, "
                 "NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER> "
                 "TUNED_PIECE_SQUARE_NLR_WEIGHTS = ";
     print_multi_array_as_cpp(m_output, weights.piece_square_NLR_parameters);
     m_output << ";" << std::endl;
 
-    m_output << "constexpr multi_array<Matrex_FP_Int, NUM_OF_PLAYERS, "
+    m_output << "constexpr Multi_Array<Matrex_FP_Int, NUM_OF_PLAYERS, "
                 "NUM_OF_UNIQUE_PIECES_PER_PLAYER, "
                 "NUM_OF_SQUARES_ON_CHESS_BOARD> TUNED_PIECE_SQUARE_TABLE = ";
     print_multi_array_as_cpp(m_output, weights.piece_square_tables);
     m_output << ";" << std::endl;
 
-    m_output << "constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, "
+    m_output << "constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>, "
                 "NUM_OF_PLAYERS> TUNED_INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS = ";
     print_multi_array_as_cpp(m_output,
                              weights.interactive_piece_square_NLR_parameters);

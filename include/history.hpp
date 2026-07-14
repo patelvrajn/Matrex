@@ -41,7 +41,7 @@ class Quiet_History_Table
 
   private:
 
-    multi_array<History_Score_Storage_Type,
+    Multi_Array<History_Score_Storage_Type,
                 NUM_OF_UNIQUE_PIECES_PER_PLAYER,
                 NUM_OF_SQUARES_ON_CHESS_BOARD>
         m_table;
@@ -61,7 +61,7 @@ class Quiet_Continuation_History_Table
 
   private:
 
-    multi_array<Quiet_History_Table,
+    Multi_Array<Quiet_History_Table,
                 NUM_OF_UNIQUE_PIECES_PER_PLAYER,
                 NUM_OF_SQUARES_ON_CHESS_BOARD>
         m_table;
@@ -98,7 +98,7 @@ class Capture_History_Table
 
   private:
 
-    multi_array<History_Score_Storage_Type,
+    Multi_Array<History_Score_Storage_Type,
                 NUM_OF_UNIQUE_PIECES_PER_PLAYER, // Moving piece
                 NUM_OF_SQUARES_ON_CHESS_BOARD,   // Destination square
                 NUM_OF_UNIQUE_PIECES_PER_PLAYER> // Captured piece
@@ -119,7 +119,7 @@ class Capture_Continuation_History_Table
 
   private:
 
-    multi_array<Capture_History_Table,
+    Multi_Array<Capture_History_Table,
                 NUM_OF_UNIQUE_PIECES_PER_PLAYER, // Moving piece
                 NUM_OF_SQUARES_ON_CHESS_BOARD>   // Destination square
         m_table;

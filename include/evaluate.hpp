@@ -13,7 +13,7 @@ template <typename T>
 class Evaluation_Weights
 {
 
-    using Piece_Square_Table_Type = multi_array<T,
+    using Piece_Square_Table_Type = Multi_Array<T,
                                                 NUM_OF_PLAYERS,
                                                 NUM_OF_UNIQUE_PIECES_PER_PLAYER,
                                                 NUM_OF_SQUARES_ON_CHESS_BOARD>;
@@ -22,7 +22,7 @@ class Evaluation_Weights
   using Evaluation_Weights_Reference_Array = Reference_Array<
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
-      T, multi_array<T, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>, T, T, T, T, T,
+      T, Multi_Array<T, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>, T, T, T, T, T,
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, 
@@ -111,21 +111,21 @@ class Evaluation_Weights
     }
 
     Evaluation_Weights(
-        multi_array<NLR_Parameters<T>, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
+        Multi_Array<NLR_Parameters<T>, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
             material_NLR_weights,
-        multi_array<T, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)> material_weights,
-        multi_array<NLR_Parameters<T>, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+        Multi_Array<T, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)> material_weights,
+        Multi_Array<NLR_Parameters<T>, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
             piece_mobility_NLR_weights,
         T   diagonal_mobility_weight,
         T   orthogonal_mobility_weight,
         T   knight_movement_mobility_weight,
         T   multi_movement_mobility_weight,
         T   backwards_movement_mobility_weight,
-        multi_array<NLR_Parameters<T>,
+        Multi_Array<NLR_Parameters<T>,
                     NUM_OF_PLAYERS,
                     NUM_OF_UNIQUE_PIECES_PER_PLAYER> piece_square_NLR_weights,
         Piece_Square_Table_Type                      piece_square_weights,
-        multi_array<NLR_Parameters<T>, NUM_OF_PLAYERS>
+        Multi_Array<NLR_Parameters<T>, NUM_OF_PLAYERS>
             interactive_piece_square_NLR_weights) :
         material_NLR_parameters(material_NLR_weights),
         material(material_weights),
@@ -207,12 +207,12 @@ class Evaluation_Weights
     Evaluation_Weights& operator=(Evaluation_Weights&& other) noexcept;
 
     // Material weights.
-    multi_array<NLR_Parameters<T>, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
+    Multi_Array<NLR_Parameters<T>, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
         material_NLR_parameters;
-    multi_array<T, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)> material;
+    Multi_Array<T, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)> material;
 
     // Mobility weights.
-    multi_array<NLR_Parameters<T>, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+    Multi_Array<NLR_Parameters<T>, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
         piece_mobility_NLR_parameters;
     T   diagonal_mobility;
     T   orthogonal_mobility;
@@ -221,12 +221,12 @@ class Evaluation_Weights
     T   backwards_movement_mobility;
 
     // Piece Square Tables
-    multi_array<NLR_Parameters<T>,
+    Multi_Array<NLR_Parameters<T>,
                 NUM_OF_PLAYERS,
                 NUM_OF_UNIQUE_PIECES_PER_PLAYER>
                             piece_square_NLR_parameters;
     Piece_Square_Table_Type piece_square_tables;
-    multi_array<NLR_Parameters<T>, NUM_OF_PLAYERS>
+    Multi_Array<NLR_Parameters<T>, NUM_OF_PLAYERS>
         interactive_piece_square_NLR_parameters;
 
     T&       operator[](std::size_t index);
@@ -804,7 +804,7 @@ inline T Evaluator<T>::piece_square_score() const
 
     // Accumulate the piece-square values from the piece-square tables for the
     // present state of the board. The accumulations are per piece per side.
-    multi_array<T, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+    Multi_Array<T, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
         color_piece_values {};
     for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK;
          color++)

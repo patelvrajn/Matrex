@@ -66,14 +66,14 @@ class Chess_Board
 {
   private:
 
-    multi_array<Zobrist_Hash, HASH_HISTORY_SIZE> m_hash_history;
+    Multi_Array<Zobrist_Hash, HASH_HISTORY_SIZE> m_hash_history;
 
     Chess_Board_State m_state;
 
-    multi_array<Bitboard, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+    Multi_Array<Bitboard, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
         m_piece_bitboards;
 
-    multi_array<Bitboard, NUM_OF_PLAYERS> m_color_occupancy_bitboards;
+    Multi_Array<Bitboard, NUM_OF_PLAYERS> m_color_occupancy_bitboards;
 
   public:
 
