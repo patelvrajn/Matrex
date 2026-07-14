@@ -70,6 +70,13 @@ enum PIECE_COLOR
     NO_COLOR
 };
 
+constexpr PIECE_COLOR& operator++(PIECE_COLOR& c)
+{
+    const int8_t value = static_cast<int8_t>(c) + 1;
+    c                  = static_cast<PIECE_COLOR>(value);
+    return c;
+}
+
 constexpr PIECE_COLOR operator~(PIECE_COLOR c)
 {
     if (c == PIECE_COLOR::WHITE) { return PIECE_COLOR::BLACK; }
@@ -153,6 +160,27 @@ inline uint16_t moves_to_ply(PIECE_COLOR c, uint16_t num_of_moves)
 
     return 0;
 }
+
+// =============================================================================
+// Direction Enumeration
+//
+// An enumeration describing directions (diagonal or orthogonal) in a chess
+// board. The directions are assigned values based on the number of bits in a
+// bitboard one needs to incrementally change the bit index (i.e. square index)
+// by to go in that direction on the board.
+// =============================================================================
+enum DIRECTION : int8_t
+{
+    NORTHWEST    = -9,
+    NORTH        = -8,
+    NORTHEAST    = -7,
+    WEST         = -1,
+    NO_DIRECTION = 0,
+    EAST         = 1,
+    SOUTHWEST    = 7,
+    SOUTH        = 8,
+    SOUTHEAST    = 9
+};
 
 // =============================================================================
 // Assertions

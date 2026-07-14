@@ -4,27 +4,6 @@
 #include "bitboard.hpp"
 
 // =============================================================================
-// Direction Enumeration
-//
-// An enumeration describing directions (diagonal or orthogonal) in a chess
-// board. The directions are assigned values based on the number of bits in a
-// bitboard one needs to incrementally change the bit index (i.e. square index)
-// by to go in that direction on the board.
-// =============================================================================
-enum DIRECTION : int8_t
-{
-    NORTHWEST    = -9,
-    NORTH        = -8,
-    NORTHEAST    = -7,
-    WEST         = -1,
-    NO_DIRECTION = 0,
-    EAST         = 1,
-    SOUTHWEST    = 7,
-    SOUTH        = 8,
-    SOUTHEAST    = 9
-};
-
-// =============================================================================
 // Directional Ray
 //
 // An abstraction of what a graphical vector is as it relates to the chess

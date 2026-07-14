@@ -942,7 +942,7 @@ Evaluator<T>::calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
             & (a.get_rook_attacks(mb.square,
                                   m_chess_board.get_both_color_occupancies()));
         const Bitboard backward_movements =
-            mb.bitboard.get_backward_squares_mask(mb.square, side);
+            mb.bitboard & Bitboard::get_backward_squares_mask(mb.square, side);
 
         const T diagonal_mobility =
             m_weights.diagonal_mobility * diagonal_movements.high_bit_count();

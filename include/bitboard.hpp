@@ -1,16 +1,16 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <stdint.h>
 
 #include "globals.hpp"
 #include "square.hpp"
 
-constexpr uint64_t generate_between_squares_mask(const Square& a,
-                                                 const Square& b)
+constexpr uint64_t generate_between_squares_mask(const Square a, const Square b)
 {
-    uint64_t mask  = 0;
-    int8_t   delta = 0;
+    uint64_t  mask  = 0;
+    DIRECTION delta = NO_DIRECTION;
 
     // There are no squares in between a and b if they are the same square.
     if (a == b) { return mask; }
@@ -20,22 +20,24 @@ constexpr uint64_t generate_between_squares_mask(const Square& a,
     if (a.get_file() == b.get_file())
     { // Squares a and b are on the same file.
 
-        delta = ((distance > 0) ? 8 : -8); // Move along the file.
+        delta = ((distance > 0) ? SOUTH : NORTH); // Move along the file.
     }
     else if (b.get_rank() == a.get_rank())
     { // Squares a and b are on the same rank.
 
-        delta = ((distance > 0) ? 1 : -1); // Move along the rank.
+        delta = ((distance > 0) ? EAST : WEST); // Move along the rank.
     }
+    // Squares a and b are on a diagonal.
     else if ((distance % 9) == 0)
-    { // Squares a and b are on a diagonal.
-
-        delta = ((distance > 0) ? 9 : -9); // Move along the diagonal.
+    {
+        // Move along the diagonal.
+        delta = ((distance > 0) ? SOUTHEAST : NORTHWEST);
     }
+    // Squares a and b are on another diagonal.
     else if ((distance % 7) == 0)
-    { // Squares a and b are on another diagonal.
-
-        delta = ((distance > 0) ? 7 : -7); // Move along the diagonal.
+    {
+        // Move along the diagonal.
+        delta = ((distance > 0) ? SOUTHWEST : NORTHEAST);
     }
     else
     {
@@ -52,6 +54,29 @@ constexpr uint64_t generate_between_squares_mask(const Square& a,
     }
 
     return mask;
+}
+
+constexpr uint64_t generate_backward_squares_mask(PIECE_COLOR c, Square s)
+{
+    uint64_t backward_squares_mask = 0;
+
+    const int8_t backward_rank_increment = (c == WHITE) ? -1 : 1;
+
+    int8_t rank = s.get_rank() + backward_rank_increment;
+
+    // As long as rank is within bounds, keep looping.
+    while ((!(rank < 0)) && (!(rank >= (NUM_OF_RANKS_ON_CHESS_BOARD))))
+    {
+        // All squares on the rank are backward squares.
+        for (int8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; file++)
+        {
+            backward_squares_mask |= Square(rank, file).get_mask();
+        }
+
+        rank += backward_rank_increment;
+    }
+
+    return backward_squares_mask;
 }
 
 constexpr std::array<std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
@@ -77,6 +102,27 @@ init_between_squares_masks()
     }
 
     return between_squares_masks;
+}
+
+constexpr multi_array<uint64_t, NUM_OF_PLAYERS, NUM_OF_SQUARES_ON_CHESS_BOARD>
+init_backward_squares_masks()
+{
+    multi_array<uint64_t, NUM_OF_PLAYERS, NUM_OF_SQUARES_ON_CHESS_BOARD>
+        backward_squares_masks;
+
+    uint8_t square_index = 0;
+
+    for (PIECE_COLOR c = PIECE_COLOR::WHITE; c <= PIECE_COLOR::BLACK; ++c)
+    {
+        for (auto& mask : backward_squares_masks[c])
+        {
+            mask = generate_backward_squares_mask(c, Square(square_index));
+
+            square_index++;
+        }
+    }
+
+    return backward_squares_masks;
 }
 
 constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_rank_masks()
@@ -252,8 +298,8 @@ class Bitboard
     constexpr int8_t get_index_of_high_lsb() const;
     constexpr int8_t get_index_of_high_msb() const;
 
-    constexpr Bitboard get_backward_squares_mask(const Square& s,
-                                                 PIECE_COLOR   side) const;
+    constexpr static Bitboard get_backward_squares_mask(const Square      s,
+                                                        const PIECE_COLOR side);
 
     constexpr static Bitboard get_between_squares_mask(const Square& a,
                                                        const Square& b);
@@ -292,6 +338,12 @@ class Bitboard
         std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
         NUM_OF_SQUARES_ON_CHESS_BOARD>
         m_between_squares_masks = init_between_squares_masks();
+
+    inline static constexpr multi_array<uint64_t,
+                                        NUM_OF_PLAYERS,
+                                        NUM_OF_SQUARES_ON_CHESS_BOARD>
+        m_backward_squares_masks = init_backward_squares_masks();
+
     inline static constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
         m_rank_masks = init_rank_masks();
     inline static constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
@@ -448,25 +500,10 @@ constexpr int8_t Bitboard::get_index_of_high_msb() const
     return ((NUM_OF_SQUARES_ON_CHESS_BOARD - 1) - std::countl_zero(m_board));
 }
 
-constexpr Bitboard Bitboard::get_backward_squares_mask(const Square& s,
-                                                       PIECE_COLOR   side) const
+constexpr Bitboard Bitboard::get_backward_squares_mask(const Square      s,
+                                                       const PIECE_COLOR side)
 {
-    Bitboard backward_squares_mask = *this;
-
-    for (const Square& square : *this)
-    {
-        int8_t rank_diff = s.get_rank() - square.get_rank();
-
-        bool is_backward_move =
-            (side == WHITE) ? (rank_diff < 0) : (rank_diff > 0);
-
-        if (!is_backward_move)
-        { // Unset all forward squares.
-            backward_squares_mask.unset_square(square);
-        }
-    }
-
-    return backward_squares_mask;
+    return m_backward_squares_masks[side][s.get_index()];
 }
 
 constexpr Bitboard Bitboard::get_between_squares_mask(const Square& a,
