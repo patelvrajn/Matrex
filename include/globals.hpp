@@ -244,6 +244,8 @@ class Multi_Array
 
     std::array<element_type, this_size> data {};
 
+    constexpr static std::size_t size = this_size;
+
     // Default constructor
     constexpr Multi_Array() = default;
 
@@ -316,6 +318,8 @@ class Multi_Array<T, this_size>
   public:
 
     std::array<element_type, this_size> data {};
+
+    constexpr static std::size_t size = this_size;
 
     // Default constructor
     constexpr Multi_Array() = default;

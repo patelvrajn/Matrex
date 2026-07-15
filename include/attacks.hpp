@@ -186,6 +186,18 @@ constexpr Bitboard Attacks::get_attacks(const PIECES      p,
                                         const PIECE_COLOR c,
                                         const Bitboard    occupancy) const
 {
+    MATREX_ASSERT((p != PIECES::NO_PIECE),
+                  "Attacks Class Assertion FAILURE: Attempted to get attacks "
+                  "of no piece.");
+
+    MATREX_ASSERT(s.has_square(),
+                  "Attacks Class Assertion FAILURE: Attempted to get attacks "
+                  "of no square.");
+
+    MATREX_ASSERT((c != PIECE_COLOR::NO_COLOR),
+                  "Attacks Class Assertion FAILURE: Attempted to get attacks "
+                  "of no color.");
+
     Bitboard output;
 
     if (p == PIECES::PAWN) { output = get_pawn_attacks(s, c); }
@@ -201,52 +213,115 @@ constexpr Bitboard Attacks::get_attacks(const PIECES      p,
 constexpr Bitboard Attacks::get_pawn_attacks(const Square      s,
                                              const PIECE_COLOR c) const
 {
+    MATREX_ASSERT(
+        s.has_square(),
+        "Attacks Class Assertion FAILURE: Attempted to get pawn attacks "
+        "of no square.");
+
+    MATREX_ASSERT(
+        (c != PIECE_COLOR::NO_COLOR),
+        "Attacks Class Assertion FAILURE: Attempted to get pawn attacks "
+        "of no color.");
+
     return m_leaper_table.pawn[c][s.get_index()];
 }
 
 constexpr Bitboard Attacks::get_knight_attacks(const Square s) const
 {
+    MATREX_ASSERT(
+        s.has_square(),
+        "Attacks Class Assertion FAILURE: Attempted to get knight attacks "
+        "of no square.");
+
     return m_leaper_table.knight[s.get_index()];
 }
 
 constexpr Bitboard Attacks::get_king_attacks(const Square s) const
 {
+    MATREX_ASSERT(
+        s.has_square(),
+        "Attacks Class Assertion FAILURE: Attempted to get king attacks "
+        "of no square.");
+
     return m_leaper_table.king[s.get_index()];
 }
 
 constexpr Bitboard Attacks::get_bishop_attacks(const Square    s,
                                                const Bitboard& occupancy) const
 {
+    MATREX_ASSERT(
+        s.has_square(),
+        "Attacks Class Assertion FAILURE: Attempted to get bishop attacks "
+        "of no square.");
+
     return m_bishop_attack_tables.get_attacks(s, occupancy);
 }
 
 constexpr Bitboard Attacks::get_rook_attacks(const Square    s,
                                              const Bitboard& occupancy) const
 {
+    MATREX_ASSERT(
+        s.has_square(),
+        "Attacks Class Assertion FAILURE: Attempted to get rook attacks "
+        "of no square.");
+
     return m_rook_attack_tables.get_attacks(s, occupancy);
 }
 
 constexpr Bitboard Attacks::get_bishop_rays(const Square  s,
                                             const uint8_t direction) const
 {
+    MATREX_ASSERT(
+        s.has_square(),
+        "Attacks Class Assertion FAILURE: Attempted to get bishop rays "
+        "of no square.");
+
+    MATREX_ASSERT(
+        (direction >= m_slider_table.bishop[s.get_index()].size),
+        "Attacks Class Assertion FAILURE: Attempted to get bishop rays "
+        "of a bad direction.");
+
     return m_slider_table.bishop[s.get_index()][direction];
 }
 
 constexpr Bitboard Attacks::get_rook_rays(const Square  s,
                                           const uint8_t direction) const
 {
+    MATREX_ASSERT(s.has_square(),
+                  "Attacks Class Assertion FAILURE: Attempted to get rook rays "
+                  "of no square.");
+
+    MATREX_ASSERT((direction >= m_slider_table.rook[s.get_index()].size),
+                  "Attacks Class Assertion FAILURE: Attempted to get rook rays "
+                  "of a bad direction.");
+
     return m_slider_table.rook[s.get_index()][direction];
 }
 
 constexpr const Directional_Ray& Attacks::get_directional_ray(const Square a,
                                                               const Square b)
 {
+    MATREX_ASSERT(
+        a.has_square(),
+        "Attacks Class Assertion FAILURE: Attempted to get a directional ray "
+        "between no square and another square.");
+
+    MATREX_ASSERT(
+        b.has_square(),
+        "Attacks Class Assertion FAILURE: Attempted to get a directional ray "
+        "between no square and another square.");
+
     return m_directional_ray_table[a.get_index()][b.get_index()];
 }
 
 constexpr Bitboard Attacks::get_queen_attacks(const Square    s,
                                               const Bitboard& occupancy) const
 {
+    MATREX_ASSERT(
+        s.has_square(),
+        "Attacks Class Assertion FAILURE: Attempted to get queen attacks "
+        "of no square.");
+
     return (this->get_bishop_attacks(s, occupancy)
             | this->get_rook_attacks(s, occupancy));
 }
