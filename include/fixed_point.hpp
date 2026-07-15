@@ -20,11 +20,11 @@ constexpr double NATURAL_E = std::numbers::e;
 
 constexpr std::size_t LOG2_LOOKUP_TABLE_SIZE = 4096;
 using log2_lookup_table_type =
-    std::array<Fixed_Point_Int_Storage_Type, LOG2_LOOKUP_TABLE_SIZE>;
+    Multi_Array<Fixed_Point_Int_Storage_Type, LOG2_LOOKUP_TABLE_SIZE>;
 
 constexpr std::size_t EXP2_LOOKUP_TABLE_SIZE = 4096;
 using exp2_lookup_table_type =
-    std::array<Fixed_Point_Int_Storage_Type, EXP2_LOOKUP_TABLE_SIZE>;
+    Multi_Array<Fixed_Point_Int_Storage_Type, EXP2_LOOKUP_TABLE_SIZE>;
 
 template <uint8_t F> // F is the number of fractional bits.
 class Fixed_Point_Integer

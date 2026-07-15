@@ -6,19 +6,24 @@
 #include "attacks.hpp"
 #include "chess_board.hpp"
 #include "chess_move.hpp"
+#include "globals.hpp"
 
 extern const Bitboard FIRST_RANK;
 extern const Bitboard SECOND_RANK;
 extern const Bitboard SEVENTH_RANK;
 extern const Bitboard EIGHTH_RANK;
 
-extern const std::array<std::array<Square, NUM_OF_CASTLING_TYPES>,
-                        NUM_OF_PLAYERS>
-    CASTLING_KING_DESTINATION_SQUARES;
+constexpr Multi_Array<Square, NUM_OF_PLAYERS, NUM_OF_CASTLING_TYPES>
+    CASTLING_KING_DESTINATION_SQUARES = {
+        {{Square(ESQUARE::G1), Square(ESQUARE::C1)},
+         {Square(ESQUARE::G8), Square(ESQUARE::C8)}}
+};
 
-extern const std::array<std::array<Square, NUM_OF_CASTLING_TYPES>,
-                        NUM_OF_PLAYERS>
-    CASTLING_ROOK_DESTINATION_SQUARES;
+constexpr Multi_Array<Square, NUM_OF_PLAYERS, NUM_OF_CASTLING_TYPES>
+    CASTLING_ROOK_DESTINATION_SQUARES = {
+        {{Square(ESQUARE::F1), Square(ESQUARE::D1)},
+         {Square(ESQUARE::F8), Square(ESQUARE::D8)}}
+};
 
 enum MOVE_GENERATION_TYPE
 {
@@ -56,16 +61,18 @@ class Moves_Bitboard_Matrix
 
   private:
 
-    std::array<int8_t, NUM_OF_PLAYERS> m_max_indices;
-    std::array<std::array<std::array<int8_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
-                          NUM_OF_UNIQUE_PIECES_PER_PLAYER>,
-               NUM_OF_PLAYERS>
+    Multi_Array<int8_t, NUM_OF_PLAYERS> m_max_indices;
+
+    Multi_Array<int8_t,
+                NUM_OF_PLAYERS,
+                NUM_OF_UNIQUE_PIECES_PER_PLAYER,
+                NUM_OF_SQUARES_ON_CHESS_BOARD>
         m_index_mappings;
-    std::array<std::array<uint16_t, NUM_OF_UNIQUE_PIECES_PER_PLAYER>,
-               NUM_OF_PLAYERS>
+
+    Multi_Array<uint16_t, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
         m_piece_index_masks;
-    std::array<std::array<Moves_Bitboard, NUM_OF_PIECES_PER_PLAYER>,
-               NUM_OF_PLAYERS>
+
+    Multi_Array<Moves_Bitboard, NUM_OF_PLAYERS, NUM_OF_PIECES_PER_PLAYER>
         m_matrix;
 };
 

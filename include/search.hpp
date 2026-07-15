@@ -32,10 +32,10 @@ struct Time_Control
 
 struct Search_Constraints
 {
-    int16_t                                  depth = -1;
-    bool                                     should_ignore_time;
-    std::array<Time_Control, NUM_OF_PLAYERS> time_controls;
-    uint64_t                                 transposition_table_size;
+    int16_t                                   depth = -1;
+    bool                                      should_ignore_time;
+    Multi_Array<Time_Control, NUM_OF_PLAYERS> time_controls;
+    uint64_t                                  transposition_table_size;
 
     bool is_depth_search() { return (depth > 0); }
 };

@@ -2,23 +2,13 @@
 
 #include <algorithm>
 #include <iostream>
+#include "chess_board.hpp"
+#include "globals.hpp"
 
 const Bitboard FIRST_RANK   = Bitboard(18374686479671623680ULL);
 const Bitboard SECOND_RANK  = Bitboard(71776119061217280ULL);
 const Bitboard SEVENTH_RANK = Bitboard(65280ULL);
 const Bitboard EIGHTH_RANK  = Bitboard(255ULL);
-
-const std::array<std::array<Square, NUM_OF_CASTLING_TYPES>, NUM_OF_PLAYERS>
-    CASTLING_KING_DESTINATION_SQUARES = {
-        {{Square(ESQUARE::G1), Square(ESQUARE::C1)},
-         {Square(ESQUARE::G8), Square(ESQUARE::C8)}}
-};
-
-const std::array<std::array<Square, NUM_OF_CASTLING_TYPES>, NUM_OF_PLAYERS>
-    CASTLING_ROOK_DESTINATION_SQUARES = {
-        {{Square(ESQUARE::F1), Square(ESQUARE::D1)},
-         {Square(ESQUARE::F8), Square(ESQUARE::D8)}}
-};
 
 Move_Generator::Move_Generator(const Chess_Board& cb) :
     m_chess_board(cb),

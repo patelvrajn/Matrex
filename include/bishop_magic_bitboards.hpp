@@ -260,9 +260,9 @@ constexpr auto create_bishop_attacks_array()
 
     constexpr uint64_t attacks_array_size = (1ULL << num_of_high_bits_in_mask);
 
-    constexpr std::array<Bitboard, attacks_array_size> attacks = ([&]() -> std::array<Bitboard, attacks_array_size> {
+    constexpr Multi_Array<Bitboard, attacks_array_size> attacks = ([&]() {
 
-    std::array<Bitboard, attacks_array_size> output{};
+    Multi_Array<Bitboard, attacks_array_size> output{};
 
     constexpr uint64_t ATTACKS_INDEX_MINIMUM = 0;
     constexpr uint64_t ATTACK_INDEX_INCREMENT = 1;

@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <utility>
 #include <variant>
+#include <cmath>
 
 #include "square.hpp"
 
@@ -161,6 +162,28 @@ inline uint16_t moves_to_ply(PIECE_COLOR c, uint16_t num_of_moves)
     return 0;
 }
 
+constexpr uint8_t NUM_OF_CASTLING_TYPES = 2;
+
+enum CASTLING_TYPE
+{
+    KINGSIDE,
+    QUEENSIDE
+};
+
+constexpr uint8_t NUM_OF_CASTLING_RIGHTS_FLAGS = 4;
+
+enum CASTLING_RIGHTS_FLAGS
+{
+    W_KINGSIDE  = 1,
+    W_QUEENSIDE = 2,
+    B_KINGSIDE  = 4,
+    B_QUEENSIDE = 8
+};
+
+constexpr uint8_t NUM_OF_CASTLING_RIGHTS_COMBINATIONS = static_cast<uint8_t>(
+    std::pow(static_cast<double>(NUM_OF_CASTLING_TYPES),
+             static_cast<double>(NUM_OF_CASTLING_RIGHTS_FLAGS)));
+
 // =============================================================================
 // Direction Enumeration
 //
@@ -207,6 +230,117 @@ enum DIRECTION : int8_t
             std::abort();                                                      \
         }
 #endif
+
+// =============================================================================
+// Multi_Array Implementation
+// =============================================================================
+// Recursive definition
+template <typename T, std::size_t this_size, std::size_t... other_sizes>
+class Multi_Array
+{
+    using element_type = Multi_Array<T, other_sizes...>;
+
+  public:
+
+    std::array<element_type, this_size> data {};
+
+    // Default constructor
+    constexpr Multi_Array() = default;
+
+    // Constructor from initializer list of Multi_Arrays
+    constexpr Multi_Array(std::initializer_list<element_type> init)
+    {
+        std::size_t i = 0;
+        for (auto& v : init) // Only sets up to the number of elements in the
+                             // initializer list.
+        {
+            if (i < this_size) { (*this)[i++] = v; }
+            else
+            {
+                break; // ignore extra elements
+            }
+        }
+    }
+
+    constexpr element_type& operator[](std::size_t i) { return data[i]; }
+
+    constexpr const element_type& operator[](std::size_t i) const
+    {
+        return data[i];
+    }
+
+    constexpr bool operator==(const Multi_Array& other) const
+    {
+        return data == other.data;
+    }
+
+    constexpr auto begin() { return data.begin(); }
+
+    constexpr auto end() { return data.end(); }
+
+    constexpr auto begin() const { return data.begin(); }
+
+    constexpr auto end() const { return data.end(); }
+
+    void fill(T fill_value)
+    {
+        for (auto& element : (*this)) { element.fill(fill_value); }
+    }
+};
+
+// Base case: single-dimension
+template <typename T, std::size_t this_size>
+class Multi_Array<T, this_size>
+{
+    using element_type = T;
+
+  public:
+
+    std::array<element_type, this_size> data {};
+
+    // Default constructor
+    constexpr Multi_Array() = default;
+
+    // Constructor from initializer list
+    constexpr Multi_Array(std::initializer_list<T> init)
+    {
+        std::size_t i = 0;
+        for (auto& v : init) // Only sets up to the number of elements in the
+                             // initializer list.
+        {
+            if (i < this_size) { (*this)[i++] = v; }
+            else
+            {
+                break; // ignore extra elements
+            }
+        }
+    }
+
+    constexpr element_type& operator[](std::size_t i) { return data[i]; }
+
+    constexpr const element_type& operator[](std::size_t i) const
+    {
+        return data[i];
+    }
+
+    constexpr bool operator==(const Multi_Array& other) const
+    {
+        return data == other.data;
+    }
+
+    constexpr auto begin() { return data.begin(); }
+
+    constexpr auto end() { return data.end(); }
+
+    constexpr auto begin() const { return data.begin(); }
+
+    constexpr auto end() const { return data.end(); }
+
+    void fill(T fill_value)
+    {
+        for (auto& element : (*this)) { element = fill_value; }
+    }
+};
 
 // =============================================================================
 // Constant Expression For-Loop
@@ -382,7 +516,7 @@ class Parameter_Pack_Container
                 using Getter_Function =
                     Parameter_Pack_Variant (*)(const Tuple&);
 
-                return std::array<Getter_Function, sizeof...(Is)> {
+                return Multi_Array<Getter_Function, sizeof...(Is)> {
                     +[](const Tuple& p) -> Parameter_Pack_Variant
                     {
                         return Parameter_Pack_Variant(
@@ -491,117 +625,6 @@ class Parameter_Pack_Container
 };
 
 // =============================================================================
-// Multi_Array Implementation
-// =============================================================================
-// Recursive definition
-template <typename T, std::size_t this_size, std::size_t... other_sizes>
-class Multi_Array
-{
-    using element_type = Multi_Array<T, other_sizes...>;
-
-  public:
-
-    std::array<element_type, this_size> data {};
-
-    // Default constructor
-    constexpr Multi_Array() = default;
-
-    // Constructor from initializer list of Multi_Arrays
-    constexpr Multi_Array(std::initializer_list<element_type> init)
-    {
-        std::size_t i = 0;
-        for (auto& v : init) // Only sets up to the number of elements in the
-                             // initializer list.
-        {
-            if (i < this_size) { (*this)[i++] = v; }
-            else
-            {
-                break; // ignore extra elements
-            }
-        }
-    }
-
-    constexpr element_type& operator[](std::size_t i) { return data[i]; }
-
-    constexpr const element_type& operator[](std::size_t i) const
-    {
-        return data[i];
-    }
-
-    constexpr bool operator==(const Multi_Array& other) const
-    {
-        return data == other.data;
-    }
-
-    constexpr auto begin() { return data.begin(); }
-
-    constexpr auto end() { return data.end(); }
-
-    constexpr auto begin() const { return data.begin(); }
-
-    constexpr auto end() const { return data.end(); }
-
-    void fill(T fill_value)
-    {
-        for (auto& element : (*this)) { element.fill(fill_value); }
-    }
-};
-
-// Base case: single-dimension
-template <typename T, std::size_t this_size>
-class Multi_Array<T, this_size>
-{
-    using element_type = T;
-
-  public:
-
-    std::array<element_type, this_size> data {};
-
-    // Default constructor
-    constexpr Multi_Array() = default;
-
-    // Constructor from initializer list
-    constexpr Multi_Array(std::initializer_list<T> init)
-    {
-        std::size_t i = 0;
-        for (auto& v : init) // Only sets up to the number of elements in the
-                             // initializer list.
-        {
-            if (i < this_size) { (*this)[i++] = v; }
-            else
-            {
-                break; // ignore extra elements
-            }
-        }
-    }
-
-    constexpr element_type& operator[](std::size_t i) { return data[i]; }
-
-    constexpr const element_type& operator[](std::size_t i) const
-    {
-        return data[i];
-    }
-
-    constexpr bool operator==(const Multi_Array& other) const
-    {
-        return data == other.data;
-    }
-
-    constexpr auto begin() { return data.begin(); }
-
-    constexpr auto end() { return data.end(); }
-
-    constexpr auto begin() const { return data.begin(); }
-
-    constexpr auto end() const { return data.end(); }
-
-    void fill(T fill_value)
-    {
-        for (auto& element : (*this)) { element = fill_value; }
-    }
-};
-
-// =============================================================================
 // Compile-time element counting
 // =============================================================================
 // Scalar → 1 element
@@ -672,7 +695,7 @@ auto make_reference_array(Args&... args)
     constexpr std::size_t total = calculate_reference_array_size<Args...>();
 
     // Fixed-size array of references
-    std::array<std::optional<std::reference_wrapper<T>>, total> result;
+    Multi_Array<std::optional<std::reference_wrapper<T>>, total> result;
 
     // Current insertion index
     std::size_t index = 0;
@@ -696,7 +719,7 @@ class Reference_Array
 
   private:
 
-    std::array<std::optional<std::reference_wrapper<T>>, size> m_refs;
+    Multi_Array<std::optional<std::reference_wrapper<T>>, size> m_refs;
     std::unordered_map<const void*, std::size_t> m_ref_to_index_map;
 
   public:
@@ -806,7 +829,7 @@ class Compile_Time_Jagged_Array
     // move contructor not usable).
 
     template <std::size_t set_index, std::size_t inner_array_size>
-    constexpr auto set(std::array<T, inner_array_size> inner_array)
+    constexpr auto set(Multi_Array<T, inner_array_size> inner_array)
     {
         if constexpr (set_index == 0)
         {
@@ -919,8 +942,8 @@ class Partially_Filled_Array
 
   private:
 
-    int64_t                 m_max_index;
-    std::array<T, capacity> m_list;
+    int64_t                  m_max_index;
+    Multi_Array<T, capacity> m_list;
 };
 
 template <typename T, std::size_t capacity>

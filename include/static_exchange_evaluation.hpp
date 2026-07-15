@@ -222,12 +222,16 @@ Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
         interleaved_attackers.append(this_side_attackers[append_index]);
     }
 
-    auto        attackers = std::array {std::ref(this_side_attackers),
+    // Note, attackers and indices cannot be Multi_Arrays because of type
+    // deduction.
+    auto attackers = std::array {std::ref(this_side_attackers),
                                  std::ref(other_side_attackers)};
-    auto        indices   = std::array {this_side_attackers.get_max_index(),
+    auto indices   = std::array {this_side_attackers.get_max_index(),
                                other_side_attackers.get_max_index()};
-    PIECE_COLOR side      = this_side;
-    std::size_t count     = 0;
+
+    PIECE_COLOR side  = this_side;
+    std::size_t count = 0;
+
     while (true)
     {
         // No side can have zero attackers.

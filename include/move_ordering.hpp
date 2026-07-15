@@ -2,6 +2,7 @@
 
 #include "chess_board.hpp"
 #include "chess_move.hpp"
+#include "globals.hpp"
 #include "move_generator.hpp"
 #include "static_exchange_evaluation.hpp"
 #include "history.hpp"
@@ -11,8 +12,7 @@ constexpr Move_Score MVV_LVA_ATTACKER_VALUES[] = {10, 20, 30, 40, 50, 60};
 // Attacker: Pawn, Knight, Bishop, Rook, Queen, King
 // Victims: Pawn, Knight, Bishop, Rook, Queen
 // mvv_lva_array[attacker][victim]
-typedef std::array<std::array<Move_Score, (PIECES::QUEEN + 1)>,
-                   (PIECES::KING + 1)>
+typedef Multi_Array<Move_Score, (PIECES::KING + 1), (PIECES::QUEEN + 1)>
     mvv_lva_array;
 
 template <std::size_t CONT_HIST_STACK_SIZE>

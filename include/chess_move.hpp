@@ -179,8 +179,8 @@ class Chess_Move_List
 
   private:
 
-    int16_t                          m_max_index;
-    std::array<Chess_Move, capacity> m_list;
+    int16_t                           m_max_index;
+    Multi_Array<Chess_Move, capacity> m_list;
 };
 
 template <std::size_t capacity>

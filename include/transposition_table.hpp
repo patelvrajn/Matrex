@@ -90,7 +90,7 @@ class Mini_Queue
 
   private:
 
-    std::array<T, capacity> m_queue {};
+    Multi_Array<T, capacity> m_queue {};
 
     // m_front = index of the current front element
     // m_back  = index one past the current back element

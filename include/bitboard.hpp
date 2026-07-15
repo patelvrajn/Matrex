@@ -82,7 +82,9 @@ constexpr uint64_t generate_backward_squares_mask(const PIECE_COLOR c,
 
 constexpr auto init_between_squares_masks()
 {
-    Multi_Array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD, NUM_OF_SQUARES_ON_CHESS_BOARD>
+    Multi_Array<uint64_t,
+                NUM_OF_SQUARES_ON_CHESS_BOARD,
+                NUM_OF_SQUARES_ON_CHESS_BOARD>
         between_squares_masks;
 
     for (uint8_t outer_square_idx = 0;

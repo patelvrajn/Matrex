@@ -12,24 +12,6 @@
 constexpr uint8_t     HALF_MOVE_CLOCK_MAXIMUM = 100;
 constexpr std::size_t HASH_HISTORY_SIZE       = HALF_MOVE_CLOCK_MAXIMUM;
 
-constexpr uint8_t NUM_OF_CASTLING_TYPES = 2;
-
-enum CASTLING_TYPE
-{
-    KINGSIDE,
-    QUEENSIDE
-};
-
-constexpr uint8_t NUM_OF_CASTLING_RIGHTS_FLAGS = 4;
-
-enum CASTLING_RIGHTS_FLAGS
-{
-    W_KINGSIDE  = 1,
-    W_QUEENSIDE = 2,
-    B_KINGSIDE  = 4,
-    B_QUEENSIDE = 8
-};
-
 struct Castling_Rooks
 {
     Square queenside;
@@ -49,8 +31,9 @@ struct Chess_Board_State
     uint16_t hash_history_start  : 7;
     uint16_t hash_history_length : 7;
 
-    std::array<Castling_Rooks, NUM_OF_PLAYERS> castling_rooks;
-    uint64_t                                   full_move_count;
+    Multi_Array<Castling_Rooks, NUM_OF_PLAYERS> castling_rooks;
+
+    uint64_t full_move_count;
 
     bool operator==(const Chess_Board_State& other) const
     {
