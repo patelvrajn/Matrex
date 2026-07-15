@@ -250,14 +250,33 @@ class Multi_Array
     // Constructor from initializer list of Multi_Arrays
     constexpr Multi_Array(std::initializer_list<element_type> init)
     {
-        std::size_t i = 0;
-        for (auto& v : init) // Only sets up to the number of elements in the
-                             // initializer list.
+        if (init.size() == 0)
         {
-            if (i < this_size) { (*this)[i++] = v; }
-            else
+            for (std::size_t i = 0; i < this_size; i++)
             {
-                break; // ignore extra elements
+                // Default construct all members.
+                (*this)[i] = element_type();
+            }
+        }
+        else if (init.size() == 1)
+        {
+            for (std::size_t i = 0; i < this_size; i++)
+            {
+                // Fill the array with the only given value;
+                (*this)[i] = (*init.begin());
+            }
+        }
+        else
+        {
+            std::size_t i = 0;
+            for (const auto& v : init) // Only sets up to the number of elements
+                                       // in the initializer list.
+            {
+                if (i < this_size) { (*this)[i++] = v; }
+                else
+                {
+                    break; // ignore extra elements
+                }
             }
         }
     }
@@ -304,14 +323,33 @@ class Multi_Array<T, this_size>
     // Constructor from initializer list
     constexpr Multi_Array(std::initializer_list<T> init)
     {
-        std::size_t i = 0;
-        for (auto& v : init) // Only sets up to the number of elements in the
-                             // initializer list.
+        if (init.size() == 0)
         {
-            if (i < this_size) { (*this)[i++] = v; }
-            else
+            for (std::size_t i = 0; i < this_size; i++)
             {
-                break; // ignore extra elements
+                // Default construct all members.
+                (*this)[i] = element_type();
+            }
+        }
+        else if (init.size() == 1)
+        {
+            for (std::size_t i = 0; i < this_size; i++)
+            {
+                // Fill the array with the only given value;
+                (*this)[i] = (*init.begin());
+            }
+        }
+        else
+        {
+            std::size_t i = 0;
+            for (const auto& v : init) // Only sets up to the number of elements
+                                       // in the initializer list.
+            {
+                if (i < this_size) { (*this)[i++] = v; }
+                else
+                {
+                    break; // ignore extra elements
+                }
             }
         }
     }
