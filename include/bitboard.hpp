@@ -260,7 +260,7 @@ class Bitboard
     {
       public:
 
-        Iterator(uint64_t board);
+        Iterator(const uint64_t board);
         Square    operator*() const;
         Iterator& operator++();
         bool      operator==(const Iterator& other) const;
@@ -278,12 +278,12 @@ class Bitboard
     Iterator<iteration_order> end() const;
 
     constexpr Bitboard();
-    constexpr Bitboard(uint64_t board);
+    constexpr Bitboard(const uint64_t board);
 
     void pretty_print() const;
 
     constexpr uint64_t get_board() const;
-    constexpr void     set_board(uint64_t board);
+    constexpr void     set_board(const uint64_t board);
 
     constexpr void     unset_square(const Square s);
     constexpr void     set_square(const Square s);
@@ -323,8 +323,8 @@ class Bitboard
     constexpr Bitboard& operator|=(const Bitboard& other);
     constexpr Bitboard& operator&=(const Bitboard& other);
     constexpr Bitboard& operator^=(const Bitboard& other);
-    constexpr Bitboard& operator<<=(uint8_t shift);
-    constexpr Bitboard& operator>>=(uint8_t shift);
+    constexpr Bitboard& operator<<=(const uint8_t shift);
+    constexpr Bitboard& operator>>=(const uint8_t shift);
 
   private:
 
@@ -346,7 +346,8 @@ class Bitboard
 using Bitboard_Array = Multi_Array<Bitboard, NUM_OF_SQUARES_ON_CHESS_BOARD>;
 
 template <Bitboard_Iteration_Order iteration_order>
-Bitboard::Iterator<iteration_order>::Iterator(uint64_t board) : m_board(board)
+Bitboard::Iterator<iteration_order>::Iterator(const uint64_t board) :
+    m_board(board)
 {
 }
 
@@ -423,24 +424,36 @@ struct Bitboard_Iterable
 
 constexpr Bitboard::Bitboard() : m_board(0) {}
 
-constexpr Bitboard::Bitboard(uint64_t board) : m_board(board) {}
+constexpr Bitboard::Bitboard(const uint64_t board) : m_board(board) {}
 
 constexpr uint64_t Bitboard::get_board() const { return m_board; }
 
-constexpr void Bitboard::set_board(uint64_t board) { m_board = board; }
+constexpr void Bitboard::set_board(const uint64_t board) { m_board = board; }
 
 constexpr void Bitboard::unset_square(const Square s)
 {
+    MATREX_ASSERT(s.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to unset square "
+                  "NO_SQUARE.");
+
     m_board &= ~(s.get_mask());
 }
 
 constexpr void Bitboard::set_square(const Square s)
 {
+    MATREX_ASSERT(
+        s.has_square(),
+        "Bitboard Class Assertion FAILURE: Attempted to set square NO_SQUARE.");
+
     m_board = (m_board | s.get_mask());
 }
 
 constexpr uint64_t Bitboard::get_square(const Square s) const
 {
+    MATREX_ASSERT(
+        s.has_square(),
+        "Bitboard Class Assertion FAILURE: Attempted to get square NO_SQUARE.");
+
     return (m_board & s.get_mask());
 }
 
@@ -491,32 +504,64 @@ constexpr int8_t Bitboard::get_index_of_high_msb() const
 constexpr Bitboard Bitboard::get_backward_squares_mask(const Square      s,
                                                        const PIECE_COLOR side)
 {
+    MATREX_ASSERT(s.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to get backward "
+                  "squares mask for NO_SQUARE.");
+
+    MATREX_ASSERT((side != PIECE_COLOR::NO_COLOR),
+                  "Bitboard Class Assertion FAILURE: Attempted to get backward "
+                  "squares mask for NO_COLOR.");
+
     return m_backward_squares_masks[side][s.get_index()];
 }
 
 constexpr Bitboard Bitboard::get_between_squares_mask(const Square a,
                                                       const Square b)
 {
+    MATREX_ASSERT(a.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to get between "
+                  "squares mask for NO_SQUARE.");
+
+    MATREX_ASSERT(b.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to get between "
+                  "squares mask for NO_SQUARE.");
+
     return Bitboard(m_between_squares_masks[a.get_index()][b.get_index()]);
 }
 
 constexpr Bitboard Bitboard::get_rank_mask(const Square s)
 {
+    MATREX_ASSERT(s.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to get rank "
+                  "mask for NO_SQUARE.");
+
     return Bitboard(m_rank_masks[s.get_index()]);
 }
 
 constexpr Bitboard Bitboard::get_file_mask(const Square s)
 {
+    MATREX_ASSERT(s.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to get file "
+                  "mask for NO_SQUARE.");
+
     return Bitboard(m_file_masks[s.get_index()]);
 }
 
 constexpr Bitboard Bitboard::get_diagonal_mask(const Square s)
 {
+    MATREX_ASSERT(s.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to get diagonal "
+                  "mask for NO_SQUARE.");
+
     return Bitboard(m_diagonal_masks[s.get_index()]);
 }
 
 constexpr Bitboard Bitboard::get_antidiagonal_mask(const Square s)
 {
+    MATREX_ASSERT(s.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to get "
+                  "antidiagonal mask for NO_SQUARE.");
+
     return Bitboard(m_antidiagonal_masks[s.get_index()]);
 }
 
@@ -524,6 +569,14 @@ constexpr bool Bitboard::is_piece_obstructed(const Square   a,
                                              const Square   b,
                                              const Bitboard occupancy)
 {
+    MATREX_ASSERT(a.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to calculate if "
+                  "piece is obstructed for NO_SQUARE.");
+
+    MATREX_ASSERT(b.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to calculate if "
+                  "piece is obstructed for NO_SQUARE.");
+
     return ((get_between_squares_mask(a, b) & occupancy) != Bitboard(0));
 }
 
@@ -554,11 +607,21 @@ constexpr Bitboard Bitboard::operator^(const Bitboard& other) const
 
 constexpr Bitboard Bitboard::operator<<(const uint8_t shift) const
 {
+    MATREX_ASSERT((shift >= SIZE_OF_IN_BITS(m_board)),
+                  "Bitboard Class Assertion FAILURE: The shift of magnitude {} "
+                  "is undefined behavior.",
+                  shift);
+
     return Bitboard(m_board << shift);
 }
 
 constexpr Bitboard Bitboard::operator>>(const uint8_t shift) const
 {
+    MATREX_ASSERT((shift >= SIZE_OF_IN_BITS(m_board)),
+                  "Bitboard Class Assertion FAILURE: The shift of magnitude {} "
+                  "is undefined behavior.",
+                  shift);
+
     return Bitboard(m_board >> shift);
 }
 
@@ -582,14 +645,24 @@ constexpr Bitboard& Bitboard::operator^=(const Bitboard& other)
     return *this;
 }
 
-constexpr Bitboard& Bitboard::operator<<=(uint8_t shift)
+constexpr Bitboard& Bitboard::operator<<=(const uint8_t shift)
 {
+    MATREX_ASSERT((shift >= SIZE_OF_IN_BITS(m_board)),
+                  "Bitboard Class Assertion FAILURE: The shift of magnitude {} "
+                  "is undefined behavior.",
+                  shift);
+
     m_board <<= shift;
     return *this;
 }
 
-constexpr Bitboard& Bitboard::operator>>=(uint8_t shift)
+constexpr Bitboard& Bitboard::operator>>=(const uint8_t shift)
 {
+    MATREX_ASSERT((shift >= SIZE_OF_IN_BITS(m_board)),
+                  "Bitboard Class Assertion FAILURE: The shift of magnitude {} "
+                  "is undefined behavior.",
+                  shift);
+
     m_board >>= shift;
     return *this;
 }
