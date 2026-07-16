@@ -607,7 +607,7 @@ constexpr Bitboard Bitboard::operator^(const Bitboard& other) const
 
 constexpr Bitboard Bitboard::operator<<(const uint8_t shift) const
 {
-    MATREX_ASSERT((shift >= SIZE_OF_IN_BITS(m_board)),
+    MATREX_ASSERT((shift < SIZE_OF_IN_BITS(m_board)),
                   "Bitboard Class Assertion FAILURE: The shift of magnitude {} "
                   "is undefined behavior.",
                   shift);
@@ -617,7 +617,7 @@ constexpr Bitboard Bitboard::operator<<(const uint8_t shift) const
 
 constexpr Bitboard Bitboard::operator>>(const uint8_t shift) const
 {
-    MATREX_ASSERT((shift >= SIZE_OF_IN_BITS(m_board)),
+    MATREX_ASSERT((shift < SIZE_OF_IN_BITS(m_board)),
                   "Bitboard Class Assertion FAILURE: The shift of magnitude {} "
                   "is undefined behavior.",
                   shift);
@@ -647,7 +647,7 @@ constexpr Bitboard& Bitboard::operator^=(const Bitboard& other)
 
 constexpr Bitboard& Bitboard::operator<<=(const uint8_t shift)
 {
-    MATREX_ASSERT((shift >= SIZE_OF_IN_BITS(m_board)),
+    MATREX_ASSERT((shift < SIZE_OF_IN_BITS(m_board)),
                   "Bitboard Class Assertion FAILURE: The shift of magnitude {} "
                   "is undefined behavior.",
                   shift);
@@ -658,7 +658,7 @@ constexpr Bitboard& Bitboard::operator<<=(const uint8_t shift)
 
 constexpr Bitboard& Bitboard::operator>>=(const uint8_t shift)
 {
-    MATREX_ASSERT((shift >= SIZE_OF_IN_BITS(m_board)),
+    MATREX_ASSERT((shift < SIZE_OF_IN_BITS(m_board)),
                   "Bitboard Class Assertion FAILURE: The shift of magnitude {} "
                   "is undefined behavior.",
                   shift);
