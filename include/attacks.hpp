@@ -161,6 +161,8 @@ class Attacks
     constexpr static const Directional_Ray& get_directional_ray(const Square a,
                                                                 const Square b);
 
+    constexpr static Bitboard get_infinite_ray(const Square a, const Square b);
+
   private:
 
     // Slider Attack Tables (constexpr to avoid the Static Initialization Order
@@ -268,6 +270,18 @@ constexpr Bitboard Attacks::get_rook_attacks(const Square    s,
     return m_rook_attack_tables.get_attacks(s, occupancy);
 }
 
+constexpr Bitboard Attacks::get_queen_attacks(const Square    s,
+                                              const Bitboard& occupancy) const
+{
+    MATREX_ASSERT(
+        s.has_square(),
+        "Attacks Class Assertion FAILURE: Attempted to get queen attacks "
+        "of no square.");
+
+    return (this->get_bishop_attacks(s, occupancy)
+            | this->get_rook_attacks(s, occupancy));
+}
+
 constexpr Bitboard Attacks::get_bishop_rays(const Square  s,
                                             const uint8_t direction) const
 {
@@ -314,14 +328,21 @@ constexpr const Directional_Ray& Attacks::get_directional_ray(const Square a,
     return m_directional_ray_table[a.get_index()][b.get_index()];
 }
 
-constexpr Bitboard Attacks::get_queen_attacks(const Square    s,
-                                              const Bitboard& occupancy) const
+constexpr Bitboard Attacks::get_infinite_ray(const Square a, const Square b)
 {
-    MATREX_ASSERT(
-        s.has_square(),
-        "Attacks Class Assertion FAILURE: Attempted to get queen attacks "
-        "of no square.");
+    if (a.get_rank() == b.get_rank()) { return Bitboard::get_rank_mask(a); }
 
-    return (this->get_bishop_attacks(s, occupancy)
-            | this->get_rook_attacks(s, occupancy));
+    if (a.get_file() == b.get_file()) { return Bitboard::get_file_mask(a); }
+
+    if (a.get_diagonal() == b.get_diagonal())
+    {
+        return Bitboard::get_diagonal_mask(a);
+    }
+
+    if (a.get_antidiagonal() == b.get_antidiagonal())
+    {
+        return Bitboard::get_antidiagonal_mask(a);
+    }
+
+    return Bitboard();
 }

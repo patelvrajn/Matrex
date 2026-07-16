@@ -304,7 +304,6 @@ class Bitboard
     constexpr static Bitboard get_file_mask(const Square s);
     constexpr static Bitboard get_diagonal_mask(const Square s);
     constexpr static Bitboard get_antidiagonal_mask(const Square s);
-    constexpr static Bitboard get_infinite_ray(const Square a, const Square b);
 
     constexpr static bool is_piece_obstructed(const Square   a,
                                               const Square   b,
@@ -521,22 +520,6 @@ constexpr Bitboard Bitboard::get_antidiagonal_mask(const Square s)
     return Bitboard(m_antidiagonal_masks[s.get_index()]);
 }
 
-constexpr Bitboard Bitboard::get_infinite_ray(const Square a, const Square b)
-{
-    if (a.get_rank() == b.get_rank()) { return get_rank_mask(a); }
-
-    if (a.get_file() == b.get_file()) { return get_file_mask(a); }
-
-    if (a.get_diagonal() == b.get_diagonal()) { return get_diagonal_mask(a); }
-
-    if (a.get_antidiagonal() == b.get_antidiagonal())
-    {
-        return get_antidiagonal_mask(a);
-    }
-
-    return Bitboard();
-}
-
 constexpr bool Bitboard::is_piece_obstructed(const Square   a,
                                              const Square   b,
                                              const Bitboard occupancy)
@@ -619,7 +602,7 @@ constexpr Bitboard init_light_square_bitboard()
          from_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
          from_square_idx++)
     {
-        Square s(from_square_idx);
+        const Square s(from_square_idx);
         if (s.is_light_square()) { output.set_square(s); }
     }
 
@@ -634,7 +617,7 @@ constexpr Bitboard init_dark_square_bitboard()
          from_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
          from_square_idx++)
     {
-        Square s(from_square_idx);
+        const Square s(from_square_idx);
         if (s.is_dark_square()) { output.set_square(s); }
     }
 

@@ -387,7 +387,7 @@ Bitboard Move_Generator::get_pin_mask(const Bitboard& pinned,
 
     if (is_pinned(pinned, source_square))
     {
-        return Bitboard::get_infinite_ray(our_king_square, source_square);
+        return Attacks::get_infinite_ray(our_king_square, source_square);
     }
     else
     {
