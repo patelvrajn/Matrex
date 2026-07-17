@@ -743,7 +743,7 @@ template <typename T>
 template <PIECE_COLOR moving_side>
 inline T Evaluator<T>::material_score() const
 {
-    constexpr PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
+    constexpr PIECE_COLOR opposing_side = ~moving_side;
 
     T return_value = constant_conversion(0.0);
 
@@ -773,7 +773,7 @@ template <typename T>
 template <PIECE_COLOR moving_side>
 inline T Evaluator<T>::mobility_score() const
 {
-    constexpr PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
+    constexpr PIECE_COLOR opposing_side = ~moving_side;
 
     T mobility = constant_conversion(0.0);
 

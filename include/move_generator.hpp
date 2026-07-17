@@ -212,7 +212,7 @@ Bitboard Move_Generator::generate_check_mask()
     // get_side_to_move() = side whose turn it is.
     // ~ flips the bit, & 0x1 ensures we only keep 1-bit color info (WHITE=0,
     // BLACK=1).
-    constexpr PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
+    constexpr PIECE_COLOR opposing_side = ~moving_side;
 
     // The square our king is on.
     const Square our_king_square = m_chess_board.get_king_square(moving_side);
@@ -308,7 +308,7 @@ Bitboard Move_Generator::generate_pinned() const
     Attacks a;
 
     // Opposite color (side not moving) — bit hack: flip 0 ↔ 1
-    constexpr PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
+    constexpr PIECE_COLOR opposing_side = ~moving_side;
 
     const Bitboard our_king_occupancy =
         m_chess_board.get_piece_occupancies(moving_side, PIECES::KING);
@@ -414,7 +414,7 @@ Bitboard Move_Generator::is_our_king_ring_attacked()
     // The OPPOSING side (not our_side).
     // Trick: (~our_side) flips bits, & 0x1 makes it 0 ↔ 1.
     // Example: WHITE=0, BLACK=1 → flips nicely.
-    const PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
+    const PIECE_COLOR opposing_side = ~moving_side;
 
     // ------------------------------------------------------
     // Get our king’s position
@@ -729,7 +729,7 @@ inline void Move_Generator::generate_en_passant_captures(
 {
     Attacks a;
 
-    constexpr PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
+    constexpr PIECE_COLOR opposing_side = ~moving_side;
 
     const Square king_square = m_chess_board.get_king_square(moving_side);
 
@@ -827,7 +827,7 @@ inline void Move_Generator::generate_non_promotion_pawn_captures(
 {
     Attacks a;
 
-    constexpr PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
+    constexpr PIECE_COLOR opposing_side = ~moving_side;
 
     const Bitboard pawns =
         m_chess_board.get_piece_occupancies(moving_side, PIECES::PAWN);
@@ -892,7 +892,7 @@ inline void Move_Generator::generate_promotion_pawn_captures(
 {
     Attacks a;
 
-    constexpr PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
+    constexpr PIECE_COLOR opposing_side = ~moving_side;
 
     const Bitboard pawns =
         m_chess_board.get_piece_occupancies(moving_side, PIECES::PAWN);
@@ -932,7 +932,7 @@ inline void Move_Generator::generate_minor_and_major_piece_moves(
 {
     Attacks a;
 
-    constexpr PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
+    constexpr PIECE_COLOR opposing_side = ~moving_side;
 
     const Bitboard both_color_occupancies =
         m_chess_board.get_both_color_occupancies();
@@ -1026,7 +1026,7 @@ Move_Generator::generate_king_moves(Move_Generation_List&  output,
 {
     Attacks a;
 
-    constexpr PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
+    constexpr PIECE_COLOR opposing_side = ~moving_side;
 
     const Bitboard both_color_occupancies =
         m_chess_board.get_both_color_occupancies();
@@ -1130,7 +1130,7 @@ Move_Generator::generate_castling_moves(const Bitboard&        pinned,
     if (has_castling_rights)
     {
         constexpr PIECE_COLOR opposing_side =
-            (PIECE_COLOR) ((~moving_side) & 0x1);
+            ~moving_side;
 
         const Bitboard enemy_occupancies =
             m_chess_board.get_color_occupancies(opposing_side);

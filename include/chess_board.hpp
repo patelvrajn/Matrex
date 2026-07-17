@@ -142,7 +142,7 @@ class Chess_Board
 inline void Chess_Board::calculate_next_board_state(PIECE_COLOR moving_side,
                                                     const Chess_Move& move)
 {
-    const PIECE_COLOR opposing_side = (PIECE_COLOR) ((~moving_side) & 0x1);
+    const PIECE_COLOR opposing_side = ~moving_side;
     const Bitboard    src_mask      = Square(move.source_square).get_mask();
     const Bitboard    dst_mask = Square(move.destination_square).get_mask();
 
