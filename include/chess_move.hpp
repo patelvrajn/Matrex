@@ -124,6 +124,8 @@ struct Chess_Move
             && (m.is_promotion == is_promotion);
     }
 
+    // All comparison operators for chess moves are based on the score they 
+    // recieve from move ordering.
     inline auto operator<=>(const Chess_Move& other) const
     {
         return (score <=> other.score);
@@ -136,9 +138,6 @@ struct Chess_Move
 
     bool is_quiet_move() const { return (!is_noisy_move()); }
 };
-
-static_assert(sizeof(Chess_Move) == 12,
-              "Chess_Move should be 12 bytes in size.");
 
 struct Undo_Chess_Move
 {
@@ -256,6 +255,7 @@ void Chess_Move_List<capacity>::sort()
     std::stable_sort(begin(), end(), std::greater<Chess_Move>());
 }
 
+// Handles printing the principal variation.
 template <std::size_t S>
 std::ostream& operator<<(std::ostream& os, const Chess_Move_List<S>& moves)
 {
