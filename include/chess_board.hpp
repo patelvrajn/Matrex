@@ -12,6 +12,7 @@
 constexpr uint8_t     HALF_MOVE_CLOCK_MAXIMUM = 100;
 constexpr std::size_t HASH_HISTORY_SIZE       = HALF_MOVE_CLOCK_MAXIMUM;
 
+// Structure to capture the squares of the rooks needed for castling.
 struct Castling_Rooks
 {
     Square queenside;
@@ -139,6 +140,9 @@ class Chess_Board
                                            const Chess_Move& move);
 };
 
+// The core of make move and unmake move which takes advantage of the 
+// reversiblity property of XOR to calculate the next board state either after 
+// making a move or undoing a move 
 inline void Chess_Board::calculate_next_board_state(PIECE_COLOR moving_side,
                                                     const Chess_Move& move)
 {
@@ -157,7 +161,7 @@ inline void Chess_Board::calculate_next_board_state(PIECE_COLOR moving_side,
                                     Square(move.destination_square));
     }
 
-    // Handle En Passant.
+    // Handle en passant.
     if (move.is_en_passant)
     {
         const Bitboard en_passant_mask =
