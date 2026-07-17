@@ -71,14 +71,14 @@ constexpr Directional_Ray::Directional_Ray(const Square src, const Square dst)
     {
         m_direction = ((distance > 0) ? EAST : WEST); // Move along the rank.
     }
-    // Squares src and dst are on a diagonal.
-    else if ((distance % 9) == 0)
+    // Squares src and dst are on the main diagonal.
+    else if ((distance % MAIN_DIAGONAL_DISTANCE_MODULUS) == 0)
     {
         m_direction = ((distance > 0) ? SOUTHEAST
                                       : NORTHWEST); // Move along the diagonal.
     }
-    // Squares src and dst are on another diagonal.
-    else if ((distance % 7) == 0)
+    // Squares src and dst are on the anti-diagonal.
+    else if ((distance % ANTI_DIAGONAL_DISTANCE_MODULUS) == 0)
     {
         m_direction = ((distance > 0) ? SOUTHWEST
                                       : NORTHEAST); // Move along the diagonal.

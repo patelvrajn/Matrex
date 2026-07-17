@@ -27,14 +27,14 @@ constexpr uint64_t generate_between_squares_mask(const Square a, const Square b)
     {
         delta = ((distance > 0) ? EAST : WEST); // Move along the rank.
     }
-    // Squares a and b are on a diagonal.
-    else if ((distance % 9) == 0)
+    // Squares a and b are on the main diagonal.
+    else if ((distance % MAIN_DIAGONAL_DISTANCE_MODULUS) == 0)
     {
         // Move along the diagonal.
         delta = ((distance > 0) ? SOUTHEAST : NORTHWEST);
     }
-    // Squares a and b are on another diagonal.
-    else if ((distance % 7) == 0)
+    // Squares a and b are on the anti-diagonal.
+    else if ((distance % ANTI_DIAGONAL_DISTANCE_MODULUS) == 0)
     {
         // Move along the diagonal.
         delta = ((distance > 0) ? SOUTHWEST : NORTHEAST);

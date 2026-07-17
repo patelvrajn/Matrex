@@ -205,6 +205,9 @@ enum DIRECTION : int8_t
     SOUTHEAST    = 9
 };
 
+constexpr uint8_t MAIN_DIAGONAL_DISTANCE_MODULUS = 9;
+constexpr uint8_t ANTI_DIAGONAL_DISTANCE_MODULUS = 7;
+
 // =============================================================================
 // Assertions
 //
