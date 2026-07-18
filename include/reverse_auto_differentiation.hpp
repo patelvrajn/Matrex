@@ -74,7 +74,7 @@ class AD_Adjoint
 
     auto& left_node() // Value of the left parent's adjoint.
     {
-        MATREX_ASSERT(m_left_node.has_value(),
+        MATREX_ASSERT(m_left_node.has_ref(),
                       "Accessed AD Adjoint's left node that has an optional "
                       "reference of no value.");
         return m_left_node.get_ref();
@@ -82,7 +82,7 @@ class AD_Adjoint
 
     auto& right_node() // Value of the right parent's adjoint.
     {
-        MATREX_ASSERT(m_right_node.has_value(),
+        MATREX_ASSERT(m_right_node.has_ref(),
                       "Accessed AD Adjoint's right node that has an optional "
                       "reference of no value.");
         return m_right_node.get_ref();
@@ -282,7 +282,7 @@ struct AD_Value
     double& value()
     {
         MATREX_ASSERT(
-            node.has_value(),
+            node.has_ref(),
             "Tried to access a node's value via AD Value but it has no value.");
 
         return node.get_ref().value();
@@ -291,7 +291,7 @@ struct AD_Value
     const double& value() const
     {
         MATREX_ASSERT(
-            node.has_value(),
+            node.has_ref(),
             "Tried to access a node's value via AD Value but it has no value.");
 
         return node.get_ref().value();
