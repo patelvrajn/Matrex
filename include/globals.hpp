@@ -26,27 +26,27 @@ constexpr std::string_view ENGINE_NAME    = "Matrex";
 constexpr std::string_view ENGINE_VERSION = "0.0.1";
 
 // =============================================================================
-// Various Pre-processor Definitions
-//
-// Description:
-// → FORCE_INLINE - Recursively inlines all code such that there is no function
-// call costs. However, should be used at caution because the trade-off is that
-// there may be many more variables cluttering registers, the stack, etc.
-//
-// → CACHE_ALIGN - Pads structures laid out in memory so that each structure
-// represents a single cache line. This issue is mainly concerning with multi-
-// threaded code - if a single core writes to structure X and another core reads
-// from structure Y if they reside on the same cache-line the core reading Y is
-// forced to fetch the memory address again to update the cache even though it
-// was only reading Y and not X. Currently, the assumption is that Matrex runs
-// only on x86 systems so the cache line size is 64 bytes.
+// Pre-processor Definitions
 // =============================================================================
+// Recursively inlines all code such that there is no function call costs.
+// However, should be used at caution because the trade-off is that there may be
+// many more variables cluttering registers, the stack, etc.
 #define FORCE_INLINE    inline __attribute__((always_inline, flatten))
 #define FORCE_NO_INLINE [[gnu::noinline]]
 
+// Used to avoid compilation warnings in cases where a variable may be optimized
+// such that the code doesn't use it. Example: variable used only in assertions
+// will only be used if it is a debug build of Matrex.
 #define MAYBE_UNUSED [[maybe_unused]]
 
-constexpr uint64_t CACHE_LINE_SIZE = 64;
+// Pads structures laid out in memory so that each structure represents a single
+// cache line. This issue is mainly concerning with multi-threaded code - if a
+// single core writes to structure X and another core reads from structure Y if
+// they reside on the same cache-line the core reading Y is forced to fetch the
+// memory address again to update the cache even though it was only reading Y
+// and not X.
+constexpr uint64_t CACHE_LINE_SIZE =
+    std::hardware_destructive_interference_size;
 #define CACHE_ALIGN alignas(CACHE_LINE_SIZE)
 
 #define SIZE_OF_IN_BITS(obj) (sizeof((obj)) << 3)
@@ -121,9 +121,6 @@ inline std::ostream& operator<<(std::ostream& os, PIECES piece)
     }
 }
 
-constexpr std::string PIECE_STRINGS[] =
-    {"PAWN", "KNIGHT", "BISHOP", "ROOK", "QUEEN", "KING", "NO_PIECE"};
-
 constexpr std::string
     UNICODE_PIECES[NUM_OF_PLAYERS * NUM_OF_UNIQUE_PIECES_PER_PLAYER] =
         {"♙", "♘", "♗", "♖", "♕", "♔", "♟︎", "♞", "♝", "♜", "♛", "♚"};
@@ -184,14 +181,10 @@ constexpr uint8_t NUM_OF_CASTLING_RIGHTS_COMBINATIONS = static_cast<uint8_t>(
     std::pow(static_cast<double>(NUM_OF_CASTLING_TYPES),
              static_cast<double>(NUM_OF_CASTLING_RIGHTS_FLAGS)));
 
-// =============================================================================
-// Direction Enumeration
-//
 // An enumeration describing directions (diagonal or orthogonal) in a chess
 // board. The directions are assigned values based on the number of bits in a
 // bitboard one needs to incrementally change the bit index (i.e. square index)
 // by to go in that direction on the board.
-// =============================================================================
 enum DIRECTION : int8_t
 {
     NORTHWEST    = -9,
@@ -208,14 +201,10 @@ enum DIRECTION : int8_t
 constexpr uint8_t MAIN_DIAGONAL_DISTANCE_MODULUS = 9;
 constexpr uint8_t ANTI_DIAGONAL_DISTANCE_MODULUS = 7;
 
-// =============================================================================
-// Assertions
-//
-// Description: Currently, Matrex has it's own runtime assertion function in
-// order to be more verbose when unexpected behavior occurs during runtime. The
-// verbose-ness is mainly from the full stack trace being displayed which is
-// useful when trying to debug unexpected behavior.
-// =============================================================================
+// Currently, Matrex has it's own runtime assertion function in order to be more
+// verbose when unexpected behavior occurs during runtime. The verbose-ness is
+// mainly from the full stack trace being displayed which is useful when trying
+// to debug.
 #ifdef NDEBUG
     #define MATREX_ASSERT(condition, message, ...) ((void) 0)
 #else
@@ -249,10 +238,8 @@ class Multi_Array
 
     constexpr static std::size_t size = this_size;
 
-    // Default constructor
     constexpr Multi_Array() = default;
 
-    // Constructor from initializer list of Multi_Arrays
     constexpr Multi_Array(std::initializer_list<element_type> init)
     {
         if (init.size() == 0)
@@ -324,10 +311,8 @@ class Multi_Array<T, this_size>
 
     constexpr static std::size_t size = this_size;
 
-    // Default constructor
     constexpr Multi_Array() = default;
 
-    // Constructor from initializer list
     constexpr Multi_Array(std::initializer_list<T> init)
     {
         if (init.size() == 0)
@@ -414,8 +399,6 @@ constexpr void constexpr_for(F&& function)
 //
 // Description: Abstraction of index sequence - unpacks the sequence and calls
 // f's () operator which means that f must be a functor, function, lambda, etc.
-// The use case is typically in template metaprogramming to generate
-// compile-time loops for heterogenous types (like elements in a tuple).
 // =============================================================================
 template <std::size_t N, class F>
 constexpr decltype(auto) index_sequence_unpacker(F&& f)
@@ -427,8 +410,12 @@ constexpr decltype(auto) index_sequence_unpacker(F&& f)
     }(std::make_index_sequence<N> {}, static_cast<F&&>(f));
 }
 
+// =============================================================================
+// Template Parameter Extraction
+//
 // Generalized structs to extract the template parameters of an In typed object
 // and output an Out typed object with the same template parameters.
+// =============================================================================
 template <class In, template <class...> class Out>
 struct Extract_Template_Parameters;
 
@@ -499,9 +486,9 @@ class Optional_Reference
 // =============================================================================
 // Parameter Pack Container
 //
-// Description: A class used for treating parameter packs passed into functions
-// as containers. Useful for indexing and/or slicing the parameter pack. All
-// operations unless stated otherwise can be done during compile-time.
+// Description: A class used for treating parameter packs as containers. Useful
+// for indexing and/or slicing the parameter pack. All operations unless stated
+// otherwise can be done during compile-time.
 // =============================================================================
 template <typename... Pack>
 class Parameter_Pack_Container
@@ -578,6 +565,8 @@ class Parameter_Pack_Container
 
   public:
 
+    // Note that the variant uses references to the existing object in the tuple
+    // to support large data structures.
     using Parameter_Pack_Variant =
         std::variant<std::monostate, std::reference_wrapper<const Pack>...>;
 
@@ -634,8 +623,8 @@ class Parameter_Pack_Container
         return slice_tuple<start, end>(m_p);
     }
 
-    // Takes the tuple internal to Parameter_Pack_Container and expands it out
-    // as parameters to any given function (even templated functions).
+    // Takes the internal tuple and expands it out as parameters to any given
+    // function (even templated functions).
     template <class Function>
     constexpr auto apply(Function&& function) const
     {
@@ -675,16 +664,15 @@ class Parameter_Pack_Container
 };
 
 // =============================================================================
-// Compile-time element counting
+// Reference Array Implementation
 // =============================================================================
-// Scalar → 1 element
 template <typename T>
 struct element_count
 {
     static constexpr std::size_t value = 1;
 };
 
-// Multi_Array → product of all dimensions
+// Product of all the sizes of the dimensions of the Multi Array.
 template <typename T, std::size_t N, std::size_t... Rest>
 struct element_count<Multi_Array<T, N, Rest...>>
 {
@@ -692,31 +680,28 @@ struct element_count<Multi_Array<T, N, Rest...>>
         N * element_count<Multi_Array<T, Rest...>>::value;
 };
 
-// Base case of recursion
+// Base case of the recursion occuring when multiplying the sizes of the
+// dimensions of the Multi Array.
 template <typename T, std::size_t N>
 struct element_count<Multi_Array<T, N>>
 {
     static constexpr std::size_t value = N;
 };
 
-// =============================================================================
-// Recursive reference collection (index-based, private-inheritance-safe)
-// =============================================================================
-// Base case: scalar element
 template <typename T, typename Array>
 void collect_refs(T& value, Array& out, std::size_t& index)
 {
     out[index++] = Optional_Reference<T>(value);
 }
 
-// Recursive case: Multi_Array
+// Base recursive case: Multi_Array with 1 dimension.
 template <typename T, std::size_t N, typename Array>
 void collect_refs(Multi_Array<T, N>& arr, Array& out, std::size_t& index)
 {
     for (std::size_t i = 0; i < N; ++i) { collect_refs(arr[i], out, index); }
 }
 
-// Recursive case: Multi_Array with more dimensions
+// Recursive case: Multi_Array with more than 1 dimension.
 template <typename T, std::size_t N, std::size_t... Rest, typename Array>
 void collect_refs(Multi_Array<T, N, Rest...>& arr,
                   Array&                      out,
@@ -725,9 +710,6 @@ void collect_refs(Multi_Array<T, N, Rest...>& arr,
     for (std::size_t i = 0; i < N; ++i) { collect_refs(arr[i], out, index); }
 }
 
-// =============================================================================
-// Reference_Array
-// =============================================================================
 template <typename... Args>
 constexpr auto calculate_reference_array_size()
 {
@@ -784,22 +766,43 @@ class Reference_Array
         {
             if (!m_refs[i].has_ref()) { continue; }
 
+            // The key to the hash table is a void pointer to the memory that is
+            // being referenced.
             const void* key = static_cast<const void*>(&m_refs[i].get_ref());
+
+            // Insert the key along with its value (the index at which the
+            // reference exists in the reference array).
             auto [it, inserted] = m_ref_to_index_map.emplace(key, i);
+
             if (!inserted)
             {
                 throw std::logic_error(
-                    "Reference_Array constructor: Only unique references are "
+                    "Reference_Array ERROR: Only unique references are "
                     "allowed, "
                     "but a duplicate reference was found");
             }
         }
     }
 
-    T& operator[](std::size_t index) { return m_refs[index].get_ref(); }
+    T& operator[](std::size_t index) 
+    { 
+        MATREX_ASSERT(index < size,
+                    "Reference Array Assertion FAILURE: operator[] "
+                    "Indexed outside of size. Index: {}, Size: {}",
+                    index,
+                    size);
+    
+        return m_refs[index].get_ref(); 
+    }
 
     const T& operator[](std::size_t index) const
     {
+        MATREX_ASSERT(index < size,
+                    "Reference Array Assertion FAILURE: operator[] "
+                    "Indexed outside of size. Index: {}, Size: {}",
+                    index,
+                    size);  
+
         return m_refs[index].get_ref();
     }
 
@@ -814,7 +817,7 @@ class Reference_Array
         if (it == m_ref_to_index_map.end())
         {
             throw std::out_of_range(
-                "Reference_Array::get_index_of: reference not found");
+                "Reference_Array ERROR: Reference not found!");
         }
 
         return it->second;
@@ -904,9 +907,8 @@ class Compile_Time_Jagged_Array
                 std::tuple_cat(start_of_tuple, inserted_tuple);
 
             return make_jagged_array_from_tuple(full_tuple);
-
-            // Note: This is the only case where we grow the jagged array.
         }
+        // Note: This is the only case where we grow the jagged array.
         else if constexpr (set_index > (size - 1))
         {
             const auto start_of_tuple = m_parameter_pack.to_tuple();
@@ -963,6 +965,9 @@ class Compile_Time_Jagged_Array
     }
 };
 
+// =============================================================================
+// Partially Filled Array
+// =============================================================================
 template <typename T, std::size_t capacity>
 class Partially_Filled_Array
 {

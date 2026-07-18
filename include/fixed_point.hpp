@@ -207,9 +207,8 @@ class Fixed_Point_Integer
     // has the largest gain in bit-width and magnitude. We can calculate the
     // safe range with:
     // (x * y) / 2^F <= 2^31 - 1 where x and y are the fixed point integers
-    // being
-    //                           multiplied and F is the number of fractional
-    //                           bits.
+    //                           being multiplied and F is the number of
+    //                           fractional bits.
     // (x * y) <= (2^31 - 1) * 2^F
     // For symmetric clamping of both operands:
     // z^2 <= (2^31 - 1) * 2^F

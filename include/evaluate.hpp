@@ -122,14 +122,17 @@ inline T Evaluator<T>::material_score() const
             (m_weights.material[piece]
              * m_chess_board.get_piece_occupancies(moving_side, (PIECES) piece)
                    .high_bit_count());
+
         material_difference -=
             (m_weights.material[piece]
              * m_chess_board
                    .get_piece_occupancies(opposing_side, (PIECES) piece)
                    .high_bit_count());
+
         T non_linear_material =
             Non_Linear_Response(m_weights.material_NLR_parameters[piece])
                 .value(material_difference);
+
         return_value += non_linear_material;
     }
 
@@ -152,6 +155,7 @@ inline T Evaluator<T>::mobility_score() const
         const T opposing_side_piece_mobility =
             calculate_piece_mobility<opposing_side>(m_opposing_side_matrix,
                                                     (PIECES) piece);
+
         const T piece_mobility_difference =
             moving_side_piece_mobility - opposing_side_piece_mobility;
 
@@ -304,23 +308,29 @@ Evaluator<T>::calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
             & (a.get_bishop_attacks(
                 mb.square,
                 m_chess_board.get_both_color_occupancies()));
+
         const Bitboard orthogonal_movements =
             mb.bitboard
             & (a.get_rook_attacks(mb.square,
                                   m_chess_board.get_both_color_occupancies()));
+
         const Bitboard backward_movements =
             mb.bitboard & Bitboard::get_backward_squares_mask(mb.square, side);
 
         const T diagonal_mobility =
             m_weights.diagonal_mobility * diagonal_movements.high_bit_count();
+
         const T orthogonal_mobility = orthogonal_movements.high_bit_count()
                                     * m_weights.orthogonal_mobility;
+
         const T backward_mobility = backward_movements.high_bit_count()
                                   * m_weights.backwards_movement_mobility;
+
         const T multi_movement_mobility =
             ((diagonal_movements.high_bit_count() > 0)
              && (orthogonal_movements.high_bit_count() > 0))
             * m_weights.multi_movement_mobility;
+
         const T knight_movements_mobility = mb.bitboard.high_bit_count()
                                           * (piece == PIECES::KNIGHT)
                                           * m_weights.knight_movement_mobility;

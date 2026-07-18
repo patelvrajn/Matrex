@@ -85,11 +85,9 @@ struct Chess_Move
     {
         std::cout << "Move (" << SQUARE_STRINGS[source_square] << " to "
                   << SQUARE_STRINGS[destination_square] << "):" << std::endl;
-        std::cout << "\tMoving piece: " << PIECE_STRINGS[moving_piece] << "\n"
-                  << "\tPromoted piece: " << PIECE_STRINGS[promoted_piece]
-                  << "\n"
-                  << "\tCaptured piece: " << PIECE_STRINGS[captured_piece]
-                  << "\n"
+        std::cout << "\tMoving piece: " << moving_piece << "\n"
+                  << "\tPromoted piece: " << promoted_piece << "\n"
+                  << "\tCaptured piece: " << captured_piece << "\n"
                   << "\tis_capture: " << is_capture << "\n"
                   << "\tis_short_castling: " << is_short_castling << "\n"
                   << "\tis_long_castling: " << is_long_castling << "\n"
