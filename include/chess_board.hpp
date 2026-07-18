@@ -140,9 +140,9 @@ class Chess_Board
                                            const Chess_Move& move);
 };
 
-// The core of make move and unmake move which takes advantage of the 
-// reversiblity property of XOR to calculate the next board state either after 
-// making a move or undoing a move 
+// The core of make move and unmake move which takes advantage of the
+// reversiblity property of XOR to calculate the next board state either after
+// making a move or undoing a move
 inline void Chess_Board::calculate_next_board_state(PIECE_COLOR moving_side,
                                                     const Chess_Move& move)
 {

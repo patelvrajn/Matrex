@@ -533,7 +533,7 @@ Evaluation_Weights<double> Tuner::ad_backward_pass(AD_Tape& tape,
                                                    AD_Value output) const
 {
     // The partial derivative of the output scalar with respect to itself is 1.
-    output.node.value().get().adjoint().set_value(1.0);
+    output.node.get_ref().adjoint().set_value(1.0);
 
     // Each tape node has to backpropagate it's adjoint to it's parent(s), this
     // is simply done by calling the respective adjoint functors with their

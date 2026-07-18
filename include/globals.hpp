@@ -454,6 +454,11 @@ class Optional_Reference
 
     Optional_Reference(T& ref) : m_optional_reference(std::ref(ref)) {}
 
+    Optional_Reference(std::reference_wrapper<T> ref) :
+        m_optional_reference(ref)
+    {
+    }
+
     // Copy semantics.
     Optional_Reference(const Optional_Reference&)            = default;
     Optional_Reference& operator=(const Optional_Reference&) = default;
@@ -701,7 +706,7 @@ struct element_count<Multi_Array<T, N>>
 template <typename T, typename Array>
 void collect_refs(T& value, Array& out, std::size_t& index)
 {
-    out[index++] = std::ref(value);
+    out[index++] = Optional_Reference<T>(value);
 }
 
 // Recursive case: Multi_Array
@@ -740,7 +745,7 @@ auto make_reference_array(Args&... args)
     constexpr std::size_t total = calculate_reference_array_size<Args...>();
 
     // Fixed-size array of references
-    Multi_Array<std::optional<std::reference_wrapper<T>>, total> result;
+    Multi_Array<Optional_Reference<T>, total> result;
 
     // Current insertion index
     std::size_t index = 0;
@@ -764,7 +769,8 @@ class Reference_Array
 
   private:
 
-    Multi_Array<std::optional<std::reference_wrapper<T>>, size> m_refs;
+    Multi_Array<Optional_Reference<T>, size> m_refs;
+
     std::unordered_map<const void*, std::size_t> m_ref_to_index_map;
 
   public:
@@ -776,10 +782,9 @@ class Reference_Array
 
         for (std::size_t i = 0; i < size; i++)
         {
-            if (!m_refs[i].has_value()) { continue; }
+            if (!m_refs[i].has_ref()) { continue; }
 
-            const void* key =
-                static_cast<const void*>(&m_refs[i].value().get());
+            const void* key = static_cast<const void*>(&m_refs[i].get_ref());
             auto [it, inserted] = m_ref_to_index_map.emplace(key, i);
             if (!inserted)
             {
@@ -791,9 +796,12 @@ class Reference_Array
         }
     }
 
-    auto& get_array() { return m_refs; }
+    T& operator[](std::size_t index) { return m_refs[index].get_ref(); }
 
-    const auto& get_array() const { return m_refs; }
+    const T& operator[](std::size_t index) const
+    {
+        return m_refs[index].get_ref();
+    }
 
     template <typename U> // Using U instead of T to allow get_index_of to
                           // accept references of types derived from T like

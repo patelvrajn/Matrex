@@ -1,4 +1,5 @@
 #include <cmath>
+#include "globals.hpp"
 
 #include "reverse_auto_differentiation.hpp"
 
@@ -6,9 +7,13 @@ AD_Adjoint::AD_Adjoint() {}
 
 AD_Adjoint::AD_Adjoint(double value) : m_value(value) {}
 
-AD_Adjoint::AD_Adjoint(AD_Node& parent_node) : m_left_node(parent_node) {}
+AD_Adjoint::AD_Adjoint(Optional_Reference<AD_Node> parent_node) :
+    m_left_node(parent_node)
+{
+}
 
-AD_Adjoint::AD_Adjoint(AD_Node& left_node, AD_Node& right_node) :
+AD_Adjoint::AD_Adjoint(Optional_Reference<AD_Node> left_node,
+                       Optional_Reference<AD_Node> right_node) :
     m_left_node(left_node), m_right_node(right_node)
 {
 }
@@ -135,6 +140,8 @@ AD_Node::AD_Node(double             value,
 }
 
 double& AD_Node::value() { return m_value; }
+
+const double& AD_Node::value() const { return m_value; }
 
 AD_Tape::AD_Tape() {}
 

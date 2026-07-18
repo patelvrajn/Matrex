@@ -124,7 +124,7 @@ struct Chess_Move
             && (m.is_promotion == is_promotion);
     }
 
-    // All comparison operators for chess moves are based on the score they 
+    // All comparison operators for chess moves are based on the score they
     // recieve from move ordering.
     inline auto operator<=>(const Chess_Move& other) const
     {

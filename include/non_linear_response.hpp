@@ -168,7 +168,7 @@ T Non_Linear_Response<T>::calculate_function_G(T F) const
     {
         if constexpr (std::is_same_v<T, AD_Value>)
         {
-            return AD_Value::constant(u.tape.value(), 0.0);
+            return AD_Value::constant(u.tape, 0.0);
         }
         else
         {
@@ -179,7 +179,7 @@ T Non_Linear_Response<T>::calculate_function_G(T F) const
     {
         if constexpr (std::is_same_v<T, AD_Value>)
         {
-            return AD_Value::constant(u.tape.value(), 1.0);
+            return AD_Value::constant(u.tape, 1.0);
         }
         else
         {

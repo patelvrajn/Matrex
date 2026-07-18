@@ -1129,8 +1129,7 @@ Move_Generator::generate_castling_moves(const Bitboard&        pinned,
 
     if (has_castling_rights)
     {
-        constexpr PIECE_COLOR opposing_side =
-            ~moving_side;
+        constexpr PIECE_COLOR opposing_side = ~moving_side;
 
         const Bitboard enemy_occupancies =
             m_chess_board.get_color_occupancies(opposing_side);
