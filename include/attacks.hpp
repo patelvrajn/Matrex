@@ -143,12 +143,12 @@ class Attacks
     constexpr Bitboard get_knight_attacks(const Square s) const;
     constexpr Bitboard get_king_attacks(const Square s) const;
 
-    constexpr Bitboard get_bishop_attacks(const Square    s,
-                                          const Bitboard& occupancy) const;
-    constexpr Bitboard get_rook_attacks(const Square    s,
-                                        const Bitboard& occupancy) const;
-    constexpr Bitboard get_queen_attacks(const Square    s,
-                                         const Bitboard& occupancy) const;
+    constexpr Bitboard get_bishop_attacks(const Square   s,
+                                          const Bitboard occupancy) const;
+    constexpr Bitboard get_rook_attacks(const Square   s,
+                                        const Bitboard occupancy) const;
+    constexpr Bitboard get_queen_attacks(const Square   s,
+                                         const Bitboard occupancy) const;
 
     // Caution; Direction in these functions is not the direction enum, it is
     // an index for the rays of specific directions in the slider table. See
@@ -248,8 +248,8 @@ constexpr Bitboard Attacks::get_king_attacks(const Square s) const
     return m_leaper_table.king[s.get_index()];
 }
 
-constexpr Bitboard Attacks::get_bishop_attacks(const Square    s,
-                                               const Bitboard& occupancy) const
+constexpr Bitboard Attacks::get_bishop_attacks(const Square   s,
+                                               const Bitboard occupancy) const
 {
     MATREX_ASSERT(
         s.has_square(),
@@ -259,8 +259,8 @@ constexpr Bitboard Attacks::get_bishop_attacks(const Square    s,
     return m_bishop_attack_tables.get_attacks(s, occupancy);
 }
 
-constexpr Bitboard Attacks::get_rook_attacks(const Square    s,
-                                             const Bitboard& occupancy) const
+constexpr Bitboard Attacks::get_rook_attacks(const Square   s,
+                                             const Bitboard occupancy) const
 {
     MATREX_ASSERT(
         s.has_square(),
@@ -270,8 +270,8 @@ constexpr Bitboard Attacks::get_rook_attacks(const Square    s,
     return m_rook_attack_tables.get_attacks(s, occupancy);
 }
 
-constexpr Bitboard Attacks::get_queen_attacks(const Square    s,
-                                              const Bitboard& occupancy) const
+constexpr Bitboard Attacks::get_queen_attacks(const Square   s,
+                                              const Bitboard occupancy) const
 {
     MATREX_ASSERT(
         s.has_square(),

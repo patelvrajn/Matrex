@@ -66,7 +66,7 @@ class Chess_Board
     void pretty_print() const;
 
     std::pair<PIECE_COLOR, PIECES>
-    what_piece_is_on_square(const Square& s) const;
+    what_piece_is_on_square(const Square s) const;
 
     void set_from_fen(const std::string& fen);
 

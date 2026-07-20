@@ -99,8 +99,8 @@ bool Move_Generator::is_side_to_move_in_check()
     return m_side_to_move_in_check;
 }
 
-bool Move_Generator::is_pinned(const Bitboard& pinned,
-                               const Square&   source_square) const
+bool Move_Generator::is_pinned(const Bitboard pinned,
+                               const Square   source_square) const
 {
     return ((pinned & Bitboard(source_square.get_mask())).get_board() != 0);
 }
@@ -110,7 +110,7 @@ bool Move_Generator::is_pinned(const Bitboard& pinned,
 // Purpose : Return a bitboard of ALL pieces (any color)
 //           that are currently attacking a given square.
 // ======================================================
-Bitboard Move_Generator::attackers_to_square(const Square& s)
+Bitboard Move_Generator::attackers_to_square(const Square s)
 {
     return attackers_to_square(
         s,
@@ -134,19 +134,19 @@ Bitboard Move_Generator::attackers_to_square(const Square& s)
 //           that are currently attacking a given square.
 // ======================================================
 Bitboard
-Move_Generator::attackers_to_square(const Square&   s,
-                                    const Bitboard& white_pawn_occupancy,
-                                    const Bitboard& white_knight_occupancy,
-                                    const Bitboard& white_bishop_occupancy,
-                                    const Bitboard& white_rook_occupancy,
-                                    const Bitboard& white_queen_occupancy,
-                                    const Bitboard& white_king_occupancy,
-                                    const Bitboard& black_pawn_occupancy,
-                                    const Bitboard& black_knight_occupancy,
-                                    const Bitboard& black_bishop_occupancy,
-                                    const Bitboard& black_rook_occupancy,
-                                    const Bitboard& black_queen_occupancy,
-                                    const Bitboard& black_king_occupancy)
+Move_Generator::attackers_to_square(const Square   s,
+                                    const Bitboard white_pawn_occupancy,
+                                    const Bitboard white_knight_occupancy,
+                                    const Bitboard white_bishop_occupancy,
+                                    const Bitboard white_rook_occupancy,
+                                    const Bitboard white_queen_occupancy,
+                                    const Bitboard white_king_occupancy,
+                                    const Bitboard black_pawn_occupancy,
+                                    const Bitboard black_knight_occupancy,
+                                    const Bitboard black_bishop_occupancy,
+                                    const Bitboard black_rook_occupancy,
+                                    const Bitboard black_queen_occupancy,
+                                    const Bitboard black_king_occupancy)
 {
     Bitboard attackers; // Final result: union of all attackers
     Attacks

@@ -106,75 +106,75 @@ class Move_Generator
     template <PIECE_COLOR moving_side>
     Bitboard generate_pinned() const;
 
-    bool is_pinned(const Bitboard& pinned, const Square& source_square) const;
+    bool is_pinned(const Bitboard pinned, const Square source_square) const;
 
     template <PIECE_COLOR moving_side>
-    Bitboard get_pin_mask(const Bitboard& pinned,
-                          const Square&   source_square) const;
+    Bitboard get_pin_mask(const Bitboard pinned,
+                          const Square   source_square) const;
 
-    Bitboard attackers_to_square(const Square&   s,
-                                 const Bitboard& white_pawn_occupancy,
-                                 const Bitboard& white_knight_occupancy,
-                                 const Bitboard& white_bishop_occupancy,
-                                 const Bitboard& white_rook_occupancy,
-                                 const Bitboard& white_queen_occupancy,
-                                 const Bitboard& white_king_occupancy,
-                                 const Bitboard& black_pawn_occupancy,
-                                 const Bitboard& black_knight_occupancy,
-                                 const Bitboard& black_bishop_occupancy,
-                                 const Bitboard& black_rook_occupancy,
-                                 const Bitboard& black_queen_occupancy,
-                                 const Bitboard& black_king_occupancy);
-    Bitboard attackers_to_square(const Square& s);
+    Bitboard attackers_to_square(const Square   s,
+                                 const Bitboard white_pawn_occupancy,
+                                 const Bitboard white_knight_occupancy,
+                                 const Bitboard white_bishop_occupancy,
+                                 const Bitboard white_rook_occupancy,
+                                 const Bitboard white_queen_occupancy,
+                                 const Bitboard white_king_occupancy,
+                                 const Bitboard black_pawn_occupancy,
+                                 const Bitboard black_knight_occupancy,
+                                 const Bitboard black_bishop_occupancy,
+                                 const Bitboard black_rook_occupancy,
+                                 const Bitboard black_queen_occupancy,
+                                 const Bitboard black_king_occupancy);
+    Bitboard attackers_to_square(const Square s);
 
     template <PIECE_COLOR moving_side>
     Bitboard is_our_king_ring_attacked();
 
     template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
-    inline void generate_pawn_promotions(const Square&          source_square,
-                                         const Square&          target_square,
+    inline void generate_pawn_promotions(const Square           source_square,
+                                         const Square           target_square,
                                          Move_Generation_List&  output,
                                          Moves_Bitboard_Matrix& matrix_output);
 
     template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
     inline void generate_single_push_promotion_pawn_moves(
-        const Bitboard&        pinned,
-        const Bitboard&        check_mask,
+        const Bitboard         pinned,
+        const Bitboard         check_mask,
         Move_Generation_List&  output,
         Moves_Bitboard_Matrix& matrix_output);
 
     template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
     inline void generate_single_push_non_promotion_pawn_moves(
-        const Bitboard&        pinned,
-        const Bitboard&        check_mask,
+        const Bitboard         pinned,
+        const Bitboard         check_mask,
         Move_Generation_List&  output,
         Moves_Bitboard_Matrix& matrix_output);
 
     template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
     inline void
-    generate_double_push_pawn_moves(const Bitboard&        pinned,
-                                    const Bitboard&        check_mask,
+    generate_double_push_pawn_moves(const Bitboard         pinned,
+                                    const Bitboard         check_mask,
                                     Move_Generation_List&  output,
                                     Moves_Bitboard_Matrix& matrix_output);
 
     template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
     inline void
-    generate_en_passant_captures(const Bitboard&        pinned,
-                                 const Bitboard&        check_mask,
+    generate_en_passant_captures(const Bitboard         pinned,
+                                 const Bitboard         check_mask,
                                  Move_Generation_List&  output,
                                  Moves_Bitboard_Matrix& matrix_output);
 
     template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
     inline void
-    generate_non_promotion_pawn_captures(const Bitboard&        pinned,
-                                         const Bitboard&        check_mask,
+    generate_non_promotion_pawn_captures(const Bitboard         pinned,
+                                         const Bitboard         check_mask,
                                          Move_Generation_List&  output,
                                          Moves_Bitboard_Matrix& matrix_output);
 
     template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
     inline void
-    generate_promotion_pawn_captures(const Bitboard&        pinned,
-                                     const Bitboard&        check_mask,
+    generate_promotion_pawn_captures(const Bitboard         pinned,
+                                     const Bitboard         check_mask,
                                      Move_Generation_List&  output,
                                      Moves_Bitboard_Matrix& matrix_output);
 
@@ -182,8 +182,8 @@ class Move_Generator
               PIECE_COLOR          moving_side,
               PIECES               moving_piece>
     inline void
-    generate_minor_and_major_piece_moves(const Bitboard&        pinned,
-                                         const Bitboard&        check_mask,
+    generate_minor_and_major_piece_moves(const Bitboard         pinned,
+                                         const Bitboard         check_mask,
                                          Move_Generation_List&  output,
                                          Moves_Bitboard_Matrix& matrix_output);
 
@@ -194,12 +194,12 @@ class Move_Generator
     template <MOVE_GENERATION_TYPE gen_type,
               PIECE_COLOR          moving_side,
               CASTLING_TYPE        castle_type>
-    inline void generate_castling_moves(const Bitboard&        pinned,
+    inline void generate_castling_moves(const Bitboard         pinned,
                                         Move_Generation_List&  output,
                                         Moves_Bitboard_Matrix& matrix_output);
 };
 
-// Creates a bitboard of legal squares that non-king pieces can move to while in 
+// Creates a bitboard of legal squares that non-king pieces can move to while in
 // check. The logic requires covering 3 cases:
 //      1. No check; all moves are legal.
 //      2. Single check; only moves that block or capture the checker are legal.
@@ -208,7 +208,7 @@ template <PIECE_COLOR moving_side>
 Bitboard Move_Generator::generate_check_mask()
 {
     // Bitboard that will hold all pieces currently checking the king.
-    Bitboard checkers; 
+    Bitboard checkers;
 
     Attacks a;
 
@@ -219,7 +219,7 @@ Bitboard Move_Generator::generate_check_mask()
     const Bitboard both_color_occupancies =
         m_chess_board.get_both_color_occupancies();
 
-    // Find all enemy pawns that can attack the king square i.e. all pawns that 
+    // Find all enemy pawns that can attack the king square i.e. all pawns that
     // give check.
     checkers |=
         (a.get_pawn_attacks(our_king_square, moving_side)
@@ -254,8 +254,8 @@ Bitboard Move_Generator::generate_check_mask()
     }
 
     // Double check (multiple checkers) detection - if there are multiple
-    // checkers then only king moves are legal and the returned bitboard is 
-    // empty. 
+    // checkers then only king moves are legal and the returned bitboard is
+    // empty.
     if (checkers_count > 1) { return Bitboard(0); }
 
     // The only other case; single check.
@@ -300,8 +300,8 @@ Bitboard Move_Generator::generate_pinned() const
         m_chess_board.get_piece_occupancies(opposing_side, PIECES::BISHOP)
         | m_chess_board.get_piece_occupancies(opposing_side, PIECES::QUEEN);
 
-    // Ray orginating from the king's square used to find orthogonal and 
-    // diagonal attackers; keep in mind knights cannot pin a piece because of 
+    // Ray orginating from the king's square used to find orthogonal and
+    // diagonal attackers; keep in mind knights cannot pin a piece because of
     // the way they move.
     const Bitboard orthogonal_rays =
         a.get_rook_attacks(our_king_square, enemy_pieces);
@@ -349,8 +349,8 @@ Bitboard Move_Generator::generate_pinned() const
 }
 
 template <PIECE_COLOR moving_side>
-Bitboard Move_Generator::get_pin_mask(const Bitboard& pinned,
-                                      const Square&   source_square) const
+Bitboard Move_Generator::get_pin_mask(const Bitboard pinned,
+                                      const Square   source_square) const
 {
     const Square our_king_square = m_chess_board.get_king_square(moving_side);
 
@@ -364,7 +364,7 @@ Bitboard Move_Generator::get_pin_mask(const Bitboard& pinned,
     }
 }
 
-// Determine which squares in the "king ring" (the 8 surrounding squares around 
+// Determine which squares in the "king ring" (the 8 surrounding squares around
 // our king) are currently under attack by the opponent.
 template <PIECE_COLOR moving_side>
 Bitboard Move_Generator::is_our_king_ring_attacked()
@@ -382,7 +382,7 @@ Bitboard Move_Generator::is_our_king_ring_attacked()
 
     for (const Square& king_ring_square : king_ring)
     {
-        // We need to remove the moving side's king from it's occupancy so we 
+        // We need to remove the moving side's king from it's occupancy so we
         // can determine if squares are attacked through a sliding piece's ray.
         Bitboard black_king_occupancy = Bitboard(
             m_chess_board
@@ -434,8 +434,8 @@ Bitboard Move_Generator::is_our_king_ring_attacked()
 
 template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
 inline void
-Move_Generator::generate_pawn_promotions(const Square& source_square,
-                                         const Square& destination_square,
+Move_Generator::generate_pawn_promotions(const Square source_square,
+                                         const Square destination_square,
                                          Move_Generation_List&  output,
                                          Moves_Bitboard_Matrix& matrix_output)
 {
@@ -485,8 +485,8 @@ Move_Generator::generate_pawn_promotions(const Square& source_square,
 
 template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
 inline void Move_Generator::generate_single_push_promotion_pawn_moves(
-    const Bitboard&        pinned,
-    const Bitboard&        check_mask,
+    const Bitboard         pinned,
+    const Bitboard         check_mask,
     Move_Generation_List&  output,
     Moves_Bitboard_Matrix& matrix_output)
 {
@@ -526,8 +526,8 @@ inline void Move_Generator::generate_single_push_promotion_pawn_moves(
 
 template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
 inline void Move_Generator::generate_single_push_non_promotion_pawn_moves(
-    const Bitboard&        pinned,
-    const Bitboard&        check_mask,
+    const Bitboard         pinned,
+    const Bitboard         check_mask,
     Move_Generation_List&  output,
     Moves_Bitboard_Matrix& matrix_output)
 {
@@ -592,8 +592,8 @@ inline void Move_Generator::generate_single_push_non_promotion_pawn_moves(
 
 template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
 inline void Move_Generator::generate_double_push_pawn_moves(
-    const Bitboard&        pinned,
-    const Bitboard&        check_mask,
+    const Bitboard         pinned,
+    const Bitboard         check_mask,
     Move_Generation_List&  output,
     Moves_Bitboard_Matrix& matrix_output)
 {
@@ -655,8 +655,8 @@ inline void Move_Generator::generate_double_push_pawn_moves(
 
 template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
 inline void Move_Generator::generate_en_passant_captures(
-    const Bitboard&        pinned,
-    const Bitboard&        check_mask,
+    const Bitboard         pinned,
+    const Bitboard         check_mask,
     Move_Generation_List&  output,
     Moves_Bitboard_Matrix& matrix_output)
 {
@@ -753,8 +753,8 @@ inline void Move_Generator::generate_en_passant_captures(
 
 template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
 inline void Move_Generator::generate_non_promotion_pawn_captures(
-    const Bitboard&        pinned,
-    const Bitboard&        check_mask,
+    const Bitboard         pinned,
+    const Bitboard         check_mask,
     Move_Generation_List&  output,
     Moves_Bitboard_Matrix& matrix_output)
 {
@@ -818,8 +818,8 @@ inline void Move_Generator::generate_non_promotion_pawn_captures(
 
 template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
 inline void Move_Generator::generate_promotion_pawn_captures(
-    const Bitboard&        pinned,
-    const Bitboard&        check_mask,
+    const Bitboard         pinned,
+    const Bitboard         check_mask,
     Move_Generation_List&  output,
     Moves_Bitboard_Matrix& matrix_output)
 {
@@ -858,8 +858,8 @@ template <MOVE_GENERATION_TYPE gen_type,
           PIECE_COLOR          moving_side,
           PIECES               moving_piece>
 inline void Move_Generator::generate_minor_and_major_piece_moves(
-    const Bitboard&        pinned,
-    const Bitboard&        check_mask,
+    const Bitboard         pinned,
+    const Bitboard         check_mask,
     Move_Generation_List&  output,
     Moves_Bitboard_Matrix& matrix_output)
 {
@@ -1029,7 +1029,7 @@ template <MOVE_GENERATION_TYPE gen_type,
           PIECE_COLOR          moving_side,
           CASTLING_TYPE        castle_type>
 inline void
-Move_Generator::generate_castling_moves(const Bitboard&        pinned,
+Move_Generator::generate_castling_moves(const Bitboard         pinned,
                                         Move_Generation_List&  output,
                                         Moves_Bitboard_Matrix& matrix_output)
 {

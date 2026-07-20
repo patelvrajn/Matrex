@@ -202,7 +202,7 @@ void Chess_Board::pretty_print() const
 }
 
 std::pair<PIECE_COLOR, PIECES>
-Chess_Board::what_piece_is_on_square(const Square& s) const
+Chess_Board::what_piece_is_on_square(const Square s) const
 {
     const Bitboard square_bb = Bitboard(s.get_mask());
 
