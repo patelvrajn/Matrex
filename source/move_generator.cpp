@@ -5,11 +5,6 @@
 #include "chess_board.hpp"
 #include "globals.hpp"
 
-const Bitboard FIRST_RANK   = Bitboard(18374686479671623680ULL);
-const Bitboard SECOND_RANK  = Bitboard(71776119061217280ULL);
-const Bitboard SEVENTH_RANK = Bitboard(65280ULL);
-const Bitboard EIGHTH_RANK  = Bitboard(255ULL);
-
 Move_Generator::Move_Generator(const Chess_Board& cb) :
     m_chess_board(cb),
     m_enpassantable_checker(false),

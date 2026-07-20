@@ -698,5 +698,6 @@ constexpr Bitboard init_dark_square_bitboard()
 }
 
 constexpr Bitboard EMPTY_BITBOARD         = Bitboard(0);
+constexpr Bitboard FULL_BITBOARD          = Bitboard((uint64_t) -1);
 constexpr Bitboard LIGHT_SQUARES_BITBOARD = init_light_square_bitboard();
 constexpr Bitboard DARK_SQUARES_BITBOARD  = init_dark_square_bitboard();

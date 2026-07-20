@@ -8,10 +8,10 @@
 #include "chess_move.hpp"
 #include "globals.hpp"
 
-extern const Bitboard FIRST_RANK;
-extern const Bitboard SECOND_RANK;
-extern const Bitboard SEVENTH_RANK;
-extern const Bitboard EIGHTH_RANK;
+constexpr Bitboard FIRST_RANK   = Bitboard(18374686479671623680ULL);
+constexpr Bitboard SECOND_RANK  = Bitboard(71776119061217280ULL);
+constexpr Bitboard SEVENTH_RANK = Bitboard(65280ULL);
+constexpr Bitboard EIGHTH_RANK  = Bitboard(255ULL);
 
 constexpr Multi_Array<Square, NUM_OF_PLAYERS, NUM_OF_CASTLING_TYPES>
     CASTLING_KING_DESTINATION_SQUARES = {
@@ -102,12 +102,16 @@ class Move_Generator
 
     template <PIECE_COLOR moving_side>
     Bitboard generate_check_mask();
+
     template <PIECE_COLOR moving_side>
     Bitboard generate_pinned() const;
+
     bool is_pinned(const Bitboard& pinned, const Square& source_square) const;
+
     template <PIECE_COLOR moving_side>
     Bitboard get_pin_mask(const Bitboard& pinned,
                           const Square&   source_square) const;
+
     Bitboard attackers_to_square(const Square&   s,
                                  const Bitboard& white_pawn_occupancy,
                                  const Bitboard& white_knight_occupancy,
@@ -122,6 +126,7 @@ class Move_Generator
                                  const Bitboard& black_queen_occupancy,
                                  const Bitboard& black_king_occupancy);
     Bitboard attackers_to_square(const Square& s);
+
     template <PIECE_COLOR moving_side>
     Bitboard is_our_king_ring_attacked();
 
@@ -194,102 +199,70 @@ class Move_Generator
                                         Moves_Bitboard_Matrix& matrix_output);
 };
 
-// Function: generate_check_mask
-// Purpose: Creates a "check mask" bitboard used during move generation.
-//          - If no check: all moves are legal (mask = all 1's).
-//          - If single check: only moves that block or capture the checker are
-//          legal.
-//          - If double check: only king moves are legal (mask = empty).
+// Creates a bitboard of legal squares that non-king pieces can move to while in 
+// check. The logic requires covering 3 cases:
+//      1. No check; all moves are legal.
+//      2. Single check; only moves that block or capture the checker are legal.
+//      3. Double check; only king moves are legal.
 template <PIECE_COLOR moving_side>
 Bitboard Move_Generator::generate_check_mask()
 {
-    Bitboard checkers; // Bitboard that will hold all pieces currently checking
-                       // the king.
-    Attacks
-        a; // Attack helper class to compute attack masks for different pieces.
+    // Bitboard that will hold all pieces currently checking the king.
+    Bitboard checkers; 
 
-    // Figure out the color of the *opponent* (the side delivering checks).
-    // get_side_to_move() = side whose turn it is.
-    // ~ flips the bit, & 0x1 ensures we only keep 1-bit color info (WHITE=0,
-    // BLACK=1).
+    Attacks a;
+
     constexpr PIECE_COLOR opposing_side = ~moving_side;
 
-    // The square our king is on.
     const Square our_king_square = m_chess_board.get_king_square(moving_side);
 
-    // The squares on a bitboard occupied by any side's pieces.
     const Bitboard both_color_occupancies =
         m_chess_board.get_both_color_occupancies();
 
-    // --- Find all enemy pawns that give check ---
-    // 1. Get pawn attack squares relative to the king's position.
-    // 2. AND it with all opponent pawns currently on the board.
-    // 3. Result: opponent pawns that are directly attacking our king.
+    // Find all enemy pawns that can attack the king square i.e. all pawns that 
+    // give check.
     checkers |=
         (a.get_pawn_attacks(our_king_square, moving_side)
          & m_chess_board.get_piece_occupancies(opposing_side, PIECES::PAWN));
 
-    // --- Find all enemy knights giving check ---
-    // Similar logic: knight attack mask from king's square & opponent knights.
+    // Find all enemy knights giving check.
     checkers |=
         (a.get_knight_attacks(our_king_square)
          & m_chess_board.get_piece_occupancies(opposing_side, PIECES::KNIGHT));
 
-    // --- Find all enemy bishops or queens giving check (diagonal sliders) ---
-    // Use bishop attack rays from the king's square, intersect with enemy
-    // bishops
-    // + queens.
+    // Find all enemy bishops or queens giving check.
     checkers |=
         (a.get_bishop_attacks(our_king_square, both_color_occupancies)
          & (m_chess_board.get_piece_occupancies(opposing_side, PIECES::BISHOP)
             | m_chess_board.get_piece_occupancies(opposing_side,
                                                   PIECES::QUEEN)));
 
-    // --- Find all enemy rooks or queens giving check (orthogonal sliders) ---
-    // Use rook attack rays from the king's square, intersect with enemy rooks +
-    // queens.
+    // Find all enemy rooks or queens giving check.
     checkers |=
         (a.get_rook_attacks(our_king_square, both_color_occupancies)
          & (m_chess_board.get_piece_occupancies(opposing_side, PIECES::ROOK)
             | m_chess_board.get_piece_occupancies(opposing_side,
                                                   PIECES::QUEEN)));
 
-    // --- Case 1: No check at all ---
-    // If "checkers" is empty (king is not under check),
-    // return a mask of all 1s (~0ULL), meaning all moves are legal.
-    if (checkers == Bitboard(0)) { return Bitboard(~0ULL); }
+    const uint8_t checkers_count = checkers.high_bit_count();
+
+    // Handle case of no checks.
+    if (checkers_count == 0) { return FULL_BITBOARD; }
     else
     {
-        // Checkers is not empty, side to move is in check.
         m_side_to_move_in_check = true;
     }
 
-    // --- Case 2: Double check detection ---
-    // A double check means TWO pieces are giving check simultaneously.
-    // To detect: temporarily clear the least significant checker
-    // and see if any other bits remain set.
-    Bitboard double_check = checkers;
-    double_check.unset_square(Square(checkers.get_index_of_high_lsb()));
+    // Double check (multiple checkers) detection - if there are multiple
+    // checkers then only king moves are legal and the returned bitboard is 
+    // empty. 
+    if (checkers_count > 1) { return Bitboard(0); }
 
-    // If still non-empty, it means we had more than one checker.
-    // In double check, ONLY king moves are legal, so return empty mask.
-    if (double_check.get_board()) { return Bitboard(0); }
-
-    // --- Case 3: Single check ---
-    // If only ONE checker exists, then legal moves must either:
-    //   (1) Capture the checking piece directly, OR
-    //   (2) Block the attack ray (only possible against sliding checkers:
-    //       bishop/rook/queen).
-    //
-    // Special case: if the checker is a pawn that just advanced two squares and
-    // is en-passant capturable, an en passant capture could neutralize the
-    // check. We do NOT add the en passant target square to the generic mask
-    // here, because that would incorrectly allow other pieces to "move" there.
-    // Instead, we record this condition in `m_enpassantable_checker`, and the
-    // pawn move generator will allow the en passant capture specifically.
+    // The only other case; single check.
     const Square checker_square = Square(checkers.get_index_of_high_lsb());
 
-    if (m_chess_board.get_en_passant_square().get_index() != ESQUARE::NO_SQUARE)
+    // Check if the checker can be a victim of en passant.
+    if (m_chess_board.get_en_passant_square().has_square())
     {
         if (m_chess_board.get_en_passant_victim_square() == checker_square)
         {
@@ -297,6 +270,8 @@ Bitboard Move_Generator::generate_check_mask()
         }
     }
 
+    // Return a bitboard where the squares are where a piece can go to block the
+    // checker or capture the checker.
     return (Bitboard(checkers.get_between_squares_mask(our_king_square,
                                                        checker_square))
             | checkers);
@@ -307,7 +282,6 @@ Bitboard Move_Generator::generate_pinned() const
 {
     Attacks a;
 
-    // Opposite color (side not moving) — bit hack: flip 0 ↔ 1
     constexpr PIECE_COLOR opposing_side = ~moving_side;
 
     const Bitboard our_king_occupancy =
@@ -326,6 +300,9 @@ Bitboard Move_Generator::generate_pinned() const
         m_chess_board.get_piece_occupancies(opposing_side, PIECES::BISHOP)
         | m_chess_board.get_piece_occupancies(opposing_side, PIECES::QUEEN);
 
+    // Ray orginating from the king's square used to find orthogonal and 
+    // diagonal attackers; keep in mind knights cannot pin a piece because of 
+    // the way they move.
     const Bitboard orthogonal_rays =
         a.get_rook_attacks(our_king_square, enemy_pieces);
     const Bitboard diagonal_rays =
@@ -336,11 +313,8 @@ Bitboard Move_Generator::generate_pinned() const
 
     Bitboard pinned;
 
-    while (orthogonal_pinners.get_board())
+    for (const Square& pinner_square : orthogonal_pinners)
     {
-        const Square pinner_square =
-            Square(orthogonal_pinners.get_index_of_high_lsb());
-
         const Bitboard ray_from_pinner_to_king =
             orthogonal_rays
             & a.get_rook_attacks(pinner_square, our_king_occupancy);
@@ -348,19 +322,16 @@ Bitboard Move_Generator::generate_pinned() const
         const Bitboard potentially_pinned =
             ray_from_pinner_to_king & friendly_pieces;
 
+        // The friendly piece is pinned if it is the only piece between the king
+        // and the enemy pinner.
         if (potentially_pinned.high_bit_count() == 1)
         {
             pinned |= potentially_pinned;
         }
-
-        orthogonal_pinners.unset_square(pinner_square);
     }
 
-    while (diagonal_pinners.get_board())
+    for (const Square& pinner_square : diagonal_pinners)
     {
-        const Square pinner_square =
-            Square(diagonal_pinners.get_index_of_high_lsb());
-
         const Bitboard ray_from_pinner_to_king =
             diagonal_rays
             & a.get_bishop_attacks(pinner_square, our_king_occupancy);
@@ -372,8 +343,6 @@ Bitboard Move_Generator::generate_pinned() const
         {
             pinned |= potentially_pinned;
         }
-
-        diagonal_pinners.unset_square(pinner_square);
     }
 
     return pinned;
@@ -391,54 +360,30 @@ Bitboard Move_Generator::get_pin_mask(const Bitboard& pinned,
     }
     else
     {
-        return Bitboard((uint64_t) -1);
+        return FULL_BITBOARD;
     }
 }
 
-// ======================================================================
-// Function : Move_Generator::is_our_king_ring_attacked
-// Purpose  : Determine which squares in the "king ring" (the 8 surrounding
-//            squares around *our* king) are currently under attack
-//            by the opponent.
-// Returns  : Bitboard mask of attacked king-ring squares.
-// ======================================================================
+// Determine which squares in the "king ring" (the 8 surrounding squares around 
+// our king) are currently under attack by the opponent.
 template <PIECE_COLOR moving_side>
 Bitboard Move_Generator::is_our_king_ring_attacked()
 {
-    Bitboard mask; // Final result: set of attacked squares around our king
-    Attacks  a;    // Attack pattern generator (precomputed masks + magics)
+    Attacks a;
 
-    // ------------------------------------------------------
-    // Determine sides
-    // ------------------------------------------------------
-    // The OPPOSING side (not our_side).
-    // Trick: (~our_side) flips bits, & 0x1 makes it 0 ↔ 1.
-    // Example: WHITE=0, BLACK=1 → flips nicely.
+    // Bitboard to store the attacked squares in the king ring.
+    Bitboard mask;
+
     const PIECE_COLOR opposing_side = ~moving_side;
 
-    // ------------------------------------------------------
-    // Get our king’s position
-    // ------------------------------------------------------
-
-    // Find the square that our king occupies.
-    // Required because we want to look at the 8 surrounding squares.
     const Square our_king_square = m_chess_board.get_king_square(moving_side);
 
-    // Build a "king ring" bitboard: all squares a king could move to
-    // if it stood on our_king_square (i.e. its 8 neighbors).
     Bitboard king_ring = a.get_king_attacks(our_king_square);
 
-    // ------------------------------------------------------
-    // Loop through each square in the king ring
-    // ------------------------------------------------------
-
-    while (king_ring.get_board())
+    for (const Square& king_ring_square : king_ring)
     {
-        // Extract the *lowest set bit* (one square from king ring).
-        // `get_index_of_high_lsb()` = index of least significant bit set.
-        const Square king_ring_square =
-            Square(king_ring.get_index_of_high_lsb());
-
+        // We need to remove the moving side's king from it's occupancy so we 
+        // can determine if squares are attacked through a sliding piece's ray.
         Bitboard black_king_occupancy = Bitboard(
             m_chess_board
                 .get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::KING)
@@ -475,11 +420,6 @@ Bitboard Move_Generator::is_our_king_ring_attacked()
                                                 PIECES::QUEEN),
             black_king_occupancy);
 
-        // Check if that king-ring square is attacked:
-        //   - attackers_to_square(square) → all pieces attacking this square
-        //   - & m_chess_board.get_color_occupancies(opposing_side) → restrict
-        //   to enemy side
-        //   - If result != 0 → at least one enemy piece attacks this square.
         if ((king_ring_square_attackers
              & m_chess_board.get_color_occupancies(opposing_side))
                 .get_board())
@@ -487,15 +427,8 @@ Bitboard Move_Generator::is_our_king_ring_attacked()
             // If attacked, set that square’s bit in our result mask.
             mask |= Bitboard(king_ring_square.get_mask());
         }
-
-        // Remove this square from the king_ring bitboard (unset processed
-        // square).
-        king_ring.unset_square(king_ring_square);
     }
 
-    // ------------------------------------------------------
-    // Done: return the mask of all attacked king-ring squares
-    // ------------------------------------------------------
     return mask;
 }
 
@@ -1262,9 +1195,9 @@ void Move_Generator::generate_all_moves(PIECE_COLOR            side,
         const Bitboard check_mask = generate_check_mask<PIECE_COLOR::WHITE>();
         const Bitboard pinned     = generate_pinned<PIECE_COLOR::WHITE>();
 
-        /***************************************************************************
-         * TACTICAL MOVE GENERATION
-         ***************************************************************************/
+        // =====================================================================
+        // TACTICAL MOVE GENERATION
+        // =====================================================================
         generate_single_push_promotion_pawn_moves<gen_type, PIECE_COLOR::WHITE>(
             pinned,
             check_mask,
@@ -1286,9 +1219,9 @@ void Move_Generator::generate_all_moves(PIECE_COLOR            side,
             output,
             matrix_output);
 
-        /***************************************************************************
-         * QUIET MOVE GENERATION
-         ***************************************************************************/
+        // =====================================================================
+        // QUIET MOVE GENERATION
+        // =====================================================================
         generate_single_push_non_promotion_pawn_moves<gen_type,
                                                       PIECE_COLOR::WHITE>(
             pinned,
@@ -1311,9 +1244,9 @@ void Move_Generator::generate_all_moves(PIECE_COLOR            side,
                                                           output,
                                                           matrix_output);
 
-        /***************************************************************************
-         * GENERAL MOVE GENERATION
-         ***************************************************************************/
+        // =====================================================================
+        // GENERAL MOVE GENERATION
+        // =====================================================================
         generate_minor_and_major_piece_moves<gen_type,
                                              PIECE_COLOR::WHITE,
                                              PIECES::KNIGHT>(pinned,
@@ -1346,9 +1279,9 @@ void Move_Generator::generate_all_moves(PIECE_COLOR            side,
         const Bitboard check_mask = generate_check_mask<PIECE_COLOR::BLACK>();
         const Bitboard pinned     = generate_pinned<PIECE_COLOR::BLACK>();
 
-        /***************************************************************************
-         * TACTICAL MOVE GENERATION
-         ***************************************************************************/
+        // =====================================================================
+        // TACTICAL MOVE GENERATION
+        // =====================================================================
         generate_single_push_promotion_pawn_moves<gen_type, PIECE_COLOR::BLACK>(
             pinned,
             check_mask,
@@ -1370,9 +1303,9 @@ void Move_Generator::generate_all_moves(PIECE_COLOR            side,
             output,
             matrix_output);
 
-        /***************************************************************************
-         * QUIET MOVE GENERATION
-         ***************************************************************************/
+        // =====================================================================
+        // QUIET MOVE GENERATION
+        // =====================================================================
         generate_single_push_non_promotion_pawn_moves<gen_type,
                                                       PIECE_COLOR::BLACK>(
             pinned,
@@ -1395,9 +1328,9 @@ void Move_Generator::generate_all_moves(PIECE_COLOR            side,
                                                           output,
                                                           matrix_output);
 
-        /***************************************************************************
-         * GENERAL MOVE GENERATION
-         ***************************************************************************/
+        // =====================================================================
+        // GENERAL MOVE GENERATION
+        // =====================================================================
         generate_minor_and_major_piece_moves<gen_type,
                                              PIECE_COLOR::BLACK,
                                              PIECES::KNIGHT>(pinned,
