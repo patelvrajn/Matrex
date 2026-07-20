@@ -784,24 +784,24 @@ class Reference_Array
         }
     }
 
-    T& operator[](std::size_t index) 
-    { 
+    T& operator[](std::size_t index)
+    {
         MATREX_ASSERT(index < size,
-                    "Reference Array Assertion FAILURE: operator[] "
-                    "Indexed outside of size. Index: {}, Size: {}",
-                    index,
-                    size);
-    
-        return m_refs[index].get_ref(); 
+                      "Reference Array Assertion FAILURE: operator[] "
+                      "Indexed outside of size. Index: {}, Size: {}",
+                      index,
+                      size);
+
+        return m_refs[index].get_ref();
     }
 
     const T& operator[](std::size_t index) const
     {
         MATREX_ASSERT(index < size,
-                    "Reference Array Assertion FAILURE: operator[] "
-                    "Indexed outside of size. Index: {}, Size: {}",
-                    index,
-                    size);  
+                      "Reference Array Assertion FAILURE: operator[] "
+                      "Indexed outside of size. Index: {}, Size: {}",
+                      index,
+                      size);
 
         return m_refs[index].get_ref();
     }
