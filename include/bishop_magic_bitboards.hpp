@@ -320,7 +320,7 @@ class Bishop_Magic_Bitboards
 
   private:
 
-    inline static constexpr auto m_attack_hash_tables =
+    static constexpr auto m_attack_hash_tables =
         Magic_Hash_Jagged_Table<bishop_magics,
                                 init_bishop_attack_hash_tables,
                                 init_bishop_attack_hash_tables_infos>();

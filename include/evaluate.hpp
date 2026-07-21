@@ -45,9 +45,9 @@ class Evaluator
     // Helpers
     template <PIECE_COLOR side>
     inline T calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
-                                      PIECES                       piece) const;
+                                      const PIECES                 piece) const;
 
-    T constant_conversion(double value) const;
+    T constant_conversion(const double value) const;
 };
 
 template <typename T>
@@ -84,7 +84,7 @@ T Evaluator<T>::evaluate_template_typed() const
         piece_square = piece_square_score<PIECE_COLOR::BLACK>();
     }
 
-    T evaluation = material + mobility + piece_square;
+    const T evaluation = material + mobility + piece_square;
 
     return evaluation;
 }
@@ -294,7 +294,7 @@ template <typename T>
 template <PIECE_COLOR side>
 inline T
 Evaluator<T>::calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
-                                       PIECES                       piece) const
+                                       const PIECES                 piece) const
 {
     Attacks a;
 
@@ -344,7 +344,7 @@ Evaluator<T>::calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
 }
 
 template <typename T>
-T Evaluator<T>::constant_conversion(double value) const
+T Evaluator<T>::constant_conversion(const double value) const
 {
     if constexpr (std::is_same_v<T, AD_Value>)
     {

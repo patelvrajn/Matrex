@@ -74,15 +74,15 @@ class Chess_Board
 
     Bitboard get_both_color_occupancies() const;
 
-    Bitboard get_color_occupancies(PIECE_COLOR c) const;
+    Bitboard get_color_occupancies(const PIECE_COLOR c) const;
 
-    Bitboard get_piece_occupancies(PIECE_COLOR c, PIECES p) const;
+    Bitboard get_piece_occupancies(const PIECE_COLOR c, const PIECES p) const;
 
-    Bitboard get_piece_occupancies(PIECES p) const;
+    Bitboard get_piece_occupancies(const PIECES p) const;
 
     auto get_piece_occupancies() const { return m_piece_bitboards; }
 
-    uint8_t get_piece_count(PIECES p) const;
+    uint8_t get_piece_count(const PIECES p) const;
 
     Square get_en_passant_square() const;
 
@@ -100,13 +100,15 @@ class Chess_Board
 
     bool does_black_have_long_castle_rights() const;
 
-    Square get_castling_rook_source_square(PIECE_COLOR   color,
-                                           CASTLING_TYPE castle_type) const;
+    Square
+    get_castling_rook_source_square(const PIECE_COLOR   color,
+                                    const CASTLING_TYPE castle_type) const;
 
     Undo_Chess_Move make_move(const Chess_Move& move);
-    void            undo_move(Undo_Chess_Move undo_move);
+    void            undo_move(const Undo_Chess_Move& undo_move);
 
-    void make_moves_from_string(const std::string& moves_str, bool is_frc);
+    void make_moves_from_string(const std::string& moves_str,
+                                const bool         is_frc);
 
     const Zobrist_Hash& get_zobrist_hash() const;
 
@@ -133,18 +135,19 @@ class Chess_Board
     Zobrist_Hash m_zobrist_hash;
 
     void place_pieces_from_fen(const std::string& rank_description,
-                               uint8_t            length_of_description,
-                               uint8_t            rank);
+                               const uint8_t      length_of_description,
+                               const uint8_t      rank);
 
-    inline void calculate_next_board_state(PIECE_COLOR       moving_side,
+    inline void calculate_next_board_state(const PIECE_COLOR moving_side,
                                            const Chess_Move& move);
 };
 
 // The core of make move and unmake move which takes advantage of the
 // reversiblity property of XOR to calculate the next board state either after
 // making a move or undoing a move
-inline void Chess_Board::calculate_next_board_state(PIECE_COLOR moving_side,
-                                                    const Chess_Move& move)
+inline void
+Chess_Board::calculate_next_board_state(const PIECE_COLOR moving_side,
+                                        const Chess_Move& move)
 {
     const PIECE_COLOR opposing_side = ~moving_side;
     const Bitboard    src_mask      = Square(move.source_square).get_mask();

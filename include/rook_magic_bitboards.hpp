@@ -299,7 +299,7 @@ class Rook_Magic_Bitboards
 
   private:
 
-    inline static constexpr auto m_attack_hash_tables =
+    static constexpr auto m_attack_hash_tables =
         Magic_Hash_Jagged_Table<rook_magics,
                                 init_rook_attack_hash_tables,
                                 init_rook_attack_hash_tables_infos>();

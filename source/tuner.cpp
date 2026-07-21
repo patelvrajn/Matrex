@@ -18,7 +18,7 @@ Tuner::Tuner(std::ostream&  logging,
     m_output << std::setprecision(DOUBLE_STD_OUT_PRECISION);
 }
 
-double Tuner::perturb(double mean)
+double Tuner::perturb(const double mean)
 {
     std::random_device               rd;
     std::mt19937_64                  rng(rd());
@@ -29,7 +29,7 @@ double Tuner::perturb(double mean)
     return distribution(rng);
 }
 
-NLR_Parameters<double> Tuner::random_nlr(double h_mean)
+NLR_Parameters<double> Tuner::random_nlr(const double h_mean)
 {
     return {.h_plus  = perturb(h_mean),
             .h_minus = perturb(h_mean),
@@ -349,7 +349,7 @@ Evaluation_Weights<double> Tuner::projected_weight_change(
 }
 
 // OneCycleLR (Super-convergence)
-double Tuner::learning_rate_scheduler(uint64_t epoch) const
+double Tuner::learning_rate_scheduler(const uint64_t epoch) const
 {
     if (epoch <= TUNER_LINEAR_LR_MAX_EPOCHS)
     { // Linear rise phase
@@ -687,7 +687,7 @@ double Tuner::compute_max_data_loss(const Dataset& d)
     return max_data_loss;
 }
 
-void Tuner::print_element_as_cpp(std::ofstream& ofs, double scalar)
+void Tuner::print_element_as_cpp(std::ofstream& ofs, const double scalar)
 {
     ofs << "Matrex_FP_Int(" << Matrex_FP_Int::from_double(scalar) << ")";
 }
@@ -824,7 +824,7 @@ void Tuner::print_header_file(const Evaluation_Weights<double>& weights)
     m_output.flush();
 }
 
-double Tuner::huber_loss(double a) const
+double Tuner::huber_loss(const double a) const
 {
     if (std::abs(a) <= TUNER_HUBER_LOSS_GAMMA) { return (0.5L * (a * a)); }
     else
@@ -834,7 +834,7 @@ double Tuner::huber_loss(double a) const
     }
 }
 
-double Tuner::derivative_huber_loss(double a) const
+double Tuner::derivative_huber_loss(const double a) const
 {
     if (std::abs(a) <= TUNER_HUBER_LOSS_GAMMA) { return (-a); }
     else
@@ -844,13 +844,13 @@ double Tuner::derivative_huber_loss(double a) const
     }
 }
 
-double Tuner::sigmoid(double s) const
+double Tuner::sigmoid(const double s) const
 {
     const double sigmoid = 1.0L / (1.0L + std::exp(-1 * s * TUNER_SIGMOID_K));
     return sigmoid;
 }
 
-double Tuner::derivative_sigmoid(double s) const
+double Tuner::derivative_sigmoid(const double s) const
 {
     return sigmoid(s) * (1 - sigmoid(s)) * TUNER_SIGMOID_K;
 }

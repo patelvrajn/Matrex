@@ -30,23 +30,24 @@ Bitboard Chess_Board::get_both_color_occupancies() const
             | m_color_occupancy_bitboards[PIECE_COLOR::BLACK]);
 }
 
-Bitboard Chess_Board::get_color_occupancies(PIECE_COLOR c) const
+Bitboard Chess_Board::get_color_occupancies(const PIECE_COLOR c) const
 {
     return m_color_occupancy_bitboards[c];
 }
 
-Bitboard Chess_Board::get_piece_occupancies(PIECE_COLOR c, PIECES p) const
+Bitboard Chess_Board::get_piece_occupancies(const PIECE_COLOR c,
+                                            const PIECES      p) const
 {
     return m_piece_bitboards[c][p];
 }
 
-Bitboard Chess_Board::get_piece_occupancies(PIECES p) const
+Bitboard Chess_Board::get_piece_occupancies(const PIECES p) const
 {
     return m_piece_bitboards[PIECE_COLOR::WHITE][p]
          | m_piece_bitboards[PIECE_COLOR::BLACK][p];
 }
 
-uint8_t Chess_Board::get_piece_count(PIECES p) const
+uint8_t Chess_Board::get_piece_count(const PIECES p) const
 {
     return (get_piece_occupancies(PIECE_COLOR::WHITE, p).high_bit_count()
             + get_piece_occupancies(PIECE_COLOR::BLACK, p).high_bit_count());
@@ -71,7 +72,7 @@ PIECE_COLOR Chess_Board::get_side_to_move() const
     return m_state.side_to_move;
 }
 
-Square Chess_Board::get_king_square(PIECE_COLOR c) const
+Square Chess_Board::get_king_square(const PIECE_COLOR c) const
 {
     return Square(m_piece_bitboards[c][PIECES::KING].get_index_of_high_lsb());
 }
@@ -96,9 +97,9 @@ bool Chess_Board::does_black_have_long_castle_rights() const
     return m_state.castling_rights & CASTLING_RIGHTS_FLAGS::B_QUEENSIDE;
 }
 
-Square
-Chess_Board::get_castling_rook_source_square(PIECE_COLOR   color,
-                                             CASTLING_TYPE castle_type) const
+Square Chess_Board::get_castling_rook_source_square(
+    const PIECE_COLOR   color,
+    const CASTLING_TYPE castle_type) const
 {
     if (castle_type == CASTLING_TYPE::KINGSIDE)
     {
@@ -120,9 +121,9 @@ void Chess_Board::pretty_print() const
 
         for (uint8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; file++)
         {
-            Square s(rank, file);
+            const Square s(rank, file);
 
-            auto piece = what_piece_is_on_square(s);
+            const auto piece = what_piece_is_on_square(s);
 
             if (piece.second != NO_PIECE)
             {
@@ -224,7 +225,7 @@ Chess_Board::what_piece_is_on_square(const Square s) const
 
 Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
 {
-    Undo_Chess_Move undo_move = {
+    const Undo_Chess_Move undo_move = {
         .move                = move,
         .castling_rights     = m_state.castling_rights,
         .half_move_clock     = m_state.half_move_clock,
@@ -372,15 +373,16 @@ Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
     return undo_move;
 }
 
-void Chess_Board::undo_move(Undo_Chess_Move undo_move)
+void Chess_Board::undo_move(const Undo_Chess_Move& undo_move)
 {
     m_zobrist_hash.update_castling_rights(m_state.castling_rights);
     m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
 
-    m_state.castling_rights   = undo_move.castling_rights;
-    m_state.half_move_clock   = undo_move.half_move_clock;
-    m_state.enpassant_square  = undo_move.enpassant_square;
-    PIECE_COLOR opposing_side = (PIECE_COLOR) ((~m_state.side_to_move) & 0x1);
+    m_state.castling_rights  = undo_move.castling_rights;
+    m_state.half_move_clock  = undo_move.half_move_clock;
+    m_state.enpassant_square = undo_move.enpassant_square;
+
+    const PIECE_COLOR opposing_side = ~m_state.side_to_move;
 
     m_zobrist_hash.update_castling_rights(m_state.castling_rights);
     m_zobrist_hash.update_en_passant_square(Square(m_state.enpassant_square));
@@ -400,7 +402,7 @@ void Chess_Board::undo_move(Undo_Chess_Move undo_move)
 }
 
 void Chess_Board::make_moves_from_string(const std::string& moves_str,
-                                         bool               is_frc)
+                                         const bool         is_frc)
 {
     std::istringstream iss(moves_str);
 
@@ -456,7 +458,7 @@ void Chess_Board::set_from_fen(const std::string& fen)
     // "/"
     while (idx < piece_placement_len)
     {
-        bool is_last_char = (idx == (piece_placement_len - 1));
+        const bool is_last_char = (idx == (piece_placement_len - 1));
 
         // If we hit a "/" (end of a rank) OR we’ve reached the very last
         // char, parse a rank
@@ -646,8 +648,8 @@ std::string Chess_Board::to_fen()
     for (uint8_t square_index = 0; square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
          square_index++)
     {
-        Square s(square_index);
-        auto [piece_color, piece_type] = what_piece_is_on_square(s);
+        const Square s(square_index);
+        const auto [piece_color, piece_type] = what_piece_is_on_square(s);
 
         // New rank condition except the first rank.
         if (((square_index % NUM_OF_FILES_ON_CHESS_BOARD) == 0)
@@ -769,8 +771,8 @@ std::string Chess_Board::to_fen()
 // Helper: take a substring describing a single rank (e.g. "rnbqkbnr" or
 // "p3pppp") and place the corresponding pieces into bitboards
 void Chess_Board::place_pieces_from_fen(const std::string& rank_description,
-                                        uint8_t length_of_description,
-                                        uint8_t rank)
+                                        const uint8_t length_of_description,
+                                        const uint8_t rank)
 {
     uint8_t file = 0; // Track file (0 = 'a')
 

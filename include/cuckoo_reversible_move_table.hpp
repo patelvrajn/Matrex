@@ -159,8 +159,8 @@ class Cuckoo_RM_Table // RM = reversible move
 
   private:
 
-    inline static constexpr Cuckoo_RM_Table_Storage<CUCKOO_RM_TABLE_SIZE>
-        m_storage = initialize_cuckoo_rm_storage<CUCKOO_RM_TABLE_SIZE>();
+    static constexpr Cuckoo_RM_Table_Storage<CUCKOO_RM_TABLE_SIZE> m_storage =
+        initialize_cuckoo_rm_storage<CUCKOO_RM_TABLE_SIZE>();
 };
 
 constexpr bool
@@ -171,14 +171,14 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position,
     is_three_fold           = false;
     bool is_upcoming_repeat = false;
 
-    auto [hash_history,
-          hash_history_start,
-          hash_history_length,
-          half_move_clock] = position.get_hash_history();
+    const auto [hash_history,
+                hash_history_start,
+                hash_history_length,
+                half_move_clock] = position.get_hash_history();
 
     if (hash_history_length == 0) { return false; }
 
-    auto hash_history_end = hash_history_start + hash_history_length - 1;
+    const auto hash_history_end = hash_history_start + hash_history_length - 1;
 
     // Our hash history has the position where the half move clock resets at
     // index hash_history_start and the current position at hash_history_end so

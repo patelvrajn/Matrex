@@ -78,7 +78,7 @@ constexpr PIECE_COLOR& operator++(PIECE_COLOR& c)
     return c;
 }
 
-constexpr PIECE_COLOR operator~(PIECE_COLOR c)
+constexpr PIECE_COLOR operator~(const PIECE_COLOR c)
 {
     if (c == PIECE_COLOR::WHITE) { return PIECE_COLOR::BLACK; }
     else if (c == PIECE_COLOR::BLACK) { return PIECE_COLOR::WHITE; }
@@ -86,7 +86,7 @@ constexpr PIECE_COLOR operator~(PIECE_COLOR c)
     return PIECE_COLOR::NO_COLOR;
 }
 
-inline std::ostream& operator<<(std::ostream& os, PIECE_COLOR color)
+inline std::ostream& operator<<(std::ostream& os, const PIECE_COLOR color)
 {
     switch (color)
     {
@@ -107,7 +107,7 @@ enum PIECES
     NO_PIECE
 };
 
-inline std::ostream& operator<<(std::ostream& os, PIECES piece)
+inline std::ostream& operator<<(std::ostream& os, const PIECES piece)
 {
     switch (piece)
     {
@@ -148,7 +148,7 @@ struct Placed_Piece
 constexpr std::string_view START_POSITION_FEN =
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-inline uint16_t moves_to_ply(PIECE_COLOR c, uint16_t num_of_moves)
+inline uint16_t moves_to_ply(const PIECE_COLOR c, const uint16_t num_of_moves)
 {
     if (c == PIECE_COLOR::WHITE) { return (NUM_OF_PLAYERS * num_of_moves); }
     else if (c == PIECE_COLOR::BLACK)
@@ -240,7 +240,7 @@ class Multi_Array
 
     constexpr Multi_Array() = default;
 
-    constexpr Multi_Array(std::initializer_list<element_type> init)
+    constexpr Multi_Array(const std::initializer_list<element_type> init)
     {
         if (init.size() == 0)
         {
@@ -273,9 +273,9 @@ class Multi_Array
         }
     }
 
-    constexpr element_type& operator[](std::size_t i) { return data[i]; }
+    constexpr element_type& operator[](const std::size_t i) { return data[i]; }
 
-    constexpr const element_type& operator[](std::size_t i) const
+    constexpr const element_type& operator[](const std::size_t i) const
     {
         return data[i];
     }
@@ -293,7 +293,7 @@ class Multi_Array
 
     constexpr auto end() const { return data.end(); }
 
-    void fill(T fill_value)
+    void fill(const T fill_value)
     {
         for (auto& element : (*this)) { element.fill(fill_value); }
     }
@@ -313,7 +313,7 @@ class Multi_Array<T, this_size>
 
     constexpr Multi_Array() = default;
 
-    constexpr Multi_Array(std::initializer_list<T> init)
+    constexpr Multi_Array(const std::initializer_list<T> init)
     {
         if (init.size() == 0)
         {
@@ -346,9 +346,9 @@ class Multi_Array<T, this_size>
         }
     }
 
-    constexpr element_type& operator[](std::size_t i) { return data[i]; }
+    constexpr element_type& operator[](const std::size_t i) { return data[i]; }
 
-    constexpr const element_type& operator[](std::size_t i) const
+    constexpr const element_type& operator[](const std::size_t i) const
     {
         return data[i];
     }
@@ -366,7 +366,7 @@ class Multi_Array<T, this_size>
 
     constexpr auto end() const { return data.end(); }
 
-    void fill(T fill_value)
+    void fill(const T fill_value)
     {
         for (auto& element : (*this)) { element = fill_value; }
     }
@@ -498,14 +498,14 @@ class Parameter_Pack_Container
     std::tuple<Pack...> m_p;
 
     template <std::size_t offset, std::size_t... Is>
-    constexpr auto offset_index_sequence(std::index_sequence<Is...>) const
+    constexpr auto offset_index_sequence(const std::index_sequence<Is...>) const
     {
         return std::index_sequence<(Is + offset)...> {};
     }
 
     template <typename Tuple, std::size_t... Is>
     constexpr auto extract_parameter_set(const Tuple& t,
-                                         std::index_sequence<Is...>) const
+                                         const std::index_sequence<Is...>) const
     {
         return std::make_tuple(std::get<Is>(t)...);
     }
@@ -584,7 +584,7 @@ class Parameter_Pack_Container
     static constexpr std::size_t size = sizeof...(Pack);
 
     // Returns a std::variant at an index of the internal tuple.
-    constexpr Parameter_Pack_Variant get(std::size_t index) const
+    constexpr Parameter_Pack_Variant get(const std::size_t index) const
     {
         static constexpr auto getters = make_getters();
 
@@ -597,12 +597,12 @@ class Parameter_Pack_Container
         return getters[index](m_p);
     }
 
-    constexpr Parameter_Pack_Variant operator[](std::size_t index)
+    constexpr Parameter_Pack_Variant operator[](const std::size_t index)
     {
         return this->get(index);
     }
 
-    constexpr Parameter_Pack_Variant operator[](std::size_t index) const
+    constexpr Parameter_Pack_Variant operator[](const std::size_t index) const
     {
         return this->get(index);
     }
@@ -611,7 +611,7 @@ class Parameter_Pack_Container
 
     // Grabs a non-contigious subset of the internal tuple.
     template <std::size_t... Is>
-    constexpr auto get_parameter_set(std::index_sequence<Is...> sequence)
+    constexpr auto get_parameter_set(const std::index_sequence<Is...> sequence)
     {
         extract_parameter_set(m_p, sequence);
     }
@@ -784,7 +784,7 @@ class Reference_Array
         }
     }
 
-    T& operator[](std::size_t index)
+    T& operator[](const std::size_t index)
     {
         MATREX_ASSERT(index < size,
                       "Reference Array Assertion FAILURE: operator[] "
@@ -795,7 +795,7 @@ class Reference_Array
         return m_refs[index].get_ref();
     }
 
-    const T& operator[](std::size_t index) const
+    const T& operator[](const std::size_t index) const
     {
         MATREX_ASSERT(index < size,
                       "Reference Array Assertion FAILURE: operator[] "
@@ -859,7 +859,7 @@ class Compile_Time_Jagged_Array
     };
 
     template <class... Ts>
-    constexpr auto make_jagged_array_from_tuple(std::tuple<Ts...> t)
+    constexpr auto make_jagged_array_from_tuple(const std::tuple<Ts...> t)
     {
         using Output_Type = typename Tuple_to_Jagged_Array<decltype(t)>::Type;
 
@@ -885,7 +885,7 @@ class Compile_Time_Jagged_Array
     // move contructor not usable).
 
     template <std::size_t set_index, std::size_t inner_array_size>
-    constexpr auto set(Multi_Array<T, inner_array_size> inner_array)
+    constexpr auto set(const Multi_Array<T, inner_array_size> inner_array)
     {
         if constexpr (set_index == 0)
         {
@@ -934,8 +934,8 @@ class Compile_Time_Jagged_Array
         }
     }
 
-    constexpr auto get(std::size_t inner_array_index,
-                       std::size_t element_index) const
+    constexpr auto get(const std::size_t inner_array_index,
+                       const std::size_t element_index) const
     {
         return std::visit(
             [element_index](const auto& array) -> T
@@ -993,10 +993,10 @@ class Partially_Filled_Array
     const T* end() const;
 
     int64_t get_max_index() const;
-    int64_t truncate(int64_t max_index);
+    int64_t truncate(const int64_t max_index);
 
-    T&       operator[](std::size_t index);
-    const T& operator[](std::size_t index) const;
+    T&       operator[](const std::size_t index);
+    const T& operator[](const std::size_t index) const;
 
   private:
 
@@ -1078,14 +1078,14 @@ int64_t Partially_Filled_Array<T, capacity>::get_max_index() const
 }
 
 template <typename T, std::size_t capacity>
-int64_t Partially_Filled_Array<T, capacity>::truncate(int64_t max_index)
+int64_t Partially_Filled_Array<T, capacity>::truncate(const int64_t max_index)
 {
     m_max_index = std::min(m_max_index, max_index);
     return m_max_index;
 }
 
 template <typename T, std::size_t capacity>
-T& Partially_Filled_Array<T, capacity>::operator[](std::size_t index)
+T& Partially_Filled_Array<T, capacity>::operator[](const std::size_t index)
 {
     MATREX_ASSERT(index < capacity,
                   "Partially_Filled_Array Assertion FAILURE: operator[] "
@@ -1103,7 +1103,7 @@ T& Partially_Filled_Array<T, capacity>::operator[](std::size_t index)
 
 template <typename T, std::size_t capacity>
 const T&
-Partially_Filled_Array<T, capacity>::operator[](std::size_t index) const
+Partially_Filled_Array<T, capacity>::operator[](const std::size_t index) const
 {
     MATREX_ASSERT(index < capacity,
                   "Partially_Filled_Array Assertion FAILURE: operator[] "

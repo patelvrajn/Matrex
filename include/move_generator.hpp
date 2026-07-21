@@ -45,18 +45,18 @@ class Moves_Bitboard_Matrix
 
     Moves_Bitboard_Matrix();
 
-    void set_move(PIECE_COLOR color,
-                  PIECES      piece,
-                  Square      piece_square,
-                  Square      move_square);
+    void set_move(const PIECE_COLOR color,
+                  const PIECES      piece,
+                  const Square      piece_square,
+                  const Square      move_square);
 
-    bool get_moves_bitboards(PIECE_COLOR     color,
-                             PIECES          piece,
-                             Square          piece_square,
-                             Moves_Bitboard& output) const;
+    bool get_moves_bitboards(const PIECE_COLOR color,
+                             const PIECES      piece,
+                             const Square      piece_square,
+                             Moves_Bitboard&   output) const;
 
-    bool get_piece_moves_bitboards(PIECE_COLOR                  color,
-                                   PIECES                       piece,
+    bool get_piece_moves_bitboards(const PIECE_COLOR            color,
+                                   const PIECES                 piece,
                                    std::vector<Moves_Bitboard>& output) const;
 
   private:
@@ -87,7 +87,7 @@ class Move_Generator
                             Moves_Bitboard_Matrix& matrix_output);
 
     template <MOVE_GENERATION_TYPE gen_type>
-    void generate_all_moves(PIECE_COLOR            side,
+    void generate_all_moves(const PIECE_COLOR      side,
                             Move_Generation_List&  output,
                             Moves_Bitboard_Matrix& matrix_output);
 
@@ -1186,7 +1186,7 @@ void Move_Generator::generate_all_moves(Move_Generation_List&  output,
 }
 
 template <MOVE_GENERATION_TYPE gen_type>
-void Move_Generator::generate_all_moves(PIECE_COLOR            side,
+void Move_Generator::generate_all_moves(const PIECE_COLOR      side,
                                         Move_Generation_List&  output,
                                         Moves_Bitboard_Matrix& matrix_output)
 {

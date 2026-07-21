@@ -58,9 +58,9 @@ class Correction_History_Tables
     void clear();
 
     void update(const Chess_Board& position,
-                uint16_t           depth,
-                Score              search_score,
-                Score              static_evaluation);
+                const uint16_t     depth,
+                const Score        search_score,
+                const Score        static_evaluation);
 
     Score get_correction(const Chess_Board& position) const;
 
@@ -68,7 +68,7 @@ class Correction_History_Tables
 
     Correction_History_Tables_Per_Side_Pair<size> m_tables;
 
-    std::size_t get_lemire_index(Zobrist_Hash_Storage_Type hash) const;
+    std::size_t get_lemire_index(const Zobrist_Hash_Storage_Type hash) const;
 
     Correction_History_Indices
     get_lemire_indices(const Zobrist_Hash& hash) const;
@@ -98,9 +98,9 @@ void Correction_History_Tables<size>::clear()
 
 template <std::size_t size>
 void Correction_History_Tables<size>::update(const Chess_Board& position,
-                                             uint16_t           depth,
-                                             Score              search_score,
-                                             Score static_evaluation)
+                                             const uint16_t     depth,
+                                             const Score        search_score,
+                                             const Score static_evaluation)
 {
     // Calculate correction for the position based on the difference between the
     // search score and the static evaluation scaled by depth and a scale factor
@@ -182,7 +182,7 @@ Score Correction_History_Tables<size>::get_correction(
 
 template <std::size_t size>
 std::size_t Correction_History_Tables<size>::get_lemire_index(
-    Zobrist_Hash_Storage_Type hash) const
+    const Zobrist_Hash_Storage_Type hash) const
 {
     const __uint128_t product =
         (static_cast<__uint128_t>(hash) * static_cast<__uint128_t>(size));

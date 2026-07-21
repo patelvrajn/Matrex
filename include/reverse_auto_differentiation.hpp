@@ -59,7 +59,7 @@ class AD_Adjoint
 
     AD_Adjoint();
 
-    AD_Adjoint(double value);
+    AD_Adjoint(const double value);
 
     AD_Adjoint(Optional_Reference<AD_Node> parent_node);
 
@@ -88,7 +88,7 @@ class AD_Adjoint
         return m_right_node.get_ref();
     }
 
-    void set_value(double value);
+    void set_value(const double value);
 
     AD_Adjoint operator+=(const AD_Adjoint& other);
     AD_Adjoint operator-=(const AD_Adjoint& other);
@@ -106,8 +106,8 @@ class AD_Adjoint_No_Op : public AD_Adjoint
 
     using AD_Adjoint::AD_Adjoint;
 
-    virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args = {}) override;
+    virtual void operator()(
+        MAYBE_UNUSED const std::initializer_list<double> args = {}) override;
 };
 
 class AD_Adjoint_Addition : public AD_Adjoint
@@ -116,8 +116,8 @@ class AD_Adjoint_Addition : public AD_Adjoint
 
     using AD_Adjoint::AD_Adjoint;
 
-    virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args = {}) override;
+    virtual void operator()(
+        MAYBE_UNUSED const std::initializer_list<double> args = {}) override;
 };
 
 class AD_Adjoint_Subtraction : public AD_Adjoint
@@ -126,8 +126,8 @@ class AD_Adjoint_Subtraction : public AD_Adjoint
 
     using AD_Adjoint::AD_Adjoint;
 
-    virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args = {}) override;
+    virtual void operator()(
+        MAYBE_UNUSED const std::initializer_list<double> args = {}) override;
 };
 
 class AD_Adjoint_Multiplication : public AD_Adjoint
@@ -136,8 +136,8 @@ class AD_Adjoint_Multiplication : public AD_Adjoint
 
     using AD_Adjoint::AD_Adjoint;
 
-    virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args = {}) override;
+    virtual void operator()(
+        MAYBE_UNUSED const std::initializer_list<double> args = {}) override;
 };
 
 class AD_Adjoint_Division : public AD_Adjoint
@@ -146,8 +146,8 @@ class AD_Adjoint_Division : public AD_Adjoint
 
     using AD_Adjoint::AD_Adjoint;
 
-    virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args = {}) override;
+    virtual void operator()(
+        MAYBE_UNUSED const std::initializer_list<double> args = {}) override;
 };
 
 class AD_Adjoint_Negation : public AD_Adjoint
@@ -156,8 +156,8 @@ class AD_Adjoint_Negation : public AD_Adjoint
 
     using AD_Adjoint::AD_Adjoint;
 
-    virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args = {}) override;
+    virtual void operator()(
+        MAYBE_UNUSED const std::initializer_list<double> args = {}) override;
 };
 
 class AD_Adjoint_Tanh : public AD_Adjoint
@@ -167,7 +167,7 @@ class AD_Adjoint_Tanh : public AD_Adjoint
     using AD_Adjoint::AD_Adjoint;
 
     virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args) override;
+    operator()(MAYBE_UNUSED const std::initializer_list<double> args) override;
 };
 
 class AD_Adjoint_Exp : public AD_Adjoint
@@ -177,7 +177,7 @@ class AD_Adjoint_Exp : public AD_Adjoint
     using AD_Adjoint::AD_Adjoint;
 
     virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args) override;
+    operator()(MAYBE_UNUSED const std::initializer_list<double> args) override;
 };
 
 class AD_Adjoint_Sqrt : public AD_Adjoint
@@ -187,7 +187,7 @@ class AD_Adjoint_Sqrt : public AD_Adjoint
     using AD_Adjoint::AD_Adjoint;
 
     virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args) override;
+    operator()(MAYBE_UNUSED const std::initializer_list<double> args) override;
 };
 
 class AD_Adjoint_Pow : public AD_Adjoint
@@ -197,7 +197,7 @@ class AD_Adjoint_Pow : public AD_Adjoint
     using AD_Adjoint::AD_Adjoint;
 
     virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args) override;
+    operator()(MAYBE_UNUSED const std::initializer_list<double> args) override;
 };
 
 using AD_Adjoint_Pointer = std::unique_ptr<AD_Adjoint>;
@@ -214,11 +214,13 @@ class AD_Node
 
     AD_Node();
 
-    AD_Node(double value);
+    AD_Node(const double value);
 
-    AD_Node(double value, AD_Adjoint_Pointer adjoint);
+    AD_Node(const double value, AD_Adjoint_Pointer adjoint);
 
-    AD_Node(double value, AD_Adjoint_Pointer adjoint, std::size_t weight_index);
+    AD_Node(const double       value,
+            AD_Adjoint_Pointer adjoint,
+            const std::size_t  weight_index);
 
     double& value();
 

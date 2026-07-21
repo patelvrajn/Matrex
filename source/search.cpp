@@ -728,8 +728,8 @@ const Transposition_Table_Statistics& Search_Engine::get_tt_statistics() const
 void Search_Engine::update_continuation_history(
     Search_Quiet_Cont_Hist_Stack& q_cont_hist_stack,
     const Chess_Move&             move,
-    uint16_t                      ply,
-    uint32_t                      depth_squared)
+    const uint16_t                ply,
+    const uint32_t                depth_squared)
 {
     if (move.is_same_move(Chess_Move())) { return; }
 
@@ -756,8 +756,8 @@ void Search_Engine::update_continuation_history(
 void Search_Engine::update_continuation_history(
     Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
     const Chess_Move&               move,
-    uint16_t                        ply,
-    uint32_t                        depth_squared)
+    const uint16_t                  ply,
+    const uint32_t                  depth_squared)
 {
     if (move.is_same_move(Chess_Move())) { return; }
 

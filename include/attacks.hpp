@@ -167,9 +167,9 @@ class Attacks
 
     // Slider Attack Tables (constexpr to avoid the Static Initialization Order
     // Fiasco)
-    const inline static constexpr Bishop_Magic_Bitboards
-        m_bishop_attack_tables = Bishop_Magic_Bitboards();
-    const inline static constexpr Rook_Magic_Bitboards m_rook_attack_tables =
+    static constexpr Bishop_Magic_Bitboards m_bishop_attack_tables =
+        Bishop_Magic_Bitboards();
+    static constexpr Rook_Magic_Bitboards m_rook_attack_tables =
         Rook_Magic_Bitboards();
 
     static constexpr Slider_Ray_Tables m_slider_table = init_slider_rays();
@@ -177,7 +177,7 @@ class Attacks
     static constexpr Leaper_Attack_Tables m_leaper_table =
         init_leaper_attacks();
 
-    inline static constexpr Directional_Ray_Table m_directional_ray_table =
+    static constexpr Directional_Ray_Table m_directional_ray_table =
         init_directional_rays_table();
 };
 

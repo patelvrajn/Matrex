@@ -105,21 +105,24 @@ class Evaluation_Weights
     }
 
     Evaluation_Weights(
-        Multi_Array<NLR_Parameters<T>, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
+        const Multi_Array<NLR_Parameters<T>,
+                          (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
             material_NLR_weights,
-        Multi_Array<T, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)> material_weights,
-        Multi_Array<NLR_Parameters<T>, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
-            piece_mobility_NLR_weights,
-        T   diagonal_mobility_weight,
-        T   orthogonal_mobility_weight,
-        T   knight_movement_mobility_weight,
-        T   multi_movement_mobility_weight,
-        T   backwards_movement_mobility_weight,
-        Multi_Array<NLR_Parameters<T>,
-                    NUM_OF_PLAYERS,
-                    NUM_OF_UNIQUE_PIECES_PER_PLAYER> piece_square_NLR_weights,
-        Piece_Square_Table_Type                      piece_square_weights,
-        Multi_Array<NLR_Parameters<T>, NUM_OF_PLAYERS>
+        const Multi_Array<T, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
+            material_weights,
+        const Multi_Array<NLR_Parameters<T>, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+                piece_mobility_NLR_weights,
+        const T diagonal_mobility_weight,
+        const T orthogonal_mobility_weight,
+        const T knight_movement_mobility_weight,
+        const T multi_movement_mobility_weight,
+        const T backwards_movement_mobility_weight,
+        const Multi_Array<NLR_Parameters<T>,
+                          NUM_OF_PLAYERS,
+                          NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+                                      piece_square_NLR_weights,
+        const Piece_Square_Table_Type piece_square_weights,
+        const Multi_Array<NLR_Parameters<T>, NUM_OF_PLAYERS>
             interactive_piece_square_NLR_weights) :
         material_NLR_parameters(material_NLR_weights),
         material(material_weights),

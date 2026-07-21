@@ -24,10 +24,10 @@ Moves_Bitboard_Matrix::Moves_Bitboard_Matrix() :
               int8_t(-1));
 }
 
-void Moves_Bitboard_Matrix::set_move(PIECE_COLOR color,
-                                     PIECES      piece,
-                                     Square      piece_square,
-                                     Square      move_square)
+void Moves_Bitboard_Matrix::set_move(const PIECE_COLOR color,
+                                     const PIECES      piece,
+                                     const Square      piece_square,
+                                     const Square      move_square)
 {
     // Index mappings - given a piece and color and the square the piece is on,
     // find the index of a moves bitboard in the bitboard matrix.
@@ -48,10 +48,10 @@ void Moves_Bitboard_Matrix::set_move(PIECE_COLOR color,
     m_matrix[color][index].bitboard.set_square(move_square);
 }
 
-bool Moves_Bitboard_Matrix::get_moves_bitboards(PIECE_COLOR     color,
-                                                PIECES          piece,
-                                                Square          piece_square,
-                                                Moves_Bitboard& output) const
+bool Moves_Bitboard_Matrix::get_moves_bitboards(const PIECE_COLOR color,
+                                                const PIECES      piece,
+                                                const Square      piece_square,
+                                                Moves_Bitboard&   output) const
 {
     const int8_t index =
         m_index_mappings[color][piece][piece_square.get_index()];
@@ -61,8 +61,8 @@ bool Moves_Bitboard_Matrix::get_moves_bitboards(PIECE_COLOR     color,
 }
 
 bool Moves_Bitboard_Matrix::get_piece_moves_bitboards(
-    PIECE_COLOR                  color,
-    PIECES                       piece,
+    const PIECE_COLOR            color,
+    const PIECES                 piece,
     std::vector<Moves_Bitboard>& output) const
 {
     uint16_t piece_index_mask = m_piece_index_masks[color][piece];

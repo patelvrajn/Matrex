@@ -330,17 +330,16 @@ class Bitboard
 
     uint64_t m_board;
 
-    inline static constexpr auto m_between_squares_masks =
+    static constexpr auto m_between_squares_masks =
         init_between_squares_masks();
 
-    inline static constexpr auto m_backward_squares_masks =
+    static constexpr auto m_backward_squares_masks =
         init_backward_squares_masks();
 
-    inline static constexpr auto m_rank_masks     = init_rank_masks();
-    inline static constexpr auto m_file_masks     = init_file_masks();
-    inline static constexpr auto m_diagonal_masks = init_diagonal_masks();
-    inline static constexpr auto m_antidiagonal_masks =
-        init_antidiagonal_masks();
+    static constexpr auto m_rank_masks         = init_rank_masks();
+    static constexpr auto m_file_masks         = init_file_masks();
+    static constexpr auto m_diagonal_masks     = init_diagonal_masks();
+    static constexpr auto m_antidiagonal_masks = init_antidiagonal_masks();
 };
 
 using Bitboard_Array = Multi_Array<Bitboard, NUM_OF_SQUARES_ON_CHESS_BOARD>;

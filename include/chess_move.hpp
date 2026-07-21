@@ -32,8 +32,9 @@ struct Chess_Move
     uint16_t   padding                          : 11 = 0;         // 64
     Move_Score score                                 = 0;         // 80
 
-    constexpr static Chess_Move
-    reversible_move(PIECES piece, Square source, Square destination)
+    constexpr static Chess_Move reversible_move(const PIECES piece,
+                                                const Square source,
+                                                const Square destination)
     {
         return Chess_Move {
             .source_square      = static_cast<ESQUARE>(source.get_index()),
@@ -52,10 +53,10 @@ struct Chess_Move
             .is_promotion                     = false};
     }
 
-    std::string to_coordinate_notation(bool is_frc) const
+    std::string to_coordinate_notation(const bool is_frc) const
     {
-        std::string source_square_str      = SQUARE_STRINGS[source_square];
-        std::string destination_square_str = "";
+        const std::string source_square_str = SQUARE_STRINGS[source_square];
+        std::string       destination_square_str = "";
 
         if ((is_short_castling || is_long_castling) && is_frc)
         {
@@ -166,7 +167,7 @@ class Chess_Move_List
 
     int16_t get_max_index() const;
 
-    Chess_Move& operator[](uint16_t index);
+    Chess_Move& operator[](const uint16_t index);
 
     void sort();
 
@@ -241,7 +242,7 @@ int16_t Chess_Move_List<capacity>::get_max_index() const
 }
 
 template <std::size_t capacity>
-Chess_Move& Chess_Move_List<capacity>::operator[](uint16_t index)
+Chess_Move& Chess_Move_List<capacity>::operator[](const uint16_t index)
 {
     return m_list[index];
 }

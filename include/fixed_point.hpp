@@ -126,7 +126,7 @@ class Fixed_Point_Integer
     // The maximum value the integer component can have.
     static consteval double maximum_integer()
     {
-        Fixed_Point_Int_Storage_Type max_integer =
+        const Fixed_Point_Int_Storage_Type max_integer =
             (1 << (FIXED_POINT_BIT_WIDTH - F - 1)) - 1;
         return static_cast<double>(max_integer);
     }
@@ -142,7 +142,7 @@ class Fixed_Point_Integer
 
     static consteval double safe_maximum_integer()
     {
-        Fixed_Point_Int_Storage_Type max_integer =
+        const Fixed_Point_Int_Storage_Type max_integer =
             (1 << safe_maximum_integer_bits()) - 1;
         return static_cast<double>(max_integer);
     }
@@ -191,7 +191,7 @@ class Fixed_Point_Integer
         return min;
     }
 
-    static constexpr bool is_representable(double value)
+    static constexpr bool is_representable(const double value)
     {
         // Is this value representable with the precision of the fixed point
         // integer?
@@ -217,25 +217,25 @@ class Fixed_Point_Integer
     // avoid overflow. (Since, the construction of the NLR is the multiplication
     // of four functions we do the 4th root instead of the square root.)
     // Since z is a fixed point integer, the real value is z/2^F.
-    static constexpr bool is_safe(double value)
+    static constexpr bool is_safe(const double value)
     {
         return (value == std::clamp(value, safe_minimum(), safe_maximum()));
     }
 
     // Clamp a double to be within range of the fixed point representation.
-    static constexpr double clamp(double value)
+    static constexpr double clamp(const double value)
     {
         return std::clamp(value, minimum(), maximum());
     }
 
-    static constexpr double safe_clamp(double value)
+    static constexpr double safe_clamp(const double value)
     {
         return std::clamp(value, safe_minimum(), safe_maximum());
     }
 
     // Value is already an integer in fixed-point representation.
     static constexpr Fixed_Point_Integer
-    from_value(Fixed_Point_Int_Storage_Type value)
+    from_value(const Fixed_Point_Int_Storage_Type value)
     {
         Fixed_Point_Integer result;
         result.m_value = value;
@@ -243,9 +243,9 @@ class Fixed_Point_Integer
     }
 
     static constexpr Fixed_Point_Integer<F>
-    adjustable_clamp(Fixed_Point_Integer<F> value,
-                     Fixed_Point_Integer<F> minimum,
-                     Fixed_Point_Integer<F> maximum)
+    adjustable_clamp(const Fixed_Point_Integer<F> value,
+                     const Fixed_Point_Integer<F> minimum,
+                     const Fixed_Point_Integer<F> maximum)
     {
         return Fixed_Point_Integer<F>::from_value(
             std::clamp(value.get_value(),
@@ -258,16 +258,16 @@ class Fixed_Point_Integer
     {
         // Scale up by 2^F to convert to fixed-point representation, before
         // doing so clamp the integer to prevent overflow.
-        Fixed_Point_Int_Storage_Type minimum_integer =
+        const Fixed_Point_Int_Storage_Type minimum_integer =
             -(1 << (FIXED_POINT_BIT_WIDTH - F - 1));
-        Fixed_Point_Int_Storage_Type maximum_integer =
+        const Fixed_Point_Int_Storage_Type maximum_integer =
             (1 << (FIXED_POINT_BIT_WIDTH - F - 1)) - 1;
         integer = std::clamp(integer, minimum_integer, maximum_integer);
         Fixed_Point_Int_Storage_Type value = integer * scale();
         return Fixed_Point_Integer::from_value(value);
     }
 
-    static constexpr Fixed_Point_Integer from_double(double real)
+    static constexpr Fixed_Point_Integer from_double(const double real)
     {
         double rounded = std::llround(real * scale());
         rounded        = std::clamp(
@@ -282,13 +282,13 @@ class Fixed_Point_Integer
     }
 
     static constexpr Fixed_Point_Int_Storage_Type
-    lookup_log2_table(std::size_t index)
+    lookup_log2_table(const std::size_t index)
     {
         return m_log2_table[index];
     }
 
     static constexpr Fixed_Point_Int_Storage_Type
-    lookup_exp2_table(std::size_t index)
+    lookup_exp2_table(const std::size_t index)
     {
         return m_exp2_table[index];
     }
