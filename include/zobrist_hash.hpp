@@ -11,15 +11,16 @@ using Zobrist_Hash_Storage_Type = uint64_t;
 
 struct Zobrist_Hash_Keys
 {
-    std::array<std::array<std::array<Zobrist_Hash_Storage_Type,
-                                     NUM_OF_SQUARES_ON_CHESS_BOARD>,
-                          NUM_OF_UNIQUE_PIECES_PER_PLAYER>,
-               NUM_OF_PLAYERS>
+    Multi_Array<Zobrist_Hash_Storage_Type,
+                NUM_OF_PLAYERS,
+                NUM_OF_UNIQUE_PIECES_PER_PLAYER,
+                NUM_OF_SQUARES_ON_CHESS_BOARD>
         pieces;
-    std::array<Zobrist_Hash_Storage_Type, (NUM_OF_SQUARES_ON_CHESS_BOARD + 1)>
-                                              en_passant;
-    std::array<Zobrist_Hash_Storage_Type, 16> castling_rights;
-    Zobrist_Hash_Storage_Type                 black_to_move;
+    Multi_Array<Zobrist_Hash_Storage_Type, (NUM_OF_SQUARES_ON_CHESS_BOARD + 1)>
+        en_passant;
+    Multi_Array<Zobrist_Hash_Storage_Type, NUM_OF_CASTLING_RIGHTS_COMBINATIONS>
+                              castling_rights;
+    Zobrist_Hash_Storage_Type black_to_move;
 };
 
 struct Correction_History_Hashes
@@ -36,13 +37,13 @@ constexpr Zobrist_Hash_Keys initialize_zobrist_hash_keys()
     Zobrist_Hash_Keys                     keys;
     Psuedo_RNG<Zobrist_Hash_Storage_Type> prng;
 
-    for (uint8_t player = 0; player < NUM_OF_PLAYERS; player++)
+    for (uint8_t player = 0; player < NUM_OF_PLAYERS; ++player)
     {
         for (uint8_t piece = 0; piece < NUM_OF_UNIQUE_PIECES_PER_PLAYER;
-             piece++)
+             ++piece)
         {
             for (uint8_t square = 0; square < NUM_OF_SQUARES_ON_CHESS_BOARD;
-                 square++)
+                 ++square)
             {
                 keys.pieces[player][piece][square] = prng.generate_random();
             }
@@ -50,12 +51,12 @@ constexpr Zobrist_Hash_Keys initialize_zobrist_hash_keys()
     }
 
     for (uint8_t square = 0; square < (NUM_OF_SQUARES_ON_CHESS_BOARD + 1);
-         square++)
+         ++square)
     {
         keys.en_passant[square] = prng.generate_random();
     }
 
-    for (uint8_t cr = 0; cr < 16; cr++)
+    for (uint8_t cr = 0; cr < 16; ++cr)
     {
         keys.castling_rights[cr] = prng.generate_random();
     }

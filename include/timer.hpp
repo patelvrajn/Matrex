@@ -2,6 +2,9 @@
 
 #include <chrono>
 
+constexpr uint64_t NANOSECONDS_IN_SECOND      = 1e9;
+constexpr uint64_t NANOSECONDS_IN_MILLISECOND = 1e6;
+
 class Timer
 {
   public:
@@ -10,8 +13,8 @@ class Timer
 
     void     start();
     uint64_t elapsed();
-    bool     is_search_time_expired(uint64_t time_remaining_constraint,
-                                    uint64_t time_increment_constraint);
+    bool     is_search_time_expired(const uint64_t time_remaining_constraint,
+                                    const uint64_t time_increment_constraint);
 
   private:
 

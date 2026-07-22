@@ -49,7 +49,7 @@ struct Mini_Batch
 
 struct Worker_Batches
 {
-    multi_array<Mini_Batch, TUNER_NUM_OF_THREADS> batches;
+    Multi_Array<Mini_Batch, TUNER_NUM_OF_THREADS> batches;
 };
 
 struct Dataset
@@ -95,12 +95,12 @@ class Tuner
 
     Thread_Pool m_thread_pool;
 
-    double                 perturb(double mean);
-    NLR_Parameters<double> random_nlr(double h_mean);
+    double                 perturb(const double mean);
+    NLR_Parameters<double> random_nlr(const double h_mean);
 
     Evaluation_Weights<double> init_weights();
 
-    double learning_rate_scheduler(uint64_t epoch) const;
+    double learning_rate_scheduler(const uint64_t epoch) const;
 
     void parse_dataset_file(std::ifstream& dataset_file,
                             Dataset&       training_dataset,
@@ -133,25 +133,25 @@ class Tuner
 
     double compute_max_data_loss(const Dataset& d);
 
-    void print_element_as_cpp(std::ofstream& ofs, double scalar);
+    void print_element_as_cpp(std::ofstream& ofs, const double scalar);
     void print_element_as_cpp(std::ofstream&                ofs,
                               const NLR_Parameters<double>& nlr);
 
     template <typename T, std::size_t N>
     void print_multi_array_as_cpp(std::ofstream&           ofs,
-                                  const multi_array<T, N>& arr);
+                                  const Multi_Array<T, N>& arr);
 
     template <typename T, std::size_t N, std::size_t... Rest>
     void print_multi_array_as_cpp(std::ofstream&                    ofs,
-                                  const multi_array<T, N, Rest...>& arr);
+                                  const Multi_Array<T, N, Rest...>& arr);
 
     void print_header_file(const Evaluation_Weights<double>& weights);
 
-    double huber_loss(double a) const;
-    double derivative_huber_loss(double a) const;
+    double huber_loss(const double a) const;
+    double derivative_huber_loss(const double a) const;
 
-    double sigmoid(double s) const;
-    double derivative_sigmoid(double s) const;
+    double sigmoid(const double s) const;
+    double derivative_sigmoid(const double s) const;
 };
 
 struct Tuner_Step_State
@@ -162,7 +162,7 @@ struct Tuner_Step_State
 };
 
 using Tuner_Step_States_Array =
-    multi_array<Tuner_Step_State, TUNER_NUM_OF_THREADS>;
+    Multi_Array<Tuner_Step_State, TUNER_NUM_OF_THREADS>;
 
 class Tuner_Step : public Thread_Job
 {

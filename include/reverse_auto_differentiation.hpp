@@ -59,11 +59,12 @@ class AD_Adjoint
 
     AD_Adjoint();
 
-    AD_Adjoint(double value);
+    AD_Adjoint(const double value);
 
-    AD_Adjoint(AD_Node& parent_node);
+    AD_Adjoint(Optional_Reference<AD_Node> parent_node);
 
-    AD_Adjoint(AD_Node& left_node, AD_Node& right_node);
+    AD_Adjoint(Optional_Reference<AD_Node> left_node,
+               Optional_Reference<AD_Node> right_node);
 
     virtual void operator()(MAYBE_UNUSED std::initializer_list<double> args) {};
 
@@ -73,30 +74,30 @@ class AD_Adjoint
 
     auto& left_node() // Value of the left parent's adjoint.
     {
-        MATREX_ASSERT(m_left_node.has_value(),
+        MATREX_ASSERT(m_left_node.has_ref(),
                       "Accessed AD Adjoint's left node that has an optional "
                       "reference of no value.");
-        return m_left_node.value().get();
+        return m_left_node.get_ref();
     }
 
     auto& right_node() // Value of the right parent's adjoint.
     {
-        MATREX_ASSERT(m_right_node.has_value(),
+        MATREX_ASSERT(m_right_node.has_ref(),
                       "Accessed AD Adjoint's right node that has an optional "
                       "reference of no value.");
-        return m_right_node.value().get();
+        return m_right_node.get_ref();
     }
 
-    void set_value(double value);
+    void set_value(const double value);
 
     AD_Adjoint operator+=(const AD_Adjoint& other);
     AD_Adjoint operator-=(const AD_Adjoint& other);
 
   private:
 
-    double                                         m_value = 0.0;
-    std::optional<std::reference_wrapper<AD_Node>> m_left_node;
-    std::optional<std::reference_wrapper<AD_Node>> m_right_node;
+    double                      m_value = 0.0;
+    Optional_Reference<AD_Node> m_left_node;
+    Optional_Reference<AD_Node> m_right_node;
 };
 
 class AD_Adjoint_No_Op : public AD_Adjoint
@@ -105,8 +106,8 @@ class AD_Adjoint_No_Op : public AD_Adjoint
 
     using AD_Adjoint::AD_Adjoint;
 
-    virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args = {}) override;
+    virtual void operator()(
+        MAYBE_UNUSED const std::initializer_list<double> args = {}) override;
 };
 
 class AD_Adjoint_Addition : public AD_Adjoint
@@ -115,8 +116,8 @@ class AD_Adjoint_Addition : public AD_Adjoint
 
     using AD_Adjoint::AD_Adjoint;
 
-    virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args = {}) override;
+    virtual void operator()(
+        MAYBE_UNUSED const std::initializer_list<double> args = {}) override;
 };
 
 class AD_Adjoint_Subtraction : public AD_Adjoint
@@ -125,8 +126,8 @@ class AD_Adjoint_Subtraction : public AD_Adjoint
 
     using AD_Adjoint::AD_Adjoint;
 
-    virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args = {}) override;
+    virtual void operator()(
+        MAYBE_UNUSED const std::initializer_list<double> args = {}) override;
 };
 
 class AD_Adjoint_Multiplication : public AD_Adjoint
@@ -135,8 +136,8 @@ class AD_Adjoint_Multiplication : public AD_Adjoint
 
     using AD_Adjoint::AD_Adjoint;
 
-    virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args = {}) override;
+    virtual void operator()(
+        MAYBE_UNUSED const std::initializer_list<double> args = {}) override;
 };
 
 class AD_Adjoint_Division : public AD_Adjoint
@@ -145,8 +146,8 @@ class AD_Adjoint_Division : public AD_Adjoint
 
     using AD_Adjoint::AD_Adjoint;
 
-    virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args = {}) override;
+    virtual void operator()(
+        MAYBE_UNUSED const std::initializer_list<double> args = {}) override;
 };
 
 class AD_Adjoint_Negation : public AD_Adjoint
@@ -155,8 +156,8 @@ class AD_Adjoint_Negation : public AD_Adjoint
 
     using AD_Adjoint::AD_Adjoint;
 
-    virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args = {}) override;
+    virtual void operator()(
+        MAYBE_UNUSED const std::initializer_list<double> args = {}) override;
 };
 
 class AD_Adjoint_Tanh : public AD_Adjoint
@@ -166,7 +167,7 @@ class AD_Adjoint_Tanh : public AD_Adjoint
     using AD_Adjoint::AD_Adjoint;
 
     virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args) override;
+    operator()(MAYBE_UNUSED const std::initializer_list<double> args) override;
 };
 
 class AD_Adjoint_Exp : public AD_Adjoint
@@ -176,7 +177,7 @@ class AD_Adjoint_Exp : public AD_Adjoint
     using AD_Adjoint::AD_Adjoint;
 
     virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args) override;
+    operator()(MAYBE_UNUSED const std::initializer_list<double> args) override;
 };
 
 class AD_Adjoint_Sqrt : public AD_Adjoint
@@ -186,7 +187,7 @@ class AD_Adjoint_Sqrt : public AD_Adjoint
     using AD_Adjoint::AD_Adjoint;
 
     virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args) override;
+    operator()(MAYBE_UNUSED const std::initializer_list<double> args) override;
 };
 
 class AD_Adjoint_Pow : public AD_Adjoint
@@ -196,7 +197,7 @@ class AD_Adjoint_Pow : public AD_Adjoint
     using AD_Adjoint::AD_Adjoint;
 
     virtual void
-    operator()(MAYBE_UNUSED std::initializer_list<double> args) override;
+    operator()(MAYBE_UNUSED const std::initializer_list<double> args) override;
 };
 
 using AD_Adjoint_Pointer = std::unique_ptr<AD_Adjoint>;
@@ -213,13 +214,17 @@ class AD_Node
 
     AD_Node();
 
-    AD_Node(double value);
+    AD_Node(const double value);
 
-    AD_Node(double value, AD_Adjoint_Pointer adjoint);
+    AD_Node(const double value, AD_Adjoint_Pointer adjoint);
 
-    AD_Node(double value, AD_Adjoint_Pointer adjoint, std::size_t weight_index);
+    AD_Node(const double       value,
+            AD_Adjoint_Pointer adjoint,
+            const std::size_t  weight_index);
 
     double& value();
+
+    const double& value() const;
 
     auto& adjoint() { return (*m_adjoint); }
 
@@ -273,42 +278,40 @@ class AD_Tape
 //==============================================================================
 struct AD_Value
 {
-    std::optional<std::reference_wrapper<AD_Tape>> tape;
-    std::optional<std::reference_wrapper<AD_Node>> node;
+    mutable Optional_Reference<AD_Tape> tape;
+    Optional_Reference<AD_Node>         node;
 
     double& value()
     {
         MATREX_ASSERT(
-            node.has_value(),
+            node.has_ref(),
             "Tried to access a node's value via AD Value but it has no value.");
 
-        return node.value().get().value();
+        return node.get_ref().value();
     }
 
     const double& value() const
     {
         MATREX_ASSERT(
-            node.has_value(),
+            node.has_ref(),
             "Tried to access a node's value via AD Value but it has no value.");
 
-        return node.value().get().value();
+        return node.get_ref().value();
     }
 
-    static AD_Value
-    constant(std::optional<std::reference_wrapper<AD_Tape>> tape, double value)
+    static AD_Value constant(Optional_Reference<AD_Tape> tape, double value)
     {
         return {.tape = tape,
-                .node = tape.value().get().push(
+                .node = tape.get_ref().push(
                     AD_Node(value, std::make_unique<AD_Adjoint_No_Op>()))};
     }
 
-    static AD_Value
-    variable(std::optional<std::reference_wrapper<AD_Tape>> tape,
-             double                                         value,
-             std::size_t                                    weight_index)
+    static AD_Value variable(Optional_Reference<AD_Tape> tape,
+                             double                      value,
+                             std::size_t                 weight_index)
     {
         return {.tape = tape,
-                .node = tape.value().get().push(
+                .node = tape.get_ref().push(
                     AD_Node(value,
                             std::make_unique<AD_Adjoint_No_Op>(),
                             weight_index))};
@@ -318,12 +321,10 @@ struct AD_Value
     {
         double result_value = value() + other.value();
 
-        return {
-            .tape = this->tape,
-            .node = tape.value().get().push(AD_Node(
-                result_value,
-                std::make_unique<AD_Adjoint_Addition>(node.value(),
-                                                      other.node.value())))};
+        return {.tape = this->tape,
+                .node = tape.get_ref().push(AD_Node(
+                    result_value,
+                    std::make_unique<AD_Adjoint_Addition>(node, other.node)))};
     }
 
     AD_Value operator-(const AD_Value& other) const
@@ -332,22 +333,19 @@ struct AD_Value
 
         return {
             .tape = this->tape,
-            .node = tape.value().get().push(AD_Node(
+            .node = tape.get_ref().push(AD_Node(
                 result_value,
-                std::make_unique<AD_Adjoint_Subtraction>(node.value(),
-                                                         other.node.value())))};
+                std::make_unique<AD_Adjoint_Subtraction>(node, other.node)))};
     }
 
     AD_Value operator/(const AD_Value& other) const
     {
         double result_value = value() / other.value();
 
-        return {
-            .tape = this->tape,
-            .node = tape.value().get().push(AD_Node(
-                result_value,
-                std::make_unique<AD_Adjoint_Division>(node.value(),
-                                                      other.node.value())))};
+        return {.tape = this->tape,
+                .node = tape.get_ref().push(AD_Node(
+                    result_value,
+                    std::make_unique<AD_Adjoint_Division>(node, other.node)))};
     }
 
     AD_Value operator*(const AD_Value& other) const
@@ -355,11 +353,10 @@ struct AD_Value
         double result_value = value() * other.value();
 
         return {.tape = this->tape,
-                .node = tape.value().get().push(
-                    AD_Node(result_value,
-                            std::make_unique<AD_Adjoint_Multiplication>(
-                                node.value(),
-                                other.node.value())))};
+                .node = tape.get_ref().push(AD_Node(
+                    result_value,
+                    std::make_unique<AD_Adjoint_Multiplication>(node,
+                                                                other.node)))};
     }
 
     AD_Value operator-() const
@@ -367,9 +364,9 @@ struct AD_Value
         double result_value = -value();
 
         return {.tape = this->tape,
-                .node = tape.value().get().push(AD_Node(
-                    result_value,
-                    std::make_unique<AD_Adjoint_Negation>(node.value())))};
+                .node = tape.get_ref().push(
+                    AD_Node(result_value,
+                            std::make_unique<AD_Adjoint_Negation>(node)))};
     }
 
     AD_Value operator+=(const AD_Value& other)

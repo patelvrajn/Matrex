@@ -38,6 +38,7 @@ CXXFLAGS = \
 	        -Wall \
 	        -Wextra \
 	        -Wpedantic \
+			-Wno-interference-size \
 		    -fpie \
 	        -pie \
 		    -I ../include

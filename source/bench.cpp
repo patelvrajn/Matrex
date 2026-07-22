@@ -3,7 +3,7 @@
 #include "timer.hpp"
 #include "perft.hpp"
 
-double Performance_Bench::bench_move_generation(uint16_t depth)
+double Performance_Bench::bench_move_generation(const uint16_t depth)
 {
     uint64_t total_leaf_node_count = 0;
     uint64_t total_time            = 0;
@@ -19,8 +19,9 @@ double Performance_Bench::bench_move_generation(uint16_t depth)
         total_time            += t.elapsed();
     }
 
-    double nps = static_cast<double>(total_leaf_node_count)
-               / (static_cast<double>(total_time) / 1.0e9);
+    const double nps = static_cast<double>(total_leaf_node_count)
+                     / (static_cast<double>(total_time)
+                        / static_cast<double>(NANOSECONDS_IN_SECOND));
 
     std::cout << "=== MOVE GENERATION BENCH FOR DEPTH " << depth
               << " ===" << std::endl;
@@ -32,7 +33,7 @@ double Performance_Bench::bench_move_generation(uint16_t depth)
     return nps;
 }
 
-double Performance_Bench::bench_search(uint16_t depth)
+double Performance_Bench::bench_search(const uint16_t depth)
 {
     Search_Engine se;
 
@@ -58,8 +59,9 @@ double Performance_Bench::bench_search(uint16_t depth)
         total_node_count += se.get_node_count();
     }
 
-    double nps = static_cast<double>(total_node_count)
-               / (static_cast<double>(total_time) / 1.0e9);
+    const double nps = static_cast<double>(total_node_count)
+                     / (static_cast<double>(total_time)
+                        / static_cast<double>(NANOSECONDS_IN_SECOND));
 
     std::cout << "=== SEARCH BENCH FOR DEPTH " << depth << " ===" << std::endl;
     std::cout << "Total node count is " << total_node_count << std::endl;

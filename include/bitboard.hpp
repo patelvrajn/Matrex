@@ -1,41 +1,43 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <stdint.h>
 
 #include "globals.hpp"
 #include "square.hpp"
 
-constexpr uint64_t generate_between_squares_mask(const Square& a,
-                                                 const Square& b)
+constexpr uint64_t generate_between_squares_mask(const Square a, const Square b)
 {
-    uint64_t mask  = 0;
-    int8_t   delta = 0;
+    uint64_t  mask  = 0;
+    DIRECTION delta = NO_DIRECTION;
 
     // There are no squares in between a and b if they are the same square.
     if (a == b) { return mask; }
 
     const int8_t distance = b.get_index() - a.get_index();
 
+    // Squares a and b are on the same file.
     if (a.get_file() == b.get_file())
-    { // Squares a and b are on the same file.
-
-        delta = ((distance > 0) ? 8 : -8); // Move along the file.
+    {
+        delta = ((distance > 0) ? SOUTH : NORTH); // Move along the file.
     }
-    else if (b.get_rank() == a.get_rank())
-    { // Squares a and b are on the same rank.
-
-        delta = ((distance > 0) ? 1 : -1); // Move along the rank.
+    // Squares a and b are on the same rank.
+    else if (a.get_rank() == b.get_rank())
+    {
+        delta = ((distance > 0) ? EAST : WEST); // Move along the rank.
     }
-    else if ((distance % 9) == 0)
-    { // Squares a and b are on a diagonal.
-
-        delta = ((distance > 0) ? 9 : -9); // Move along the diagonal.
+    // Squares a and b are on the main diagonal.
+    else if (a.get_diagonal() == b.get_diagonal())
+    {
+        // Move along the diagonal.
+        delta = ((distance > 0) ? SOUTHEAST : NORTHWEST);
     }
-    else if ((distance % 7) == 0)
-    { // Squares a and b are on another diagonal.
-
-        delta = ((distance > 0) ? 7 : -7); // Move along the diagonal.
+    // Squares a and b are on the anti-diagonal.
+    else if (a.get_antidiagonal() == b.get_antidiagonal())
+    {
+        // Move along the diagonal.
+        delta = ((distance > 0) ? SOUTHWEST : NORTHEAST);
     }
     else
     {
@@ -54,21 +56,44 @@ constexpr uint64_t generate_between_squares_mask(const Square& a,
     return mask;
 }
 
-constexpr std::array<std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
-                     NUM_OF_SQUARES_ON_CHESS_BOARD>
-init_between_squares_masks()
+constexpr uint64_t generate_backward_squares_mask(const PIECE_COLOR c,
+                                                  const Square      s)
 {
-    std::array<std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
-               NUM_OF_SQUARES_ON_CHESS_BOARD>
+    uint64_t backward_squares_mask = 0;
+
+    const int8_t backward_rank_increment = (c == WHITE) ? -1 : 1;
+
+    int8_t rank = s.get_rank() + backward_rank_increment;
+
+    // As long as rank is within bounds, keep looping.
+    while ((!(rank < 0)) && (!(rank >= (NUM_OF_RANKS_ON_CHESS_BOARD))))
+    {
+        // All squares on the rank are backward squares.
+        for (int8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; ++file)
+        {
+            backward_squares_mask |= Square(rank, file).get_mask();
+        }
+
+        rank += backward_rank_increment;
+    }
+
+    return backward_squares_mask;
+}
+
+constexpr auto init_between_squares_masks()
+{
+    Multi_Array<uint64_t,
+                NUM_OF_SQUARES_ON_CHESS_BOARD,
+                NUM_OF_SQUARES_ON_CHESS_BOARD>
         between_squares_masks;
 
     for (uint8_t outer_square_idx = 0;
          outer_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         outer_square_idx++)
+         ++outer_square_idx)
     {
         for (uint8_t inner_square_idx = 0;
              inner_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-             inner_square_idx++)
+             ++inner_square_idx)
         {
             between_squares_masks[outer_square_idx][inner_square_idx] =
                 generate_between_squares_mask(Square(outer_square_idx),
@@ -79,13 +104,33 @@ init_between_squares_masks()
     return between_squares_masks;
 }
 
-constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_rank_masks()
+constexpr auto init_backward_squares_masks()
 {
-    std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> rank_masks;
+    Multi_Array<uint64_t, NUM_OF_PLAYERS, NUM_OF_SQUARES_ON_CHESS_BOARD>
+        backward_squares_masks;
+
+    for (PIECE_COLOR c = PIECE_COLOR::WHITE; c <= PIECE_COLOR::BLACK; ++c)
+    {
+        uint8_t square_index = 0;
+
+        for (auto& mask : backward_squares_masks[c])
+        {
+            mask = generate_backward_squares_mask(c, Square(square_index));
+
+            ++square_index;
+        }
+    }
+
+    return backward_squares_masks;
+}
+
+constexpr auto init_rank_masks()
+{
+    Multi_Array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> rank_masks;
 
     for (uint8_t outer_square_index = 0;
          outer_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         outer_square_index++)
+         ++outer_square_index)
     {
         const Square outer_square(outer_square_index);
 
@@ -93,7 +138,7 @@ constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_rank_masks()
 
         for (uint8_t inner_square_index = 0;
              inner_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-             inner_square_index++)
+             ++inner_square_index)
         {
             const Square inner_square(inner_square_index);
 
@@ -109,13 +154,13 @@ constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_rank_masks()
     return rank_masks;
 }
 
-constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_file_masks()
+constexpr auto init_file_masks()
 {
-    std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> file_masks;
+    Multi_Array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> file_masks;
 
     for (uint8_t outer_square_index = 0;
          outer_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         outer_square_index++)
+         ++outer_square_index)
     {
         const Square outer_square(outer_square_index);
 
@@ -123,7 +168,7 @@ constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_file_masks()
 
         for (uint8_t inner_square_index = 0;
              inner_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-             inner_square_index++)
+             ++inner_square_index)
         {
             const Square inner_square(inner_square_index);
 
@@ -139,14 +184,13 @@ constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> init_file_masks()
     return file_masks;
 }
 
-constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
-init_diagonal_masks()
+constexpr auto init_diagonal_masks()
 {
-    std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> diagonal_masks;
+    Multi_Array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> diagonal_masks;
 
     for (uint8_t outer_square_index = 0;
          outer_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         outer_square_index++)
+         ++outer_square_index)
     {
         const Square outer_square(outer_square_index);
 
@@ -154,7 +198,7 @@ init_diagonal_masks()
 
         for (uint8_t inner_square_index = 0;
              inner_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-             inner_square_index++)
+             ++inner_square_index)
         {
             const Square inner_square(inner_square_index);
 
@@ -170,14 +214,13 @@ init_diagonal_masks()
     return diagonal_masks;
 }
 
-constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
-init_antidiagonal_masks()
+constexpr auto init_antidiagonal_masks()
 {
-    std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> antidiagonal_masks;
+    Multi_Array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD> antidiagonal_masks;
 
     for (uint8_t outer_square_index = 0;
          outer_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         outer_square_index++)
+         ++outer_square_index)
     {
         const Square outer_square(outer_square_index);
 
@@ -185,7 +228,7 @@ init_antidiagonal_masks()
 
         for (uint8_t inner_square_index = 0;
              inner_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-             inner_square_index++)
+             ++inner_square_index)
         {
             const Square inner_square(inner_square_index);
 
@@ -217,7 +260,7 @@ class Bitboard
     {
       public:
 
-        Iterator(uint64_t board);
+        Iterator(const uint64_t board);
         Square    operator*() const;
         Iterator& operator++();
         bool      operator==(const Iterator& other) const;
@@ -235,16 +278,16 @@ class Bitboard
     Iterator<iteration_order> end() const;
 
     constexpr Bitboard();
-    constexpr Bitboard(uint64_t board);
+    constexpr Bitboard(const uint64_t board);
 
     void pretty_print() const;
 
     constexpr uint64_t get_board() const;
-    constexpr void     set_board(uint64_t board);
+    constexpr void     set_board(const uint64_t board);
 
-    constexpr void     unset_square(const Square& s);
-    constexpr void     set_square(const Square& s);
-    constexpr uint64_t get_square(const Square& s) const;
+    constexpr void     unset_square(const Square s);
+    constexpr void     set_square(const Square s);
+    constexpr uint64_t get_square(const Square s) const;
 
     constexpr uint8_t high_bit_count() const;
     constexpr uint8_t low_bit_count() const;
@@ -252,20 +295,19 @@ class Bitboard
     constexpr int8_t get_index_of_high_lsb() const;
     constexpr int8_t get_index_of_high_msb() const;
 
-    constexpr Bitboard get_backward_squares_mask(const Square& s,
-                                                 PIECE_COLOR   side) const;
+    constexpr static Bitboard get_backward_squares_mask(const Square      s,
+                                                        const PIECE_COLOR side);
 
-    constexpr static Bitboard get_between_squares_mask(const Square& a,
-                                                       const Square& b);
-    constexpr static Bitboard get_rank_mask(const Square& s);
-    constexpr static Bitboard get_file_mask(const Square& s);
-    constexpr static Bitboard get_diagonal_mask(const Square& s);
-    constexpr static Bitboard get_antidiagonal_mask(const Square& s);
-    constexpr static Bitboard get_infinite_ray(const Square& a,
-                                               const Square& b);
+    constexpr static Bitboard get_between_squares_mask(const Square a,
+                                                       const Square b);
+    constexpr static Bitboard get_rank_mask(const Square s);
+    constexpr static Bitboard get_file_mask(const Square s);
+    constexpr static Bitboard get_diagonal_mask(const Square s);
+    constexpr static Bitboard get_antidiagonal_mask(const Square s);
 
-    constexpr static bool
-    is_piece_obstructed(const Square a, const Square b, Bitboard occupancy);
+    constexpr static bool is_piece_obstructed(const Square   a,
+                                              const Square   b,
+                                              const Bitboard occupancy);
 
     // Equality operators overload.
     constexpr bool operator==(const Bitboard& other) const;
@@ -281,31 +323,30 @@ class Bitboard
     constexpr Bitboard& operator|=(const Bitboard& other);
     constexpr Bitboard& operator&=(const Bitboard& other);
     constexpr Bitboard& operator^=(const Bitboard& other);
-    constexpr Bitboard& operator<<=(uint8_t shift);
-    constexpr Bitboard& operator>>=(uint8_t shift);
+    constexpr Bitboard& operator<<=(const uint8_t shift);
+    constexpr Bitboard& operator>>=(const uint8_t shift);
 
   private:
 
     uint64_t m_board;
 
-    inline static constexpr std::array<
-        std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>,
-        NUM_OF_SQUARES_ON_CHESS_BOARD>
-        m_between_squares_masks = init_between_squares_masks();
-    inline static constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
-        m_rank_masks = init_rank_masks();
-    inline static constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
-        m_file_masks = init_file_masks();
-    inline static constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
-        m_diagonal_masks = init_diagonal_masks();
-    inline static constexpr std::array<uint64_t, NUM_OF_SQUARES_ON_CHESS_BOARD>
-        m_antidiagonal_masks = init_antidiagonal_masks();
+    static constexpr auto m_between_squares_masks =
+        init_between_squares_masks();
+
+    static constexpr auto m_backward_squares_masks =
+        init_backward_squares_masks();
+
+    static constexpr auto m_rank_masks         = init_rank_masks();
+    static constexpr auto m_file_masks         = init_file_masks();
+    static constexpr auto m_diagonal_masks     = init_diagonal_masks();
+    static constexpr auto m_antidiagonal_masks = init_antidiagonal_masks();
 };
 
-using Bitboard_Array = multi_array<Bitboard, NUM_OF_SQUARES_ON_CHESS_BOARD>;
+using Bitboard_Array = Multi_Array<Bitboard, NUM_OF_SQUARES_ON_CHESS_BOARD>;
 
 template <Bitboard_Iteration_Order iteration_order>
-Bitboard::Iterator<iteration_order>::Iterator(uint64_t board) : m_board(board)
+Bitboard::Iterator<iteration_order>::Iterator(const uint64_t board) :
+    m_board(board)
 {
 }
 
@@ -382,29 +423,40 @@ struct Bitboard_Iterable
 
 constexpr Bitboard::Bitboard() : m_board(0) {}
 
-constexpr Bitboard::Bitboard(uint64_t board) : m_board(board) {}
+constexpr Bitboard::Bitboard(const uint64_t board) : m_board(board) {}
 
 constexpr uint64_t Bitboard::get_board() const { return m_board; }
 
-constexpr void Bitboard::set_board(uint64_t board) { m_board = board; }
+constexpr void Bitboard::set_board(const uint64_t board) { m_board = board; }
 
-constexpr void Bitboard::unset_square(const Square& s)
+constexpr void Bitboard::unset_square(const Square s)
 {
+    MATREX_ASSERT(s.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to unset square "
+                  "NO_SQUARE.");
+
     m_board &= ~(s.get_mask());
 }
 
-constexpr void Bitboard::set_square(const Square& s)
+constexpr void Bitboard::set_square(const Square s)
 {
+    MATREX_ASSERT(
+        s.has_square(),
+        "Bitboard Class Assertion FAILURE: Attempted to set square NO_SQUARE.");
+
     m_board = (m_board | s.get_mask());
 }
 
-constexpr uint64_t Bitboard::get_square(const Square& s) const
+constexpr uint64_t Bitboard::get_square(const Square s) const
 {
+    MATREX_ASSERT(
+        s.has_square(),
+        "Bitboard Class Assertion FAILURE: Attempted to get square NO_SQUARE.");
+
     return (m_board & s.get_mask());
 }
 
-// Method to count how many bits are set to 1 in the bitboard (population
-// count).
+// Method to count how many bits are set to 1 in the bitboard.
 constexpr uint8_t Bitboard::high_bit_count() const
 {
     // Counter to keep track of how many set bits we find.
@@ -414,11 +466,11 @@ constexpr uint8_t Bitboard::high_bit_count() const
     // original.
     uint64_t temp_board = m_board;
 
-    // Loop until there are no more set bits left in temp_board.
+    // Loop until there are no more set bits left.
     while (temp_board)
     {
         // Increment counter for each set bit we remove.
-        high_bit_cnt++;
+        ++high_bit_cnt;
 
         // Clear the least significant set bit.
         // Trick: x & (x - 1) removes the lowest high bit in x.
@@ -448,73 +500,82 @@ constexpr int8_t Bitboard::get_index_of_high_msb() const
     return ((NUM_OF_SQUARES_ON_CHESS_BOARD - 1) - std::countl_zero(m_board));
 }
 
-constexpr Bitboard Bitboard::get_backward_squares_mask(const Square& s,
-                                                       PIECE_COLOR   side) const
+constexpr Bitboard Bitboard::get_backward_squares_mask(const Square      s,
+                                                       const PIECE_COLOR side)
 {
-    Bitboard backward_squares_mask = *this;
+    MATREX_ASSERT(s.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to get backward "
+                  "squares mask for NO_SQUARE.");
 
-    for (const Square& square : *this)
-    {
-        int8_t rank_diff = s.get_rank() - square.get_rank();
+    MATREX_ASSERT((side != PIECE_COLOR::NO_COLOR),
+                  "Bitboard Class Assertion FAILURE: Attempted to get backward "
+                  "squares mask for NO_COLOR.");
 
-        bool is_backward_move =
-            (side == WHITE) ? (rank_diff < 0) : (rank_diff > 0);
-
-        if (!is_backward_move)
-        { // Unset all forward squares.
-            backward_squares_mask.unset_square(square);
-        }
-    }
-
-    return backward_squares_mask;
+    return m_backward_squares_masks[side][s.get_index()];
 }
 
-constexpr Bitboard Bitboard::get_between_squares_mask(const Square& a,
-                                                      const Square& b)
+constexpr Bitboard Bitboard::get_between_squares_mask(const Square a,
+                                                      const Square b)
 {
+    MATREX_ASSERT(a.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to get between "
+                  "squares mask for NO_SQUARE.");
+
+    MATREX_ASSERT(b.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to get between "
+                  "squares mask for NO_SQUARE.");
+
     return Bitboard(m_between_squares_masks[a.get_index()][b.get_index()]);
 }
 
-constexpr Bitboard Bitboard::get_rank_mask(const Square& s)
+constexpr Bitboard Bitboard::get_rank_mask(const Square s)
 {
+    MATREX_ASSERT(s.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to get rank "
+                  "mask for NO_SQUARE.");
+
     return Bitboard(m_rank_masks[s.get_index()]);
 }
 
-constexpr Bitboard Bitboard::get_file_mask(const Square& s)
+constexpr Bitboard Bitboard::get_file_mask(const Square s)
 {
+    MATREX_ASSERT(s.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to get file "
+                  "mask for NO_SQUARE.");
+
     return Bitboard(m_file_masks[s.get_index()]);
 }
 
-constexpr Bitboard Bitboard::get_diagonal_mask(const Square& s)
+constexpr Bitboard Bitboard::get_diagonal_mask(const Square s)
 {
+    MATREX_ASSERT(s.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to get diagonal "
+                  "mask for NO_SQUARE.");
+
     return Bitboard(m_diagonal_masks[s.get_index()]);
 }
 
-constexpr Bitboard Bitboard::get_antidiagonal_mask(const Square& s)
+constexpr Bitboard Bitboard::get_antidiagonal_mask(const Square s)
 {
+    MATREX_ASSERT(s.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to get "
+                  "antidiagonal mask for NO_SQUARE.");
+
     return Bitboard(m_antidiagonal_masks[s.get_index()]);
 }
 
-constexpr Bitboard Bitboard::get_infinite_ray(const Square& a, const Square& b)
+constexpr bool Bitboard::is_piece_obstructed(const Square   a,
+                                             const Square   b,
+                                             const Bitboard occupancy)
 {
-    if (a.get_rank() == b.get_rank()) { return get_rank_mask(a); }
+    MATREX_ASSERT(a.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to calculate if "
+                  "piece is obstructed for NO_SQUARE.");
 
-    if (a.get_file() == b.get_file()) { return get_file_mask(a); }
+    MATREX_ASSERT(b.has_square(),
+                  "Bitboard Class Assertion FAILURE: Attempted to calculate if "
+                  "piece is obstructed for NO_SQUARE.");
 
-    if (a.get_diagonal() == b.get_diagonal()) { return get_diagonal_mask(a); }
-
-    if (a.get_antidiagonal() == b.get_antidiagonal())
-    {
-        return get_antidiagonal_mask(a);
-    }
-
-    return Bitboard();
-}
-
-constexpr bool Bitboard::is_piece_obstructed(const Square a,
-                                             const Square b,
-                                             Bitboard     occupancy)
-{
     return ((get_between_squares_mask(a, b) & occupancy) != Bitboard(0));
 }
 
@@ -545,11 +606,21 @@ constexpr Bitboard Bitboard::operator^(const Bitboard& other) const
 
 constexpr Bitboard Bitboard::operator<<(const uint8_t shift) const
 {
+    MATREX_ASSERT((shift < SIZE_OF_IN_BITS(m_board)),
+                  "Bitboard Class Assertion FAILURE: The shift of magnitude {} "
+                  "is undefined behavior.",
+                  shift);
+
     return Bitboard(m_board << shift);
 }
 
 constexpr Bitboard Bitboard::operator>>(const uint8_t shift) const
 {
+    MATREX_ASSERT((shift < SIZE_OF_IN_BITS(m_board)),
+                  "Bitboard Class Assertion FAILURE: The shift of magnitude {} "
+                  "is undefined behavior.",
+                  shift);
+
     return Bitboard(m_board >> shift);
 }
 
@@ -573,14 +644,24 @@ constexpr Bitboard& Bitboard::operator^=(const Bitboard& other)
     return *this;
 }
 
-constexpr Bitboard& Bitboard::operator<<=(uint8_t shift)
+constexpr Bitboard& Bitboard::operator<<=(const uint8_t shift)
 {
+    MATREX_ASSERT((shift < SIZE_OF_IN_BITS(m_board)),
+                  "Bitboard Class Assertion FAILURE: The shift of magnitude {} "
+                  "is undefined behavior.",
+                  shift);
+
     m_board <<= shift;
     return *this;
 }
 
-constexpr Bitboard& Bitboard::operator>>=(uint8_t shift)
+constexpr Bitboard& Bitboard::operator>>=(const uint8_t shift)
 {
+    MATREX_ASSERT((shift < SIZE_OF_IN_BITS(m_board)),
+                  "Bitboard Class Assertion FAILURE: The shift of magnitude {} "
+                  "is undefined behavior.",
+                  shift);
+
     m_board >>= shift;
     return *this;
 }
@@ -591,9 +672,9 @@ constexpr Bitboard init_light_square_bitboard()
 
     for (uint8_t from_square_idx = 0;
          from_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         from_square_idx++)
+         ++from_square_idx)
     {
-        Square s(from_square_idx);
+        const Square s(from_square_idx);
         if (s.is_light_square()) { output.set_square(s); }
     }
 
@@ -606,9 +687,9 @@ constexpr Bitboard init_dark_square_bitboard()
 
     for (uint8_t from_square_idx = 0;
          from_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         from_square_idx++)
+         ++from_square_idx)
     {
-        Square s(from_square_idx);
+        const Square s(from_square_idx);
         if (s.is_dark_square()) { output.set_square(s); }
     }
 
@@ -616,5 +697,6 @@ constexpr Bitboard init_dark_square_bitboard()
 }
 
 constexpr Bitboard EMPTY_BITBOARD         = Bitboard(0);
+constexpr Bitboard FULL_BITBOARD          = Bitboard((uint64_t) -1);
 constexpr Bitboard LIGHT_SQUARES_BITBOARD = init_light_square_bitboard();
 constexpr Bitboard DARK_SQUARES_BITBOARD  = init_dark_square_bitboard();

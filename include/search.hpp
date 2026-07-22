@@ -32,10 +32,10 @@ struct Time_Control
 
 struct Search_Constraints
 {
-    int16_t                                  depth = -1;
-    bool                                     should_ignore_time;
-    std::array<Time_Control, NUM_OF_PLAYERS> time_controls;
-    uint64_t                                 transposition_table_size;
+    int16_t                                   depth = -1;
+    bool                                      should_ignore_time;
+    Multi_Array<Time_Control, NUM_OF_PLAYERS> time_controls;
+    uint64_t                                  transposition_table_size;
 
     bool is_depth_search() { return (depth > 0); }
 };
@@ -160,11 +160,12 @@ class Search_Engine
                                          const Transposition_Table_Entry& entry,
                                          const Score                      eval);
 
-    inline bool should_update_correction_history(Chess_Move best_move,
-                                                 Score      best_score,
-                                                 Score      static_evaluation,
-                                                 Score_Bound_Type score_bound,
-                                                 bool is_side_to_move_in_check);
+    inline bool
+    should_update_correction_history(const Chess_Move       best_move,
+                                     const Score            best_score,
+                                     const Score            static_evaluation,
+                                     const Score_Bound_Type score_bound,
+                                     bool is_side_to_move_in_check);
 
     inline bool should_update_quiet_continuation_history(
         const Chess_Move&      beta_cutoff_move,
@@ -183,8 +184,8 @@ class Search_Engine
     void update_continuation_history(
         Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
         const Chess_Move&               move,
-        uint16_t                        ply,
-        uint32_t                        depth_squared);
+        const uint16_t                  ply,
+        const uint32_t                  depth_squared);
 
     inline bool should_do_see_pruning(const Chess_Move& move,
                                       const Score       best_score);
@@ -265,12 +266,12 @@ inline bool Search_Engine::should_use_transposition_table_score(
                 && entry.score <= eval));
 }
 
-inline bool
-Search_Engine::should_update_correction_history(Chess_Move best_move,
-                                                Score      best_score,
-                                                Score      static_evaluation,
-                                                Score_Bound_Type score_bound,
-                                                bool is_side_to_move_in_check)
+inline bool Search_Engine::should_update_correction_history(
+    const Chess_Move       best_move,
+    const Score            best_score,
+    const Score            static_evaluation,
+    const Score_Bound_Type score_bound,
+    const bool             is_side_to_move_in_check)
 {
     return (best_move.is_quiet_move()
             && ((score_bound == Score_Bound_Type::EXACT)

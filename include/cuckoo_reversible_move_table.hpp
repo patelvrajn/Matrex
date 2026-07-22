@@ -27,8 +27,8 @@ using Cuckoo_Hash_Storage_Type = uint16_t;
 template <std::size_t capacity>
 struct Cuckoo_RM_Table_Storage
 {
-    multi_array<Zobrist_Hash, capacity> hashes_table;
-    multi_array<Chess_Move, capacity>   reversible_moves_table;
+    Multi_Array<Zobrist_Hash, capacity> hashes_table;
+    Multi_Array<Chess_Move, capacity>   reversible_moves_table;
 };
 
 constexpr Cuckoo_Hash_Storage_Type cuckoo_hash_function_1(Zobrist_Hash z)
@@ -83,15 +83,15 @@ constexpr Cuckoo_RM_Table_Storage<capacity> initialize_cuckoo_rm_storage()
 
     for (uint8_t side_to_move = PIECE_COLOR::WHITE;
          side_to_move <= PIECE_COLOR::BLACK;
-         side_to_move++)
+         ++side_to_move)
     {
         // Note: we skip pawns because they have no irreversible moves by
         // definition;
-        for (uint8_t piece = PIECES::KNIGHT; piece <= PIECES::KING; piece++)
+        for (uint8_t piece = PIECES::KNIGHT; piece <= PIECES::KING; ++piece)
         {
             for (uint8_t from_square_idx = 0;
                  from_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-                 from_square_idx++)
+                 ++from_square_idx)
             {
                 const Square from_square(from_square_idx);
 
@@ -107,7 +107,7 @@ constexpr Cuckoo_RM_Table_Storage<capacity> initialize_cuckoo_rm_storage()
                 // move(b, a).
                 for (uint8_t to_square_idx = (from_square_idx + 1);
                      to_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-                     to_square_idx++)
+                     ++to_square_idx)
                 {
                     const Square to_square(to_square_idx);
 
@@ -159,8 +159,8 @@ class Cuckoo_RM_Table // RM = reversible move
 
   private:
 
-    inline static constexpr Cuckoo_RM_Table_Storage<CUCKOO_RM_TABLE_SIZE>
-        m_storage = initialize_cuckoo_rm_storage<CUCKOO_RM_TABLE_SIZE>();
+    static constexpr Cuckoo_RM_Table_Storage<CUCKOO_RM_TABLE_SIZE> m_storage =
+        initialize_cuckoo_rm_storage<CUCKOO_RM_TABLE_SIZE>();
 };
 
 constexpr bool
@@ -171,14 +171,14 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position,
     is_three_fold           = false;
     bool is_upcoming_repeat = false;
 
-    auto [hash_history,
-          hash_history_start,
-          hash_history_length,
-          half_move_clock] = position.get_hash_history();
+    const auto [hash_history,
+                hash_history_start,
+                hash_history_length,
+                half_move_clock] = position.get_hash_history();
 
     if (hash_history_length == 0) { return false; }
 
-    auto hash_history_end = hash_history_start + hash_history_length - 1;
+    const auto hash_history_end = hash_history_start + hash_history_length - 1;
 
     // Our hash history has the position where the half move clock resets at
     // index hash_history_start and the current position at hash_history_end so

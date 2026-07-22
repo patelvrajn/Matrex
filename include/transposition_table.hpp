@@ -67,7 +67,7 @@ class Mini_Queue
         // queue would not be iterated over.
         uint8_t m_remaining = 0;
 
-        uint8_t wrap_index(uint8_t index) const;
+        uint8_t wrap_index(const uint8_t index) const;
     };
 
     Iterator begin() const;
@@ -84,13 +84,13 @@ class Mini_Queue
     void push(const T& value); // Pushes to the front only.
     void pop();                // Pops from the back only.
     bool conditional_eviction(const T& value, T* evicted_value);
-    void swap_up(uint8_t index);
-    void move_to_front(uint8_t index);
-    void remove(uint8_t index);
+    void swap_up(const uint8_t index);
+    void move_to_front(const uint8_t index);
+    void remove(const uint8_t index);
 
   private:
 
-    std::array<T, capacity> m_queue {};
+    Multi_Array<T, capacity> m_queue {};
 
     // m_front = index of the current front element
     // m_back  = index one past the current back element
@@ -100,7 +100,7 @@ class Mini_Queue
     uint8_t m_back  = 0;
     uint8_t m_size  = 0;
 
-    uint8_t wrap_index(uint8_t index) const;
+    uint8_t wrap_index(const uint8_t index) const;
 };
 
 constexpr uint64_t PARTIAL_ZOBRIST_MASK = 0xFFFF;
@@ -127,9 +127,6 @@ struct Transposition_Table_Entry
     uint16_t         depth;           // 2 bytes
     Score_Bound_Type score_bound;     // 1 bytes
 };
-
-static_assert(sizeof(Transposition_Table_Entry) == 24,
-              "Transposition_Table_Entry should be 24 bytes in size.");
 
 struct CACHE_ALIGN Transposition_Table_Cluster
 {
@@ -252,7 +249,7 @@ FORCE_INLINE void Transposition_Table::prefetch(const Zobrist_Hash& hash)
 // to support non-powers of two, the function can be modified to use modulus
 // instead of bitwise AND.
 template <typename T, uint8_t capacity>
-uint8_t Mini_Queue<T, capacity>::wrap_index(uint8_t index) const
+uint8_t Mini_Queue<T, capacity>::wrap_index(const uint8_t index) const
 {
     return (index & (capacity - 1));
 }
@@ -354,7 +351,7 @@ bool Mini_Queue<T, capacity>::conditional_eviction(const T& value,
 }
 
 template <typename T, uint8_t capacity>
-void Mini_Queue<T, capacity>::move_to_front(uint8_t index)
+void Mini_Queue<T, capacity>::move_to_front(const uint8_t index)
 {
     if ((index >= m_size) || (index == 0)) { return; }
 
@@ -377,7 +374,7 @@ void Mini_Queue<T, capacity>::move_to_front(uint8_t index)
 // Given an index into the queue, swap the element at that index with the
 // element in front of it in the queue.
 template <typename T, uint8_t capacity>
-void Mini_Queue<T, capacity>::swap_up(uint8_t index)
+void Mini_Queue<T, capacity>::swap_up(const uint8_t index)
 {
     if ((m_size <= 1) || (index == 0)) { return; }
 
@@ -390,7 +387,7 @@ void Mini_Queue<T, capacity>::swap_up(uint8_t index)
 }
 
 template <typename T, uint8_t capacity>
-void Mini_Queue<T, capacity>::remove(uint8_t index)
+void Mini_Queue<T, capacity>::remove(const uint8_t index)
 {
     if (index >= m_size) { return; }
 
@@ -472,7 +469,7 @@ T& Mini_Queue<T, capacity>::Iterator::operator*() const
 }
 
 template <typename T, uint8_t capacity>
-uint8_t Mini_Queue<T, capacity>::Iterator::wrap_index(uint8_t index) const
+uint8_t Mini_Queue<T, capacity>::Iterator::wrap_index(const uint8_t index) const
 {
     return (index & (m_owner->get_capacity() - 1));
 }

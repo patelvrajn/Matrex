@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <utility>
 #include <variant>
+#include <cmath>
 
 #include "square.hpp"
 
@@ -25,28 +26,30 @@ constexpr std::string_view ENGINE_NAME    = "Matrex";
 constexpr std::string_view ENGINE_VERSION = "0.0.1";
 
 // =============================================================================
-// Various Pre-processor Definitions
-//
-// Description:
-// → FORCE_INLINE - Recursively inlines all code such that there is no function
-// call costs. However, should be used at caution because the trade-off is that
-// there may be many more variables cluttering registers, the stack, etc.
-//
-// → CACHE_ALIGN - Pads structures laid out in memory so that each structure
-// represents a single cache line. This issue is mainly concerning with multi-
-// threaded code - if a single core writes to structure X and another core reads
-// from structure Y if they reside on the same cache-line the core reading Y is
-// forced to fetch the memory address again to update the cache even though it
-// was only reading Y and not X. Currently, the assumption is that Matrex runs
-// only on x86 systems so the cache line size is 64 bytes.
+// Pre-processor Definitions
 // =============================================================================
+// Recursively inlines all code such that there is no function call costs.
+// However, should be used at caution because the trade-off is that there may be
+// many more variables cluttering registers, the stack, etc.
 #define FORCE_INLINE    inline __attribute__((always_inline, flatten))
 #define FORCE_NO_INLINE [[gnu::noinline]]
 
+// Used to avoid compilation warnings in cases where a variable may be optimized
+// such that the code doesn't use it. Example: variable used only in assertions
+// will only be used if it is a debug build of Matrex.
 #define MAYBE_UNUSED [[maybe_unused]]
 
-constexpr uint64_t CACHE_LINE_SIZE = 64;
+// Pads structures laid out in memory so that each structure represents a single
+// cache line. This issue is mainly concerning with multi-threaded code - if a
+// single core writes to structure X and another core reads from structure Y if
+// they reside on the same cache-line the core reading Y is forced to fetch the
+// memory address again to update the cache even though it was only reading Y
+// and not X.
+constexpr uint64_t CACHE_LINE_SIZE =
+    std::hardware_destructive_interference_size;
 #define CACHE_ALIGN alignas(CACHE_LINE_SIZE)
+
+#define SIZE_OF_IN_BITS(obj) (sizeof((obj)) << 3)
 
 // =============================================================================
 // Essential Chess-Related Entities
@@ -68,7 +71,14 @@ enum PIECE_COLOR
     NO_COLOR
 };
 
-constexpr PIECE_COLOR operator~(PIECE_COLOR c)
+constexpr PIECE_COLOR& operator++(PIECE_COLOR& c)
+{
+    const int8_t value = static_cast<int8_t>(c) + 1;
+    c                  = static_cast<PIECE_COLOR>(value);
+    return c;
+}
+
+constexpr PIECE_COLOR operator~(const PIECE_COLOR c)
 {
     if (c == PIECE_COLOR::WHITE) { return PIECE_COLOR::BLACK; }
     else if (c == PIECE_COLOR::BLACK) { return PIECE_COLOR::WHITE; }
@@ -76,7 +86,7 @@ constexpr PIECE_COLOR operator~(PIECE_COLOR c)
     return PIECE_COLOR::NO_COLOR;
 }
 
-inline std::ostream& operator<<(std::ostream& os, PIECE_COLOR color)
+inline std::ostream& operator<<(std::ostream& os, const PIECE_COLOR color)
 {
     switch (color)
     {
@@ -97,7 +107,7 @@ enum PIECES
     NO_PIECE
 };
 
-inline std::ostream& operator<<(std::ostream& os, PIECES piece)
+inline std::ostream& operator<<(std::ostream& os, const PIECES piece)
 {
     switch (piece)
     {
@@ -111,9 +121,6 @@ inline std::ostream& operator<<(std::ostream& os, PIECES piece)
     }
 }
 
-constexpr std::string PIECE_STRINGS[] =
-    {"PAWN", "KNIGHT", "BISHOP", "ROOK", "QUEEN", "KING", "NO_PIECE"};
-
 constexpr std::string
     UNICODE_PIECES[NUM_OF_PLAYERS * NUM_OF_UNIQUE_PIECES_PER_PLAYER] =
         {"♙", "♘", "♗", "♖", "♕", "♔", "♟︎", "♞", "♝", "♜", "♛", "♚"};
@@ -122,7 +129,7 @@ struct Placed_Piece
 {
     PIECE_COLOR color  = PIECE_COLOR::NO_COLOR;
     PIECES      piece  = PIECES::NO_PIECE;
-    Square      square = Square(ESQUARE::NO_SQUARE);
+    Square      square = NO_SQUARE_OBJ;
 
     bool operator==(const Placed_Piece& other) const
     {
@@ -141,7 +148,7 @@ struct Placed_Piece
 constexpr std::string_view START_POSITION_FEN =
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-inline uint16_t moves_to_ply(PIECE_COLOR c, uint16_t num_of_moves)
+inline uint16_t moves_to_ply(const PIECE_COLOR c, const uint16_t num_of_moves)
 {
     if (c == PIECE_COLOR::WHITE) { return (NUM_OF_PLAYERS * num_of_moves); }
     else if (c == PIECE_COLOR::BLACK)
@@ -152,14 +159,49 @@ inline uint16_t moves_to_ply(PIECE_COLOR c, uint16_t num_of_moves)
     return 0;
 }
 
-// =============================================================================
-// Assertions
-//
-// Description: Currently, Matrex has it's own runtime assertion function in
-// order to be more verbose when unexpected behavior occurs during runtime. The
-// verbose-ness is mainly from the full stack trace being displayed which is
-// useful when trying to debug unexpected behavior.
-// =============================================================================
+constexpr uint8_t NUM_OF_CASTLING_TYPES = 2;
+
+enum CASTLING_TYPE
+{
+    KINGSIDE,
+    QUEENSIDE
+};
+
+constexpr uint8_t NUM_OF_CASTLING_RIGHTS_FLAGS = 4;
+
+enum CASTLING_RIGHTS_FLAGS
+{
+    W_KINGSIDE  = 1,
+    W_QUEENSIDE = 2,
+    B_KINGSIDE  = 4,
+    B_QUEENSIDE = 8
+};
+
+constexpr uint8_t NUM_OF_CASTLING_RIGHTS_COMBINATIONS = static_cast<uint8_t>(
+    std::pow(static_cast<double>(NUM_OF_CASTLING_TYPES),
+             static_cast<double>(NUM_OF_CASTLING_RIGHTS_FLAGS)));
+
+// An enumeration describing directions (diagonal or orthogonal) in a chess
+// board. The directions are assigned values based on the number of bits in a
+// bitboard one needs to incrementally change the bit index (i.e. square index)
+// by to go in that direction on the board.
+enum DIRECTION : int8_t
+{
+    NORTHWEST    = -9,
+    NORTH        = -8,
+    NORTHEAST    = -7,
+    WEST         = -1,
+    NO_DIRECTION = 0,
+    EAST         = 1,
+    SOUTHWEST    = 7,
+    SOUTH        = 8,
+    SOUTHEAST    = 9
+};
+
+// Currently, Matrex has it's own runtime assertion function in order to be more
+// verbose when unexpected behavior occurs during runtime. The verbose-ness is
+// mainly from the full stack trace being displayed which is useful when trying
+// to debug.
 #ifdef NDEBUG
     #define MATREX_ASSERT(condition, message, ...) ((void) 0)
 #else
@@ -177,6 +219,155 @@ inline uint16_t moves_to_ply(PIECE_COLOR c, uint16_t num_of_moves)
             std::abort();                                                      \
         }
 #endif
+
+// =============================================================================
+// Multi_Array Implementation
+// =============================================================================
+// Recursive definition
+template <typename T, std::size_t this_size, std::size_t... other_sizes>
+class Multi_Array
+{
+    using element_type = Multi_Array<T, other_sizes...>;
+
+  public:
+
+    std::array<element_type, this_size> data {};
+
+    constexpr static std::size_t size = this_size;
+
+    constexpr Multi_Array() = default;
+
+    constexpr Multi_Array(const std::initializer_list<element_type> init)
+    {
+        if (init.size() == 0)
+        {
+            for (std::size_t i = 0; i < this_size; ++i)
+            {
+                // Default construct all members.
+                (*this)[i] = element_type();
+            }
+        }
+        else if (init.size() == 1)
+        {
+            for (std::size_t i = 0; i < this_size; ++i)
+            {
+                // Fill the array with the only given value;
+                (*this)[i] = (*init.begin());
+            }
+        }
+        else
+        {
+            std::size_t i = 0;
+            for (const auto& v : init) // Only sets up to the number of elements
+                                       // in the initializer list.
+            {
+                if (i < this_size) { (*this)[i++] = v; }
+                else
+                {
+                    break; // ignore extra elements
+                }
+            }
+        }
+    }
+
+    constexpr element_type& operator[](const std::size_t i) { return data[i]; }
+
+    constexpr const element_type& operator[](const std::size_t i) const
+    {
+        return data[i];
+    }
+
+    constexpr bool operator==(const Multi_Array& other) const
+    {
+        return data == other.data;
+    }
+
+    constexpr auto begin() { return data.begin(); }
+
+    constexpr auto end() { return data.end(); }
+
+    constexpr auto begin() const { return data.begin(); }
+
+    constexpr auto end() const { return data.end(); }
+
+    void fill(const T fill_value)
+    {
+        for (auto& element : (*this)) { element.fill(fill_value); }
+    }
+};
+
+// Base case: single-dimension
+template <typename T, std::size_t this_size>
+class Multi_Array<T, this_size>
+{
+    using element_type = T;
+
+  public:
+
+    std::array<element_type, this_size> data {};
+
+    constexpr static std::size_t size = this_size;
+
+    constexpr Multi_Array() = default;
+
+    constexpr Multi_Array(const std::initializer_list<T> init)
+    {
+        if (init.size() == 0)
+        {
+            for (std::size_t i = 0; i < this_size; ++i)
+            {
+                // Default construct all members.
+                (*this)[i] = element_type();
+            }
+        }
+        else if (init.size() == 1)
+        {
+            for (std::size_t i = 0; i < this_size; ++i)
+            {
+                // Fill the array with the only given value;
+                (*this)[i] = (*init.begin());
+            }
+        }
+        else
+        {
+            std::size_t i = 0;
+            for (const auto& v : init) // Only sets up to the number of elements
+                                       // in the initializer list.
+            {
+                if (i < this_size) { (*this)[i++] = v; }
+                else
+                {
+                    break; // ignore extra elements
+                }
+            }
+        }
+    }
+
+    constexpr element_type& operator[](const std::size_t i) { return data[i]; }
+
+    constexpr const element_type& operator[](const std::size_t i) const
+    {
+        return data[i];
+    }
+
+    constexpr bool operator==(const Multi_Array& other) const
+    {
+        return data == other.data;
+    }
+
+    constexpr auto begin() { return data.begin(); }
+
+    constexpr auto end() { return data.end(); }
+
+    constexpr auto begin() const { return data.begin(); }
+
+    constexpr auto end() const { return data.end(); }
+
+    void fill(const T fill_value)
+    {
+        for (auto& element : (*this)) { element = fill_value; }
+    }
+};
 
 // =============================================================================
 // Constant Expression For-Loop
@@ -205,8 +396,6 @@ constexpr void constexpr_for(F&& function)
 //
 // Description: Abstraction of index sequence - unpacks the sequence and calls
 // f's () operator which means that f must be a functor, function, lambda, etc.
-// The use case is typically in template metaprogramming to generate
-// compile-time loops for heterogenous types (like elements in a tuple).
 // =============================================================================
 template <std::size_t N, class F>
 constexpr decltype(auto) index_sequence_unpacker(F&& f)
@@ -218,8 +407,12 @@ constexpr decltype(auto) index_sequence_unpacker(F&& f)
     }(std::make_index_sequence<N> {}, static_cast<F&&>(f));
 }
 
+// =============================================================================
+// Template Parameter Extraction
+//
 // Generalized structs to extract the template parameters of an In typed object
 // and output an Out typed object with the same template parameters.
+// =============================================================================
 template <class In, template <class...> class Out>
 struct Extract_Template_Parameters;
 
@@ -244,6 +437,11 @@ class Optional_Reference
     Optional_Reference() = default;
 
     Optional_Reference(T& ref) : m_optional_reference(std::ref(ref)) {}
+
+    Optional_Reference(std::reference_wrapper<T> ref) :
+        m_optional_reference(ref)
+    {
+    }
 
     // Copy semantics.
     Optional_Reference(const Optional_Reference&)            = default;
@@ -285,9 +483,9 @@ class Optional_Reference
 // =============================================================================
 // Parameter Pack Container
 //
-// Description: A class used for treating parameter packs passed into functions
-// as containers. Useful for indexing and/or slicing the parameter pack. All
-// operations unless stated otherwise can be done during compile-time.
+// Description: A class used for treating parameter packs as containers. Useful
+// for indexing and/or slicing the parameter pack. All operations unless stated
+// otherwise can be done during compile-time.
 // =============================================================================
 template <typename... Pack>
 class Parameter_Pack_Container
@@ -297,14 +495,14 @@ class Parameter_Pack_Container
     std::tuple<Pack...> m_p;
 
     template <std::size_t offset, std::size_t... Is>
-    constexpr auto offset_index_sequence(std::index_sequence<Is...>) const
+    constexpr auto offset_index_sequence(const std::index_sequence<Is...>) const
     {
         return std::index_sequence<(Is + offset)...> {};
     }
 
     template <typename Tuple, std::size_t... Is>
     constexpr auto extract_parameter_set(const Tuple& t,
-                                         std::index_sequence<Is...>) const
+                                         const std::index_sequence<Is...>) const
     {
         return std::make_tuple(std::get<Is>(t)...);
     }
@@ -352,7 +550,7 @@ class Parameter_Pack_Container
                 using Getter_Function =
                     Parameter_Pack_Variant (*)(const Tuple&);
 
-                return std::array<Getter_Function, sizeof...(Is)> {
+                return Multi_Array<Getter_Function, sizeof...(Is)> {
                     +[](const Tuple& p) -> Parameter_Pack_Variant
                     {
                         return Parameter_Pack_Variant(
@@ -364,7 +562,10 @@ class Parameter_Pack_Container
 
   public:
 
-    using Parameter_Pack_Variant = std::variant<std::monostate, std::reference_wrapper<const Pack>...>;
+    // Note that the variant uses references to the existing object in the tuple
+    // to support large data structures.
+    using Parameter_Pack_Variant =
+        std::variant<std::monostate, std::reference_wrapper<const Pack>...>;
 
     constexpr Parameter_Pack_Container() = default;
 
@@ -380,7 +581,7 @@ class Parameter_Pack_Container
     static constexpr std::size_t size = sizeof...(Pack);
 
     // Returns a std::variant at an index of the internal tuple.
-    constexpr Parameter_Pack_Variant get(std::size_t index) const
+    constexpr Parameter_Pack_Variant get(const std::size_t index) const
     {
         static constexpr auto getters = make_getters();
 
@@ -393,12 +594,12 @@ class Parameter_Pack_Container
         return getters[index](m_p);
     }
 
-    constexpr Parameter_Pack_Variant operator[](std::size_t index)
+    constexpr Parameter_Pack_Variant operator[](const std::size_t index)
     {
         return this->get(index);
     }
 
-    constexpr Parameter_Pack_Variant operator[](std::size_t index) const
+    constexpr Parameter_Pack_Variant operator[](const std::size_t index) const
     {
         return this->get(index);
     }
@@ -407,7 +608,7 @@ class Parameter_Pack_Container
 
     // Grabs a non-contigious subset of the internal tuple.
     template <std::size_t... Is>
-    constexpr auto get_parameter_set(std::index_sequence<Is...> sequence)
+    constexpr auto get_parameter_set(const std::index_sequence<Is...> sequence)
     {
         extract_parameter_set(m_p, sequence);
     }
@@ -419,8 +620,8 @@ class Parameter_Pack_Container
         return slice_tuple<start, end>(m_p);
     }
 
-    // Takes the tuple internal to Parameter_Pack_Container and expands it out
-    // as parameters to any given function (even templated functions).
+    // Takes the internal tuple and expands it out as parameters to any given
+    // function (even templated functions).
     template <class Function>
     constexpr auto apply(Function&& function) const
     {
@@ -460,170 +661,52 @@ class Parameter_Pack_Container
 };
 
 // =============================================================================
-// Multi_Array Implementation
+// Reference Array Implementation
 // =============================================================================
-// Recursive multi_array definition
-template <typename T, std::size_t this_size, std::size_t... other_sizes>
-class multi_array
-{
-    using element_type = multi_array<T, other_sizes...>;
-
-  public:
-
-    std::array<element_type, this_size> data {};
-
-    // Default constructor
-    constexpr multi_array() = default;
-
-    // Constructor from initializer list of multi_arrays
-    constexpr multi_array(std::initializer_list<element_type> init)
-    {
-        std::size_t i = 0;
-        for (auto& v : init) // Only sets up to the number of elements in the
-                             // initializer list.
-        {
-            if (i < this_size) { (*this)[i++] = v; }
-            else
-            {
-                break; // ignore extra elements
-            }
-        }
-    }
-
-    constexpr element_type& operator[](std::size_t i) { return data[i]; }
-
-    constexpr const element_type& operator[](std::size_t i) const
-    {
-        return data[i];
-    }
-
-    constexpr bool operator==(const multi_array& other) const
-    {
-        return data == other.data;
-    }
-
-    constexpr auto begin() { return data.begin(); }
-
-    constexpr auto end() { return data.end(); }
-
-    constexpr auto begin() const { return data.begin(); }
-
-    constexpr auto end() const { return data.end(); }
-
-    void fill(T fill_value)
-    {
-        for (auto& element : (*this)) { element.fill(fill_value); }
-    }
-};
-
-// Base case: single-dimension multi_array
-template <typename T, std::size_t this_size>
-class multi_array<T, this_size>
-{
-    using element_type = T;
-
-  public:
-
-    std::array<element_type, this_size> data {};
-
-    // Default constructor
-    constexpr multi_array() = default;
-
-    // Constructor from initializer list
-    constexpr multi_array(std::initializer_list<T> init)
-    {
-        std::size_t i = 0;
-        for (auto& v : init) // Only sets up to the number of elements in the
-                             // initializer list.
-        {
-            if (i < this_size) { (*this)[i++] = v; }
-            else
-            {
-                break; // ignore extra elements
-            }
-        }
-    }
-
-    constexpr element_type& operator[](std::size_t i) { return data[i]; }
-
-    constexpr const element_type& operator[](std::size_t i) const
-    {
-        return data[i];
-    }
-
-    constexpr bool operator==(const multi_array& other) const
-    {
-        return data == other.data;
-    }
-
-    constexpr auto begin() { return data.begin(); }
-
-    constexpr auto end() { return data.end(); }
-
-    constexpr auto begin() const { return data.begin(); }
-
-    constexpr auto end() const { return data.end(); }
-
-    void fill(T fill_value)
-    {
-        for (auto& element : (*this)) { element = fill_value; }
-    }
-};
-
-// =============================================================================
-// Compile-time element counting
-// =============================================================================
-// Scalar → 1 element
 template <typename T>
 struct element_count
 {
     static constexpr std::size_t value = 1;
 };
 
-// multi_array → product of all dimensions
+// Product of all the sizes of the dimensions of the Multi Array.
 template <typename T, std::size_t N, std::size_t... Rest>
-struct element_count<multi_array<T, N, Rest...>>
+struct element_count<Multi_Array<T, N, Rest...>>
 {
     static constexpr std::size_t value =
-        N * element_count<multi_array<T, Rest...>>::value;
+        N * element_count<Multi_Array<T, Rest...>>::value;
 };
 
-// Base case of recursion
+// Base case of the recursion occuring when multiplying the sizes of the
+// dimensions of the Multi Array.
 template <typename T, std::size_t N>
-struct element_count<multi_array<T, N>>
+struct element_count<Multi_Array<T, N>>
 {
     static constexpr std::size_t value = N;
 };
 
-// =============================================================================
-// Recursive reference collection (index-based, private-inheritance-safe)
-// =============================================================================
-// Base case: scalar element
 template <typename T, typename Array>
 void collect_refs(T& value, Array& out, std::size_t& index)
 {
-    out[index++] = std::ref(value);
+    out[index++] = Optional_Reference<T>(value);
 }
 
-// Recursive case: multi_array
+// Base recursive case: Multi_Array with 1 dimension.
 template <typename T, std::size_t N, typename Array>
-void collect_refs(multi_array<T, N>& arr, Array& out, std::size_t& index)
+void collect_refs(Multi_Array<T, N>& arr, Array& out, std::size_t& index)
 {
     for (std::size_t i = 0; i < N; ++i) { collect_refs(arr[i], out, index); }
 }
 
-// Recursive case: multi_array with more dimensions
+// Recursive case: Multi_Array with more than 1 dimension.
 template <typename T, std::size_t N, std::size_t... Rest, typename Array>
-void collect_refs(multi_array<T, N, Rest...>& arr,
+void collect_refs(Multi_Array<T, N, Rest...>& arr,
                   Array&                      out,
                   std::size_t&                index)
 {
     for (std::size_t i = 0; i < N; ++i) { collect_refs(arr[i], out, index); }
 }
 
-// =============================================================================
-// Reference_Array
-// =============================================================================
 template <typename... Args>
 constexpr auto calculate_reference_array_size()
 {
@@ -641,7 +724,7 @@ auto make_reference_array(Args&... args)
     constexpr std::size_t total = calculate_reference_array_size<Args...>();
 
     // Fixed-size array of references
-    std::array<std::optional<std::reference_wrapper<T>>, total> result;
+    Multi_Array<Optional_Reference<T>, total> result;
 
     // Current insertion index
     std::size_t index = 0;
@@ -665,7 +748,8 @@ class Reference_Array
 
   private:
 
-    std::array<std::optional<std::reference_wrapper<T>>, size> m_refs;
+    Multi_Array<Optional_Reference<T>, size> m_refs;
+
     std::unordered_map<const void*, std::size_t> m_ref_to_index_map;
 
   public:
@@ -675,26 +759,49 @@ class Reference_Array
     {
         m_ref_to_index_map.reserve(size);
 
-        for (std::size_t i = 0; i < size; i++)
+        for (std::size_t i = 0; i < size; ++i)
         {
-            if (!m_refs[i].has_value()) { continue; }
+            if (!m_refs[i].has_ref()) { continue; }
 
-            const void* key =
-                static_cast<const void*>(&m_refs[i].value().get());
+            // The key to the hash table is a void pointer to the memory that is
+            // being referenced.
+            const void* key = static_cast<const void*>(&m_refs[i].get_ref());
+
+            // Insert the key along with its value (the index at which the
+            // reference exists in the reference array).
             auto [it, inserted] = m_ref_to_index_map.emplace(key, i);
+
             if (!inserted)
             {
                 throw std::logic_error(
-                    "Reference_Array constructor: Only unique references are "
+                    "Reference_Array ERROR: Only unique references are "
                     "allowed, "
                     "but a duplicate reference was found");
             }
         }
     }
 
-    auto& get_array() { return m_refs; }
+    T& operator[](const std::size_t index)
+    {
+        MATREX_ASSERT(index < size,
+                      "Reference Array Assertion FAILURE: operator[] "
+                      "Indexed outside of size. Index: {}, Size: {}",
+                      index,
+                      size);
 
-    const auto& get_array() const { return m_refs; }
+        return m_refs[index].get_ref();
+    }
+
+    const T& operator[](const std::size_t index) const
+    {
+        MATREX_ASSERT(index < size,
+                      "Reference Array Assertion FAILURE: operator[] "
+                      "Indexed outside of size. Index: {}, Size: {}",
+                      index,
+                      size);
+
+        return m_refs[index].get_ref();
+    }
 
     template <typename U> // Using U instead of T to allow get_index_of to
                           // accept references of types derived from T like
@@ -707,7 +814,7 @@ class Reference_Array
         if (it == m_ref_to_index_map.end())
         {
             throw std::out_of_range(
-                "Reference_Array::get_index_of: reference not found");
+                "Reference_Array ERROR: Reference not found!");
         }
 
         return it->second;
@@ -749,7 +856,7 @@ class Compile_Time_Jagged_Array
     };
 
     template <class... Ts>
-    constexpr auto make_jagged_array_from_tuple(std::tuple<Ts...> t)
+    constexpr auto make_jagged_array_from_tuple(const std::tuple<Ts...> t)
     {
         using Output_Type = typename Tuple_to_Jagged_Array<decltype(t)>::Type;
 
@@ -775,7 +882,7 @@ class Compile_Time_Jagged_Array
     // move contructor not usable).
 
     template <std::size_t set_index, std::size_t inner_array_size>
-    constexpr auto set(std::array<T, inner_array_size> inner_array)
+    constexpr auto set(const Multi_Array<T, inner_array_size> inner_array)
     {
         if constexpr (set_index == 0)
         {
@@ -797,9 +904,8 @@ class Compile_Time_Jagged_Array
                 std::tuple_cat(start_of_tuple, inserted_tuple);
 
             return make_jagged_array_from_tuple(full_tuple);
-
-            // Note: This is the only case where we grow the jagged array.
         }
+        // Note: This is the only case where we grow the jagged array.
         else if constexpr (set_index > (size - 1))
         {
             const auto start_of_tuple = m_parameter_pack.to_tuple();
@@ -825,8 +931,8 @@ class Compile_Time_Jagged_Array
         }
     }
 
-    constexpr auto get(std::size_t inner_array_index,
-                       std::size_t element_index) const
+    constexpr auto get(const std::size_t inner_array_index,
+                       const std::size_t element_index) const
     {
         return std::visit(
             [element_index](const auto& array) -> T
@@ -856,6 +962,9 @@ class Compile_Time_Jagged_Array
     }
 };
 
+// =============================================================================
+// Partially Filled Array
+// =============================================================================
 template <typename T, std::size_t capacity>
 class Partially_Filled_Array
 {
@@ -881,15 +990,15 @@ class Partially_Filled_Array
     const T* end() const;
 
     int64_t get_max_index() const;
-    int64_t truncate(int64_t max_index);
+    int64_t truncate(const int64_t max_index);
 
-    T&       operator[](std::size_t index);
-    const T& operator[](std::size_t index) const;
+    T&       operator[](const std::size_t index);
+    const T& operator[](const std::size_t index) const;
 
   private:
 
-    int64_t                 m_max_index;
-    std::array<T, capacity> m_list;
+    int64_t                  m_max_index;
+    Multi_Array<T, capacity> m_list;
 };
 
 template <typename T, std::size_t capacity>
@@ -906,14 +1015,14 @@ inline std::size_t Partially_Filled_Array<T, capacity>::size() const
 template <typename T, std::size_t capacity>
 inline void Partially_Filled_Array<T, capacity>::append(const T& data)
 {
-    m_max_index++;
+    ++m_max_index;
     m_list[m_max_index] = data;
 }
 
 template <typename T, std::size_t capacity>
 inline T Partially_Filled_Array<T, capacity>::pop()
 {
-    m_max_index--;
+    --m_max_index;
     return m_list[m_max_index + 1];
 }
 
@@ -966,14 +1075,14 @@ int64_t Partially_Filled_Array<T, capacity>::get_max_index() const
 }
 
 template <typename T, std::size_t capacity>
-int64_t Partially_Filled_Array<T, capacity>::truncate(int64_t max_index)
+int64_t Partially_Filled_Array<T, capacity>::truncate(const int64_t max_index)
 {
     m_max_index = std::min(m_max_index, max_index);
     return m_max_index;
 }
 
 template <typename T, std::size_t capacity>
-T& Partially_Filled_Array<T, capacity>::operator[](std::size_t index)
+T& Partially_Filled_Array<T, capacity>::operator[](const std::size_t index)
 {
     MATREX_ASSERT(index < capacity,
                   "Partially_Filled_Array Assertion FAILURE: operator[] "
@@ -981,22 +1090,17 @@ T& Partially_Filled_Array<T, capacity>::operator[](std::size_t index)
                   index,
                   capacity);
 
-    int64_t index_i64 = static_cast<int64_t>(index);
+    const int64_t index_i64 = static_cast<int64_t>(index);
 
     // Caution: This allows writes above the max index but below the capacity.
-    // Thus, if you intend only index upto the max index do not use the []
-    // operator.
-    if ((index_i64 > m_max_index) && (index < capacity))
-    {
-        m_max_index = index_i64;
-    }
+    if (index_i64 > m_max_index) { m_max_index = index_i64; }
 
     return m_list[index];
 }
 
 template <typename T, std::size_t capacity>
 const T&
-Partially_Filled_Array<T, capacity>::operator[](std::size_t index) const
+Partially_Filled_Array<T, capacity>::operator[](const std::size_t index) const
 {
     MATREX_ASSERT(index < capacity,
                   "Partially_Filled_Array Assertion FAILURE: operator[] "
@@ -1004,7 +1108,7 @@ Partially_Filled_Array<T, capacity>::operator[](std::size_t index) const
                   index,
                   capacity);
 
-    MATREX_ASSERT(index <= m_max_index,
+    MATREX_ASSERT(static_cast<int64_t>(index) <= m_max_index,
                   "Partially_Filled_Array Assertion FAILURE: operator[] "
                   "Indexed outside of max index. Index: {}, Max Index: {}",
                   index,

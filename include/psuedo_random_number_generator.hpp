@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+// =============================================================================
 // xorshift64star Pseudo-Random Number Generator
 // This class is based on original code written and dedicated to the public
 // domain by Sebastiano Vigna (2014).
@@ -16,7 +17,7 @@
 //
 // For further analysis see
 //   <http://vigna.di.unimi.it/ftp/papers/xorshift.pdf>
-
+// =============================================================================
 constexpr uint64_t GLOBAL_PRNG_DEFAULT_SEED = 1070372; // Seed from Stockfish
 
 template <typename T>
@@ -25,7 +26,7 @@ class Psuedo_RNG
 
   public:
 
-    constexpr Psuedo_RNG(uint64_t seed = GLOBAL_PRNG_DEFAULT_SEED);
+    constexpr Psuedo_RNG(const uint64_t seed = GLOBAL_PRNG_DEFAULT_SEED);
 
     constexpr T generate_random();
     constexpr T generate_sparse_random();
@@ -38,7 +39,7 @@ class Psuedo_RNG
 };
 
 template <typename T>
-constexpr Psuedo_RNG<T>::Psuedo_RNG(uint64_t seed) : m_seed(seed)
+constexpr Psuedo_RNG<T>::Psuedo_RNG(const uint64_t seed) : m_seed(seed)
 {
 }
 

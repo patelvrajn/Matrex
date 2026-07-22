@@ -10,13 +10,13 @@ void Bitboard::pretty_print() const
     std::cout << "Bitboard: " << m_board << " (0x" << std::hex << m_board << ")"
               << std::endl;
 
-    for (uint8_t rank = 0; rank < NUM_OF_RANKS_ON_CHESS_BOARD; rank++)
+    for (uint8_t rank = 0; rank < NUM_OF_RANKS_ON_CHESS_BOARD; ++rank)
     {
         // Print the ranks on the left hand side of the board before the first
         // file.
         std::cout << (NUM_OF_RANKS_ON_CHESS_BOARD - rank) << "   ";
 
-        for (uint8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; file++)
+        for (uint8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; ++file)
         {
             Square s(rank, file);
 
@@ -33,7 +33,7 @@ void Bitboard::pretty_print() const
     std::cout << std::endl;
     std::cout << "    ";
 
-    for (uint8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; file++)
+    for (uint8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; ++file)
     {
         char file_char = 'A' + file;
         std::cout << file_char << " ";

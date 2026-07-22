@@ -18,7 +18,7 @@ Tuner::Tuner(std::ostream&  logging,
     m_output << std::setprecision(DOUBLE_STD_OUT_PRECISION);
 }
 
-double Tuner::perturb(double mean)
+double Tuner::perturb(const double mean)
 {
     std::random_device               rd;
     std::mt19937_64                  rng(rd());
@@ -29,7 +29,7 @@ double Tuner::perturb(double mean)
     return distribution(rng);
 }
 
-NLR_Parameters<double> Tuner::random_nlr(double h_mean)
+NLR_Parameters<double> Tuner::random_nlr(const double h_mean)
 {
     return {.h_plus  = perturb(h_mean),
             .h_minus = perturb(h_mean),
@@ -77,9 +77,9 @@ Evaluation_Weights<double> Tuner::init_weights()
     weights.backwards_movement_mobility   = perturb(0.36L);
 
     for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK;
-         color++)
+         ++color)
     {
-        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
+        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
         {
             weights.piece_square_NLR_parameters[color][piece] = random_nlr(1);
         }
@@ -89,13 +89,13 @@ Evaluation_Weights<double> Tuner::init_weights()
                                                        random_nlr(1)};
 
     for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK;
-         color++)
+         ++color)
     {
-        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
+        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
         {
             for (uint8_t square_idx = 0;
                  square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-                 square_idx++)
+                 ++square_idx)
             {
                 weights.piece_square_tables[color][piece][square_idx] =
                     distribution(rng);
@@ -141,7 +141,7 @@ Evaluation_Weights<double> Tuner::tune()
     m_log << "[INFO] Initial validation dataset loss is "
           << previous_epoch_validation_loss << std::endl;
 
-    for (uint64_t epoch = 1; epoch <= TUNER_MAX_EPOCHS; epoch++)
+    for (uint64_t epoch = 1; epoch <= TUNER_MAX_EPOCHS; ++epoch)
     {
         double weight_update_magnitude_average = 0;
 
@@ -184,7 +184,7 @@ Evaluation_Weights<double> Tuner::tune()
 
             // Push as many jobs as there are threads assigning each tuner step
             // job a different split of the mini-batch.
-            for (std::size_t i = 0; i < TUNER_NUM_OF_THREADS; i++)
+            for (std::size_t i = 0; i < TUNER_NUM_OF_THREADS; ++i)
             {
                 std::unique_ptr<Thread_Job> job =
                     std::make_unique<Tuner_Step>(shared_data,
@@ -226,7 +226,7 @@ Evaluation_Weights<double> Tuner::tune()
                   << global_state.weights << std::endl;
 
             // Increment timestep.
-            t++;
+            ++t;
         }
 
         weight_update_magnitude_average =
@@ -260,7 +260,7 @@ Evaluation_Weights<double> Tuner::tune()
         if ((validation_loss_improvement < TUNER_LOSS_IMPROVEMENT_CUTOFF)
             && (weight_update_magnitude_average < TUNER_WEIGHT_UPDATE_CUTOFF))
         { // Converged!
-            epoch_patience_count++;
+            ++epoch_patience_count;
             if (epoch_patience_count == TUNER_PATIENCE) { break; }
         }
         else
@@ -295,7 +295,7 @@ Tuner::projected_gradient(const Evaluation_Weights<double>& weights,
 {
     Evaluation_Weights<double> result;
 
-    for (std::size_t i = 0; i < weights.get_size(); i++)
+    for (std::size_t i = 0; i < weights.get_size(); ++i)
     {
         // If the gradient is negative, according to the traditional gradient
         // descent weight update, we want to increase the weights - so as a
@@ -338,7 +338,7 @@ Evaluation_Weights<double> Tuner::projected_weight_change(
 {
     Evaluation_Weights<double> result;
 
-    for (std::size_t i = 0; i < weights.get_size(); i++)
+    for (std::size_t i = 0; i < weights.get_size(); ++i)
     {
         result[i] = std::clamp((weights[i] - weight_update[i]),
                                Matrex_FP_Int::safe_minimum(),
@@ -349,7 +349,7 @@ Evaluation_Weights<double> Tuner::projected_weight_change(
 }
 
 // OneCycleLR (Super-convergence)
-double Tuner::learning_rate_scheduler(uint64_t epoch) const
+double Tuner::learning_rate_scheduler(const uint64_t epoch) const
 {
     if (epoch <= TUNER_LINEAR_LR_MAX_EPOCHS)
     { // Linear rise phase
@@ -446,7 +446,7 @@ Dataset Tuner::create_mini_batches(const Mini_Batch& aggregate_batch)
 
         for (std::size_t j = i; (j < (i + TUNER_MINI_BATCH_SIZE)
                                  && j < aggregate_batch.fens.size());
-             j++)
+             ++j)
         {
             mini_batch.fens.push_back(aggregate_batch.fens[j]);
             mini_batch.scores.push_back(aggregate_batch.scores[j]);
@@ -468,7 +468,7 @@ Worker_Batches Tuner::create_worker_batches(const Mini_Batch& mini_batch)
     const std::size_t worker_batch_size =
         mini_batch_size / TUNER_NUM_OF_THREADS;
 
-    for (std::size_t i = 0; i < TUNER_NUM_OF_THREADS; i++)
+    for (std::size_t i = 0; i < TUNER_NUM_OF_THREADS; ++i)
     {
         Mini_Batch batch;
 
@@ -497,7 +497,7 @@ Tuner_Eval_Params Tuner::compute_eval_params(const Mini_Batch& mini_batch) const
     return_value.moving_side_matrices.reserve(mini_batch.fens.size());
     return_value.opposing_side_matrices.reserve(mini_batch.fens.size());
 
-    for (std::size_t i = 0; i < mini_batch.fens.size(); i++)
+    for (std::size_t i = 0; i < mini_batch.fens.size(); ++i)
     {
         Chess_Board cb;
         cb.set_from_fen(mini_batch.fens[i]);
@@ -533,7 +533,7 @@ Evaluation_Weights<double> Tuner::ad_backward_pass(AD_Tape& tape,
                                                    AD_Value output) const
 {
     // The partial derivative of the output scalar with respect to itself is 1.
-    output.node.value().get().adjoint().set_value(1.0);
+    output.node.get_ref().adjoint().set_value(1.0);
 
     // Each tape node has to backpropagate it's adjoint to it's parent(s), this
     // is simply done by calling the respective adjoint functors with their
@@ -585,7 +585,7 @@ Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
 
     AD_Tape tape;
 
-    for (std::size_t i = 0; i < N; i++)
+    for (std::size_t i = 0; i < N; ++i)
     {
         // The auto-differentiation weights must be recreated every iteration
         // because the tape is cleared after every backward pass and since we
@@ -634,7 +634,7 @@ double Tuner::compute_loss(const Dataset&                    d,
     {
         Tuner_Eval_Params eval_params = compute_eval_params(mini_batch);
 
-        for (std::size_t i = 0; i < mini_batch.fens.size(); i++)
+        for (std::size_t i = 0; i < mini_batch.fens.size(); ++i)
         {
             Evaluator e(weights,
                         eval_params.boards[i],
@@ -667,12 +667,12 @@ double Tuner::compute_max_data_loss(const Dataset& d)
 
     for (const Mini_Batch& mini_batch : d.mini_batches)
     {
-        for (std::size_t i = 0; i < mini_batch.fens.size(); i++)
+        for (std::size_t i = 0; i < mini_batch.fens.size(); ++i)
         {
-            if (mini_batch.scores[i] != 0.5L) { num_of_decisive_games++; }
+            if (mini_batch.scores[i] != 0.5L) { ++num_of_decisive_games; }
             else
             {
-                num_of_draws++;
+                ++num_of_draws;
             }
         }
     }
@@ -687,7 +687,7 @@ double Tuner::compute_max_data_loss(const Dataset& d)
     return max_data_loss;
 }
 
-void Tuner::print_element_as_cpp(std::ofstream& ofs, double scalar)
+void Tuner::print_element_as_cpp(std::ofstream& ofs, const double scalar)
 {
     ofs << "Matrex_FP_Int(" << Matrex_FP_Int::from_double(scalar) << ")";
 }
@@ -717,10 +717,10 @@ void Tuner::print_element_as_cpp(std::ofstream&                ofs,
 
 template <typename T, std::size_t N>
 void Tuner::print_multi_array_as_cpp(std::ofstream&           ofs,
-                                     const multi_array<T, N>& arr)
+                                     const Multi_Array<T, N>& arr)
 {
     ofs << "{";
-    for (std::size_t i = 0; i < N; i++)
+    for (std::size_t i = 0; i < N; ++i)
     {
         print_element_as_cpp(ofs, arr[i]);
         if (i != (N - 1)) { ofs << ", "; }
@@ -730,10 +730,10 @@ void Tuner::print_multi_array_as_cpp(std::ofstream&           ofs,
 
 template <typename T, std::size_t N, std::size_t... Rest>
 void Tuner::print_multi_array_as_cpp(std::ofstream&                    ofs,
-                                     const multi_array<T, N, Rest...>& arr)
+                                     const Multi_Array<T, N, Rest...>& arr)
 {
     ofs << "{";
-    for (std::size_t i = 0; i < N; i++)
+    for (std::size_t i = 0; i < N; ++i)
     {
         print_multi_array_as_cpp(ofs, arr[i]);
         if (i != (N - 1)) { ofs << ", "; }
@@ -749,19 +749,19 @@ void Tuner::print_header_file(const Evaluation_Weights<double>& weights)
     m_output << "#include \"globals.hpp\"" << std::endl << std::endl;
 
     // Material
-    m_output << "constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, "
+    m_output << "constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>, "
                 "(NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)> "
                 "TUNED_MATERIAL_NLR_WEIGHTS = ";
     print_multi_array_as_cpp(m_output, weights.material_NLR_parameters);
     m_output << ";" << std::endl;
-    m_output << "constexpr multi_array<Matrex_FP_Int, "
+    m_output << "constexpr Multi_Array<Matrex_FP_Int, "
                 "(NUM_OF_UNIQUE_PIECES_PER_PLAYER "
                 "- 1)> TUNED_MATERIAL_WEIGHTS = ";
     print_multi_array_as_cpp(m_output, weights.material);
     m_output << ";" << std::endl;
 
     // Mobility
-    m_output << "constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, "
+    m_output << "constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>, "
                 "NUM_OF_UNIQUE_PIECES_PER_PLAYER> "
                 "TUNED_PIECE_MOBILITY_NLR_WEIGHTS = ";
     print_multi_array_as_cpp(m_output, weights.piece_mobility_NLR_parameters);
@@ -790,19 +790,19 @@ void Tuner::print_header_file(const Evaluation_Weights<double>& weights)
              << ");" << std::endl;
 
     // Piece Square Tables
-    m_output << "constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, "
+    m_output << "constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>, "
                 "NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER> "
                 "TUNED_PIECE_SQUARE_NLR_WEIGHTS = ";
     print_multi_array_as_cpp(m_output, weights.piece_square_NLR_parameters);
     m_output << ";" << std::endl;
 
-    m_output << "constexpr multi_array<Matrex_FP_Int, NUM_OF_PLAYERS, "
+    m_output << "constexpr Multi_Array<Matrex_FP_Int, NUM_OF_PLAYERS, "
                 "NUM_OF_UNIQUE_PIECES_PER_PLAYER, "
                 "NUM_OF_SQUARES_ON_CHESS_BOARD> TUNED_PIECE_SQUARE_TABLE = ";
     print_multi_array_as_cpp(m_output, weights.piece_square_tables);
     m_output << ";" << std::endl;
 
-    m_output << "constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, "
+    m_output << "constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>, "
                 "NUM_OF_PLAYERS> TUNED_INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS = ";
     print_multi_array_as_cpp(m_output,
                              weights.interactive_piece_square_NLR_parameters);
@@ -824,7 +824,7 @@ void Tuner::print_header_file(const Evaluation_Weights<double>& weights)
     m_output.flush();
 }
 
-double Tuner::huber_loss(double a) const
+double Tuner::huber_loss(const double a) const
 {
     if (std::abs(a) <= TUNER_HUBER_LOSS_GAMMA) { return (0.5L * (a * a)); }
     else
@@ -834,7 +834,7 @@ double Tuner::huber_loss(double a) const
     }
 }
 
-double Tuner::derivative_huber_loss(double a) const
+double Tuner::derivative_huber_loss(const double a) const
 {
     if (std::abs(a) <= TUNER_HUBER_LOSS_GAMMA) { return (-a); }
     else
@@ -844,13 +844,13 @@ double Tuner::derivative_huber_loss(double a) const
     }
 }
 
-double Tuner::sigmoid(double s) const
+double Tuner::sigmoid(const double s) const
 {
     const double sigmoid = 1.0L / (1.0L + std::exp(-1 * s * TUNER_SIGMOID_K));
     return sigmoid;
 }
 
-double Tuner::derivative_sigmoid(double s) const
+double Tuner::derivative_sigmoid(const double s) const
 {
     return sigmoid(s) * (1 - sigmoid(s)) * TUNER_SIGMOID_K;
 }

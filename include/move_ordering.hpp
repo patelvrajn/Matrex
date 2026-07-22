@@ -2,6 +2,7 @@
 
 #include "chess_board.hpp"
 #include "chess_move.hpp"
+#include "globals.hpp"
 #include "move_generator.hpp"
 #include "static_exchange_evaluation.hpp"
 #include "history.hpp"
@@ -11,8 +12,7 @@ constexpr Move_Score MVV_LVA_ATTACKER_VALUES[] = {10, 20, 30, 40, 50, 60};
 // Attacker: Pawn, Knight, Bishop, Rook, Queen, King
 // Victims: Pawn, Knight, Bishop, Rook, Queen
 // mvv_lva_array[attacker][victim]
-typedef std::array<std::array<Move_Score, (PIECES::QUEEN + 1)>,
-                   (PIECES::KING + 1)>
+typedef Multi_Array<Move_Score, (PIECES::KING + 1), (PIECES::QUEEN + 1)>
     mvv_lva_array;
 
 template <std::size_t CONT_HIST_STACK_SIZE>
@@ -128,9 +128,9 @@ mvv_lva_array Move_Ordering<CONT_HIST_STACK_SIZE>::generate_mvv_lva_array()
 {
     mvv_lva_array return_value;
 
-    for (uint8_t attacker = PIECES::PAWN; attacker <= PIECES::KING; attacker++)
+    for (uint8_t attacker = PIECES::PAWN; attacker <= PIECES::KING; ++attacker)
     {
-        for (uint8_t victim = PIECES::PAWN; victim <= PIECES::QUEEN; victim++)
+        for (uint8_t victim = PIECES::PAWN; victim <= PIECES::QUEEN; ++victim)
         {
             return_value[attacker][victim] =
                 ((MVV_LVA_ATTACKER_VALUES[victim]
@@ -181,7 +181,7 @@ void Move_Ordering<CONT_HIST_STACK_SIZE>::move_scorer()
 
             if ((start >= 0) && (end >= 0))
             {
-                for (int64_t i = start; i >= end; i--)
+                for (int64_t i = start; i >= end; --i)
                 {
                     const auto& hist_table =
                         m_q_cont_hist_stack.get_ref()
@@ -207,7 +207,7 @@ void Move_Ordering<CONT_HIST_STACK_SIZE>::move_scorer()
 
             if ((start >= 0) && (end >= 0))
             {
-                for (int64_t i = start; i >= end; i--)
+                for (int64_t i = start; i >= end; --i)
                 {
                     const auto& hist_table =
                         m_c_cont_hist_stack.get_ref()

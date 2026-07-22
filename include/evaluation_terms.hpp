@@ -3,7 +3,7 @@
 #include "evaluate.hpp"
 #include "globals.hpp"
 
-constexpr multi_array<NLR_Parameters<Matrex_FP_Int>,
+constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>,
                       (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
     TUNED_MATERIAL_NLR_WEIGHTS = {
         NLR_Parameters<Matrex_FP_Int> { .h_plus  = Matrex_FP_Int(58485),
@@ -57,13 +57,13 @@ constexpr multi_array<NLR_Parameters<Matrex_FP_Int>,
                                        .g_plus  = Matrex_FP_Int(46794),
                                        .g_minus = Matrex_FP_Int(51600) }
 };
-constexpr multi_array<Matrex_FP_Int, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
+constexpr Multi_Array<Matrex_FP_Int, (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
     TUNED_MATERIAL_WEIGHTS = {Matrex_FP_Int(47270),
                               Matrex_FP_Int(97077),
                               Matrex_FP_Int(118808),
                               Matrex_FP_Int(236710),
                               Matrex_FP_Int(288734)};
-constexpr multi_array<NLR_Parameters<Matrex_FP_Int>,
+constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>,
                       NUM_OF_UNIQUE_PIECES_PER_PLAYER>
     TUNED_PIECE_MOBILITY_NLR_WEIGHTS = {
         NLR_Parameters<Matrex_FP_Int> { .h_plus  = Matrex_FP_Int(26136),
@@ -135,7 +135,7 @@ constexpr Matrex_FP_Int TUNED_MULTI_MOVEMENT_MOBILITY_WEIGHT =
     Matrex_FP_Int(6872);
 constexpr Matrex_FP_Int TUNED_BACKWARDS_MOVEMENT_MOBILITY_WEIGHT =
     Matrex_FP_Int(-111);
-constexpr multi_array<NLR_Parameters<Matrex_FP_Int>,
+constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>,
                       NUM_OF_PLAYERS,
                       NUM_OF_UNIQUE_PIECES_PER_PLAYER>
     TUNED_PIECE_SQUARE_NLR_WEIGHTS = {
@@ -260,7 +260,7 @@ constexpr multi_array<NLR_Parameters<Matrex_FP_Int>,
          .g_plus  = Matrex_FP_Int(73177),
          .g_minus = Matrex_FP_Int(66216)}}
 };
-constexpr multi_array<Matrex_FP_Int,
+constexpr Multi_Array<Matrex_FP_Int,
                       NUM_OF_PLAYERS,
                       NUM_OF_UNIQUE_PIECES_PER_PLAYER,
                       NUM_OF_SQUARES_ON_CHESS_BOARD>
@@ -650,7 +650,7 @@ Matrex_FP_Int(-279805), Matrex_FP_Int(-199278)},
          Matrex_FP_Int(70457),   Matrex_FP_Int(228179),
          Matrex_FP_Int(201673),  Matrex_FP_Int(234052)} }
 };
-constexpr multi_array<NLR_Parameters<Matrex_FP_Int>, NUM_OF_PLAYERS>
+constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>, NUM_OF_PLAYERS>
     TUNED_INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS = {
         NLR_Parameters<Matrex_FP_Int> {.h_plus  = Matrex_FP_Int(59531),
                                        .h_minus = Matrex_FP_Int(42959),

@@ -41,7 +41,7 @@ class Quiet_History_Table
 
   private:
 
-    multi_array<History_Score_Storage_Type,
+    Multi_Array<History_Score_Storage_Type,
                 NUM_OF_UNIQUE_PIECES_PER_PLAYER,
                 NUM_OF_SQUARES_ON_CHESS_BOARD>
         m_table;
@@ -61,7 +61,7 @@ class Quiet_Continuation_History_Table
 
   private:
 
-    multi_array<Quiet_History_Table,
+    Multi_Array<Quiet_History_Table,
                 NUM_OF_UNIQUE_PIECES_PER_PLAYER,
                 NUM_OF_SQUARES_ON_CHESS_BOARD>
         m_table;
@@ -74,7 +74,8 @@ class Quiet_Continuation_History_Stack
 
     Quiet_Continuation_History_Stack();
 
-    void bind_to_history_table(Quiet_History_Table& table, std::size_t index);
+    void bind_to_history_table(Quiet_History_Table& table,
+                               const std::size_t    index);
 
     Partially_Filled_Array<Optional_Reference<Quiet_History_Table>, STACK_SIZE>
         stack;
@@ -98,7 +99,7 @@ class Capture_History_Table
 
   private:
 
-    multi_array<History_Score_Storage_Type,
+    Multi_Array<History_Score_Storage_Type,
                 NUM_OF_UNIQUE_PIECES_PER_PLAYER, // Moving piece
                 NUM_OF_SQUARES_ON_CHESS_BOARD,   // Destination square
                 NUM_OF_UNIQUE_PIECES_PER_PLAYER> // Captured piece
@@ -119,7 +120,7 @@ class Capture_Continuation_History_Table
 
   private:
 
-    multi_array<Capture_History_Table,
+    Multi_Array<Capture_History_Table,
                 NUM_OF_UNIQUE_PIECES_PER_PLAYER, // Moving piece
                 NUM_OF_SQUARES_ON_CHESS_BOARD>   // Destination square
         m_table;
@@ -132,7 +133,8 @@ class Capture_Continuation_History_Stack
 
     Capture_Continuation_History_Stack();
 
-    void bind_to_history_table(Capture_History_Table& table, std::size_t index);
+    void bind_to_history_table(Capture_History_Table& table,
+                               const std::size_t      index);
 
     Partially_Filled_Array<Optional_Reference<Capture_History_Table>,
                            STACK_SIZE>
@@ -146,12 +148,12 @@ void Quiet_History_Table::gravity_update(const Chess_Move&          move,
     auto& selected_entry = m_table[move.moving_piece][move.destination_square];
 
     // Clamp the bonus before gravity is applied.
-    History_Score_Storage_Type clamped_bonus =
+    const History_Score_Storage_Type clamped_bonus =
         std::clamp(bonus, MIN_QUIET_HISTORY_BONUS, MAX_QUIET_HISTORY_BONUS);
 
     // History gravity is simply the closer you are to the max history value,
     // the more the update is saturated.
-    History_Score_Storage_Type gravitized_bonus =
+    const History_Score_Storage_Type gravitized_bonus =
         static_cast<History_Score_Storage_Type>(
             static_cast<double>(clamped_bonus)
             * (1.0
@@ -174,12 +176,12 @@ void Capture_History_Table::gravity_update(const Chess_Move&          move,
                                   [move.captured_piece];
 
     // Clamp the bonus before gravity is applied.
-    History_Score_Storage_Type clamped_bonus =
+    const History_Score_Storage_Type clamped_bonus =
         std::clamp(bonus, MIN_CAPTURE_HISTORY_BONUS, MAX_CAPTURE_HISTORY_BONUS);
 
     // History gravity is simply the closer you are to the max history value,
     // the more the update is saturated.
-    History_Score_Storage_Type gravitized_bonus =
+    const History_Score_Storage_Type gravitized_bonus =
         static_cast<History_Score_Storage_Type>(
             static_cast<double>(clamped_bonus)
             * (1.0
@@ -202,7 +204,7 @@ Quiet_Continuation_History_Stack<STACK_SIZE>::Quiet_Continuation_History_Stack()
 template <std::size_t STACK_SIZE>
 void Quiet_Continuation_History_Stack<STACK_SIZE>::bind_to_history_table(
     Quiet_History_Table& table,
-    std::size_t          index)
+    const std::size_t    index)
 {
     stack[index] = table;
 }
@@ -216,7 +218,7 @@ Capture_Continuation_History_Stack<
 template <std::size_t STACK_SIZE>
 void Capture_Continuation_History_Stack<STACK_SIZE>::bind_to_history_table(
     Capture_History_Table& table,
-    std::size_t            index)
+    const std::size_t      index)
 {
     stack[index] = table;
 }

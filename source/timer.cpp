@@ -12,11 +12,13 @@ uint64_t Timer::elapsed()
         .count();
 }
 
-bool Timer::is_search_time_expired(uint64_t time_remaining_constraint,
-                                   uint64_t time_increment_constraint)
+bool Timer::is_search_time_expired(const uint64_t time_remaining_constraint,
+                                   const uint64_t time_increment_constraint)
 {
     // 1e6 converts milliseconds to nanoseconds, formula for time per move is
     // from CPW.
-    return (elapsed() >= (((time_remaining_constraint * 1e6) / 20)
-                          + ((time_increment_constraint * 1e6) / 2)));
+    return (
+        elapsed()
+        >= (((time_remaining_constraint * NANOSECONDS_IN_MILLISECOND) / 20)
+            + ((time_increment_constraint * NANOSECONDS_IN_MILLISECOND) / 2)));
 }

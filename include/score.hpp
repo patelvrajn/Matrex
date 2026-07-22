@@ -6,10 +6,11 @@
 #include "fixed_point.hpp"
 
 // Sign is Positive && Mating Bit Set = Friendly player has opponent in mating
-// net (value = encoded plys to mate, if 0 plys = checkmate) Sign is Negative &&
-// Mating Bit Set = Friendly player is in an opponent's mating net (value =
-// encoded plys to mate, if 0 plys = checkmate) Sign is Positive && Mating Bit
-// Unset = Friendly player has advantage (value > 0) or is drawing (value = 0).
+// net (value = encoded plys to mate, if 0 plys = checkmate)
+// Sign is Negative && Mating Bit Set = Friendly player is in an opponent's
+// mating net (value = encoded plys to mate, if 0 plys = checkmate)
+// Sign is Positive && Mating Bit Unset = Friendly player has advantage
+// (value > 0) or is drawing (value = 0).
 // Sign is Negative && Mating Bit Unset = Friendly player has disadvantage
 // (value > 0) or is drawing (value = 0).
 
@@ -65,8 +66,8 @@ class Score
   public:
 
     Score();
-    explicit Score(Fixed_Point_Int_Storage_Type evaluation);
-    explicit Score(Matrex_FP_Int evaluation);
+    explicit Score(const Fixed_Point_Int_Storage_Type evaluation);
+    explicit Score(const Matrex_FP_Int evaluation);
     Score(Score_Fields fields);
 
     Fixed_Point_Int_Storage_Type to_int() const;

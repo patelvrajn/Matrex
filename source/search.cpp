@@ -143,7 +143,7 @@ Search_Engine::negamax(Chess_Board&                    position,
     // No legal moves available, return the appropriate mate or draw score.
     if (moves.get_max_index() == -1)
     {
-        m_num_of_nodes_searched++;
+        ++m_num_of_nodes_searched;
         const Score mate_score = get_mate_score(mo, ply);
 
         // Cache the position's mate evaluation in the transposition table.
@@ -170,7 +170,7 @@ Search_Engine::negamax(Chess_Board&                    position,
         return quiescence(position, ply, alpha, beta);
     }
 
-    m_num_of_nodes_searched++;
+    ++m_num_of_nodes_searched;
 
     // Check if time has expired during the search.
     if (!m_constraints.should_ignore_time)
@@ -472,7 +472,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     // out otherwise.
     Score_Bound_Type score_bound = Score_Bound_Type::UPPER_BOUND;
 
-    m_num_of_nodes_searched++;
+    ++m_num_of_nodes_searched;
 
     // Generate sorted tactical moves in the current position if not in
     // check, if in check, we need all moves because it is not guaranteed
@@ -676,7 +676,7 @@ Search_Engine_Result Search_Engine::iterative_deepening()
     // search timer.
     m_timer.start();
     for (uint16_t current_depth = 1; current_depth < MAX_SEARCH_DEPTH;
-         current_depth++)
+         ++current_depth)
     {
         m_current_search_depth = current_depth;
 
@@ -728,8 +728,8 @@ const Transposition_Table_Statistics& Search_Engine::get_tt_statistics() const
 void Search_Engine::update_continuation_history(
     Search_Quiet_Cont_Hist_Stack& q_cont_hist_stack,
     const Chess_Move&             move,
-    uint16_t                      ply,
-    uint32_t                      depth_squared)
+    const uint16_t                ply,
+    const uint32_t                depth_squared)
 {
     if (move.is_same_move(Chess_Move())) { return; }
 
@@ -746,7 +746,7 @@ void Search_Engine::update_continuation_history(
     if (start < 0) { return; }
 
     // Give a bonus to this move and proceeding move pairs.
-    for (int64_t i = start; i >= end; i--)
+    for (int64_t i = start; i >= end; --i)
     {
         auto& entry = q_cont_hist_stack.stack[static_cast<std::size_t>(i)];
         entry.get_ref().gravity_update<false>(move, depth_squared);
@@ -756,8 +756,8 @@ void Search_Engine::update_continuation_history(
 void Search_Engine::update_continuation_history(
     Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
     const Chess_Move&               move,
-    uint16_t                        ply,
-    uint32_t                        depth_squared)
+    const uint16_t                  ply,
+    const uint32_t                  depth_squared)
 {
     if (move.is_same_move(Chess_Move())) { return; }
 
@@ -776,7 +776,7 @@ void Search_Engine::update_continuation_history(
     const auto bonus = (depth_squared >> 2);
 
     // Give a bonus to this move and proceeding move pairs.
-    for (int64_t i = start; i >= end; i--)
+    for (int64_t i = start; i >= end; --i)
     {
         auto& entry = c_cont_hist_stack.stack[static_cast<std::size_t>(i)];
         entry.get_ref().gravity_update<false>(move, bonus);

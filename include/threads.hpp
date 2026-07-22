@@ -10,6 +10,8 @@
 #include <thread>
 #include <vector>
 
+#include "globals.hpp"
+
 // =============================================================================
 // Threads Shared Data Class
 //
@@ -233,8 +235,8 @@ class Thread_Worker
     bool has_job()
     {
         std::unique_lock lock(m_job_status_mutex);
-        return (m_job.has_value() && m_job.value().get().has_job()
-                && (!m_job.value().get().is_complete()));
+        return (m_job.has_ref() && m_job.get_ref().has_job()
+                && (!m_job.get_ref().is_complete()));
     }
 
   private:
@@ -244,8 +246,8 @@ class Thread_Worker
     std::size_t m_id;
 
     // The thread for the worker and it's job.
-    std::optional<std::reference_wrapper<Thread_Job>> m_job;
-    std::jthread                                      m_thread;
+    Optional_Reference<Thread_Job> m_job;
+    std::jthread                   m_thread;
 
     // Mutex and conditional variable for when the thread is being assigned a
     // job or is waiting for a job to be assigned.
@@ -257,7 +259,7 @@ class Thread_Worker
     std::mutex m_job_status_mutex;
 
     // Discards the job by assigning no value through the optional.
-    void discard_job() { m_job.reset(); }
+    void discard_job() { m_job.unbound_ref(); }
 
     void worker_loop(std::stop_token stop)
     {
@@ -275,9 +277,8 @@ class Thread_Worker
                     stop,
                     [&]
                     {
-                        return (m_job.has_value()
-                                && m_job.value().get().has_job()
-                                && (!m_job.value().get().is_complete()));
+                        return (m_job.has_ref() && m_job.get_ref().has_job()
+                                && (!m_job.get_ref().is_complete()));
                     });
 
                 // If a stop is requested before the job is run, stop.
@@ -285,14 +286,14 @@ class Thread_Worker
             }
 
             // Run the job.
-            m_job.value().get()(stop);
+            m_job.get_ref()(stop);
 
             // Atomically manipulate m_job.
             {
                 std::scoped_lock lock(m_job_status_mutex);
 
                 // Set the job to complete.
-                m_job.value().get().set_complete(true);
+                m_job.get_ref().set_complete(true);
 
                 // Discard the job from the thread.
                 discard_job();

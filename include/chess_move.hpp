@@ -32,8 +32,9 @@ struct Chess_Move
     uint16_t   padding                          : 11 = 0;         // 64
     Move_Score score                                 = 0;         // 80
 
-    constexpr static Chess_Move
-    reversible_move(PIECES piece, Square source, Square destination)
+    constexpr static Chess_Move reversible_move(const PIECES piece,
+                                                const Square source,
+                                                const Square destination)
     {
         return Chess_Move {
             .source_square      = static_cast<ESQUARE>(source.get_index()),
@@ -52,10 +53,10 @@ struct Chess_Move
             .is_promotion                     = false};
     }
 
-    std::string to_coordinate_notation(bool is_frc) const
+    std::string to_coordinate_notation(const bool is_frc) const
     {
-        std::string source_square_str      = SQUARE_STRINGS[source_square];
-        std::string destination_square_str = "";
+        const std::string source_square_str = SQUARE_STRINGS[source_square];
+        std::string       destination_square_str = "";
 
         if ((is_short_castling || is_long_castling) && is_frc)
         {
@@ -85,11 +86,9 @@ struct Chess_Move
     {
         std::cout << "Move (" << SQUARE_STRINGS[source_square] << " to "
                   << SQUARE_STRINGS[destination_square] << "):" << std::endl;
-        std::cout << "\tMoving piece: " << PIECE_STRINGS[moving_piece] << "\n"
-                  << "\tPromoted piece: " << PIECE_STRINGS[promoted_piece]
-                  << "\n"
-                  << "\tCaptured piece: " << PIECE_STRINGS[captured_piece]
-                  << "\n"
+        std::cout << "\tMoving piece: " << moving_piece << "\n"
+                  << "\tPromoted piece: " << promoted_piece << "\n"
+                  << "\tCaptured piece: " << captured_piece << "\n"
                   << "\tis_capture: " << is_capture << "\n"
                   << "\tis_short_castling: " << is_short_castling << "\n"
                   << "\tis_long_castling: " << is_long_castling << "\n"
@@ -124,6 +123,8 @@ struct Chess_Move
             && (m.is_promotion == is_promotion);
     }
 
+    // All comparison operators for chess moves are based on the score they
+    // recieve from move ordering.
     inline auto operator<=>(const Chess_Move& other) const
     {
         return (score <=> other.score);
@@ -136,9 +137,6 @@ struct Chess_Move
 
     bool is_quiet_move() const { return (!is_noisy_move()); }
 };
-
-static_assert(sizeof(Chess_Move) == 12,
-              "Chess_Move should be 12 bytes in size.");
 
 struct Undo_Chess_Move
 {
@@ -169,7 +167,7 @@ class Chess_Move_List
 
     int16_t get_max_index() const;
 
-    Chess_Move& operator[](uint16_t index);
+    Chess_Move& operator[](const uint16_t index);
 
     void sort();
 
@@ -179,8 +177,8 @@ class Chess_Move_List
 
   private:
 
-    int16_t                          m_max_index;
-    std::array<Chess_Move, capacity> m_list;
+    int16_t                           m_max_index;
+    Multi_Array<Chess_Move, capacity> m_list;
 };
 
 template <std::size_t capacity>
@@ -215,7 +213,7 @@ Chess_Move_List<capacity>::push_and_copy(const Chess_Move&         move,
 template <std::size_t capacity>
 inline void Chess_Move_List<capacity>::append(const Chess_Move& move)
 {
-    m_max_index++;
+    ++m_max_index;
     m_list[m_max_index] = move;
 }
 
@@ -244,7 +242,7 @@ int16_t Chess_Move_List<capacity>::get_max_index() const
 }
 
 template <std::size_t capacity>
-Chess_Move& Chess_Move_List<capacity>::operator[](uint16_t index)
+Chess_Move& Chess_Move_List<capacity>::operator[](const uint16_t index)
 {
     return m_list[index];
 }
@@ -256,6 +254,7 @@ void Chess_Move_List<capacity>::sort()
     std::stable_sort(begin(), end(), std::greater<Chess_Move>());
 }
 
+// Handles printing the principal variation.
 template <std::size_t S>
 std::ostream& operator<<(std::ostream& os, const Chess_Move_List<S>& moves)
 {
