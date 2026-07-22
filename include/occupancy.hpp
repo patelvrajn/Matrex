@@ -2,6 +2,7 @@
 
 #include "bitboard.hpp"
 
+// =============================================================================
 // Build a specific occupancy bitboard for a given "index" (subset selector)
 // over the set bits contained in the given mask. This function is used when
 // enumerating all blocker configurations for magic bitboards.
@@ -27,6 +28,7 @@
 // count = 2 → square 5 → index bit 2 = 1 → set square 5.
 //
 // Result: occupancy = 0b00100100 (occupied at squares 2 and 5)
+// =============================================================================
 constexpr Bitboard set_occupancy(const uint64_t index,
                                  const uint8_t  num_of_high_bits_in_mask,
                                  const Bitboard mask)

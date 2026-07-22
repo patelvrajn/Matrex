@@ -105,11 +105,6 @@ bool Move_Generator::is_pinned(const Bitboard pinned,
     return ((pinned & Bitboard(source_square.get_mask())).get_board() != 0);
 }
 
-// ======================================================
-// Function: Move_Generator::attackers_to_square
-// Purpose : Return a bitboard of ALL pieces (any color)
-//           that are currently attacking a given square.
-// ======================================================
 Bitboard Move_Generator::attackers_to_square(const Square s)
 {
     return attackers_to_square(
@@ -128,11 +123,8 @@ Bitboard Move_Generator::attackers_to_square(const Square s)
         m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::KING));
 }
 
-// ======================================================
-// Function: Move_Generator::attackers_to_square
-// Purpose : Return a bitboard of ALL pieces (any color)
-//           that are currently attacking a given square.
-// ======================================================
+// Return a bitboard of ALL pieces (any color) that are currently attacking a 
+// given square.
 Bitboard
 Move_Generator::attackers_to_square(const Square   s,
                                     const Bitboard white_pawn_occupancy,
@@ -148,9 +140,9 @@ Move_Generator::attackers_to_square(const Square   s,
                                     const Bitboard black_queen_occupancy,
                                     const Bitboard black_king_occupancy)
 {
-    Bitboard attackers; // Final result: union of all attackers
-    Attacks
-        a; // Utility class for attack masks (knight jumps, pawn attacks, etc.)
+    Bitboard attackers;
+    
+    Attacks a;
 
     Bitboard both_color_occupancies =
         white_pawn_occupancy | white_knight_occupancy | white_bishop_occupancy
@@ -158,63 +150,30 @@ Move_Generator::attackers_to_square(const Square   s,
         | black_pawn_occupancy | black_knight_occupancy | black_bishop_occupancy
         | black_rook_occupancy | black_queen_occupancy | black_king_occupancy;
 
-    // ======================================================
-    // 1. PAWN ATTACKS
-    // ======================================================
-    // Pawns attack diagonally forward, but the direction depends on their
-    // color. To check if 's' is attacked by a WHITE pawn:
-    //   - Imagine a BLACK pawn standing on 's' → get the squares *that BLACK
-    //   pawn* would attack.
-    //   - Intersect that with all actual WHITE pawns on the board.
-    // The inversion is required because pawn attacks are asymmetric.
+    // Pawn attacks.
     attackers |=
         (a.get_pawn_attacks(s, PIECE_COLOR::WHITE) & black_pawn_occupancy);
 
     attackers |=
         (a.get_pawn_attacks(s, PIECE_COLOR::BLACK) & white_pawn_occupancy);
 
-    // ======================================================
-    // 2. KNIGHT ATTACKS
-    // ======================================================
-    // Knights are simple: their attack pattern is independent of board
-    // occupancy. Generate knight moves from 's' and see if ANY white or black
-    // knight sits on them.
+    // Knight attacks.
     attackers |= (a.get_knight_attacks(s)
                   & (white_knight_occupancy | black_knight_occupancy));
 
-    // ======================================================
-    // 3. BISHOP + QUEEN ATTACKS
-    // ======================================================
-    // Bishops slide diagonally, and queens can also move like bishops.
-    // Generate all diagonal attacks from 's' (accounting for blockers with
-    // occupancy), then intersect with *all bishops + queens* on the board,
-    // regardless of color.
+    // Bishop and queen attacks. (Diagonal attacks)
     attackers |= (a.get_bishop_attacks(s, both_color_occupancies)
                   & (white_bishop_occupancy | white_queen_occupancy
                      | black_bishop_occupancy | black_queen_occupancy));
 
-    // ======================================================
-    // 4. ROOK + QUEEN ATTACKS
-    // ======================================================
-    // Rooks slide horizontally/vertically, and queens can also move like rooks.
-    // Generate rook attacks from 's' (with occupancy), then intersect with *all
-    // rooks + queens* on the board.
+    // Rook and queen attacks. (Orthogonal attacks)
     attackers |= (a.get_rook_attacks(s, both_color_occupancies)
                   & (white_rook_occupancy | white_queen_occupancy
                      | black_rook_occupancy | black_queen_occupancy));
 
-    // ======================================================
-    // 5. KING ATTACKS
-    // ======================================================
-    // Kings attack their 8 surrounding squares.
-    // Generate king moves from 's' and see if either king occupies those
-    // squares.
+    // King attacks.
     attackers |=
         (a.get_king_attacks(s) & (white_king_occupancy | black_king_occupancy));
 
-    // ======================================================
-    // Done! 'attackers' now contains all pieces (both sides)
-    // that can legally attack square 's' under the current occupancy.
-    // ======================================================
     return attackers;
 }

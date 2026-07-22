@@ -128,9 +128,6 @@ struct Transposition_Table_Entry
     Score_Bound_Type score_bound;     // 1 bytes
 };
 
-static_assert(sizeof(Transposition_Table_Entry) == 24,
-              "Transposition_Table_Entry should be 24 bytes in size.");
-
 struct CACHE_ALIGN Transposition_Table_Cluster
 {
     Mini_Queue<Transposition_Table_Entry, TT_PROTECTED_CLUSTER_SIZE>

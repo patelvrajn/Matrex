@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+// =============================================================================
 // xorshift64star Pseudo-Random Number Generator
 // This class is based on original code written and dedicated to the public
 // domain by Sebastiano Vigna (2014).
@@ -16,7 +17,7 @@
 //
 // For further analysis see
 //   <http://vigna.di.unimi.it/ftp/papers/xorshift.pdf>
-
+// =============================================================================
 constexpr uint64_t GLOBAL_PRNG_DEFAULT_SEED = 1070372; // Seed from Stockfish
 
 template <typename T>

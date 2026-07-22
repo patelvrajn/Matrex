@@ -3,8 +3,8 @@
 #include "fixed_point.hpp"
 
 template <typename T>
-struct NLR_Parameters
-{ // NLR = Non-Linear Response
+struct NLR_Parameters // NLR = Non-Linear Response
+{ 
     T h_plus;
     T h_minus;
     T z;
