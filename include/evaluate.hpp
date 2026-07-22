@@ -114,7 +114,7 @@ inline T Evaluator<T>::material_score() const
 
     T return_value = constant_conversion(0.0);
 
-    for (uint8_t piece = PIECES::PAWN; piece <= PIECES::QUEEN; piece++)
+    for (uint8_t piece = PIECES::PAWN; piece <= PIECES::QUEEN; ++piece)
     {
         T material_difference = constant_conversion(0.0);
 
@@ -147,7 +147,7 @@ inline T Evaluator<T>::mobility_score() const
 
     T mobility = constant_conversion(0.0);
 
-    for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
+    for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
     {
         const T moving_side_piece_mobility =
             calculate_piece_mobility<moving_side>(m_moving_side_matrix,
@@ -178,9 +178,9 @@ inline T Evaluator<T>::piece_square_score() const
     Multi_Array<T, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
         color_piece_values {};
     for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK;
-         color++)
+         ++color)
     {
-        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
+        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
         {
             // Initialize the array value for the case of T = AD Value which
             // contains optionals.
@@ -188,7 +188,7 @@ inline T Evaluator<T>::piece_square_score() const
 
             for (uint8_t square_idx = 0;
                  square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-                 square_idx++)
+                 ++square_idx)
             {
                 color_piece_values[color][piece] +=
                     m_weights.piece_square_tables[color][piece][square_idx]

@@ -34,7 +34,7 @@ constexpr Bitboard set_occupancy(const uint64_t index,
     Bitboard occupancy;
     Bitboard temp_mask = mask;
 
-    for (uint8_t idx = 0; idx < num_of_high_bits_in_mask; idx++)
+    for (uint8_t idx = 0; idx < num_of_high_bits_in_mask; ++idx)
     {
         Square s(temp_mask.get_index_of_high_lsb());
 

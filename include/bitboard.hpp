@@ -69,7 +69,7 @@ constexpr uint64_t generate_backward_squares_mask(const PIECE_COLOR c,
     while ((!(rank < 0)) && (!(rank >= (NUM_OF_RANKS_ON_CHESS_BOARD))))
     {
         // All squares on the rank are backward squares.
-        for (int8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; file++)
+        for (int8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; ++file)
         {
             backward_squares_mask |= Square(rank, file).get_mask();
         }
@@ -89,11 +89,11 @@ constexpr auto init_between_squares_masks()
 
     for (uint8_t outer_square_idx = 0;
          outer_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         outer_square_idx++)
+         ++outer_square_idx)
     {
         for (uint8_t inner_square_idx = 0;
              inner_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-             inner_square_idx++)
+             ++inner_square_idx)
         {
             between_squares_masks[outer_square_idx][inner_square_idx] =
                 generate_between_squares_mask(Square(outer_square_idx),
@@ -117,7 +117,7 @@ constexpr auto init_backward_squares_masks()
         {
             mask = generate_backward_squares_mask(c, Square(square_index));
 
-            square_index++;
+            ++square_index;
         }
     }
 
@@ -130,7 +130,7 @@ constexpr auto init_rank_masks()
 
     for (uint8_t outer_square_index = 0;
          outer_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         outer_square_index++)
+         ++outer_square_index)
     {
         const Square outer_square(outer_square_index);
 
@@ -138,7 +138,7 @@ constexpr auto init_rank_masks()
 
         for (uint8_t inner_square_index = 0;
              inner_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-             inner_square_index++)
+             ++inner_square_index)
         {
             const Square inner_square(inner_square_index);
 
@@ -160,7 +160,7 @@ constexpr auto init_file_masks()
 
     for (uint8_t outer_square_index = 0;
          outer_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         outer_square_index++)
+         ++outer_square_index)
     {
         const Square outer_square(outer_square_index);
 
@@ -168,7 +168,7 @@ constexpr auto init_file_masks()
 
         for (uint8_t inner_square_index = 0;
              inner_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-             inner_square_index++)
+             ++inner_square_index)
         {
             const Square inner_square(inner_square_index);
 
@@ -190,7 +190,7 @@ constexpr auto init_diagonal_masks()
 
     for (uint8_t outer_square_index = 0;
          outer_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         outer_square_index++)
+         ++outer_square_index)
     {
         const Square outer_square(outer_square_index);
 
@@ -198,7 +198,7 @@ constexpr auto init_diagonal_masks()
 
         for (uint8_t inner_square_index = 0;
              inner_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-             inner_square_index++)
+             ++inner_square_index)
         {
             const Square inner_square(inner_square_index);
 
@@ -220,7 +220,7 @@ constexpr auto init_antidiagonal_masks()
 
     for (uint8_t outer_square_index = 0;
          outer_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         outer_square_index++)
+         ++outer_square_index)
     {
         const Square outer_square(outer_square_index);
 
@@ -228,7 +228,7 @@ constexpr auto init_antidiagonal_masks()
 
         for (uint8_t inner_square_index = 0;
              inner_square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-             inner_square_index++)
+             ++inner_square_index)
         {
             const Square inner_square(inner_square_index);
 
@@ -470,7 +470,7 @@ constexpr uint8_t Bitboard::high_bit_count() const
     while (temp_board)
     {
         // Increment counter for each set bit we remove.
-        high_bit_cnt++;
+        ++high_bit_cnt;
 
         // Clear the least significant set bit.
         // Trick: x & (x - 1) removes the lowest high bit in x.
@@ -672,7 +672,7 @@ constexpr Bitboard init_light_square_bitboard()
 
     for (uint8_t from_square_idx = 0;
          from_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         from_square_idx++)
+         ++from_square_idx)
     {
         const Square s(from_square_idx);
         if (s.is_light_square()) { output.set_square(s); }
@@ -687,7 +687,7 @@ constexpr Bitboard init_dark_square_bitboard()
 
     for (uint8_t from_square_idx = 0;
          from_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         from_square_idx++)
+         ++from_square_idx)
     {
         const Square s(from_square_idx);
         if (s.is_dark_square()) { output.set_square(s); }

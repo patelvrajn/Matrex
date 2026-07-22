@@ -213,7 +213,7 @@ Chess_Move_List<capacity>::push_and_copy(const Chess_Move&         move,
 template <std::size_t capacity>
 inline void Chess_Move_List<capacity>::append(const Chess_Move& move)
 {
-    m_max_index++;
+    ++m_max_index;
     m_list[m_max_index] = move;
 }
 

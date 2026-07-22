@@ -244,7 +244,7 @@ class Multi_Array
     {
         if (init.size() == 0)
         {
-            for (std::size_t i = 0; i < this_size; i++)
+            for (std::size_t i = 0; i < this_size; ++i)
             {
                 // Default construct all members.
                 (*this)[i] = element_type();
@@ -252,7 +252,7 @@ class Multi_Array
         }
         else if (init.size() == 1)
         {
-            for (std::size_t i = 0; i < this_size; i++)
+            for (std::size_t i = 0; i < this_size; ++i)
             {
                 // Fill the array with the only given value;
                 (*this)[i] = (*init.begin());
@@ -317,7 +317,7 @@ class Multi_Array<T, this_size>
     {
         if (init.size() == 0)
         {
-            for (std::size_t i = 0; i < this_size; i++)
+            for (std::size_t i = 0; i < this_size; ++i)
             {
                 // Default construct all members.
                 (*this)[i] = element_type();
@@ -325,7 +325,7 @@ class Multi_Array<T, this_size>
         }
         else if (init.size() == 1)
         {
-            for (std::size_t i = 0; i < this_size; i++)
+            for (std::size_t i = 0; i < this_size; ++i)
             {
                 // Fill the array with the only given value;
                 (*this)[i] = (*init.begin());
@@ -762,7 +762,7 @@ class Reference_Array
     {
         m_ref_to_index_map.reserve(size);
 
-        for (std::size_t i = 0; i < size; i++)
+        for (std::size_t i = 0; i < size; ++i)
         {
             if (!m_refs[i].has_ref()) { continue; }
 
@@ -1018,14 +1018,14 @@ inline std::size_t Partially_Filled_Array<T, capacity>::size() const
 template <typename T, std::size_t capacity>
 inline void Partially_Filled_Array<T, capacity>::append(const T& data)
 {
-    m_max_index++;
+    ++m_max_index;
     m_list[m_max_index] = data;
 }
 
 template <typename T, std::size_t capacity>
 inline T Partially_Filled_Array<T, capacity>::pop()
 {
-    m_max_index--;
+    --m_max_index;
     return m_list[m_max_index + 1];
 }
 

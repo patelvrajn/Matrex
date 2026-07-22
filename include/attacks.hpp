@@ -19,7 +19,7 @@ constexpr Leaper_Attack_Tables init_leaper_attacks()
     Leaper_Attack_Tables leaper_table;
 
     for (uint8_t square_idx = 0; square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         square_idx++)
+         ++square_idx)
     {
         const Square s = Square(square_idx);
 
@@ -56,7 +56,7 @@ constexpr Slider_Ray_Tables init_slider_rays()
     Slider_Ray_Tables slider_table;
 
     for (uint8_t square_idx = 0; square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         square_idx++)
+         ++square_idx)
     {
         const Square s = Square(square_idx);
 
@@ -106,11 +106,11 @@ constexpr Directional_Ray_Table init_directional_rays_table()
 
     for (uint8_t outer_square_idx = 0;
          outer_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         outer_square_idx++)
+         ++outer_square_idx)
     {
         for (uint8_t inner_square_idx = 0;
              inner_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-             inner_square_idx++)
+             ++inner_square_idx)
         {
             table[outer_square_idx][inner_square_idx] =
                 Directional_Ray(Square(outer_square_idx),

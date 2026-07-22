@@ -83,15 +83,15 @@ constexpr Cuckoo_RM_Table_Storage<capacity> initialize_cuckoo_rm_storage()
 
     for (uint8_t side_to_move = PIECE_COLOR::WHITE;
          side_to_move <= PIECE_COLOR::BLACK;
-         side_to_move++)
+         ++side_to_move)
     {
         // Note: we skip pawns because they have no irreversible moves by
         // definition;
-        for (uint8_t piece = PIECES::KNIGHT; piece <= PIECES::KING; piece++)
+        for (uint8_t piece = PIECES::KNIGHT; piece <= PIECES::KING; ++piece)
         {
             for (uint8_t from_square_idx = 0;
                  from_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-                 from_square_idx++)
+                 ++from_square_idx)
             {
                 const Square from_square(from_square_idx);
 
@@ -107,7 +107,7 @@ constexpr Cuckoo_RM_Table_Storage<capacity> initialize_cuckoo_rm_storage()
                 // move(b, a).
                 for (uint8_t to_square_idx = (from_square_idx + 1);
                      to_square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-                     to_square_idx++)
+                     ++to_square_idx)
                 {
                     const Square to_square(to_square_idx);
 

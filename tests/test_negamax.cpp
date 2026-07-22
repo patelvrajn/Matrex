@@ -25,7 +25,7 @@ TEST(negamax, mating)
 
     // Note: The maximum fen index is 3 otherwise, search is too slow to
     // complete upto mate distance depth search.
-    for (uint8_t fen_idx = 0; fen_idx < 3; fen_idx++)
+    for (uint8_t fen_idx = 0; fen_idx < 3; ++fen_idx)
     {
         cb.set_from_fen(std::string(FENS[fen_idx]));
         const uint16_t distance_to_mate = (NUM_OF_PLAYERS * fen_idx);

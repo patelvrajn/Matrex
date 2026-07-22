@@ -73,7 +73,7 @@ void UCI::handle_position(const std::string& arguments)
         {
             fen_space_index =
                 arguments.find_first_of(" ", (fen_space_index + 1));
-            fen_space_count++;
+            ++fen_space_count;
         }
 
         bool is_end_of_string = false;
@@ -134,31 +134,31 @@ void UCI::handle_go(const std::string& arguments)
         m_search_constraints.should_ignore_time = false;
         m_search_constraints.depth              = -1;
 
-        for (std::size_t index = 0; index < tokens->size(); index++)
+        for (std::size_t index = 0; index < tokens->size(); ++index)
         {
             std::string subcommand = tokens->at(index);
 
             if (subcommand == "wtime")
             {
-                index++;
+                ++index;
                 m_search_constraints.time_controls[PIECE_COLOR::WHITE]
                     .time_remaining = std::stoull(tokens->at(index));
             }
             else if (subcommand == "btime")
             {
-                index++;
+                ++index;
                 m_search_constraints.time_controls[PIECE_COLOR::BLACK]
                     .time_remaining = std::stoull(tokens->at(index));
             }
             else if (subcommand == "winc")
             {
-                index++;
+                ++index;
                 m_search_constraints.time_controls[PIECE_COLOR::WHITE]
                     .increment = std::stoull(tokens->at(index));
             }
             else if (subcommand == "binc")
             {
-                index++;
+                ++index;
                 m_search_constraints.time_controls[PIECE_COLOR::BLACK]
                     .increment = std::stoull(tokens->at(index));
             }
@@ -206,7 +206,7 @@ void UCI::handle_setoption(const std::string& arguments)
     {
         if (tokens->at(current_index) == "name")
         {
-            current_index++;
+            ++current_index;
 
             std::string option_name = tokens->at(current_index);
 
@@ -219,7 +219,7 @@ void UCI::handle_setoption(const std::string& arguments)
             }
         }
 
-        current_index++;
+        ++current_index;
     }
 }
 

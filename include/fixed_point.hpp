@@ -481,7 +481,7 @@ Fixed_Point_Integer<F>::operator*(const Fixed_Point_Integer other) const
 
     // An additional bit of scaling is needed if the product is negative because
     // bit_width doesn't account for the sign of the product.
-    if (product < 0) { anti_overflow_scaling++; }
+    if (product < 0) { ++anti_overflow_scaling; }
 
     anti_overflow_scaling =
         std::max(static_cast<int8_t>(0), anti_overflow_scaling);
@@ -519,7 +519,7 @@ Fixed_Point_Integer<F>::operator/(const Fixed_Point_Integer other) const
     if (((m_value < 0) || (other.m_value < 0))
         && (!((m_value < 0) && (other.m_value < 0))))
     {
-        anti_overflow_scaling++;
+        ++anti_overflow_scaling;
     }
 
     anti_overflow_scaling =

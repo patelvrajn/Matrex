@@ -35,7 +35,7 @@ void Moves_Bitboard_Matrix::set_move(const PIECE_COLOR color,
 
     if (index == -1)
     {
-        m_max_indices[color]++;       // Increment max index for this color.
+        ++m_max_indices[color];       // Increment max index for this color.
         index = m_max_indices[color]; // Assign new max index to index mappings.
         // Update piece index mask - set the bit corresponding to this index -
         // each piece has a bitmask representing which indices in the matrix

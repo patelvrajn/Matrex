@@ -24,28 +24,28 @@ constexpr Bitboard mask_bishop_attacks(const Square s)
 
     for (int8_t r = bishop_rank + 1, f = bishop_file + 1;
          r <= LAST_RANK_NOT_ON_EDGE && f <= LAST_FILE_NOT_ON_EDGE;
-         r++, f++)
+         ++r, ++f)
     {
         attacks.set_square(Square(r, f));
     }
 
     for (int8_t r = bishop_rank + 1, f = bishop_file - 1;
          r <= LAST_RANK_NOT_ON_EDGE && f >= FIRST_FILE_NOT_ON_EDGE;
-         r++, f--)
+         ++r, --f)
     {
         attacks.set_square(Square(r, f));
     }
 
     for (int8_t r = bishop_rank - 1, f = bishop_file + 1;
          r >= FIRST_RANK_NOT_ON_EDGE && f <= LAST_FILE_NOT_ON_EDGE;
-         r--, f++)
+         --r, ++f)
     {
         attacks.set_square(Square(r, f));
     }
 
     for (int8_t r = bishop_rank - 1, f = bishop_file - 1;
          r >= FIRST_RANK_NOT_ON_EDGE && f >= FIRST_FILE_NOT_ON_EDGE;
-         r--, f--)
+         --r, --f)
     {
         attacks.set_square(Square(r, f));
     }
@@ -70,7 +70,7 @@ constexpr Bitboard calculate_bishop_attacks(const Square   s,
 
     for (int8_t r = bishop_rank + 1, f = bishop_file + 1;
          r <= LAST_RANK && f <= LAST_FILE;
-         r++, f++)
+         ++r, ++f)
     {
         attacks.set_square(Square(r, f));
 
@@ -80,7 +80,7 @@ constexpr Bitboard calculate_bishop_attacks(const Square   s,
 
     for (int8_t r = bishop_rank + 1, f = bishop_file - 1;
          r <= LAST_RANK && f >= FIRST_FILE;
-         r++, f--)
+         ++r, --f)
     {
         attacks.set_square(Square(r, f));
         if (blockers.get_square(Square(r, f))) { break; }
@@ -88,7 +88,7 @@ constexpr Bitboard calculate_bishop_attacks(const Square   s,
 
     for (int8_t r = bishop_rank - 1, f = bishop_file + 1;
          r >= FIRST_RANK && f <= LAST_FILE;
-         r--, f++)
+         --r, ++f)
     {
         attacks.set_square(Square(r, f));
         if (blockers.get_square(Square(r, f))) { break; }
@@ -96,7 +96,7 @@ constexpr Bitboard calculate_bishop_attacks(const Square   s,
 
     for (int8_t r = bishop_rank - 1, f = bishop_file - 1;
          r >= FIRST_RANK && f >= FIRST_FILE;
-         r--, f--)
+         --r, --f)
     {
         attacks.set_square(Square(r, f));
         if (blockers.get_square(Square(r, f))) { break; }
@@ -123,7 +123,7 @@ constexpr Magics_Array init_bishop_magics()
 
     // For each square, we will attempt to find a suitable magic number.
     for (uint8_t square_idx = 0; square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         square_idx++)
+         ++square_idx)
     {
         const Square s(square_idx);
 
@@ -145,7 +145,7 @@ constexpr Magics_Array init_bishop_magics()
 
         // Generate all possible blocker boards and their corresponding bishop
         // attacks for this square.
-        for (uint64_t idx = 0; idx < attacks_array_size; idx++)
+        for (uint64_t idx = 0; idx < attacks_array_size; ++idx)
         {
             occupancies[idx] =
                 set_occupancy(idx, num_of_high_bits_in_mask, mask);
@@ -169,7 +169,7 @@ constexpr Magics_Array init_bishop_magics()
             bool fail = false;
 
             // Try mapping every occupancy configuration through this magic
-            for (uint64_t idx = 0; idx < attacks_array_size; idx++)
+            for (uint64_t idx = 0; idx < attacks_array_size; ++idx)
             {
                 // Multiply occupancy by the magic number to generate a hash.
                 const uint64_t hash = occupancies[idx].get_board() * magic;

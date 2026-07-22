@@ -113,13 +113,13 @@ Square Chess_Board::get_castling_rook_source_square(
 
 void Chess_Board::pretty_print() const
 {
-    for (uint8_t rank = 0; rank < NUM_OF_RANKS_ON_CHESS_BOARD; rank++)
+    for (uint8_t rank = 0; rank < NUM_OF_RANKS_ON_CHESS_BOARD; ++rank)
     {
         // Print the ranks on the left hand side of the board before the first
         // file.
         std::cout << (NUM_OF_RANKS_ON_CHESS_BOARD - rank) << "   ";
 
-        for (uint8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; file++)
+        for (uint8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; ++file)
         {
             const Square s(rank, file);
 
@@ -150,7 +150,7 @@ void Chess_Board::pretty_print() const
     std::cout << std::endl;
     std::cout << "    ";
 
-    for (uint8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; file++)
+    for (uint8_t file = 0; file < NUM_OF_FILES_ON_CHESS_BOARD; ++file)
     {
         char file_char = 'A' + file;
         std::cout << file_char << " ";
@@ -207,9 +207,9 @@ Chess_Board::what_piece_is_on_square(const Square s) const
 {
     const Bitboard square_bb = Bitboard(s.get_mask());
 
-    for (uint8_t color = 0; color <= PIECE_COLOR::BLACK; color++)
+    for (uint8_t color = 0; color <= PIECE_COLOR::BLACK; ++color)
     {
-        for (uint8_t piece = 0; piece <= PIECES::KING; piece++)
+        for (uint8_t piece = 0; piece <= PIECES::KING; ++piece)
         {
             if ((get_piece_occupancies((PIECE_COLOR) color, (PIECES) piece)
                  & square_bb)
@@ -479,10 +479,10 @@ void Chess_Board::set_from_fen(const std::string& fen)
 
             // Prepare to start next rank
             start_of_substr = idx + 1;
-            current_rank++;
+            ++current_rank;
         }
 
-        idx++;
+        ++idx;
     }
 
     // Extract side to move ("w" or "b") from right after the piece
@@ -513,7 +513,7 @@ void Chess_Board::set_from_fen(const std::string& fen)
     m_state.castling_rights = 0;
 
     // Loop through castling characters (KQkq), set appropriate flags
-    for (uint8_t idx = 0; idx < castling_rights_length; idx++)
+    for (uint8_t idx = 0; idx < castling_rights_length; ++idx)
     {
         if ((castling_rights[idx] >= 'A') && (castling_rights[idx] <= 'H'))
         {
@@ -646,7 +646,7 @@ std::string Chess_Board::to_fen()
     // Loop to add all the pieces to the FEN string square by square.
     uint8_t empty_square_count = 0;
     for (uint8_t square_index = 0; square_index < NUM_OF_SQUARES_ON_CHESS_BOARD;
-         square_index++)
+         ++square_index)
     {
         const Square s(square_index);
         const auto [piece_color, piece_type] = what_piece_is_on_square(s);
@@ -713,7 +713,7 @@ std::string Chess_Board::to_fen()
         // Empty square count is increased every consecutive empty square.
         else
         {
-            empty_square_count++;
+            ++empty_square_count;
         }
     }
 
@@ -776,7 +776,7 @@ void Chess_Board::place_pieces_from_fen(const std::string& rank_description,
 {
     uint8_t file = 0; // Track file (0 = 'a')
 
-    for (uint8_t idx = 0; idx < length_of_description; idx++)
+    for (uint8_t idx = 0; idx < length_of_description; ++idx)
     {
         const Square s(rank, file);
 
@@ -892,7 +892,7 @@ void Chess_Board::place_pieces_from_fen(const std::string& rank_description,
             }
 
             // Advance file pointer after placing a piece
-            file++;
+            ++file;
         }
     }
 }

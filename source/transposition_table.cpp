@@ -144,7 +144,7 @@ bool Transposition_Table::read(const uint16_t             max_depth,
             m_table[index].protected_entries.move_to_front(found_entry_index);
 
 #if COLLECT_TT_STATISTICS == 1
-            m_statistics.protected_hits++;
+            ++m_statistics.protected_hits;
 #endif
 
             make_mate_score_relative_to_node<true>(output, ply);
@@ -153,11 +153,11 @@ bool Transposition_Table::read(const uint16_t             max_depth,
             return true;
         }
 
-        found_entry_index++;
+        ++found_entry_index;
     }
 
 #if COLLECT_TT_STATISTICS == 1
-    m_statistics.protected_misses++;
+    ++m_statistics.protected_misses;
 #endif
 
     // Check probationary segment next.
@@ -189,7 +189,7 @@ bool Transposition_Table::read(const uint16_t             max_depth,
             }
 
 #if COLLECT_TT_STATISTICS == 1
-            m_statistics.probationary_hits++;
+            ++m_statistics.probationary_hits;
 #endif
 
             make_mate_score_relative_to_node<true>(output, ply);
@@ -198,11 +198,11 @@ bool Transposition_Table::read(const uint16_t             max_depth,
             return true;
         }
 
-        found_entry_index++;
+        ++found_entry_index;
     }
 
 #if COLLECT_TT_STATISTICS == 1
-    m_statistics.probationary_misses++;
+    ++m_statistics.probationary_misses;
 #endif
 
     return false;
@@ -218,7 +218,7 @@ void Transposition_Table::write(const uint16_t             max_depth,
     make_mate_score_relative_to_node<false>(entry, ply);
 
 #if COLLECT_TT_STATISTICS == 1
-    m_statistics.nodes_written++;
+    ++m_statistics.nodes_written;
 #endif
 
     // Loop through protected segment.
@@ -236,7 +236,7 @@ void Transposition_Table::write(const uint16_t             max_depth,
             }
             return;
         }
-        found_entry_index++;
+        ++found_entry_index;
     }
 
     // Loop through probationary segment.
@@ -262,7 +262,7 @@ void Transposition_Table::write(const uint16_t             max_depth,
             return;
         }
 
-        found_entry_index++;
+        ++found_entry_index;
     }
 
     // Priority entries can pass-thru to the protected segment.

@@ -77,9 +77,9 @@ Evaluation_Weights<double> Tuner::init_weights()
     weights.backwards_movement_mobility   = perturb(0.36L);
 
     for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK;
-         color++)
+         ++color)
     {
-        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
+        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
         {
             weights.piece_square_NLR_parameters[color][piece] = random_nlr(1);
         }
@@ -89,13 +89,13 @@ Evaluation_Weights<double> Tuner::init_weights()
                                                        random_nlr(1)};
 
     for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK;
-         color++)
+         ++color)
     {
-        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; piece++)
+        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
         {
             for (uint8_t square_idx = 0;
                  square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-                 square_idx++)
+                 ++square_idx)
             {
                 weights.piece_square_tables[color][piece][square_idx] =
                     distribution(rng);
@@ -141,7 +141,7 @@ Evaluation_Weights<double> Tuner::tune()
     m_log << "[INFO] Initial validation dataset loss is "
           << previous_epoch_validation_loss << std::endl;
 
-    for (uint64_t epoch = 1; epoch <= TUNER_MAX_EPOCHS; epoch++)
+    for (uint64_t epoch = 1; epoch <= TUNER_MAX_EPOCHS; ++epoch)
     {
         double weight_update_magnitude_average = 0;
 
@@ -184,7 +184,7 @@ Evaluation_Weights<double> Tuner::tune()
 
             // Push as many jobs as there are threads assigning each tuner step
             // job a different split of the mini-batch.
-            for (std::size_t i = 0; i < TUNER_NUM_OF_THREADS; i++)
+            for (std::size_t i = 0; i < TUNER_NUM_OF_THREADS; ++i)
             {
                 std::unique_ptr<Thread_Job> job =
                     std::make_unique<Tuner_Step>(shared_data,
@@ -226,7 +226,7 @@ Evaluation_Weights<double> Tuner::tune()
                   << global_state.weights << std::endl;
 
             // Increment timestep.
-            t++;
+            ++t;
         }
 
         weight_update_magnitude_average =
@@ -260,7 +260,7 @@ Evaluation_Weights<double> Tuner::tune()
         if ((validation_loss_improvement < TUNER_LOSS_IMPROVEMENT_CUTOFF)
             && (weight_update_magnitude_average < TUNER_WEIGHT_UPDATE_CUTOFF))
         { // Converged!
-            epoch_patience_count++;
+            ++epoch_patience_count;
             if (epoch_patience_count == TUNER_PATIENCE) { break; }
         }
         else
@@ -295,7 +295,7 @@ Tuner::projected_gradient(const Evaluation_Weights<double>& weights,
 {
     Evaluation_Weights<double> result;
 
-    for (std::size_t i = 0; i < weights.get_size(); i++)
+    for (std::size_t i = 0; i < weights.get_size(); ++i)
     {
         // If the gradient is negative, according to the traditional gradient
         // descent weight update, we want to increase the weights - so as a
@@ -338,7 +338,7 @@ Evaluation_Weights<double> Tuner::projected_weight_change(
 {
     Evaluation_Weights<double> result;
 
-    for (std::size_t i = 0; i < weights.get_size(); i++)
+    for (std::size_t i = 0; i < weights.get_size(); ++i)
     {
         result[i] = std::clamp((weights[i] - weight_update[i]),
                                Matrex_FP_Int::safe_minimum(),
@@ -446,7 +446,7 @@ Dataset Tuner::create_mini_batches(const Mini_Batch& aggregate_batch)
 
         for (std::size_t j = i; (j < (i + TUNER_MINI_BATCH_SIZE)
                                  && j < aggregate_batch.fens.size());
-             j++)
+             ++j)
         {
             mini_batch.fens.push_back(aggregate_batch.fens[j]);
             mini_batch.scores.push_back(aggregate_batch.scores[j]);
@@ -468,7 +468,7 @@ Worker_Batches Tuner::create_worker_batches(const Mini_Batch& mini_batch)
     const std::size_t worker_batch_size =
         mini_batch_size / TUNER_NUM_OF_THREADS;
 
-    for (std::size_t i = 0; i < TUNER_NUM_OF_THREADS; i++)
+    for (std::size_t i = 0; i < TUNER_NUM_OF_THREADS; ++i)
     {
         Mini_Batch batch;
 
@@ -497,7 +497,7 @@ Tuner_Eval_Params Tuner::compute_eval_params(const Mini_Batch& mini_batch) const
     return_value.moving_side_matrices.reserve(mini_batch.fens.size());
     return_value.opposing_side_matrices.reserve(mini_batch.fens.size());
 
-    for (std::size_t i = 0; i < mini_batch.fens.size(); i++)
+    for (std::size_t i = 0; i < mini_batch.fens.size(); ++i)
     {
         Chess_Board cb;
         cb.set_from_fen(mini_batch.fens[i]);
@@ -585,7 +585,7 @@ Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
 
     AD_Tape tape;
 
-    for (std::size_t i = 0; i < N; i++)
+    for (std::size_t i = 0; i < N; ++i)
     {
         // The auto-differentiation weights must be recreated every iteration
         // because the tape is cleared after every backward pass and since we
@@ -634,7 +634,7 @@ double Tuner::compute_loss(const Dataset&                    d,
     {
         Tuner_Eval_Params eval_params = compute_eval_params(mini_batch);
 
-        for (std::size_t i = 0; i < mini_batch.fens.size(); i++)
+        for (std::size_t i = 0; i < mini_batch.fens.size(); ++i)
         {
             Evaluator e(weights,
                         eval_params.boards[i],
@@ -667,12 +667,12 @@ double Tuner::compute_max_data_loss(const Dataset& d)
 
     for (const Mini_Batch& mini_batch : d.mini_batches)
     {
-        for (std::size_t i = 0; i < mini_batch.fens.size(); i++)
+        for (std::size_t i = 0; i < mini_batch.fens.size(); ++i)
         {
-            if (mini_batch.scores[i] != 0.5L) { num_of_decisive_games++; }
+            if (mini_batch.scores[i] != 0.5L) { ++num_of_decisive_games; }
             else
             {
-                num_of_draws++;
+                ++num_of_draws;
             }
         }
     }
@@ -720,7 +720,7 @@ void Tuner::print_multi_array_as_cpp(std::ofstream&           ofs,
                                      const Multi_Array<T, N>& arr)
 {
     ofs << "{";
-    for (std::size_t i = 0; i < N; i++)
+    for (std::size_t i = 0; i < N; ++i)
     {
         print_element_as_cpp(ofs, arr[i]);
         if (i != (N - 1)) { ofs << ", "; }
@@ -733,7 +733,7 @@ void Tuner::print_multi_array_as_cpp(std::ofstream&                    ofs,
                                      const Multi_Array<T, N, Rest...>& arr)
 {
     ofs << "{";
-    for (std::size_t i = 0; i < N; i++)
+    for (std::size_t i = 0; i < N; ++i)
     {
         print_multi_array_as_cpp(ofs, arr[i]);
         if (i != (N - 1)) { ofs << ", "; }

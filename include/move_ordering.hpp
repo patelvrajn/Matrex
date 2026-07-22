@@ -128,9 +128,9 @@ mvv_lva_array Move_Ordering<CONT_HIST_STACK_SIZE>::generate_mvv_lva_array()
 {
     mvv_lva_array return_value;
 
-    for (uint8_t attacker = PIECES::PAWN; attacker <= PIECES::KING; attacker++)
+    for (uint8_t attacker = PIECES::PAWN; attacker <= PIECES::KING; ++attacker)
     {
-        for (uint8_t victim = PIECES::PAWN; victim <= PIECES::QUEEN; victim++)
+        for (uint8_t victim = PIECES::PAWN; victim <= PIECES::QUEEN; ++victim)
         {
             return_value[attacker][victim] =
                 ((MVV_LVA_ATTACKER_VALUES[victim]
@@ -181,7 +181,7 @@ void Move_Ordering<CONT_HIST_STACK_SIZE>::move_scorer()
 
             if ((start >= 0) && (end >= 0))
             {
-                for (int64_t i = start; i >= end; i--)
+                for (int64_t i = start; i >= end; --i)
                 {
                     const auto& hist_table =
                         m_q_cont_hist_stack.get_ref()
@@ -207,7 +207,7 @@ void Move_Ordering<CONT_HIST_STACK_SIZE>::move_scorer()
 
             if ((start >= 0) && (end >= 0))
             {
-                for (int64_t i = start; i >= end; i--)
+                for (int64_t i = start; i >= end; --i)
                 {
                     const auto& hist_table =
                         m_c_cont_hist_stack.get_ref()
