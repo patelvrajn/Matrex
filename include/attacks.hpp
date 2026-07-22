@@ -291,7 +291,7 @@ constexpr Bitboard Attacks::get_bishop_rays(const Square  s,
         "of no square.");
 
     MATREX_ASSERT(
-        (direction >= m_slider_table.bishop[s.get_index()].size),
+        (direction < m_slider_table.bishop[s.get_index()].size),
         "Attacks Class Assertion FAILURE: Attempted to get bishop rays "
         "of a bad direction.");
 
@@ -305,7 +305,7 @@ constexpr Bitboard Attacks::get_rook_rays(const Square  s,
                   "Attacks Class Assertion FAILURE: Attempted to get rook rays "
                   "of no square.");
 
-    MATREX_ASSERT((direction >= m_slider_table.rook[s.get_index()].size),
+    MATREX_ASSERT((direction < m_slider_table.rook[s.get_index()].size),
                   "Attacks Class Assertion FAILURE: Attempted to get rook rays "
                   "of a bad direction.");
 

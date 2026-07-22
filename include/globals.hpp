@@ -198,9 +198,6 @@ enum DIRECTION : int8_t
     SOUTHEAST    = 9
 };
 
-constexpr uint8_t MAIN_DIAGONAL_DISTANCE_MODULUS = 9;
-constexpr uint8_t ANTI_DIAGONAL_DISTANCE_MODULUS = 7;
-
 // Currently, Matrex has it's own runtime assertion function in order to be more
 // verbose when unexpected behavior occurs during runtime. The verbose-ness is
 // mainly from the full stack trace being displayed which is useful when trying

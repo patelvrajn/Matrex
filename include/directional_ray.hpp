@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include "bitboard.hpp"
+#include "globals.hpp"
 
 // =============================================================================
 // Directional Ray
@@ -67,18 +68,18 @@ constexpr Directional_Ray::Directional_Ray(const Square src, const Square dst)
         m_direction = ((distance > 0) ? SOUTH : NORTH); // Move along the file.
     }
     // Squares src and dst are on the same rank.
-    else if (dst.get_rank() == src.get_rank())
+    else if (src.get_rank() == dst.get_rank())
     {
         m_direction = ((distance > 0) ? EAST : WEST); // Move along the rank.
     }
     // Squares src and dst are on the main diagonal.
-    else if ((distance % MAIN_DIAGONAL_DISTANCE_MODULUS) == 0)
+    else if (src.get_diagonal() == dst.get_diagonal())
     {
         m_direction = ((distance > 0) ? SOUTHEAST
                                       : NORTHWEST); // Move along the diagonal.
     }
     // Squares src and dst are on the anti-diagonal.
-    else if ((distance % ANTI_DIAGONAL_DISTANCE_MODULUS) == 0)
+    else if (src.get_antidiagonal() == dst.get_antidiagonal())
     {
         m_direction = ((distance > 0) ? SOUTHWEST
                                       : NORTHEAST); // Move along the diagonal.
@@ -110,7 +111,9 @@ constexpr Directional_Ray::Directional_Ray(const Square    src,
     // Performs a "walk" in the direction specified and sets each square walked
     // on in the bitboard to form the ray.
     int8_t index = src.get_index();
-    while (index >= 0 && index < NUM_OF_SQUARES_ON_CHESS_BOARD)
+    while ((index >= 0) && (index < NUM_OF_SQUARES_ON_CHESS_BOARD)
+           &&(Square(index).get_rank() < NUM_OF_RANKS_ON_CHESS_BOARD)
+           &&(Square(index).get_file() < NUM_OF_FILES_ON_CHESS_BOARD))
     {
         m_ray.set_square(Square(index));
         index += d;

@@ -23,18 +23,18 @@ constexpr uint64_t generate_between_squares_mask(const Square a, const Square b)
         delta = ((distance > 0) ? SOUTH : NORTH); // Move along the file.
     }
     // Squares a and b are on the same rank.
-    else if (b.get_rank() == a.get_rank())
+    else if (a.get_rank() == b.get_rank())
     {
         delta = ((distance > 0) ? EAST : WEST); // Move along the rank.
     }
     // Squares a and b are on the main diagonal.
-    else if ((distance % MAIN_DIAGONAL_DISTANCE_MODULUS) == 0)
+    else if (a.get_diagonal() == b.get_diagonal())
     {
         // Move along the diagonal.
         delta = ((distance > 0) ? SOUTHEAST : NORTHWEST);
     }
     // Squares a and b are on the anti-diagonal.
-    else if ((distance % ANTI_DIAGONAL_DISTANCE_MODULUS) == 0)
+    else if (a.get_antidiagonal() == b.get_antidiagonal())
     {
         // Move along the diagonal.
         delta = ((distance > 0) ? SOUTHWEST : NORTHEAST);
@@ -109,10 +109,10 @@ constexpr auto init_backward_squares_masks()
     Multi_Array<uint64_t, NUM_OF_PLAYERS, NUM_OF_SQUARES_ON_CHESS_BOARD>
         backward_squares_masks;
 
-    uint8_t square_index = 0;
-
     for (PIECE_COLOR c = PIECE_COLOR::WHITE; c <= PIECE_COLOR::BLACK; ++c)
     {
+        uint8_t square_index = 0;
+
         for (auto& mask : backward_squares_masks[c])
         {
             mask = generate_backward_squares_mask(c, Square(square_index));
