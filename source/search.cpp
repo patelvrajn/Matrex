@@ -1,7 +1,10 @@
 #include "search.hpp"
+#include <numeric>
 
+#include "chess_move.hpp"
 #include "evaluate.hpp"
 #include "evaluation_terms.hpp"
+#include "fixed_point.hpp"
 #include "static_exchange_evaluation.hpp"
 
 Search_Engine::Search_Engine() :
@@ -42,12 +45,13 @@ Search_Engine::search(const Chess_Board&        cb,
 Search_Engine_Result
 Search_Engine::negamax(Chess_Board&                    position,
                        uint16_t                        depth,
+                       std::vector<Matrex_FP_Int>&     leaf_nodes_scores,
                        Principal_Variation_List&       principal_variation,
                        Search_Quiet_Cont_Hist_Stack&   q_cont_hist_stack,
                        Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
-                       uint16_t                        ply,
                        Score                           alpha,
-                       Score                           beta)
+                       Score                           beta,
+                       uint16_t                        ply)
 {
     const uint32_t depth_squared = (depth * depth);
 
@@ -167,7 +171,15 @@ Search_Engine::negamax(Chess_Board&                    position,
     // Base case: if depth is 0, perform quiescence search.
     if (depth == QUIESCENCE_SEARCH_DEPTH)
     {
-        return quiescence(position, ply, alpha, beta);
+        const Search_Engine_Result quiescence_result =
+            quiescence(position, ply, alpha, beta);
+
+        // Collect leaf node scores in order to have a good sample size for
+        // calculating aspiration windows which we treat as a confidence
+        // interval.
+        leaf_nodes_scores.push_back(quiescence_result.second.to_fixed_point());
+
+        return quiescence_result;
     }
 
     ++m_num_of_nodes_searched;
@@ -262,12 +274,13 @@ Search_Engine::negamax(Chess_Board&                    position,
             // to be a PV node.
             child_result = negamax(position,
                                    (depth - 1),
+                                   leaf_nodes_scores,
                                    child_principal_variation,
                                    q_cont_hist_stack,
                                    c_cont_hist_stack,
-                                   (ply + 1),
                                    -beta,
-                                   -alpha);
+                                   -alpha,
+                                   (ply + 1));
         }
         else
         {
@@ -275,12 +288,13 @@ Search_Engine::negamax(Chess_Board&                    position,
             // around alpha since, we assume no other move will raise alpha.
             child_result = negamax(position,
                                    (depth - 1),
+                                   leaf_nodes_scores,
                                    child_principal_variation,
                                    q_cont_hist_stack,
                                    c_cont_hist_stack,
-                                   (ply + 1),
                                    (-alpha - Score(PV_WINDOW_SIZE)),
-                                   -alpha);
+                                   -alpha,
+                                   (ply + 1));
 
             const Score child_score = -child_result.second;
 
@@ -293,12 +307,13 @@ Search_Engine::negamax(Chess_Board&                    position,
             {
                 child_result = negamax(position,
                                        (depth - 1),
+                                       leaf_nodes_scores,
                                        child_principal_variation,
                                        q_cont_hist_stack,
                                        c_cont_hist_stack,
-                                       (ply + 1),
                                        -beta,
-                                       -alpha);
+                                       -alpha,
+                                       (ply + 1));
             }
         }
 
@@ -667,6 +682,153 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     return {best_move, best_score};
 }
 
+void Search_Engine::aspiration_windows(Aspiration_Window& window)
+{
+    Aspiration_Window current_window = window;
+
+    Matrex_FP_Int uncertainity = Matrex_FP_Int::from_double(2);
+
+    bool done = false;
+    while (!done)
+    {
+        Principal_Variation_List pv = m_principal_variation;
+
+        m_leaf_nodes_scores.clear();
+
+        Search_Engine_Result result = negamax(m_chess_board,
+                                              m_current_search_depth,
+                                              m_leaf_nodes_scores,
+                                              pv,
+                                              m_q_cont_hist_stack,
+                                              m_c_cont_hist_stack,
+                                              current_window.alpha,
+                                              current_window.beta);
+
+        current_window.search_result = result;
+
+        // Time has expired, break out of the aspiration window loop leaving the
+        // principal variation from the previous iterative deepening loop the 
+        // same.
+        if (m_timer_expired_during_search) { break; }
+
+        // Calculate the average of the leaf node scores using the rolling
+        // average formula (which is derived from the definition of an average)
+        // to avoid overflow. Also keep a running sum of square of differences
+        // from the current mean in order to calculate the sample standard
+        // deviation (standard error) afterwards. This is known as Welford's
+        // online algorithm.
+        Fixed_Point_Int_Storage_Type current_element_count = 1;
+        Matrex_FP_Int                average    = Matrex_FP_Int::from_value(0);
+        Matrex_FP_Int square_of_differences_sum = Matrex_FP_Int::from_value(0);
+        for (const Matrex_FP_Int& leaf_node_score : m_leaf_nodes_scores)
+        {
+            const Matrex_FP_Int new_average =
+                average + ((leaf_node_score - average) / current_element_count);
+            square_of_differences_sum = square_of_differences_sum
+                                      + ((leaf_node_score - average)
+                                         * (leaf_node_score - new_average));
+            average = new_average;
+            ++current_element_count;
+        }
+        const Matrex_FP_Int standard_deviation = Matrex::sqrt(
+            square_of_differences_sum / (current_element_count - 1));
+
+        const Matrex_FP_Int current_window_size =
+            current_window.beta.to_fixed_point()
+            - current_window.alpha.to_fixed_point();
+
+        // Based on what bound of the window was violated, calculate the
+        // "uncertainity" which is simply an multiplicative accumulation of the
+        // ratio of the distance to the boundary violated over the size of the
+        // window.
+        if (current_window.is_fail_low())
+        {
+            uncertainity *=
+                (1.0
+                 + ((current_window.alpha.to_fixed_point()
+                     - current_window.search_result.second.to_fixed_point())
+                    / current_window_size));
+        }
+        else if (current_window.is_fail_high())
+        {
+            uncertainity *=
+                (1.0
+                 + ((current_window.search_result.second.to_fixed_point()
+                     - current_window.beta.to_fixed_point())
+                    / current_window_size));
+        }
+
+        // Calculate the delta which is based on the concept of confidence
+        // intervals. Note, that instead of standard error we use the standard
+        // deviation as we are more interested in the dispersion of the scores
+        // than how far the sample mean is from the population mean.
+        const Matrex_FP_Int delta =
+            (((CONFIDENCE_INTERVAL_Z_SCORE * standard_deviation) + 50)
+             * uncertainity);
+
+        if (current_window.is_result_in_window())
+        {
+            // The result was inside the window but it was the first depth which
+            // has infinite width so create a window of finite width using the
+            // delta calculated.
+            if (m_current_search_depth == 1)
+            {
+                const Matrex_FP_Int fp_alpha = Matrex_FP_Int::adjustable_clamp(
+                    (current_window.search_result.second.to_fixed_point()
+                     - delta),
+                    Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
+                    Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
+                const Matrex_FP_Int fp_beta = Matrex_FP_Int::adjustable_clamp(
+                    (current_window.search_result.second.to_fixed_point()
+                     + delta),
+                    Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
+                    Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
+
+                current_window.alpha = Score(fp_alpha);
+                current_window.beta  = Score(fp_beta);
+            }
+
+            // The result was inside the window, update the PV and break out of
+            // the loop.
+            m_principal_variation = pv;
+            done                  = true;
+        }
+        else
+        {
+            // Based on which boundary was violated, update that side of the
+            // window.
+            if (current_window.is_fail_low())
+            {
+                const Matrex_FP_Int alpha_delta =
+                    (current_window.is_fail_low())
+                        ? delta
+                        : Matrex_FP_Int::from_value(0);
+                const Matrex_FP_Int fp_alpha = Matrex_FP_Int::adjustable_clamp(
+                    (current_window.search_result.second.to_fixed_point()
+                     - alpha_delta),
+                    Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
+                    Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
+                current_window.alpha = Score(fp_alpha);
+            }
+            else if (current_window.is_fail_high())
+            {
+                const Matrex_FP_Int beta_delta =
+                    (current_window.is_fail_high())
+                        ? delta
+                        : Matrex_FP_Int::from_value(0);
+                const Matrex_FP_Int fp_beta = Matrex_FP_Int::adjustable_clamp(
+                    (current_window.search_result.second.to_fixed_point()
+                     + beta_delta),
+                    Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
+                    Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
+                current_window.beta = Score(fp_beta);
+            }
+        }
+    }
+
+    window = current_window;
+}
+
 Search_Engine_Result Search_Engine::iterative_deepening()
 {
     // Declare the best search result obtained.
@@ -675,24 +837,28 @@ Search_Engine_Result Search_Engine::iterative_deepening()
     // Iteratively increment the negamax search depth and start the
     // search timer.
     m_timer.start();
+
+    Aspiration_Window window = {
+        {Chess_Move(), Score(0)},
+        Score(FP_NEGATIVE_INFINITY),
+        Score(FP_POSITIVE_INFINITY)
+    };
+
     for (uint16_t current_depth = 1; current_depth < MAX_SEARCH_DEPTH;
          ++current_depth)
     {
         m_current_search_depth = current_depth;
 
-        Search_Engine_Result result = negamax(m_chess_board,
-                                              current_depth,
-                                              m_principal_variation,
-                                              m_q_cont_hist_stack,
-                                              m_c_cont_hist_stack);
+        aspiration_windows(window);
 
         uint64_t current_time = m_timer.elapsed();
 
-        UCI_Search_Information uci_search_info(m_current_search_depth,
-                                               current_time,
-                                               m_num_of_nodes_searched,
-                                               m_principal_variation,
-                                               result.second);
+        const UCI_Search_Information uci_search_info(
+            m_current_search_depth,
+            current_time,
+            m_num_of_nodes_searched,
+            m_principal_variation,
+            window.search_result.second);
 
         std::cout << uci_search_info << std::endl;
 
@@ -702,13 +868,11 @@ Search_Engine_Result Search_Engine::iterative_deepening()
             break;
         }
 
-        best = result;
+        best = window.search_result;
 
         m_principal_variation.clear();
 
-        // Only update best search result if the timer didn't expire
-        // during the search. Otherwise, time has expired, break out
-        // of iterative deepening loop.
+        // Time has expired, break out of the iterative deepening loop.
         if (m_timer_expired_during_search) { break; }
     }
 

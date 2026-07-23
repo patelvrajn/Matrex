@@ -123,7 +123,7 @@ Bitboard Move_Generator::attackers_to_square(const Square s)
         m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::KING));
 }
 
-// Return a bitboard of ALL pieces (any color) that are currently attacking a 
+// Return a bitboard of ALL pieces (any color) that are currently attacking a
 // given square.
 Bitboard
 Move_Generator::attackers_to_square(const Square   s,
@@ -141,7 +141,7 @@ Move_Generator::attackers_to_square(const Square   s,
                                     const Bitboard black_king_occupancy)
 {
     Bitboard attackers;
-    
+
     Attacks a;
 
     Bitboard both_color_occupancies =
