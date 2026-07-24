@@ -708,7 +708,11 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
 
         // Time has expired, break out of the aspiration window loop leaving the
         // principal variation from the previous iterative deepening loop the 
-        // same.
+        // same because we didn't complete a search with estimated bounds (i.e.
+        // the aspiration window) so we don't have complete information as to 
+        // whether the best move was within the window (remember best score is 
+        // not updated at the same time as best move e.g. on a beta cutoff the
+        // best score is updated but not the best move).
         if (m_timer_expired_during_search) { break; }
 
         // Calculate the average of the leaf node scores using the rolling
@@ -717,21 +721,31 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
         // from the current mean in order to calculate the sample standard
         // deviation (standard error) afterwards. This is known as Welford's
         // online algorithm.
-        Fixed_Point_Int_Storage_Type current_element_count = 1;
+        Fixed_Point_Int_Storage_Type element_count = 0;
         Matrex_FP_Int                average    = Matrex_FP_Int::from_value(0);
         Matrex_FP_Int square_of_differences_sum = Matrex_FP_Int::from_value(0);
         for (const Matrex_FP_Int& leaf_node_score : m_leaf_nodes_scores)
         {
+            ++element_count;
             const Matrex_FP_Int new_average =
-                average + ((leaf_node_score - average) / current_element_count);
+                average + ((leaf_node_score - average) / element_count);
             square_of_differences_sum = square_of_differences_sum
                                       + ((leaf_node_score - average)
                                          * (leaf_node_score - new_average));
             average = new_average;
-            ++current_element_count;
         }
+
+        // If there is only one or less leaf, just copy the search result and PV 
+        // (its the only PV possible) and exit the function.
+        if (element_count <= 1)
+        {
+            window = current_window;
+            m_principal_variation = pv;
+            return;
+        }
+
         const Matrex_FP_Int standard_deviation = Matrex::sqrt(
-            square_of_differences_sum / (current_element_count - 1));
+            square_of_differences_sum / (element_count - 1));
 
         const Matrex_FP_Int current_window_size =
             current_window.beta.to_fixed_point()
@@ -851,6 +865,11 @@ Search_Engine_Result Search_Engine::iterative_deepening()
 
         aspiration_windows(window);
 
+        // Time has expired, break out of the iterative deepening loop.
+        if (m_timer_expired_during_search) { break; }
+
+        best = window.search_result;
+
         uint64_t current_time = m_timer.elapsed();
 
         const UCI_Search_Information uci_search_info(
@@ -868,12 +887,7 @@ Search_Engine_Result Search_Engine::iterative_deepening()
             break;
         }
 
-        best = window.search_result;
-
         m_principal_variation.clear();
-
-        // Time has expired, break out of the iterative deepening loop.
-        if (m_timer_expired_during_search) { break; }
     }
 
     return best;
