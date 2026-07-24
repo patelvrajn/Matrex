@@ -707,10 +707,10 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
         current_window.search_result = result;
 
         // Time has expired, break out of the aspiration window loop leaving the
-        // principal variation from the previous iterative deepening loop the 
+        // principal variation from the previous iterative deepening loop the
         // same because we didn't complete a search with estimated bounds (i.e.
-        // the aspiration window) so we don't have complete information as to 
-        // whether the best move was within the window (remember best score is 
+        // the aspiration window) so we don't have complete information as to
+        // whether the best move was within the window (remember best score is
         // not updated at the same time as best move e.g. on a beta cutoff the
         // best score is updated but not the best move).
         if (m_timer_expired_during_search) { break; }
@@ -735,17 +735,17 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
             average = new_average;
         }
 
-        // If there is only one or less leaf, just copy the search result and PV 
+        // If there is only one or less leaf, just copy the search result and PV
         // (its the only PV possible) and exit the function.
         if (element_count <= 1)
         {
-            window = current_window;
+            window                = current_window;
             m_principal_variation = pv;
             return;
         }
 
-        const Matrex_FP_Int standard_deviation = Matrex::sqrt(
-            square_of_differences_sum / (element_count - 1));
+        const Matrex_FP_Int standard_deviation =
+            Matrex::sqrt(square_of_differences_sum / (element_count - 1));
 
         const Matrex_FP_Int current_window_size =
             current_window.beta.to_fixed_point()
