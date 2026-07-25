@@ -45,7 +45,7 @@ Search_Engine::search(const Chess_Board&        cb,
 Search_Engine_Result
 Search_Engine::negamax(Chess_Board&                    position,
                        uint16_t                        depth,
-                       std::vector<Matrex_FP_Int>&     leaf_nodes_scores,
+                       Welford&                        leaf_nodes_welford,
                        Principal_Variation_List&       principal_variation,
                        Search_Quiet_Cont_Hist_Stack&   q_cont_hist_stack,
                        Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
@@ -174,10 +174,7 @@ Search_Engine::negamax(Chess_Board&                    position,
         const Search_Engine_Result quiescence_result =
             quiescence(position, ply, alpha, beta);
 
-        // Collect leaf node scores in order to have a good sample size for
-        // calculating aspiration windows which we treat as a confidence
-        // interval.
-        leaf_nodes_scores.push_back(quiescence_result.second.to_fixed_point());
+        leaf_nodes_welford += quiescence_result.second.to_fixed_point();
 
         return quiescence_result;
     }
@@ -274,7 +271,7 @@ Search_Engine::negamax(Chess_Board&                    position,
             // to be a PV node.
             child_result = negamax(position,
                                    (depth - 1),
-                                   leaf_nodes_scores,
+                                   leaf_nodes_welford,
                                    child_principal_variation,
                                    q_cont_hist_stack,
                                    c_cont_hist_stack,
@@ -288,7 +285,7 @@ Search_Engine::negamax(Chess_Board&                    position,
             // around alpha since, we assume no other move will raise alpha.
             child_result = negamax(position,
                                    (depth - 1),
-                                   leaf_nodes_scores,
+                                   leaf_nodes_welford,
                                    child_principal_variation,
                                    q_cont_hist_stack,
                                    c_cont_hist_stack,
@@ -307,7 +304,7 @@ Search_Engine::negamax(Chess_Board&                    position,
             {
                 child_result = negamax(position,
                                        (depth - 1),
-                                       leaf_nodes_scores,
+                                       leaf_nodes_welford,
                                        child_principal_variation,
                                        q_cont_hist_stack,
                                        c_cont_hist_stack,
@@ -686,19 +683,17 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
 {
     Aspiration_Window current_window = window;
 
-    Matrex_FP_Int uncertainity = Matrex_FP_Int::from_double(2);
+    Matrex_FP_Int accumulated_std_dev = Matrex_FP_Int::from_double(0.5);
 
     bool done = false;
     while (!done)
     {
-        Principal_Variation_List pv = m_principal_variation;
-
-        m_leaf_nodes_scores.clear();
+        Welford leaf_scores_welford;
 
         Search_Engine_Result result = negamax(m_chess_board,
                                               m_current_search_depth,
-                                              m_leaf_nodes_scores,
-                                              pv,
+                                              leaf_scores_welford,
+                                              m_principal_variation,
                                               m_q_cont_hist_stack,
                                               m_c_cont_hist_stack,
                                               current_window.alpha,
@@ -715,97 +710,55 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
         // best score is updated but not the best move).
         if (m_timer_expired_during_search) { break; }
 
-        // Calculate the average of the leaf node scores using the rolling
-        // average formula (which is derived from the definition of an average)
-        // to avoid overflow. Also keep a running sum of square of differences
-        // from the current mean in order to calculate the sample standard
-        // deviation (standard error) afterwards. This is known as Welford's
-        // online algorithm.
-        Fixed_Point_Int_Storage_Type element_count = 0;
-        Matrex_FP_Int                average    = Matrex_FP_Int::from_value(0);
-        Matrex_FP_Int square_of_differences_sum = Matrex_FP_Int::from_value(0);
-        for (const Matrex_FP_Int& leaf_node_score : m_leaf_nodes_scores)
-        {
-            ++element_count;
-            const Matrex_FP_Int new_average =
-                average + ((leaf_node_score - average) / element_count);
-            square_of_differences_sum = square_of_differences_sum
-                                      + ((leaf_node_score - average)
-                                         * (leaf_node_score - new_average));
-            average = new_average;
-        }
-
         // If there is only one or less leaf, just copy the search result and PV
         // (its the only PV possible) and exit the function.
-        if (element_count <= 1)
+        if (leaf_scores_welford.get_count() <= 1)
         {
-            window                = current_window;
-            m_principal_variation = pv;
+            window = current_window;
             return;
         }
 
-        const Matrex_FP_Int standard_deviation =
-            Matrex::sqrt(square_of_differences_sum / (element_count - 1));
-
-        const Matrex_FP_Int current_window_size =
-            current_window.beta.to_fixed_point()
-            - current_window.alpha.to_fixed_point();
-
-        // Based on what bound of the window was violated, calculate the
-        // "uncertainity" which is simply an multiplicative accumulation of the
-        // ratio of the distance to the boundary violated over the size of the
-        // window.
-        if (current_window.is_fail_low())
+        if (!current_window.is_result_in_window())
         {
-            uncertainity *=
-                (1.0
-                 + ((current_window.alpha.to_fixed_point()
-                     - current_window.search_result.second.to_fixed_point())
-                    / current_window_size));
-        }
-        else if (current_window.is_fail_high())
-        {
-            uncertainity *=
-                (1.0
-                 + ((current_window.search_result.second.to_fixed_point()
-                     - current_window.beta.to_fixed_point())
-                    / current_window_size));
+            accumulated_std_dev +=
+                Matrex_FP_Int::from_double(0.65) * leaf_scores_welford.get_standard_deviation();
         }
 
         // Calculate the delta which is based on the concept of confidence
         // intervals. Note, that instead of standard error we use the standard
         // deviation as we are more interested in the dispersion of the scores
         // than how far the sample mean is from the population mean.
-        const Matrex_FP_Int delta =
-            (((CONFIDENCE_INTERVAL_Z_SCORE * standard_deviation) + 50)
-             * uncertainity);
+        const Matrex_FP_Int delta_width = (Matrex_FP_Int::from_integer(64) + (Matrex_FP_Int::from_integer(128) / Matrex::sqrt(Matrex_FP_Int::from_integer(static_cast<Fixed_Point_Int_Storage_Type>(m_current_search_depth)))));
+        const Matrex_FP_Int delta = (CONFIDENCE_INTERVAL_Z_SCORE * accumulated_std_dev * delta_width);
+
+        std::cout << "Current iteration's evaluation: " << current_window.search_result.second.to_fixed_point().to_double() << std::endl;
+        std::cout << "Current iteration's alpha: " << current_window.alpha.to_fixed_point().to_double() << std::endl;
+        std::cout << "Current iteration's beta: " << current_window.beta.to_fixed_point().to_double() << std::endl;
+        std::cout << "Current iteration's window result: " << (current_window.is_fail_low()  ? "FAIL LOW" : current_window.is_fail_high() ? "FAIL HIGH" : "EXACT") << std::endl;
+        std::cout << "Current iteration's accumulated standard deviation: " << accumulated_std_dev.to_double() << std::endl;
+        std::cout << "Current iteration's delta: " << delta.to_double() << std::endl;
 
         if (current_window.is_result_in_window())
         {
-            // The result was inside the window but it was the first depth which
-            // has infinite width so create a window of finite width using the
-            // delta calculated.
-            if (m_current_search_depth == 1)
-            {
-                const Matrex_FP_Int fp_alpha = Matrex_FP_Int::adjustable_clamp(
-                    (current_window.search_result.second.to_fixed_point()
-                     - delta),
-                    Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
-                    Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
-                const Matrex_FP_Int fp_beta = Matrex_FP_Int::adjustable_clamp(
-                    (current_window.search_result.second.to_fixed_point()
-                     + delta),
-                    Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
-                    Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
+            // The result was inside the window, create a window of finite width 
+            // around the updated score using the delta calculated.
+            const Matrex_FP_Int fp_alpha = Matrex_FP_Int::adjustable_clamp(
+                (current_window.search_result.second.to_fixed_point()
+                    - delta),
+                Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
+                Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
+            const Matrex_FP_Int fp_beta = Matrex_FP_Int::adjustable_clamp(
+                (current_window.search_result.second.to_fixed_point()
+                    + delta),
+                Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
+                Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
 
-                current_window.alpha = Score(fp_alpha);
-                current_window.beta  = Score(fp_beta);
-            }
+            current_window.alpha = Score(fp_alpha);
+            current_window.beta  = Score(fp_beta);
 
             // The result was inside the window, update the PV and break out of
             // the loop.
-            m_principal_variation = pv;
-            done                  = true;
+            done = true;
         }
         else
         {
