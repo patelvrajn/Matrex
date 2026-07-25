@@ -101,39 +101,40 @@ struct Aspiration_Window
 };
 
 // =============================================================================
-// Abstraction of Welford's online algorithm. Calculates the average of added 
-// values using the rolling average formula (which is derived from the 
-// definition of an average) to avoid overflow. Also keeps a running sum of 
+// Abstraction of Welford's online algorithm. Calculates the average of added
+// values using the rolling average formula (which is derived from the
+// definition of an average) to avoid overflow. Also keeps a running sum of
 // the squared differences from the current mean in order to calculate variance
 // or standard deviation.
 // =============================================================================
 class Welford
 {
   public:
-    constexpr Welford() : m_count(0), m_mean(Matrex_FP_Int::from_value(0)), m_squared_differences_sum(Matrex_FP_Int::from_value(0)) {}
+
+    constexpr Welford() :
+        m_count(0),
+        m_mean(Matrex_FP_Int::from_value(0)),
+        m_squared_differences_sum(Matrex_FP_Int::from_value(0))
+    {
+    }
 
     constexpr Welford operator+=(const Matrex_FP_Int value)
     {
         ++m_count;
 
-        const Matrex_FP_Int new_mean = m_mean + ((value - m_mean) / m_count); 
-        
-        m_squared_differences_sum = m_squared_differences_sum + ((value - m_mean) * (value - new_mean));
+        const Matrex_FP_Int new_mean = m_mean + ((value - m_mean) / m_count);
+
+        m_squared_differences_sum =
+            m_squared_differences_sum + ((value - m_mean) * (value - new_mean));
 
         m_mean = new_mean;
 
         return *this;
     }
 
-    constexpr Fixed_Point_Int_Storage_Type get_count() const
-    {
-        return m_count;
-    }
+    constexpr Fixed_Point_Int_Storage_Type get_count() const { return m_count; }
 
-    constexpr Matrex_FP_Int get_average() const
-    {
-        return m_mean;
-    }
+    constexpr Matrex_FP_Int get_average() const { return m_mean; }
 
     constexpr Matrex_FP_Int get_variance() const
     {
@@ -146,9 +147,10 @@ class Welford
     }
 
   private:
+
     Fixed_Point_Int_Storage_Type m_count;
-    Matrex_FP_Int m_mean;
-    Matrex_FP_Int m_squared_differences_sum;
+    Matrex_FP_Int                m_mean;
+    Matrex_FP_Int                m_squared_differences_sum;
 };
 
 using Search_Quiet_Cont_Hist_Stack =

@@ -720,36 +720,53 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
 
         if (!current_window.is_result_in_window())
         {
-            accumulated_std_dev +=
-                Matrex_FP_Int::from_double(0.65) * leaf_scores_welford.get_standard_deviation();
+            accumulated_std_dev += Matrex_FP_Int::from_double(0.65)
+                                 * leaf_scores_welford.get_standard_deviation();
         }
 
         // Calculate the delta which is based on the concept of confidence
         // intervals. Note, that instead of standard error we use the standard
         // deviation as we are more interested in the dispersion of the scores
         // than how far the sample mean is from the population mean.
-        const Matrex_FP_Int delta_width = (Matrex_FP_Int::from_integer(64) + (Matrex_FP_Int::from_integer(128) / Matrex::sqrt(Matrex_FP_Int::from_integer(static_cast<Fixed_Point_Int_Storage_Type>(m_current_search_depth)))));
-        const Matrex_FP_Int delta = (CONFIDENCE_INTERVAL_Z_SCORE * accumulated_std_dev * delta_width);
+        const Matrex_FP_Int delta_width =
+            (Matrex_FP_Int::from_integer(64)
+             + (Matrex_FP_Int::from_integer(128)
+                / Matrex::sqrt(Matrex_FP_Int::from_integer(
+                    static_cast<Fixed_Point_Int_Storage_Type>(
+                        m_current_search_depth)))));
+        const Matrex_FP_Int delta =
+            (CONFIDENCE_INTERVAL_Z_SCORE * accumulated_std_dev * delta_width);
 
-        std::cout << "Current iteration's evaluation: " << current_window.search_result.second.to_fixed_point().to_double() << std::endl;
-        std::cout << "Current iteration's alpha: " << current_window.alpha.to_fixed_point().to_double() << std::endl;
-        std::cout << "Current iteration's beta: " << current_window.beta.to_fixed_point().to_double() << std::endl;
-        std::cout << "Current iteration's window result: " << (current_window.is_fail_low()  ? "FAIL LOW" : current_window.is_fail_high() ? "FAIL HIGH" : "EXACT") << std::endl;
-        std::cout << "Current iteration's accumulated standard deviation: " << accumulated_std_dev.to_double() << std::endl;
-        std::cout << "Current iteration's delta: " << delta.to_double() << std::endl;
+        std::cout
+            << "Current iteration's evaluation: "
+            << current_window.search_result.second.to_fixed_point().to_double()
+            << std::endl;
+        std::cout << "Current iteration's alpha: "
+                  << current_window.alpha.to_fixed_point().to_double()
+                  << std::endl;
+        std::cout << "Current iteration's beta: "
+                  << current_window.beta.to_fixed_point().to_double()
+                  << std::endl;
+        std::cout << "Current iteration's window result: "
+                  << (current_window.is_fail_low()    ? "FAIL LOW"
+                      : current_window.is_fail_high() ? "FAIL HIGH"
+                                                      : "EXACT")
+                  << std::endl;
+        std::cout << "Current iteration's accumulated standard deviation: "
+                  << accumulated_std_dev.to_double() << std::endl;
+        std::cout << "Current iteration's delta: " << delta.to_double()
+                  << std::endl;
 
         if (current_window.is_result_in_window())
         {
-            // The result was inside the window, create a window of finite width 
+            // The result was inside the window, create a window of finite width
             // around the updated score using the delta calculated.
             const Matrex_FP_Int fp_alpha = Matrex_FP_Int::adjustable_clamp(
-                (current_window.search_result.second.to_fixed_point()
-                    - delta),
+                (current_window.search_result.second.to_fixed_point() - delta),
                 Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
                 Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
             const Matrex_FP_Int fp_beta = Matrex_FP_Int::adjustable_clamp(
-                (current_window.search_result.second.to_fixed_point()
-                    + delta),
+                (current_window.search_result.second.to_fixed_point() + delta),
                 Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
                 Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
 
