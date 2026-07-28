@@ -30,7 +30,7 @@ class Evaluator
     inline T material_score() const;
 
     template <PIECE_COLOR moving_side>
-    inline T mobility_score() const;
+    inline T mobility_score(const Moves_Bitboard_Matrix& matrix) const;
 
     template <PIECE_COLOR moving_side>
     inline T piece_square_score() const;
@@ -74,13 +74,13 @@ T Evaluator<T>::evaluate_template_typed() const
     if (moving_side == PIECE_COLOR::WHITE)
     {
         material     = material_score<PIECE_COLOR::WHITE>() - material_score<PIECE_COLOR::BLACK>();
-        mobility     = mobility_score<PIECE_COLOR::WHITE>() - mobility_score<PIECE_COLOR::BLACK>();
+        mobility     = mobility_score<PIECE_COLOR::WHITE>(m_moving_side_matrix) - mobility_score<PIECE_COLOR::BLACK>(m_opposing_side_matrix);
         piece_square = piece_square_score<PIECE_COLOR::WHITE>() - piece_square_score<PIECE_COLOR::BLACK>();
     }
     else
     {
         material     = material_score<PIECE_COLOR::BLACK>() - material_score<PIECE_COLOR::WHITE>();
-        mobility     = mobility_score<PIECE_COLOR::BLACK>() - mobility_score<PIECE_COLOR::WHITE>();
+        mobility     = mobility_score<PIECE_COLOR::BLACK>(m_moving_side_matrix) - mobility_score<PIECE_COLOR::WHITE>(m_opposing_side_matrix);
         piece_square = piece_square_score<PIECE_COLOR::BLACK>() - piece_square_score<PIECE_COLOR::WHITE>();
     }
 
@@ -131,15 +131,14 @@ inline T Evaluator<T>::material_score() const
 
 template <typename T>
 template <PIECE_COLOR moving_side>
-inline T Evaluator<T>::mobility_score() const
+inline T Evaluator<T>::mobility_score(const Moves_Bitboard_Matrix& matrix) const
 {
     T mobility = constant_conversion(0.0);
 
     for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
     {
         const T piece_mobility =
-            calculate_piece_mobility<moving_side>(m_moving_side_matrix,
-                                                  (PIECES) piece);
+            calculate_piece_mobility<moving_side>(matrix, (PIECES) piece);
 
         mobility +=
             Non_Linear_Response(m_weights.piece_mobility_NLR_parameters[piece])
