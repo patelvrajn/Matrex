@@ -21,9 +21,11 @@ int main(int argc, char* argv[])
         if (std::string(argv[1]) == "tune")
         {
             std::ofstream log_file("../../../source/assets/tuner.log");
-            std::ifstream dataset_file("../../../source/assets/lichess-big3-resolved.book");
-            std::ofstream output_file("../../../source/assets/evaluation_terms.hpp");
-            Tuner         tuner(log_file, dataset_file, output_file);
+            std::ifstream dataset_file(
+                "../../../source/assets/lichess-big3-resolved.book");
+            std::ofstream output_file(
+                "../../../source/assets/evaluation_terms.hpp");
+            Tuner tuner(log_file, dataset_file, output_file);
             tuner.tune();
         }
         else if (std::string(argv[1]) == "bench")
