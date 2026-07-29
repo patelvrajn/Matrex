@@ -30,7 +30,7 @@ class Evaluator
     inline T material_score() const;
 
     template <PIECE_COLOR moving_side>
-    inline T mobility_score() const;
+    inline T mobility_score(const Moves_Bitboard_Matrix& matrix) const;
 
     template <PIECE_COLOR moving_side>
     inline T piece_square_score() const;
@@ -73,15 +73,21 @@ T Evaluator<T>::evaluate_template_typed() const
 
     if (moving_side == PIECE_COLOR::WHITE)
     {
-        material     = material_score<PIECE_COLOR::WHITE>();
-        mobility     = mobility_score<PIECE_COLOR::WHITE>();
-        piece_square = piece_square_score<PIECE_COLOR::WHITE>();
+        material = material_score<PIECE_COLOR::WHITE>()
+                 - material_score<PIECE_COLOR::BLACK>();
+        mobility = mobility_score<PIECE_COLOR::WHITE>(m_moving_side_matrix)
+                 - mobility_score<PIECE_COLOR::BLACK>(m_opposing_side_matrix);
+        piece_square = piece_square_score<PIECE_COLOR::WHITE>()
+                     - piece_square_score<PIECE_COLOR::BLACK>();
     }
     else
     {
-        material     = material_score<PIECE_COLOR::BLACK>();
-        mobility     = mobility_score<PIECE_COLOR::BLACK>();
-        piece_square = piece_square_score<PIECE_COLOR::BLACK>();
+        material = material_score<PIECE_COLOR::BLACK>()
+                 - material_score<PIECE_COLOR::WHITE>();
+        mobility = mobility_score<PIECE_COLOR::BLACK>(m_moving_side_matrix)
+                 - mobility_score<PIECE_COLOR::WHITE>(m_opposing_side_matrix);
+        piece_square = piece_square_score<PIECE_COLOR::BLACK>()
+                     - piece_square_score<PIECE_COLOR::WHITE>();
     }
 
     const T evaluation = material + mobility + piece_square;
@@ -110,28 +116,18 @@ template <typename T>
 template <PIECE_COLOR moving_side>
 inline T Evaluator<T>::material_score() const
 {
-    constexpr PIECE_COLOR opposing_side = ~moving_side;
-
     T return_value = constant_conversion(0.0);
 
     for (uint8_t piece = PIECES::PAWN; piece <= PIECES::QUEEN; ++piece)
     {
-        T material_difference = constant_conversion(0.0);
-
-        material_difference +=
+        T material =
             (m_weights.material[piece]
              * m_chess_board.get_piece_occupancies(moving_side, (PIECES) piece)
                    .high_bit_count());
 
-        material_difference -=
-            (m_weights.material[piece]
-             * m_chess_board
-                   .get_piece_occupancies(opposing_side, (PIECES) piece)
-                   .high_bit_count());
-
         T non_linear_material =
             Non_Linear_Response(m_weights.material_NLR_parameters[piece])
-                .value(material_difference);
+                .value(material);
 
         return_value += non_linear_material;
     }
@@ -141,27 +137,18 @@ inline T Evaluator<T>::material_score() const
 
 template <typename T>
 template <PIECE_COLOR moving_side>
-inline T Evaluator<T>::mobility_score() const
+inline T Evaluator<T>::mobility_score(const Moves_Bitboard_Matrix& matrix) const
 {
-    constexpr PIECE_COLOR opposing_side = ~moving_side;
-
     T mobility = constant_conversion(0.0);
 
     for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
     {
-        const T moving_side_piece_mobility =
-            calculate_piece_mobility<moving_side>(m_moving_side_matrix,
-                                                  (PIECES) piece);
-        const T opposing_side_piece_mobility =
-            calculate_piece_mobility<opposing_side>(m_opposing_side_matrix,
-                                                    (PIECES) piece);
-
-        const T piece_mobility_difference =
-            moving_side_piece_mobility - opposing_side_piece_mobility;
+        const T piece_mobility =
+            calculate_piece_mobility<moving_side>(matrix, (PIECES) piece);
 
         mobility +=
             Non_Linear_Response(m_weights.piece_mobility_NLR_parameters[piece])
-                .value(piece_mobility_difference);
+                .value(piece_mobility);
     }
 
     return static_cast<T>(mobility);
@@ -171,8 +158,6 @@ template <typename T>
 template <PIECE_COLOR moving_side>
 inline T Evaluator<T>::piece_square_score() const
 {
-    constexpr PIECE_COLOR opposing_side = ~moving_side;
-
     // Accumulate the piece-square values from the piece-square tables for the
     // present state of the board. The accumulations are per piece per side.
     Multi_Array<T, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
@@ -232,56 +217,16 @@ inline T Evaluator<T>::piece_square_score() const
         nlr_this_king_value * nlr_this_queen_value * nlr_this_rook_value
         * nlr_this_bishop_value * nlr_this_knight_value * nlr_this_pawn_value;
 
-    // NLR objects for opposing side's pieces.
-    const Non_Linear_Response<T> nlr_opposing_king(
-        m_weights.piece_square_NLR_parameters[opposing_side][PIECES::KING]);
-    const Non_Linear_Response<T> nlr_opposing_queen(
-        m_weights.piece_square_NLR_parameters[opposing_side][PIECES::QUEEN]);
-    const Non_Linear_Response<T> nlr_opposing_rook(
-        m_weights.piece_square_NLR_parameters[opposing_side][PIECES::ROOK]);
-    const Non_Linear_Response<T> nlr_opposing_bishop(
-        m_weights.piece_square_NLR_parameters[opposing_side][PIECES::BISHOP]);
-    const Non_Linear_Response<T> nlr_opposing_knight(
-        m_weights.piece_square_NLR_parameters[opposing_side][PIECES::KNIGHT]);
-    const Non_Linear_Response<T> nlr_opposing_pawn(
-        m_weights.piece_square_NLR_parameters[opposing_side][PIECES::PAWN]);
-
-    // NLR values for opposing side's pieces and their interaction.
-    const T nlr_opposing_king_value = nlr_opposing_king.value(
-        color_piece_values[opposing_side][PIECES::KING]);
-    const T nlr_opposing_queen_value = nlr_opposing_queen.value(
-        color_piece_values[opposing_side][PIECES::QUEEN]);
-    const T nlr_opposing_rook_value = nlr_opposing_rook.value(
-        color_piece_values[opposing_side][PIECES::ROOK]);
-    const T nlr_opposing_bishop_value = nlr_opposing_bishop.value(
-        color_piece_values[opposing_side][PIECES::BISHOP]);
-    const T nlr_opposing_knight_value = nlr_opposing_knight.value(
-        color_piece_values[opposing_side][PIECES::KNIGHT]);
-    const T nlr_opposing_pawn_value = nlr_opposing_pawn.value(
-        color_piece_values[opposing_side][PIECES::PAWN]);
-    const T nlr_opposing_interaction_value =
-        nlr_opposing_king_value * nlr_opposing_queen_value
-        * nlr_opposing_rook_value * nlr_opposing_bishop_value
-        * nlr_opposing_knight_value * nlr_opposing_pawn_value;
-
-    // Explicit interactive term NLR objects per side.
+    // Explicit interactive term NLR object.
     const Non_Linear_Response<T> nlr_this_side(
         m_weights.interactive_piece_square_NLR_parameters[moving_side]);
-    const Non_Linear_Response<T> nlr_opposing_side(
-        m_weights.interactive_piece_square_NLR_parameters[opposing_side]);
 
-    // Explicit interactive term NLR values per side.
+    // Explicit interactive term NLR values.
     const T nlr_this_value = nlr_this_side.value(nlr_this_interaction_value);
-    const T nlr_opposing_value =
-        nlr_opposing_side.value(nlr_opposing_interaction_value);
 
     return (nlr_this_value + nlr_this_king_value + nlr_this_queen_value
             + nlr_this_rook_value + nlr_this_bishop_value
-            + nlr_this_knight_value + nlr_this_pawn_value)
-         - (nlr_opposing_value + nlr_opposing_king_value
-            + nlr_opposing_queen_value + nlr_opposing_rook_value
-            + nlr_opposing_bishop_value + nlr_opposing_knight_value
-            + nlr_opposing_pawn_value);
+            + nlr_this_knight_value + nlr_this_pawn_value);
 }
 
 /*******************************************************************************
