@@ -112,8 +112,8 @@ constexpr Directional_Ray::Directional_Ray(const Square    src,
     // on in the bitboard to form the ray.
     int8_t index = src.get_index();
     while ((index >= 0) && (index < NUM_OF_SQUARES_ON_CHESS_BOARD)
-           &&(Square(index).get_rank() < NUM_OF_RANKS_ON_CHESS_BOARD)
-           &&(Square(index).get_file() < NUM_OF_FILES_ON_CHESS_BOARD))
+           && (Square(index).get_rank() < NUM_OF_RANKS_ON_CHESS_BOARD)
+           && (Square(index).get_file() < NUM_OF_FILES_ON_CHESS_BOARD))
     {
         m_ray.set_square(Square(index));
         index += d;
