@@ -180,12 +180,12 @@ Search_Engine::negamax(Chess_Board&                    position,
             m_constraints.time_controls[m_my_side].increment);
     }
 
-    // When time expires return beta because it will just be alpha of the parent
-    // as the child score and this way it doesn't affect the best move of the
-    // parent.
+    // When time expires return infinity because it will just be negated and be
+    // the alpha of the parent and this way it doesn't affect the best move of
+    // the parent.
     if ((!m_constraints.should_ignore_time) && m_timer_expired_during_search)
     {
-        return {moves[0], beta};
+        return {moves[0], Score(ESCORE::POSITIVE_INFINITY)};
     }
 
     // Generate moves matrix for the opposing side for evaluation purposes.
@@ -217,7 +217,7 @@ Search_Engine::negamax(Chess_Board&                    position,
     for (const Chess_Move& move : moves)
     {
         // Static Exchange Evaluation Pruning (Captures Only)
-        if (should_do_see_pruning(move, best_score))
+        if (should_do_see_pruning(move, best_score, is_side_to_move_in_check))
         {
             const auto see_evaluation =
                 see.evaluate(move.destination_square, move.moving_piece, 1);
@@ -226,6 +226,27 @@ Search_Engine::negamax(Chess_Board&                    position,
             {
                 continue;
             }
+        }
+
+        // Futility pruning - we have a large enough margin from alpha that
+        // evaluating this branch is futile. The margin is determined by depth
+        // and a fixed scaler because the more moves you have from the leaf the
+        // larger the deficit we can overcome.
+        const Matrex_FP_Int fp_futility_pruning_margin =
+            Matrex_FP_Int::from_integer(depth * FUTILITY_PRUNING_DEPTH_SCALER);
+        const Score futility_pruning_margin = Score(fp_futility_pruning_margin);
+        const Score futility_score = static_evaluation + futility_pruning_margin;
+        if (should_do_futility_pruning(move,
+                                       best_score,
+                                       is_side_to_move_in_check,
+                                       static_evaluation,
+                                       futility_pruning_margin,
+                                       alpha,
+                                       is_pv_node,
+                                       is_first_move))
+        {
+            best_score = std::max(best_score, futility_score);
+            continue;
         }
 
         // Ensure each child has its own principal variation and is unaffected
@@ -609,7 +630,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     for (const Chess_Move& move : moves)
     {
         // Static Exchange Evaluation Pruning
-        if (should_do_see_pruning(move, best_score))
+        if (should_do_see_pruning(move, best_score, is_side_to_move_in_check))
         {
             const auto see_evaluation =
                 see.evaluate(move.destination_square, move.moving_piece, 1);
