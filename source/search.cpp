@@ -111,7 +111,7 @@ Search_Engine::negamax(Chess_Board&                    position,
     // exact score and is not the best move then we redo the search with a full
     // window looking for the PV node. If the first move is the PV node then we
     // only expect a PV_WINDOW_SIZE alpha-beta window for all other moves.
-    int is_pv_node = ((beta - alpha).to_int() > PV_WINDOW_SIZE.get_value());
+    const bool is_pv_node = ((beta - alpha).to_int() > PV_WINDOW_SIZE.get_value());
 
     // Transposition table cutoff - use the stored best move and score if it
     // satisfies the conditions.
@@ -180,12 +180,12 @@ Search_Engine::negamax(Chess_Board&                    position,
             m_constraints.time_controls[m_my_side].increment);
     }
 
-    // When time expires return beta because it will just be alpha of the parent
-    // as the child score and this way it doesn't affect the best move of the
-    // parent.
+    // When time expires return positive infinity because it will be negated and
+    // become the alpha of the parent as the child score and this way it doesn't 
+    // affect the best move of the parent.
     if ((!m_constraints.should_ignore_time) && m_timer_expired_during_search)
     {
-        return {moves[0], beta};
+        return {moves[0], Score(FP_POSITIVE_INFINITY)};
     }
 
     // Generate moves matrix for the opposing side for evaluation purposes.
