@@ -178,8 +178,9 @@ class Search_Engine
     void
     update_continuation_history(Search_Quiet_Cont_Hist_Stack& q_cont_hist_stack,
                                 const Chess_Move&             move,
-                                uint16_t                      ply,
-                                uint32_t                      depth_squared);
+                                const uint16_t                ply,
+                                const uint32_t                depth_squared,
+                                const Move_Generation_List&   quiets_to_malus);
 
     void update_continuation_history(
         Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
