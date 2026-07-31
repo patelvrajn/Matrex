@@ -370,8 +370,15 @@ Search_Engine::negamax(Chess_Board&                    position,
         }
         else
         {
-            quiets_to_malus.append(move);
-            captures_to_malus.append(move);
+            if (move.is_quiet_move())
+            {
+                quiets_to_malus.append(move);
+            }
+            
+            if (move.is_capture)
+            {
+                captures_to_malus.append(move);
+            }
         }
 
         // If the child's score raised alpha and was within alpha < score <
