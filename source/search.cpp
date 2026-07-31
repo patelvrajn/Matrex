@@ -214,6 +214,7 @@ Search_Engine::negamax(Chess_Board&                    position,
     Score                    best_score       = Score(FP_NEGATIVE_INFINITY);
 
     Move_Generation_List quiets_to_malus;
+    Move_Generation_List captures_to_malus;
 
     Static_Exchange_Evaluator<int64_t> see(position);
 
@@ -370,6 +371,7 @@ Search_Engine::negamax(Chess_Board&                    position,
         else
         {
             quiets_to_malus.append(move);
+            captures_to_malus.append(move);
         }
 
         // If the child's score raised alpha and was within alpha < score <
@@ -414,7 +416,8 @@ Search_Engine::negamax(Chess_Board&                    position,
         update_continuation_history(c_cont_hist_stack,
                                     beta_cutoff_move,
                                     ply,
-                                    depth_squared);
+                                    depth_squared,
+                                    captures_to_malus);
     }
 
     // Cache the position's best move and evaluation in the transposition table
@@ -779,7 +782,8 @@ void Search_Engine::update_continuation_history(
     Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
     const Chess_Move&               move,
     const uint16_t                  ply,
-    const uint32_t                  depth_squared)
+    const uint32_t                  depth_squared,
+    const Move_Generation_List&     captures_to_malus)
 {
     if (move.is_same_move(Chess_Move())) { return; }
 
@@ -795,12 +799,21 @@ void Search_Engine::update_continuation_history(
 
     if (start < 0) { return; }
 
-    const auto bonus = (depth_squared >> 2);
+    constexpr bool MALUS = true;
+    constexpr bool BONUS = false;
 
-    // Give a bonus to this move and proceeding move pairs.
     for (int64_t i = start; i >= end; --i)
     {
+        // Give a bonus to this move pair (preceeding move, given move).
         auto& entry = c_cont_hist_stack.stack[static_cast<std::size_t>(i)];
-        entry.get_ref().gravity_update<false>(move, bonus);
+        entry.get_ref().gravity_update<BONUS>(move, (depth_squared >> 2));
+
+        // Malus all move pairs for the given move that didn't cause a beta
+        // cutoff.
+        for (const Chess_Move& malus_move : captures_to_malus)
+        {
+            entry.get_ref().gravity_update<MALUS>(malus_move,
+                                                  (depth_squared >> 3));
+        }
     }
 }

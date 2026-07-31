@@ -186,7 +186,8 @@ class Search_Engine
         Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
         const Chess_Move&               move,
         const uint16_t                  ply,
-        const uint32_t                  depth_squared);
+        const uint32_t                  depth_squared,
+        const Move_Generation_List&     captures_to_malus);
 
     inline bool should_do_see_pruning(const Chess_Move& move,
                                       const Score       best_score);
