@@ -24,6 +24,8 @@ constexpr Matrex_FP_Int PV_WINDOW_SIZE = Matrex_FP_Int::from_integer(1);
 
 constexpr std::size_t CORRECTION_HISTORY_TABLE_SIZE = 16384;
 
+constexpr History_Score_Storage_Type QUIET_HISTORY_PRUNING_THRESHOLD = -50;
+
 struct Time_Control
 {
     uint64_t time_remaining; // Time in milliseconds.
@@ -189,8 +191,26 @@ class Search_Engine
         const uint32_t                  depth_squared,
         const Move_Generation_List&     captures_to_malus);
 
+    inline bool should_do_move_loop_pruning(const Score best_score,
+                                            const bool is_side_to_move_in_check,
+                                            const bool is_first_move);
+
     inline bool should_do_see_pruning(const Chess_Move& move,
-                                      const Score       best_score);
+                                      const Score       best_score,
+                                      const bool is_side_to_move_in_check,
+                                      const bool is_first_move);
+
+    inline bool should_do_see_pruning(const Chess_Move& move,
+                                      const Score       best_score,
+                                      const bool is_side_to_move_in_check);
+
+    inline bool should_do_quiet_history_pruning(
+        const Search_Quiet_Cont_Hist_Stack& q_cont_hist_stack,
+        const Chess_Move&                   move,
+        const Score                         best_score,
+        const bool                          is_side_to_move_in_check,
+        const bool                          is_first_move,
+        const uint16_t                      depth);
 };
 
 inline uint64_t Search_Engine::get_node_count()
@@ -300,10 +320,50 @@ inline bool Search_Engine::should_update_capture_continuation_history(
             && (score_bound == Score_Bound_Type::LOWER_BOUND));
 }
 
-inline bool Search_Engine::should_do_see_pruning(const Chess_Move& move,
-                                                 const Score       best_score)
+inline bool
+Search_Engine::should_do_move_loop_pruning(const Score best_score,
+                                           const bool  is_side_to_move_in_check,
+                                           const bool  is_first_move)
 {
-    // IMPORTANT: All move loop pruning should have the condition of
-    // !best_score.is_enemy_mate().
-    return (move.is_capture && (!best_score.is_enemy_mate()));
+    return ((!best_score.is_enemy_mate()) && (!is_side_to_move_in_check)
+            && (!is_first_move));
+}
+
+inline bool
+Search_Engine::should_do_see_pruning(const Chess_Move& move,
+                                     const Score       best_score,
+                                     const bool        is_side_to_move_in_check,
+                                     const bool        is_first_move)
+{
+    return (move.is_capture
+            && should_do_move_loop_pruning(best_score,
+                                           is_side_to_move_in_check,
+                                           is_first_move));
+}
+
+inline bool
+Search_Engine::should_do_see_pruning(const Chess_Move& move,
+                                     const Score       best_score,
+                                     const bool        is_side_to_move_in_check)
+{
+    return (move.is_capture
+            && should_do_move_loop_pruning(best_score,
+                                           is_side_to_move_in_check,
+                                           false));
+}
+
+inline bool Search_Engine::should_do_quiet_history_pruning(
+    const Search_Quiet_Cont_Hist_Stack& q_cont_hist_stack,
+    const Chess_Move&                   move,
+    const Score                         best_score,
+    const bool                          is_side_to_move_in_check,
+    const bool                          is_first_move,
+    const uint16_t                      depth)
+{
+    return ((q_cont_hist_stack.get_score(move)
+             <= (QUIET_HISTORY_PRUNING_THRESHOLD * depth))
+            && move.is_quiet_move()
+            && should_do_move_loop_pruning(best_score,
+                                           is_side_to_move_in_check,
+                                           is_first_move));
 }

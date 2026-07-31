@@ -222,7 +222,10 @@ Search_Engine::negamax(Chess_Board&                    position,
     for (const Chess_Move& move : moves)
     {
         // Static Exchange Evaluation Pruning (Captures Only)
-        if (should_do_see_pruning(move, best_score))
+        if (should_do_see_pruning(move,
+                                  best_score,
+                                  is_side_to_move_in_check,
+                                  is_first_move))
         {
             const auto see_evaluation =
                 see.evaluate(move.destination_square, move.moving_piece, 1);
@@ -231,6 +234,16 @@ Search_Engine::negamax(Chess_Board&                    position,
             {
                 continue;
             }
+        }
+
+        if (should_do_quiet_history_pruning(q_cont_hist_stack,
+                                            move,
+                                            best_score,
+                                            is_side_to_move_in_check,
+                                            is_first_move,
+                                            depth))
+        {
+            continue;
         }
 
         // Ensure each child has its own principal variation and is unaffected
@@ -370,15 +383,9 @@ Search_Engine::negamax(Chess_Board&                    position,
         }
         else
         {
-            if (move.is_quiet_move())
-            {
-                quiets_to_malus.append(move);
-            }
-            
-            if (move.is_capture)
-            {
-                captures_to_malus.append(move);
-            }
+            if (move.is_quiet_move()) { quiets_to_malus.append(move); }
+
+            if (move.is_capture) { captures_to_malus.append(move); }
         }
 
         // If the child's score raised alpha and was within alpha < score <
@@ -628,7 +635,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     for (const Chess_Move& move : moves)
     {
         // Static Exchange Evaluation Pruning
-        if (should_do_see_pruning(move, best_score))
+        if (should_do_see_pruning(move, best_score, is_side_to_move_in_check))
         {
             const auto see_evaluation =
                 see.evaluate(move.destination_square, move.moving_piece, 1);

@@ -80,6 +80,8 @@ class Quiet_Continuation_History_Stack
     void bind_to_history_table(Quiet_History_Table& table,
                                const std::size_t    index);
 
+    History_Score_Storage_Type get_score(const Chess_Move& move) const;
+
     Partially_Filled_Array<Optional_Reference<Quiet_History_Table>, STACK_SIZE>
         stack;
 };
@@ -138,6 +140,8 @@ class Capture_Continuation_History_Stack
 
     void bind_to_history_table(Capture_History_Table& table,
                                const std::size_t      index);
+
+    History_Score_Storage_Type get_score(const Chess_Move& move) const;
 
     Partially_Filled_Array<Optional_Reference<Capture_History_Table>,
                            STACK_SIZE>
@@ -219,6 +223,33 @@ void Quiet_Continuation_History_Stack<STACK_SIZE>::bind_to_history_table(
 }
 
 template <std::size_t STACK_SIZE>
+History_Score_Storage_Type
+Quiet_Continuation_History_Stack<STACK_SIZE>::get_score(
+    const Chess_Move& move) const
+{
+    const std::size_t ply = stack.size();
+
+    const int64_t start = static_cast<int64_t>(ply) - 1;
+    const int64_t end   = (ply < QUIET_CONTINUATION_HISTORY_LOOKBACK_DEPTH)
+                            ? 0
+                            : static_cast<int64_t>(ply)
+                                - static_cast<int64_t>(
+                                    QUIET_CONTINUATION_HISTORY_LOOKBACK_DEPTH);
+
+    History_Score_Storage_Type score = 0;
+    if ((start >= 0) && (end >= 0))
+    {
+        for (int64_t i = start; i >= end; --i)
+        {
+            const auto& hist_table  = stack[static_cast<std::size_t>(i)];
+            score                  += hist_table.get_ref()[move];
+        }
+    }
+
+    return score;
+}
+
+template <std::size_t STACK_SIZE>
 Capture_Continuation_History_Stack<
     STACK_SIZE>::Capture_Continuation_History_Stack()
 {
@@ -230,4 +261,32 @@ void Capture_Continuation_History_Stack<STACK_SIZE>::bind_to_history_table(
     const std::size_t      index)
 {
     stack[index] = table;
+}
+
+template <std::size_t STACK_SIZE>
+History_Score_Storage_Type
+Capture_Continuation_History_Stack<STACK_SIZE>::get_score(
+    const Chess_Move& move) const
+{
+    const std::size_t ply = stack.size();
+
+    const int64_t start = static_cast<int64_t>(ply) - 1;
+    const int64_t end =
+        (ply < CAPTURE_CONTINUATION_HISTORY_LOOKBACK_DEPTH)
+            ? 0
+            : static_cast<int64_t>(ply)
+                  - static_cast<int64_t>(
+                      CAPTURE_CONTINUATION_HISTORY_LOOKBACK_DEPTH);
+
+    History_Score_Storage_Type score = 0;
+    if ((start >= 0) && (end >= 0))
+    {
+        for (int64_t i = start; i >= end; --i)
+        {
+            const auto& hist_table  = stack[static_cast<std::size_t>(i)];
+            score                  += hist_table.get_ref()[move];
+        }
+    }
+
+    return score;
 }
