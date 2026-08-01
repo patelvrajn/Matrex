@@ -24,7 +24,8 @@ constexpr Matrex_FP_Int PV_WINDOW_SIZE = Matrex_FP_Int::from_integer(1);
 
 constexpr std::size_t CORRECTION_HISTORY_TABLE_SIZE = 16384;
 
-constexpr History_Score_Storage_Type QUIET_HISTORY_PRUNING_THRESHOLD = -50;
+constexpr History_Score_Storage_Type QUIET_HISTORY_PRUNING_THRESHOLD   = -50;
+constexpr History_Score_Storage_Type CAPTURE_HISTORY_PRUNING_THRESHOLD = -35;
 
 struct Time_Control
 {
@@ -211,6 +212,14 @@ class Search_Engine
         const bool                          is_side_to_move_in_check,
         const bool                          is_first_move,
         const uint16_t                      depth);
+
+    inline bool should_do_capture_history_pruning(
+        const Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
+        const Chess_Move&                     move,
+        const Score                           best_score,
+        const bool                            is_side_to_move_in_check,
+        const bool                            is_first_move,
+        const uint16_t                        depth);
 };
 
 inline uint64_t Search_Engine::get_node_count()
@@ -363,6 +372,22 @@ inline bool Search_Engine::should_do_quiet_history_pruning(
     return ((q_cont_hist_stack.get_score(move)
              <= (QUIET_HISTORY_PRUNING_THRESHOLD * depth))
             && move.is_quiet_move()
+            && should_do_move_loop_pruning(best_score,
+                                           is_side_to_move_in_check,
+                                           is_first_move));
+}
+
+inline bool Search_Engine::should_do_capture_history_pruning(
+    const Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
+    const Chess_Move&                     move,
+    const Score                           best_score,
+    const bool                            is_side_to_move_in_check,
+    const bool                            is_first_move,
+    const uint16_t                        depth)
+{
+    return ((c_cont_hist_stack.get_score(move)
+             <= (CAPTURE_HISTORY_PRUNING_THRESHOLD * depth))
+            && move.is_capture
             && should_do_move_loop_pruning(best_score,
                                            is_side_to_move_in_check,
                                            is_first_move));
