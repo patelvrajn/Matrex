@@ -236,15 +236,15 @@ Search_Engine::negamax(Chess_Board&                    position,
             }
         }
 
-        if (should_do_capture_history_pruning(c_cont_hist_stack,
-                                              move,
-                                              best_score,
-                                              is_side_to_move_in_check,
-                                              is_first_move,
-                                              depth))
-        {
-            continue;
-        }
+        // if (should_do_capture_history_pruning(c_cont_hist_stack,
+        //                                       move,
+        //                                       best_score,
+        //                                       is_side_to_move_in_check,
+        //                                       is_first_move,
+        //                                       depth))
+        // {
+        //     continue;
+        // }
 
         if (should_do_quiet_history_pruning(q_cont_hist_stack,
                                             move,
