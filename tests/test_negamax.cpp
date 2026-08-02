@@ -17,6 +17,7 @@ TEST(negamax, mating)
 
     // Arbitrary search constraints.
     Search_Constraints constraints;
+    constraints.should_ignore_time                               = false;
     constraints.time_controls[PIECE_COLOR::WHITE].time_remaining = 150000;
     constraints.time_controls[PIECE_COLOR::WHITE].increment      = 1500;
     constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 150000;
@@ -53,6 +54,7 @@ TEST(negamax, draw_detection)
 
     // Arbitrary search constraints.
     Search_Constraints constraints;
+    constraints.should_ignore_time                               = false;
     constraints.time_controls[PIECE_COLOR::WHITE].time_remaining = 150000;
     constraints.time_controls[PIECE_COLOR::WHITE].increment      = 1500;
     constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 150000;
