@@ -241,19 +241,17 @@ Search_Engine::negamax(Chess_Board&                    position,
         // and a fixed scaler because the more moves you have from the leaf the
         // larger the deficit we can overcome.
         const Matrex_FP_Int fp_futility_pruning_margin =
-            Matrex_FP_Int::from_integer(depth * FUTILITY_PRUNING_DEPTH_SCALER);
+            Matrex_FP_Int::from_integer((depth_squared * 20) + 25);
         const Score futility_pruning_margin = Score(fp_futility_pruning_margin);
-        const Score futility_score = static_evaluation + futility_pruning_margin;
+        const Score futility_threshold = static_evaluation + futility_pruning_margin;
         if (should_do_futility_pruning(move,
                                        best_score,
                                        is_side_to_move_in_check,
-                                       static_evaluation,
-                                       futility_pruning_margin,
+                                       futility_threshold,
                                        alpha,
-                                       is_pv_node,
                                        is_first_move))
         {
-            best_score = std::max(best_score, futility_score);
+            best_score = std::max(best_score, futility_threshold);
             continue;
         }
 

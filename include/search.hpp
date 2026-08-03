@@ -27,8 +27,6 @@ constexpr std::size_t CORRECTION_HISTORY_TABLE_SIZE = 16384;
 constexpr History_Score_Storage_Type QUIET_HISTORY_PRUNING_THRESHOLD   = -50;
 constexpr History_Score_Storage_Type CAPTURE_HISTORY_PRUNING_THRESHOLD = -35;
 
-constexpr Fixed_Point_Int_Storage_Type FUTILITY_PRUNING_DEPTH_SCALER = 250;
-
 struct Time_Control
 {
     uint64_t time_remaining; // Time in milliseconds.
@@ -227,11 +225,9 @@ class Search_Engine
     inline bool should_do_futility_pruning(const Chess_Move& move,
                                            const Score       best_score,
                                            const bool  is_side_to_move_in_check,
-                                           const Score static_evaluation,
-                                           const Score futility_pruning_margin,
+                                           const Score futility_pruning_threshold,
                                            const Score alpha,
                                            const bool  is_first_move);
-                                           const bool  is_pv_node,
 };
 
 inline uint64_t Search_Engine::get_node_count()
@@ -409,15 +405,11 @@ inline bool
 Search_Engine::should_do_futility_pruning(const Chess_Move& move,
                                           const Score       best_score,
                                           const bool  is_side_to_move_in_check,
-                                          const Score futility_pruning_margin,
-                                          const Score static_evaluation,
+                                          const Score futility_pruning_threshold,
                                           const Score alpha,
-                                          const bool  is_pv_node,
                                           const bool  is_first_move)
-    return (
 {
-        && should_do_move_loop_pruning(best_score, is_side_to_move_in_check)
-        && (!move.is_noisy_move())
-        ((static_evaluation + futility_pruning_margin) <= alpha)
-        && (!is_pv_node) && (!is_first_move));
+        return ((futility_pruning_threshold <= alpha)
+        && should_do_move_loop_pruning(best_score, is_side_to_move_in_check, is_first_move)
+        && (move.is_quiet_move()));
 }
