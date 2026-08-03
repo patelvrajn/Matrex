@@ -12,6 +12,9 @@ using History_Score_Storage_Type = Move_Score;
 constexpr History_Score_Storage_Type MAX_HISTORY =
     std::numeric_limits<History_Score_Storage_Type>::max() - 1;
 
+constexpr History_Score_Storage_Type MIN_HISTORY =
+    std::numeric_limits<History_Score_Storage_Type>::min();
+
 // Arbitrarily selected minimum and maximum history bonuses.
 constexpr History_Score_Storage_Type MIN_QUIET_HISTORY_BONUS = -128;
 constexpr History_Score_Storage_Type MAX_QUIET_HISTORY_BONUS = 128;
@@ -34,8 +37,8 @@ class Quiet_History_Table
     const History_Score_Storage_Type& operator[](const Chess_Move& move) const;
 
     template <bool is_malus>
-    void gravity_update(const Chess_Move&          move,
-                        History_Score_Storage_Type bonus);
+    void gravity_update(const Chess_Move&                move,
+                        const History_Score_Storage_Type change);
 
     void clear();
 
@@ -77,6 +80,8 @@ class Quiet_Continuation_History_Stack
     void bind_to_history_table(Quiet_History_Table& table,
                                const std::size_t    index);
 
+    History_Score_Storage_Type get_score(const Chess_Move& move) const;
+
     Partially_Filled_Array<Optional_Reference<Quiet_History_Table>, STACK_SIZE>
         stack;
 };
@@ -92,8 +97,8 @@ class Capture_History_Table
     const History_Score_Storage_Type& operator[](const Chess_Move& move) const;
 
     template <bool is_malus>
-    void gravity_update(const Chess_Move&          move,
-                        History_Score_Storage_Type bonus);
+    void gravity_update(const Chess_Move&                move,
+                        const History_Score_Storage_Type change);
 
     void clear();
 
@@ -136,63 +141,71 @@ class Capture_Continuation_History_Stack
     void bind_to_history_table(Capture_History_Table& table,
                                const std::size_t      index);
 
+    History_Score_Storage_Type get_score(const Chess_Move& move) const;
+
     Partially_Filled_Array<Optional_Reference<Capture_History_Table>,
                            STACK_SIZE>
         stack;
 };
 
 template <bool is_malus>
-void Quiet_History_Table::gravity_update(const Chess_Move&          move,
-                                         History_Score_Storage_Type bonus)
+void Quiet_History_Table::gravity_update(
+    const Chess_Move&                move,
+    const History_Score_Storage_Type change)
 {
     auto& selected_entry = m_table[move.moving_piece][move.destination_square];
 
     // Clamp the bonus before gravity is applied.
-    const History_Score_Storage_Type clamped_bonus =
-        std::clamp(bonus, MIN_QUIET_HISTORY_BONUS, MAX_QUIET_HISTORY_BONUS);
+    const History_Score_Storage_Type clamped_change =
+        std::clamp(change, MIN_QUIET_HISTORY_BONUS, MAX_QUIET_HISTORY_BONUS);
 
     // History gravity is simply the closer you are to the max history value,
     // the more the update is saturated.
-    const History_Score_Storage_Type gravitized_bonus =
+    const History_Score_Storage_Type gravitized_change =
         static_cast<History_Score_Storage_Type>(
-            static_cast<double>(clamped_bonus)
+            static_cast<double>(clamped_change)
             * (1.0
-               - (static_cast<double>(std::abs(selected_entry))
-                  / static_cast<double>(MAX_HISTORY))));
+               - std::abs(static_cast<double>(std::abs(selected_entry))
+                          / static_cast<double>(is_malus ? MIN_HISTORY
+                                                         : MAX_HISTORY))));
 
     // Select whether the bonus is applied as a penalty or not at compile-time.
-    if constexpr (is_malus) { selected_entry -= gravitized_bonus; }
+    if constexpr (is_malus) { selected_entry -= gravitized_change; }
     else
     {
-        selected_entry += gravitized_bonus;
+        selected_entry += gravitized_change;
     }
 }
 
 template <bool is_malus>
-void Capture_History_Table::gravity_update(const Chess_Move&          move,
-                                           History_Score_Storage_Type bonus)
+void Capture_History_Table::gravity_update(
+    const Chess_Move&                move,
+    const History_Score_Storage_Type change)
 {
     auto& selected_entry = m_table[move.moving_piece][move.destination_square]
                                   [move.captured_piece];
 
     // Clamp the bonus before gravity is applied.
-    const History_Score_Storage_Type clamped_bonus =
-        std::clamp(bonus, MIN_CAPTURE_HISTORY_BONUS, MAX_CAPTURE_HISTORY_BONUS);
+    const History_Score_Storage_Type clamped_change =
+        std::clamp(change,
+                   MIN_CAPTURE_HISTORY_BONUS,
+                   MAX_CAPTURE_HISTORY_BONUS);
 
     // History gravity is simply the closer you are to the max history value,
     // the more the update is saturated.
-    const History_Score_Storage_Type gravitized_bonus =
+    const History_Score_Storage_Type gravitized_change =
         static_cast<History_Score_Storage_Type>(
-            static_cast<double>(clamped_bonus)
+            static_cast<double>(clamped_change)
             * (1.0
-               - (static_cast<double>(std::abs(selected_entry))
-                  / static_cast<double>(MAX_HISTORY))));
+               - std::abs(static_cast<double>(std::abs(selected_entry))
+                          / static_cast<double>(is_malus ? MIN_HISTORY
+                                                         : MAX_HISTORY))));
 
     // Select whether the bonus is applied as a penalty or not at compile-time.
-    if constexpr (is_malus) { selected_entry -= gravitized_bonus; }
+    if constexpr (is_malus) { selected_entry -= gravitized_change; }
     else
     {
-        selected_entry += gravitized_bonus;
+        selected_entry += gravitized_change;
     }
 }
 
@@ -210,6 +223,33 @@ void Quiet_Continuation_History_Stack<STACK_SIZE>::bind_to_history_table(
 }
 
 template <std::size_t STACK_SIZE>
+History_Score_Storage_Type
+Quiet_Continuation_History_Stack<STACK_SIZE>::get_score(
+    const Chess_Move& move) const
+{
+    const std::size_t ply = stack.size();
+
+    const int64_t start = static_cast<int64_t>(ply) - 1;
+    const int64_t end   = (ply < QUIET_CONTINUATION_HISTORY_LOOKBACK_DEPTH)
+                            ? 0
+                            : static_cast<int64_t>(ply)
+                                - static_cast<int64_t>(
+                                    QUIET_CONTINUATION_HISTORY_LOOKBACK_DEPTH);
+
+    History_Score_Storage_Type score = 0;
+    if ((start >= 0) && (end >= 0))
+    {
+        for (int64_t i = start; i >= end; --i)
+        {
+            const auto& hist_table  = stack[static_cast<std::size_t>(i)];
+            score                  += hist_table.get_ref()[move];
+        }
+    }
+
+    return score;
+}
+
+template <std::size_t STACK_SIZE>
 Capture_Continuation_History_Stack<
     STACK_SIZE>::Capture_Continuation_History_Stack()
 {
@@ -221,4 +261,32 @@ void Capture_Continuation_History_Stack<STACK_SIZE>::bind_to_history_table(
     const std::size_t      index)
 {
     stack[index] = table;
+}
+
+template <std::size_t STACK_SIZE>
+History_Score_Storage_Type
+Capture_Continuation_History_Stack<STACK_SIZE>::get_score(
+    const Chess_Move& move) const
+{
+    const std::size_t ply = stack.size();
+
+    const int64_t start = static_cast<int64_t>(ply) - 1;
+    const int64_t end =
+        (ply < CAPTURE_CONTINUATION_HISTORY_LOOKBACK_DEPTH)
+            ? 0
+            : static_cast<int64_t>(ply)
+                  - static_cast<int64_t>(
+                      CAPTURE_CONTINUATION_HISTORY_LOOKBACK_DEPTH);
+
+    History_Score_Storage_Type score = 0;
+    if ((start >= 0) && (end >= 0))
+    {
+        for (int64_t i = start; i >= end; --i)
+        {
+            const auto& hist_table  = stack[static_cast<std::size_t>(i)];
+            score                  += hist_table.get_ref()[move];
+        }
+    }
+
+    return score;
 }
