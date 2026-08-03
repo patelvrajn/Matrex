@@ -190,6 +190,7 @@ class Search_Engine
         const Chess_Move&               move,
         const uint16_t                  ply,
         const uint32_t                  depth_squared,
+        const uint16_t                  depth,
         const Move_Generation_List&     captures_to_malus);
 
     inline bool should_do_move_loop_pruning(const Score best_score,
@@ -386,7 +387,7 @@ inline bool Search_Engine::should_do_capture_history_pruning(
     const uint16_t                        depth)
 {
     return ((c_cont_hist_stack.get_score(move)
-             <= (CAPTURE_HISTORY_PRUNING_THRESHOLD * depth))
+             <= (((8 * depth) + 12) * -1))
             && move.is_capture
             && should_do_move_loop_pruning(best_score,
                                            is_side_to_move_in_check,

@@ -441,6 +441,7 @@ Search_Engine::negamax(Chess_Board&                    position,
                                     beta_cutoff_move,
                                     ply,
                                     depth_squared,
+                                    depth,
                                     captures_to_malus);
     }
 
@@ -807,6 +808,7 @@ void Search_Engine::update_continuation_history(
     const Chess_Move&               move,
     const uint16_t                  ply,
     const uint32_t                  depth_squared,
+    const uint16_t                  depth,
     const Move_Generation_List&     captures_to_malus)
 {
     if (move.is_same_move(Chess_Move())) { return; }
@@ -830,14 +832,14 @@ void Search_Engine::update_continuation_history(
     {
         // Give a bonus to this move pair (preceeding move, given move).
         auto& entry = c_cont_hist_stack.stack[static_cast<std::size_t>(i)];
-        entry.get_ref().gravity_update<BONUS>(move, (depth_squared >> 2));
+        entry.get_ref().gravity_update<BONUS>(move, ((8 * depth_squared) + (16 * depth)));
 
         // Malus all move pairs for the given move that didn't cause a beta
         // cutoff.
         for (const Chess_Move& malus_move : captures_to_malus)
         {
             entry.get_ref().gravity_update<MALUS>(malus_move,
-                                                  (depth_squared >> 3));
+                                                  ((4 * depth_squared) + (8 * depth)));
         }
     }
 }
