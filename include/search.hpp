@@ -126,6 +126,16 @@ class Search_Engine
     Capture_Continuation_History_Table m_c_cont_hist_table;
     Search_Capture_Cont_Hist_Stack     m_c_cont_hist_stack;
 
+    constexpr static Multi_Array<Matrex_FP_Int,
+                                 (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
+        FUTILITY_PRUNING_MATERIAL_WEIGHTS = {
+            Matrex_FP_Int::from_integer(100), // PAWN
+            Matrex_FP_Int::from_integer(300), // KNIGHT
+            Matrex_FP_Int::from_integer(350), // BISHOP
+            Matrex_FP_Int::from_integer(500), // ROOK
+            Matrex_FP_Int::from_integer(900)  // QUEEN
+    };
+
     Search_Engine_Result
     negamax(Chess_Board&                    position,
             uint16_t                        depth,
@@ -223,12 +233,20 @@ class Search_Engine
         const uint16_t                        depth);
 
     inline bool
-    should_do_futility_pruning(const Chess_Move& move,
-                               const Score       best_score,
-                               const bool        is_side_to_move_in_check,
-                               const Score       futility_pruning_threshold,
-                               const Score       alpha,
-                               const bool        is_first_move);
+    should_do_quiet_futility_pruning(const Chess_Move& move,
+                                     const Score       best_score,
+                                     const bool        is_side_to_move_in_check,
+                                     const Score futility_pruning_threshold,
+                                     const Score alpha,
+                                     const bool  is_first_move);
+
+    inline bool
+    should_do_capture_futility_pruning(const Chess_Move& move,
+                                       const Score       best_score,
+                                       const bool  is_side_to_move_in_check,
+                                       const Score futility_pruning_threshold,
+                                       const Score alpha,
+                                       const bool  is_first_move);
 };
 
 inline uint64_t Search_Engine::get_node_count()
@@ -401,7 +419,7 @@ inline bool Search_Engine::should_do_capture_history_pruning(
                                            is_first_move));
 }
 
-inline bool Search_Engine::should_do_futility_pruning(
+inline bool Search_Engine::should_do_quiet_futility_pruning(
     const Chess_Move& move,
     const Score       best_score,
     const bool        is_side_to_move_in_check,
@@ -414,4 +432,18 @@ inline bool Search_Engine::should_do_futility_pruning(
                                            is_side_to_move_in_check,
                                            is_first_move)
             && (move.is_quiet_move()));
+}
+
+inline bool Search_Engine::should_do_capture_futility_pruning(
+    const Chess_Move& move,
+    const Score       best_score,
+    const bool        is_side_to_move_in_check,
+    const Score       futility_pruning_threshold,
+    const Score       alpha,
+    const bool        is_first_move)
+{
+    return (move.is_capture && (futility_pruning_threshold <= alpha)
+            && should_do_move_loop_pruning(best_score,
+                                           is_side_to_move_in_check,
+                                           is_first_move));
 }
