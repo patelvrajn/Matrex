@@ -205,8 +205,18 @@ Search_Engine::negamax(Chess_Board&                    position,
                       moving_side_matrix,
                       opposing_side_matrix);
 
-    // Static evaluation for correction history.
     const Score static_evaluation = e.evaluate(m_correction_history);
+
+    // const Matrex_FP_Int fp_reverse_futility_pruning_margin =
+    //     Matrex_FP_Int::from_integer((2 * depth_squared) + (32 * depth) + 16);
+    // const Score reverse_futility_pruning_margin =
+    //     Score(fp_reverse_futility_pruning_margin);
+    // const Score reverse_futility_threshold =
+    //     static_evaluation - reverse_futility_pruning_margin;
+    // if (should_do_reverse_futility_pruning(is_side_to_move_in_check, reverse_futility_threshold, beta))
+    // {
+    //     return {Chess_Move(), reverse_futility_threshold};
+    // }
 
     Principal_Variation_List child_principal_variation;
     Chess_Move               best_move        = Chess_Move();

@@ -247,6 +247,12 @@ class Search_Engine
                                        const Score futility_pruning_threshold,
                                        const Score alpha,
                                        const bool  is_first_move);
+
+    inline bool should_do_reverse_futility_pruning(
+        const bool  is_side_to_move_in_check,
+        const Score evaluation_with_margin,
+        const Score beta);
+
 };
 
 inline uint64_t Search_Engine::get_node_count()
@@ -446,4 +452,12 @@ inline bool Search_Engine::should_do_capture_futility_pruning(
             && should_do_move_loop_pruning(best_score,
                                            is_side_to_move_in_check,
                                            is_first_move));
+}
+
+inline bool Search_Engine::should_do_reverse_futility_pruning(
+    const bool  is_side_to_move_in_check,
+    const Score evaluation_with_margin,
+    const Score beta)
+{
+    return ((evaluation_with_margin >= beta) && (!is_side_to_move_in_check));
 }
