@@ -169,52 +169,14 @@ void Move_Ordering<CONT_HIST_STACK_SIZE>::move_scorer()
         // score.
         if (move.is_quiet_move() && m_q_cont_hist_stack.has_ref())
         {
-            const std::size_t ply = m_q_cont_hist_stack.get_ref().stack.size();
-
-            const int64_t start = static_cast<int64_t>(ply) - 1;
-            const int64_t end =
-                (ply < QUIET_CONTINUATION_HISTORY_LOOKBACK_DEPTH)
-                    ? 0
-                    : static_cast<int64_t>(ply)
-                          - static_cast<int64_t>(
-                              QUIET_CONTINUATION_HISTORY_LOOKBACK_DEPTH);
-
-            if ((start >= 0) && (end >= 0))
-            {
-                for (int64_t i = start; i >= end; --i)
-                {
-                    const auto& hist_table =
-                        m_q_cont_hist_stack.get_ref()
-                            .stack[static_cast<std::size_t>(i)];
-                    move.score += hist_table.get_ref()[move];
-                }
-            }
+            move.score += m_q_cont_hist_stack.get_ref().get_score(move);
         }
 
         // For capture moves that induce a beta cutoff, apply continuation
         // history score.
         if (move.is_capture && m_c_cont_hist_stack.has_ref())
         {
-            const std::size_t ply = m_c_cont_hist_stack.get_ref().stack.size();
-
-            const int64_t start = static_cast<int64_t>(ply) - 1;
-            const int64_t end =
-                (ply < CAPTURE_CONTINUATION_HISTORY_LOOKBACK_DEPTH)
-                    ? 0
-                    : static_cast<int64_t>(ply)
-                          - static_cast<int64_t>(
-                              CAPTURE_CONTINUATION_HISTORY_LOOKBACK_DEPTH);
-
-            if ((start >= 0) && (end >= 0))
-            {
-                for (int64_t i = start; i >= end; --i)
-                {
-                    const auto& hist_table =
-                        m_c_cont_hist_stack.get_ref()
-                            .stack[static_cast<std::size_t>(i)];
-                    move.score += hist_table.get_ref()[move];
-                }
-            }
+            move.score += m_c_cont_hist_stack.get_ref().get_score(move);
         }
 
         // For the hash move, give it the maximum score to ensure it is sorted

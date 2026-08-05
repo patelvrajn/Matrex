@@ -58,20 +58,20 @@ class Non_Linear_Response
 
     Non_Linear_Response(const NLR_Parameters<T>& params);
 
-    T value(const T F) const;
+    FORCE_INLINE T value(const T F) const;
 
     T calculate_u(const T F) const;
 
     T calculate_function_M(const T x) const;
     T calculate_function_G(const T F) const;
     T calculate_function_H(const T F) const;
-    T calculate_function_S(const T F) const;
-    T calculate_function_P_plus(const T F) const;
-    T calculate_function_P_minus(const T F) const;
-    T calculate_function_P(const T F) const;
-    T calculate_function_B_plus(const T F) const;
-    T calculate_function_B_minus(const T F) const;
-    T calculate_function_B(const T F) const;
+    T calculate_function_S(const T F, const T m) const;
+    T calculate_function_P_plus(const T m) const;
+    T calculate_function_P_minus(const T m) const;
+    T calculate_function_P(const T F, const T m) const;
+    T calculate_function_B_plus(const T m) const;
+    T calculate_function_B_minus(const T m) const;
+    T calculate_function_B(const T F, const T m) const;
 
   private:
 
@@ -85,12 +85,15 @@ Non_Linear_Response<T>::Non_Linear_Response(const NLR_Parameters<T>& params) :
 }
 
 template <typename T>
-T Non_Linear_Response<T>::value(const T F) const
+FORCE_INLINE T Non_Linear_Response<T>::value(const T F) const
 {
+    const T u = calculate_u(F);
+    const T m = calculate_function_M(u);
+
     const T H = calculate_function_H(F);
-    const T S = calculate_function_S(F);
-    const T P = calculate_function_P(F);
-    const T B = calculate_function_B(F);
+    const T S = calculate_function_S(F, m);
+    const T P = calculate_function_P(F, m);
+    const T B = calculate_function_B(F, m);
 
     return (H * S * P * B);
 }
@@ -186,64 +189,58 @@ T Non_Linear_Response<T>::calculate_function_H(const T F) const
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_S(const T F) const
+T Non_Linear_Response<T>::calculate_function_S(const T F, const T m) const
 {
     const T u           = calculate_u(F);
     const T first_term  = m_parameters.z * u;
-    const T second_term = (1 - m_parameters.z) * calculate_function_M(u);
+    const T second_term = (1 - m_parameters.z) * m;
     return (first_term + second_term);
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_P_plus(const T F) const
+T Non_Linear_Response<T>::calculate_function_P_plus(const T m) const
 {
-    const T u    = calculate_u(F);
-    const T term = Matrex::pow(calculate_function_M(u), m_parameters.q_plus);
+    const T term = Matrex::pow(m, m_parameters.q_plus);
     return term;
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_P_minus(const T F) const
+T Non_Linear_Response<T>::calculate_function_P_minus(const T m) const
 {
-    const T u    = calculate_u(F);
-    const T term = Matrex::pow(calculate_function_M(u), m_parameters.q_minus);
+    const T term = Matrex::pow(m, m_parameters.q_minus);
     return term;
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_P(const T F) const
+T Non_Linear_Response<T>::calculate_function_P(const T F, const T m) const
 {
-    const T first_term = calculate_function_G(F) * calculate_function_P_plus(F);
-    const T second_term =
-        (1 - calculate_function_G(F)) * calculate_function_P_minus(F);
+    const T g = calculate_function_G(F);
+    const T first_term = g * calculate_function_P_plus(m);
+    const T second_term = (1 - g) * calculate_function_P_minus(m);
     return (first_term + second_term);
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_B_plus(const T F) const
+T Non_Linear_Response<T>::calculate_function_B_plus(const T m) const
 {
-    const T u = calculate_u(F);
-    const T v =
-        calculate_function_M(u) / calculate_function_M(m_parameters.g_plus);
+    const T v = m / calculate_function_M(m_parameters.g_plus);
     const T w = Matrex::pow(v, m_parameters.r_plus);
     return Matrex::tanh(w);
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_B_minus(const T F) const
+T Non_Linear_Response<T>::calculate_function_B_minus(const T m) const
 {
-    const T u = calculate_u(F);
-    const T v =
-        calculate_function_M(u) / calculate_function_M(m_parameters.g_minus);
+    const T v = m / calculate_function_M(m_parameters.g_minus);
     const T w = Matrex::pow(v, m_parameters.r_minus);
     return Matrex::tanh(w);
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_B(const T F) const
+T Non_Linear_Response<T>::calculate_function_B(const T F, const T m) const
 {
-    const T first_term = calculate_function_G(F) * calculate_function_B_plus(F);
-    const T second_term =
-        (1 - calculate_function_G(F)) * calculate_function_B_minus(F);
+    const T g = calculate_function_G(F);
+    const T first_term = g * calculate_function_B_plus(m);
+    const T second_term = (1 - g) * calculate_function_B_minus(m);
     return (first_term + second_term);
 }
