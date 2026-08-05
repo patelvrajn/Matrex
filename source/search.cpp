@@ -213,7 +213,9 @@ Search_Engine::negamax(Chess_Board&                    position,
     //     Score(fp_reverse_futility_pruning_margin);
     // const Score reverse_futility_threshold =
     //     static_evaluation - reverse_futility_pruning_margin;
-    // if (should_do_reverse_futility_pruning(is_side_to_move_in_check, reverse_futility_threshold, beta))
+    // if (should_do_reverse_futility_pruning(is_side_to_move_in_check,
+    //                                        reverse_futility_threshold,
+    //                                        beta))
     // {
     //     return {Chess_Move(), reverse_futility_threshold};
     // }

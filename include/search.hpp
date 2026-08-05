@@ -248,11 +248,10 @@ class Search_Engine
                                        const Score alpha,
                                        const bool  is_first_move);
 
-    inline bool should_do_reverse_futility_pruning(
-        const bool  is_side_to_move_in_check,
-        const Score evaluation_with_margin,
-        const Score beta);
-
+    inline bool
+    should_do_reverse_futility_pruning(const bool  is_side_to_move_in_check,
+                                       const Score evaluation_with_margin,
+                                       const Score beta);
 };
 
 inline uint64_t Search_Engine::get_node_count()
