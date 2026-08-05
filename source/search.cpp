@@ -683,13 +683,31 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
 {
     Aspiration_Window current_window = window;
 
-    Matrex_FP_Int accumulated_std_dev = Matrex_FP_Int::from_double(0.5);
+    Welford leaf_scores_welford;
+ 
+    constexpr Matrex_FP_Int DEFAULT_WINDOW_WIDTH = Matrex_FP_Int::from_double(50.0);
+    
+    const Matrex_FP_Int last_depth_score = window.search_result.second.to_fixed_point();
+
+    const Matrex_FP_Int depth_sqrt = Matrex::sqrt(Matrex_FP_Int::from_integer(static_cast<Fixed_Point_Int_Storage_Type>(m_current_search_depth)));
+
+    auto calculate_delta = [&]() 
+    {
+        if (current_window.root_score_error.get_count() <= 1)
+        {
+            return DEFAULT_WINDOW_WIDTH;
+        }
+        else
+        {
+            return (CONFIDENCE_INTERVAL_Z_SCORE * current_window.root_score_error.get_standard_deviation());
+        }
+    };
+
+    Matrex_FP_Int retry_delta = calculate_delta();
 
     bool done = false;
     while (!done)
     {
-        Welford leaf_scores_welford;
-
         Search_Engine_Result result = negamax(m_chess_board,
                                               m_current_search_depth,
                                               leaf_scores_welford,
@@ -701,64 +719,40 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
 
         current_window.search_result = result;
 
-        // Time has expired, break out of the aspiration window loop leaving the
-        // principal variation from the previous iterative deepening loop the
-        // same because we didn't complete a search with estimated bounds (i.e.
-        // the aspiration window) so we don't have complete information as to
-        // whether the best move was within the window (remember best score is
-        // not updated at the same time as best move e.g. on a beta cutoff the
-        // best score is updated but not the best move).
         if (m_timer_expired_during_search) { break; }
 
-        // If there is only one or less leaf, just copy the search result and PV
-        // (its the only PV possible) and exit the function.
         if (leaf_scores_welford.get_count() <= 1)
         {
-            window = current_window;
-            return;
+            retry_delta *= 1.25;
         }
-
-        if (!current_window.is_result_in_window())
+        else 
         {
-            accumulated_std_dev += Matrex_FP_Int::from_double(0.65)
-                                 * leaf_scores_welford.get_standard_deviation();
+            retry_delta *= leaf_scores_welford.get_standard_deviation();
         }
 
-        // Calculate the delta which is based on the concept of confidence
-        // intervals. Note, that instead of standard error we use the standard
-        // deviation as we are more interested in the dispersion of the scores
-        // than how far the sample mean is from the population mean.
-        const Matrex_FP_Int delta_width =
-            (Matrex_FP_Int::from_integer(64)
-             + (Matrex_FP_Int::from_integer(128)
-                / Matrex::sqrt(Matrex_FP_Int::from_integer(
-                    static_cast<Fixed_Point_Int_Storage_Type>(
-                        m_current_search_depth)))));
-        const Matrex_FP_Int delta =
-            (CONFIDENCE_INTERVAL_Z_SCORE * accumulated_std_dev * delta_width);
-
-        std::cout
-            << "Current iteration's evaluation: "
-            << current_window.search_result.second.to_fixed_point().to_double()
-            << std::endl;
-        std::cout << "Current iteration's alpha: "
-                  << current_window.alpha.to_fixed_point().to_double()
-                  << std::endl;
-        std::cout << "Current iteration's beta: "
-                  << current_window.beta.to_fixed_point().to_double()
-                  << std::endl;
-        std::cout << "Current iteration's window result: "
-                  << (current_window.is_fail_low()    ? "FAIL LOW"
-                      : current_window.is_fail_high() ? "FAIL HIGH"
-                                                      : "EXACT")
-                  << std::endl;
-        std::cout << "Current iteration's accumulated standard deviation: "
-                  << accumulated_std_dev.to_double() << std::endl;
-        std::cout << "Current iteration's delta: " << delta.to_double()
-                  << std::endl;
+        // std::cout
+        //     << "Current iteration's evaluation: "
+        //     << current_window.search_result.second.to_fixed_point().to_double()
+        //     << std::endl;
+        // std::cout << "Current iteration's alpha: "
+        //           << current_window.alpha.to_fixed_point().to_double()
+        //           << std::endl;
+        // std::cout << "Current iteration's beta: "
+        //           << current_window.beta.to_fixed_point().to_double()
+        //           << std::endl;
+        // std::cout << "Current iteration's window result: "
+        //           << (current_window.is_fail_low()    ? "FAIL LOW"
+        //               : current_window.is_fail_high() ? "FAIL HIGH"
+        //                                               : "EXACT")
+        //           << std::endl;
+        // std::cout << "Retry delta: " << retry_delta.to_double() << std::endl;
 
         if (current_window.is_result_in_window())
         {
+            current_window.root_score_error += (last_depth_score - current_window.search_result.second.to_fixed_point());
+
+            const Matrex_FP_Int delta = calculate_delta();
+
             // The result was inside the window, create a window of finite width
             // around the updated score using the delta calculated.
             const Matrex_FP_Int fp_alpha = Matrex_FP_Int::adjustable_clamp(
@@ -783,26 +777,18 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
             // window.
             if (current_window.is_fail_low())
             {
-                const Matrex_FP_Int alpha_delta =
-                    (current_window.is_fail_low())
-                        ? delta
-                        : Matrex_FP_Int::from_value(0);
                 const Matrex_FP_Int fp_alpha = Matrex_FP_Int::adjustable_clamp(
                     (current_window.search_result.second.to_fixed_point()
-                     - alpha_delta),
+                     - retry_delta),
                     Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
                     Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
                 current_window.alpha = Score(fp_alpha);
             }
             else if (current_window.is_fail_high())
             {
-                const Matrex_FP_Int beta_delta =
-                    (current_window.is_fail_high())
-                        ? delta
-                        : Matrex_FP_Int::from_value(0);
                 const Matrex_FP_Int fp_beta = Matrex_FP_Int::adjustable_clamp(
                     (current_window.search_result.second.to_fixed_point()
-                     + beta_delta),
+                     + retry_delta),
                     Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
                     Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
                 current_window.beta = Score(fp_beta);
@@ -825,7 +811,8 @@ Search_Engine_Result Search_Engine::iterative_deepening()
     Aspiration_Window window = {
         {Chess_Move(), Score(0)},
         Score(FP_NEGATIVE_INFINITY),
-        Score(FP_POSITIVE_INFINITY)
+        Score(FP_POSITIVE_INFINITY),
+        Welford()
     };
 
     for (uint16_t current_depth = 1; current_depth < MAX_SEARCH_DEPTH;

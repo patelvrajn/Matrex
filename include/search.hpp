@@ -87,19 +87,6 @@ struct UCI_Search_Information
 
 typedef std::pair<Chess_Move, Score> Search_Engine_Result;
 
-struct Aspiration_Window
-{
-    Search_Engine_Result search_result;
-    Score                alpha;
-    Score                beta;
-
-    bool is_fail_low() { return (search_result.second <= alpha); }
-
-    bool is_fail_high() { return (search_result.second >= beta); }
-
-    bool is_result_in_window() { return (!(is_fail_low() || is_fail_high())); }
-};
-
 // =============================================================================
 // Abstraction of Welford's online algorithm. Calculates the average of added
 // values using the rolling average formula (which is derived from the
@@ -151,6 +138,20 @@ class Welford
     Fixed_Point_Int_Storage_Type m_count;
     Matrex_FP_Int                m_mean;
     Matrex_FP_Int                m_squared_differences_sum;
+};
+
+struct Aspiration_Window
+{
+    Search_Engine_Result search_result;
+    Score                alpha;
+    Score                beta;
+    Welford              root_score_error;
+
+    bool is_fail_low() { return (search_result.second <= alpha); }
+
+    bool is_fail_high() { return (search_result.second >= beta); }
+
+    bool is_result_in_window() { return (!(is_fail_low() || is_fail_high())); }
 };
 
 using Search_Quiet_Cont_Hist_Stack =
