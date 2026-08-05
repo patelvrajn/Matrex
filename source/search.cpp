@@ -205,8 +205,20 @@ Search_Engine::negamax(Chess_Board&                    position,
                       moving_side_matrix,
                       opposing_side_matrix);
 
-    // Static evaluation for correction history.
     const Score static_evaluation = e.evaluate(m_correction_history);
+
+    // const Matrex_FP_Int fp_reverse_futility_pruning_margin =
+    //     Matrex_FP_Int::from_integer((2 * depth_squared) + (32 * depth) + 16);
+    // const Score reverse_futility_pruning_margin =
+    //     Score(fp_reverse_futility_pruning_margin);
+    // const Score reverse_futility_threshold =
+    //     static_evaluation - reverse_futility_pruning_margin;
+    // if (should_do_reverse_futility_pruning(is_side_to_move_in_check,
+    //                                        reverse_futility_threshold,
+    //                                        beta))
+    // {
+    //     return {Chess_Move(), reverse_futility_threshold};
+    // }
 
     Principal_Variation_List child_principal_variation;
     Chess_Move               best_move        = Chess_Move();
@@ -234,6 +246,27 @@ Search_Engine::negamax(Chess_Board&                    position,
             {
                 continue;
             }
+        }
+
+        // Futility pruning - we have a large enough margin from alpha that
+        // evaluating this branch is futile. The margin is determined by depth
+        // and a fixed scaler because the more moves you have from the leaf the
+        // larger the deficit we can overcome.
+        const Matrex_FP_Int fp_quiet_futility_pruning_margin =
+            Matrex_FP_Int::from_integer((depth_squared * 20) + 25);
+        const Score quiet_futility_pruning_margin =
+            Score(fp_quiet_futility_pruning_margin);
+        const Score quiet_futility_threshold =
+            static_evaluation + quiet_futility_pruning_margin;
+        if (should_do_quiet_futility_pruning(move,
+                                             best_score,
+                                             is_side_to_move_in_check,
+                                             quiet_futility_threshold,
+                                             alpha,
+                                             is_first_move))
+        {
+            best_score = std::max(best_score, quiet_futility_threshold);
+            continue;
         }
 
         if (should_do_quiet_history_pruning(q_cont_hist_stack,
@@ -822,14 +855,17 @@ void Search_Engine::update_continuation_history(
     {
         // Give a bonus to this move pair (preceeding move, given move).
         auto& entry = c_cont_hist_stack.stack[static_cast<std::size_t>(i)];
-        entry.get_ref().gravity_update<BONUS>(move, ((8 * depth_squared) + (16 * depth)));
+        entry.get_ref().gravity_update<BONUS>(
+            move,
+            ((8 * depth_squared) + (16 * depth)));
 
         // Malus all move pairs for the given move that didn't cause a beta
         // cutoff.
         for (const Chess_Move& malus_move : captures_to_malus)
         {
-            entry.get_ref().gravity_update<MALUS>(malus_move,
-                                                  ((4 * depth_squared) + (8 * depth)));
+            entry.get_ref().gravity_update<MALUS>(
+                malus_move,
+                ((4 * depth_squared) + (8 * depth)));
         }
     }
 }
