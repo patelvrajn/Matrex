@@ -744,11 +744,9 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
 
     Welford leaf_scores_welford;
  
-    constexpr Matrex_FP_Int DEFAULT_WINDOW_WIDTH = Matrex_FP_Int::from_double(50.0);
+    constexpr Matrex_FP_Int DEFAULT_WINDOW_WIDTH = Matrex_FP_Int::from_double(100.0);
     
     const Matrex_FP_Int last_depth_score = window.search_result.second.to_fixed_point();
-
-    const Matrex_FP_Int depth_sqrt = Matrex::sqrt(Matrex_FP_Int::from_integer(static_cast<Fixed_Point_Int_Storage_Type>(m_current_search_depth)));
 
     auto calculate_delta = [&]() 
     {
@@ -758,11 +756,13 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
         }
         else
         {
-            return (CONFIDENCE_INTERVAL_Z_SCORE * current_window.root_score_error.get_standard_deviation());
+            return std::max(DEFAULT_WINDOW_WIDTH, (CONFIDENCE_INTERVAL_Z_SCORE * current_window.root_score_error.get_standard_deviation()));
         }
     };
 
     Matrex_FP_Int retry_delta = calculate_delta();
+
+    // std::cout << "Initial retry delta is: " << retry_delta.to_double() << std::endl;
 
     bool done = false;
     while (!done)
@@ -780,14 +780,7 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
 
         if (m_timer_expired_during_search) { break; }
 
-        if (leaf_scores_welford.get_count() <= 1)
-        {
-            retry_delta *= 1.25;
-        }
-        else 
-        {
-            retry_delta *= leaf_scores_welford.get_standard_deviation();
-        }
+        retry_delta *= 1.34;
 
         // std::cout
         //     << "Current iteration's evaluation: "
@@ -881,9 +874,6 @@ Search_Engine_Result Search_Engine::iterative_deepening()
 
         aspiration_windows(window);
 
-        // Time has expired, break out of the iterative deepening loop.
-        if (m_timer_expired_during_search) { break; }
-
         best = window.search_result;
 
         uint64_t current_time = m_timer.elapsed();
@@ -896,6 +886,9 @@ Search_Engine_Result Search_Engine::iterative_deepening()
             window.search_result.second);
 
         std::cout << uci_search_info << std::endl;
+
+        // Time has expired, break out of the iterative deepening loop.
+        if (m_timer_expired_during_search) { break; }
 
         if ((m_constraints.is_depth_search())
             && (current_depth == m_constraints.depth))
