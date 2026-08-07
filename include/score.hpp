@@ -74,11 +74,11 @@ class Score
     Matrex_FP_Int                to_fixed_point() const;
     static Score                 from_int(Fixed_Point_Int_Storage_Type i);
 
-    bool     is_mating_score() const;
-    uint16_t mate_in() const;
-    bool     is_friendly_mate() const;
-    bool     is_enemy_mate() const;
-    bool     is_checkmate() const;
+    bool      is_mating_score() const;
+    Depth_Int mate_in() const;
+    bool      is_friendly_mate() const;
+    bool      is_enemy_mate() const;
+    bool      is_checkmate() const;
 
     bool is_draw() const;
 

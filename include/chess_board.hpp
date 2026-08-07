@@ -29,8 +29,8 @@ struct Chess_Board_State
     // Record-keeping for hash history so that if the half-move clock resets in
     // make move we still have a hash history to restore on undo move. Both are
     // only 7 bits long because the maximum size of the hash history is 100 ply.
-    uint16_t hash_history_start  : 7;
-    uint16_t hash_history_length : 7;
+    Depth_Int hash_history_start  : 7;
+    Depth_Int hash_history_length : 7;
 
     Multi_Array<Castling_Rooks, NUM_OF_PLAYERS> castling_rooks;
 

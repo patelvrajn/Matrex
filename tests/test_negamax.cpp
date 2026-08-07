@@ -29,7 +29,7 @@ TEST(negamax, DISABLED_mating)
     for (uint8_t fen_idx = 0; fen_idx < 3; ++fen_idx)
     {
         cb.set_from_fen(std::string(FENS[fen_idx]));
-        const uint16_t distance_to_mate = (NUM_OF_PLAYERS * fen_idx);
+        const Depth_Int distance_to_mate = (NUM_OF_PLAYERS * fen_idx);
         const Search_Engine_Result search_result =
             search_engine.search(cb, constraints);
         if (fen_idx == 0)

@@ -52,6 +52,50 @@ constexpr uint64_t CACHE_LINE_SIZE =
 #define SIZE_OF_IN_BITS(obj) (sizeof((obj)) << 3)
 
 // =============================================================================
+// Dynamically Sized Integer Type
+// =============================================================================
+template <auto value, auto min_value, auto max_value>
+constexpr bool is_bounded_between()
+{
+    return ((value >= min_value) && (value <= max_value));
+}
+
+template <auto min_value, auto max_value, bool is_signed>
+constexpr std::size_t num_of_bits_to_represent()
+{
+    constexpr std::size_t signed_bit = is_signed ? 1 : 0;
+    constexpr std::size_t log2_max = std::log2(std::bit_ceil(static_cast<uint64_t>(max_value))) + signed_bit;
+    constexpr std::size_t log2_min = std::log2(std::bit_ceil(static_cast<uint64_t>(std::abs(min_value)))) + signed_bit;
+
+    constexpr std::size_t num_of_bits = std::max(log2_max, log2_min);
+
+    static_assert(is_bounded_between<num_of_bits, 0, 64>(), "Cannot represent the given numerical range with 64 bits or less.");
+
+    return num_of_bits;
+}
+
+template <auto min_value,
+          auto max_value,
+          bool is_signed>
+using Dynamically_Sized_Int =
+    
+    std::conditional_t<is_bounded_between<num_of_bits_to_represent<min_value, max_value, is_signed>(), 0, 8 >(),
+        std::conditional_t<is_signed, std::int8_t, std::uint8_t>,
+
+    std::conditional_t<is_bounded_between<num_of_bits_to_represent<min_value, max_value, is_signed>(), 9, 16>(),
+        std::conditional_t<is_signed, std::int16_t, std::uint16_t>,
+
+    std::conditional_t<is_bounded_between<num_of_bits_to_represent<min_value, max_value, is_signed>(), 17, 32>(),
+        std::conditional_t<is_signed, std::int32_t, std::uint32_t>,
+
+    std::conditional_t<is_bounded_between<num_of_bits_to_represent<min_value, max_value, is_signed>(), 33, 64>(),
+        std::conditional_t<is_signed, std::int64_t, std::uint64_t>,
+
+    void
+
+>>>>;
+
+// =============================================================================
 // Essential Chess-Related Entities
 // =============================================================================
 constexpr uint8_t NUM_OF_PLAYERS = 2;
@@ -219,6 +263,17 @@ enum DIRECTION : int8_t
             std::abort();                                                      \
         }
 #endif
+
+// =============================================================================
+// Global Constants
+// =============================================================================
+// 5898.5 is the theoritical maximum number of moves (2-ply) in a chess game.
+constexpr int16_t MAX_SEARCH_DEPTH = (5899 * NUM_OF_PLAYERS);
+
+// =============================================================================
+// Globally Types
+// =============================================================================
+using Depth_Int = Dynamically_Sized_Int<(-1 * MAX_SEARCH_DEPTH), MAX_SEARCH_DEPTH, true>;
 
 // =============================================================================
 // Multi_Array Implementation

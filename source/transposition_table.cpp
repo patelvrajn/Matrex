@@ -32,7 +32,7 @@ uint64_t Transposition_Table::get_lemire_index(const Zobrist_Hash& hash) const
 }
 
 bool Transposition_Table::is_priority_entry(
-    const uint16_t                   max_depth,
+    const Depth_Int                  max_depth,
     const Transposition_Table_Entry& entry) const
 {
     if (max_depth <= TRANSPOSITION_TABLE_DEPTH_THRESHOLD)
@@ -49,7 +49,7 @@ bool Transposition_Table::is_priority_entry(
 }
 
 void Transposition_Table::promotion_to_protected_segment(
-    const uint16_t                   max_depth,
+    const Depth_Int                  max_depth,
     const uint64_t                   index,
     const Transposition_Table_Entry& entry)
 {
@@ -87,7 +87,7 @@ bool Transposition_Table::should_replace_matched_entry(
 template <bool is_read>
 void Transposition_Table::make_mate_score_relative_to_node(
     Transposition_Table_Entry& entry,
-    const uint16_t             node_ply) const
+    const Depth_Int            node_ply) const
 {
     if (!entry.score.is_mating_score()) { return; }
 
@@ -118,8 +118,8 @@ void Transposition_Table::make_mate_score_relative_to_node(
     }
 }
 
-bool Transposition_Table::read(const uint16_t             max_depth,
-                               const uint16_t             ply,
+bool Transposition_Table::read(const Depth_Int            max_depth,
+                               const Depth_Int            ply,
                                const Zobrist_Hash&        hash,
                                Transposition_Table_Entry& output)
 {
@@ -208,8 +208,8 @@ bool Transposition_Table::read(const uint16_t             max_depth,
     return false;
 }
 
-void Transposition_Table::write(const uint16_t             max_depth,
-                                const uint16_t             ply,
+void Transposition_Table::write(const Depth_Int            max_depth,
+                                const Depth_Int            ply,
                                 const Zobrist_Hash&        hash,
                                 Transposition_Table_Entry& entry)
 {

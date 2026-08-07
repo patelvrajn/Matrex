@@ -58,7 +58,7 @@ class Correction_History_Tables
     void clear();
 
     void update(const Chess_Board& position,
-                const uint16_t     depth,
+                const Depth_Int    depth,
                 const Score        search_score,
                 const Score        static_evaluation);
 
@@ -98,7 +98,7 @@ void Correction_History_Tables<size>::clear()
 
 template <std::size_t size>
 void Correction_History_Tables<size>::update(const Chess_Board& position,
-                                             const uint16_t     depth,
+                                             const Depth_Int    depth,
                                              const Score        search_score,
                                              const Score static_evaluation)
 {

@@ -42,11 +42,11 @@ Search_Engine::search(const Chess_Board&        cb,
 
 Search_Engine_Result
 Search_Engine::negamax(Chess_Board&                    position,
-                       uint16_t                        depth,
+                       Depth_Int                       depth,
                        Principal_Variation_List&       principal_variation,
                        Search_Quiet_Cont_Hist_Stack&   q_cont_hist_stack,
                        Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
-                       uint16_t                        ply,
+                       Depth_Int                       ply,
                        Score                           alpha,
                        Score                           beta)
 {
@@ -501,7 +501,7 @@ Search_Engine::negamax(Chess_Board&                    position,
 //    check.
 //    3. There is no depth limit.
 Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
-                                               uint16_t     ply,
+                                               Depth_Int    ply,
                                                Score        alpha,
                                                Score        beta)
 {
@@ -735,7 +735,7 @@ Search_Engine_Result Search_Engine::iterative_deepening()
     // Iteratively increment the negamax search depth and start the
     // search timer.
     m_timer.start();
-    for (uint16_t current_depth = 1; current_depth < MAX_SEARCH_DEPTH;
+    for (Depth_Int current_depth = 1; current_depth < MAX_SEARCH_DEPTH;
          ++current_depth)
     {
         m_current_search_depth = current_depth;
@@ -788,7 +788,7 @@ const Transposition_Table_Statistics& Search_Engine::get_tt_statistics() const
 void Search_Engine::update_continuation_history(
     Search_Quiet_Cont_Hist_Stack& q_cont_hist_stack,
     const Chess_Move&             move,
-    const uint16_t                ply,
+    const Depth_Int               ply,
     const uint32_t                depth_squared,
     const Move_Generation_List&   quiets_to_malus)
 {
@@ -829,9 +829,9 @@ void Search_Engine::update_continuation_history(
 void Search_Engine::update_continuation_history(
     Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
     const Chess_Move&               move,
-    const uint16_t                  ply,
+    const Depth_Int                 ply,
     const uint32_t                  depth_squared,
-    const uint16_t                  depth,
+    const Depth_Int                 depth,
     const Move_Generation_List&     captures_to_malus)
 {
     if (move.is_same_move(Chess_Move())) { return; }

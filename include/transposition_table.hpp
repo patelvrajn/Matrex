@@ -108,7 +108,7 @@ constexpr uint64_t PARTIAL_ZOBRIST_MASK = 0xFFFF;
 constexpr uint8_t TT_PROTECTED_CLUSTER_SIZE    = 4;
 constexpr uint8_t TT_PROBATIONARY_CLUSTER_SIZE = 4;
 
-constexpr uint16_t TRANSPOSITION_TABLE_DEPTH_THRESHOLD = 2;
+constexpr Depth_Int TRANSPOSITION_TABLE_DEPTH_THRESHOLD = 2;
 
 constexpr uint64_t DEFAULT_TRANSPOSITION_TABLE_SIZE = 128; // MiB
 
@@ -124,7 +124,7 @@ struct Transposition_Table_Entry
     Chess_Move       best_move;       // 12 bytes
     Score            score;           // 4 bytes
     uint16_t         partial_zobrist; // 2 bytes
-    uint16_t         depth;           // 2 bytes
+    Depth_Int        depth;           // 2 bytes
     Score_Bound_Type score_bound;     // 1 bytes
 };
 
@@ -181,13 +181,13 @@ class Transposition_Table
 
     FORCE_INLINE void prefetch(const Zobrist_Hash& hash);
 
-    bool read(const uint16_t             max_depth,
-              const uint16_t             ply,
+    bool read(const Depth_Int            max_depth,
+              const Depth_Int            ply,
               const Zobrist_Hash&        hash,
               Transposition_Table_Entry& output);
 
-    void write(const uint16_t             max_depth,
-               const uint16_t             ply,
+    void write(const Depth_Int            max_depth,
+               const Depth_Int            ply,
                const Zobrist_Hash&        hash,
                Transposition_Table_Entry& entry);
 
@@ -209,10 +209,10 @@ class Transposition_Table
 
     uint64_t get_lemire_index(const Zobrist_Hash& hash) const;
 
-    bool is_priority_entry(const uint16_t                   max_depth,
+    bool is_priority_entry(const Depth_Int                  max_depth,
                            const Transposition_Table_Entry& entry) const;
 
-    void promotion_to_protected_segment(const uint16_t max_depth,
+    void promotion_to_protected_segment(const Depth_Int max_depth,
                                         const uint64_t index,
                                         const Transposition_Table_Entry& entry);
 
@@ -222,7 +222,7 @@ class Transposition_Table
 
     template <bool is_read>
     void make_mate_score_relative_to_node(Transposition_Table_Entry& entry,
-                                          const uint16_t node_ply) const;
+                                          const Depth_Int node_ply) const;
 };
 
 FORCE_INLINE void Transposition_Table::prefetch(const Zobrist_Hash& hash)

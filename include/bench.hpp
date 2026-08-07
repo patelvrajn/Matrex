@@ -16,9 +16,9 @@ class Performance_Bench
 
     Performance_Bench() = default;
 
-    double bench_move_generation(const uint16_t depth);
+    double bench_move_generation(const Depth_Int depth);
 
-    double bench_search(const uint16_t depth);
+    double bench_search(const Depth_Int depth);
 
   private:
 

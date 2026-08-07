@@ -3,7 +3,7 @@
 #include "timer.hpp"
 #include "perft.hpp"
 
-double Performance_Bench::bench_move_generation(const uint16_t depth)
+double Performance_Bench::bench_move_generation(const Depth_Int depth)
 {
     uint64_t total_leaf_node_count = 0;
     uint64_t total_time            = 0;
@@ -33,7 +33,7 @@ double Performance_Bench::bench_move_generation(const uint16_t depth)
     return nps;
 }
 
-double Performance_Bench::bench_search(const uint16_t depth)
+double Performance_Bench::bench_search(const Depth_Int depth)
 {
     Search_Engine se;
 

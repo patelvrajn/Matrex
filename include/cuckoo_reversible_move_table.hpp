@@ -191,7 +191,7 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position,
     // If there is only 2 or less plies on the half move clock then the opponent
     // did not have an oppurtunity to play the reversible move so regardless of
     // the next move - we don't have an upcoming repetition.
-    constexpr uint16_t MINIMUM_PLY_FOR_UPCOMING_REPETITION = 3;
+    constexpr Depth_Int MINIMUM_PLY_FOR_UPCOMING_REPETITION = 3;
     if (hash_history_length < MINIMUM_PLY_FOR_UPCOMING_REPETITION)
     {
         return false;
@@ -201,8 +201,8 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position,
     // makes a move then black makes a move which leads to a unique position
     // regardless of the next move white makes (the opponent hasn't had a chance
     // to revert his move), it will not be a repetition.
-    MAYBE_UNUSED constexpr uint16_t MINIMUM_PLY_FOR_THREE_FOLD_REPETITION = 4;
-    uint8_t                         repetition_count                      = 0;
+    MAYBE_UNUSED constexpr Depth_Int MINIMUM_PLY_FOR_THREE_FOLD_REPETITION = 4;
+    uint8_t                         repetition_count                       = 0;
 
     // Its important to know that the opponent is the opponent relative to the
     // root position's side to move in the repetition stack.
@@ -217,7 +217,7 @@ Cuckoo_RM_Table::is_upcoming_repetition(const Chess_Board& position,
     // impact on the opponent's displacement and the opponent has already played
     // a move - so their displacement cannot be zero which is necessary for a
     // repeated position to occur).
-    for (uint16_t index = MINIMUM_PLY_FOR_UPCOMING_REPETITION;
+    for (Depth_Int index = MINIMUM_PLY_FOR_UPCOMING_REPETITION;
          index < hash_history_length;
          index += NUM_OF_PLAYERS)
     {
