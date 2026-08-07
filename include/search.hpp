@@ -24,8 +24,6 @@ constexpr std::size_t CORRECTION_HISTORY_TABLE_SIZE = 16384;
 constexpr History_Score_Storage_Type QUIET_HISTORY_PRUNING_THRESHOLD   = -50;
 constexpr History_Score_Storage_Type CAPTURE_HISTORY_PRUNING_THRESHOLD = -35;
 
-constexpr Depth_Int LATE_MOVE_DEPTH_REDUCTION = 1;
-
 struct Time_Control
 {
     uint64_t time_remaining; // Time in milliseconds.

@@ -231,6 +231,7 @@ Search_Engine::negamax(Chess_Board&                    position,
     Static_Exchange_Evaluator<int64_t> see(position);
 
     bool is_first_move = true;
+    uint8_t move_index = 0;
     for (const Chess_Move& move : moves)
     {
         // Static Exchange Evaluation Pruning (Captures Only)
@@ -326,8 +327,10 @@ Search_Engine::negamax(Chess_Board&                    position,
                                                best_score,
                                                is_side_to_move_in_check))
             {
+                const Depth_Int depth_reduction = std::clamp(static_cast<Depth_Int>((0.75 + (std::log(depth) * std::log(move_index))) / 2.25), static_cast<Depth_Int>(1), static_cast<Depth_Int>(4));
+
                 child_result = negamax(position,
-                                       (depth - 1 - LATE_MOVE_DEPTH_REDUCTION),
+                                       (depth - 1 - depth_reduction),
                                        child_principal_variation,
                                        q_cont_hist_stack,
                                        c_cont_hist_stack,
@@ -457,6 +460,7 @@ Search_Engine::negamax(Chess_Board&                    position,
         }
 
         is_first_move = false;
+        ++move_index;
     }
 
     // Correction History Update.
