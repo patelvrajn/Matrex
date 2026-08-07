@@ -213,7 +213,7 @@ class Transposition_Table
                            const Transposition_Table_Entry& entry) const;
 
     void promotion_to_protected_segment(const Depth_Int max_depth,
-                                        const uint64_t index,
+                                        const uint64_t  index,
                                         const Transposition_Table_Entry& entry);
 
     bool should_replace_matched_entry(

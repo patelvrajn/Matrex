@@ -21,10 +21,10 @@ struct Castling_Rooks
 
 struct Chess_Board_State
 {
-    PIECE_COLOR side_to_move     : 2; // Needs 2 bits because of NO_COLOR
-    ESQUARE     enpassant_square : 7; // Needs 7 bits because of NO_SQUARE
-    uint8_t     castling_rights  : 4;
-    uint8_t     half_move_clock  : 7; // Doesn't go past 100 so 7 bits.
+    PIECE_COLOR side_to_move      : 2; // Needs 2 bits because of NO_COLOR
+    ESQUARE     enpassant_square  : 7; // Needs 7 bits because of NO_SQUARE
+    uint8_t     castling_rights   : 4;
+    uint8_t     half_move_clock   : 7; // Doesn't go past 100 so 7 bits.
 
     // Record-keeping for hash history so that if the half-move clock resets in
     // make move we still have a hash history to restore on undo move. Both are

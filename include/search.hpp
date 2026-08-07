@@ -24,6 +24,8 @@ constexpr std::size_t CORRECTION_HISTORY_TABLE_SIZE = 16384;
 constexpr History_Score_Storage_Type QUIET_HISTORY_PRUNING_THRESHOLD   = -50;
 constexpr History_Score_Storage_Type CAPTURE_HISTORY_PRUNING_THRESHOLD = -35;
 
+constexpr Depth_Int LATE_MOVE_DEPTH_REDUCTION = 1;
+
 struct Time_Control
 {
     uint64_t time_remaining; // Time in milliseconds.
@@ -148,7 +150,7 @@ class Search_Engine
 
     template <std::size_t CONT_HIST_STACK_SIZE>
     inline Score get_mate_score(const Move_Ordering<CONT_HIST_STACK_SIZE>& mo,
-                                const Depth_Int                           ply);
+                                const Depth_Int                            ply);
 
     inline bool
     should_use_transposition_table_score(const bool      is_pv,
@@ -195,7 +197,7 @@ class Search_Engine
     void update_continuation_history(
         Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
         const Chess_Move&               move,
-        const Depth_Int ply,
+        const Depth_Int                 ply,
         const uint32_t                  depth_squared,
         const Depth_Int                 depth,
         const Move_Generation_List&     captures_to_malus);
@@ -249,6 +251,11 @@ class Search_Engine
     should_do_reverse_futility_pruning(const bool  is_side_to_move_in_check,
                                        const Score evaluation_with_margin,
                                        const Score beta);
+
+    inline bool
+    should_do_late_move_reductions(const Chess_Move& move,
+                                   const Score       best_score,
+                                   const bool        is_side_to_move_in_check);
 };
 
 inline uint64_t Search_Engine::get_node_count()
@@ -456,4 +463,13 @@ inline bool Search_Engine::should_do_reverse_futility_pruning(
     const Score beta)
 {
     return ((evaluation_with_margin >= beta) && (!is_side_to_move_in_check));
+}
+
+inline bool Search_Engine::should_do_late_move_reductions(
+    const Chess_Move& move,
+    const Score       best_score,
+    const bool        is_side_to_move_in_check)
+{
+    return (move.is_quiet_move() && (!is_side_to_move_in_check)
+            && (!best_score.is_enemy_mate()) && (move.score < 0));
 }

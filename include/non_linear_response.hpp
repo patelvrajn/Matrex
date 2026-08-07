@@ -214,8 +214,8 @@ T Non_Linear_Response<T>::calculate_function_P_minus(const T m) const
 template <typename T>
 T Non_Linear_Response<T>::calculate_function_P(const T F, const T m) const
 {
-    const T g = calculate_function_G(F);
-    const T first_term = g * calculate_function_P_plus(m);
+    const T g           = calculate_function_G(F);
+    const T first_term  = g * calculate_function_P_plus(m);
     const T second_term = (1 - g) * calculate_function_P_minus(m);
     return (first_term + second_term);
 }
@@ -239,8 +239,8 @@ T Non_Linear_Response<T>::calculate_function_B_minus(const T m) const
 template <typename T>
 T Non_Linear_Response<T>::calculate_function_B(const T F, const T m) const
 {
-    const T g = calculate_function_G(F);
-    const T first_term = g * calculate_function_B_plus(m);
+    const T g           = calculate_function_G(F);
+    const T first_term  = g * calculate_function_B_plus(m);
     const T second_term = (1 - g) * calculate_function_B_minus(m);
     return (first_term + second_term);
 }

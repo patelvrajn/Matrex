@@ -167,7 +167,7 @@ Search_Engine::negamax(Chess_Board&                    position,
     }
 
     // Base case: if depth is 0, perform quiescence search.
-    if (depth == QUIESCENCE_SEARCH_DEPTH)
+    if (depth <= QUIESCENCE_SEARCH_DEPTH)
     {
         return quiescence(position, ply, alpha, beta);
     }
@@ -322,34 +322,59 @@ Search_Engine::negamax(Chess_Board&                    position,
         }
         else
         {
-            // Search the presumably non-PV node with the narrowest window
-            // around alpha since, we assume no other move will raise alpha.
-            child_result = negamax(position,
-                                   (depth - 1),
-                                   child_principal_variation,
-                                   q_cont_hist_stack,
-                                   c_cont_hist_stack,
-                                   (ply + 1),
-                                   (-alpha - Score(PV_WINDOW_SIZE)),
-                                   -alpha);
-
-            const Score child_score = -child_result.second;
-
-            // If the child result's score raised alpha and was within the full
-            // alpha-beta window - redo the search because we found out that
-            // the first move is not the PV node for this position. We only want
-            // to redo the search if the current search is a full-window search
-            // otherwise, we may do redundant searches for non-PV nodes.
-            if (((child_score > alpha) && (child_score < beta)) && is_pv_node)
+            if (should_do_late_move_reductions(move,
+                                               best_score,
+                                               is_side_to_move_in_check))
             {
+                child_result = negamax(position,
+                                       (depth - 1 - LATE_MOVE_DEPTH_REDUCTION),
+                                       child_principal_variation,
+                                       q_cont_hist_stack,
+                                       c_cont_hist_stack,
+                                       (ply + 1),
+                                       (-alpha - Score(PV_WINDOW_SIZE)),
+                                       -alpha);
+            }
+            else
+            {
+                child_result = {
+                    best_move,
+                    -(alpha + Score(Matrex_FP_Int::from_integer(1)))};
+            }
+
+            if ((-child_result.second) > alpha)
+            {
+                // Search the presumably non-PV node with the narrowest window
+                // around alpha since, we assume no other move will raise alpha.
                 child_result = negamax(position,
                                        (depth - 1),
                                        child_principal_variation,
                                        q_cont_hist_stack,
                                        c_cont_hist_stack,
                                        (ply + 1),
-                                       -beta,
+                                       (-alpha - Score(PV_WINDOW_SIZE)),
                                        -alpha);
+
+                const Score child_score = -child_result.second;
+
+                // If the child result's score raised alpha and was within the
+                // full alpha-beta window - redo the search because we found out
+                // that the first move is not the PV node for this position. We
+                // only want to redo the search if the current search is a full-
+                // window search otherwise, we may do redundant searches for
+                // non-PV nodes.
+                if (((child_score > alpha) && (child_score < beta))
+                    && is_pv_node)
+                {
+                    child_result = negamax(position,
+                                           (depth - 1),
+                                           child_principal_variation,
+                                           q_cont_hist_stack,
+                                           c_cont_hist_stack,
+                                           (ply + 1),
+                                           -beta,
+                                           -alpha);
+                }
             }
         }
 
