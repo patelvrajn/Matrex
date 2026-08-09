@@ -855,14 +855,6 @@ namespace Matrex
     Fixed_Point_Integer<F> exp2(const Fixed_Point_Integer<F> input);
 
     template <uint8_t F>
-    Fixed_Point_Integer<F>
-    ln1p_approximation(const Fixed_Point_Integer<F> input);
-
-    template <uint8_t F>
-    Fixed_Point_Integer<F>
-    exponential_approximation(const Fixed_Point_Integer<F> input);
-
-    template <uint8_t F>
     Fixed_Point_Integer<F> sqrt(const Fixed_Point_Integer<F> input);
 
     double sqrt(double x);
@@ -1017,81 +1009,43 @@ namespace Matrex
         {
             index = (fractional_part.get_value() << (EXP2_LOOKUP_TABLE_BITS - F));
         }
-        Fixed_Point_Integer<F> table_lookup_value =
+        const Fixed_Point_Integer<F> result =
             Fixed_Point_Integer<F>::from_value(
                 Fixed_Point_Integer<F>::lookup_exp2_table(index));
 
         // Now we calculate 2^(integer_part) for both positive and negative
         // integer_part which simply translates into a bit shift of the
         // fractional part.
-        Fixed_Point_Int_Storage_Type shift  = integer_part.get_integer();
-        Fixed_Point_Integer<F>       result = table_lookup_value;
+        Fixed_Point_Int_Storage_Type shift = integer_part.get_integer();
         if (shift >= 0)
         {
             // Clamp the shift by what is safe to shift a signed integer left
             // by.
             shift = std::clamp(shift, 0, (FIXED_POINT_BIT_WIDTH - 2));
-            // Guard against overflow by using fixed point integer
-            // multiplication.
-            Fixed_Point_Integer<F> shift_fixed =
-                Fixed_Point_Integer<F>::from_integer((1 << shift));
-            result = result * shift_fixed;
+
+            const auto saturated_result = std::clamp((static_cast<int64_t>(result.get_value()) << shift), 
+                       static_cast<int64_t>(
+                           std::numeric_limits<Fixed_Point_Int_Storage_Type>::min()),
+                       static_cast<int64_t>(
+                           std::numeric_limits<Fixed_Point_Int_Storage_Type>::max()));
+
+            return Fixed_Point_Integer<F>::from_value(static_cast<Fixed_Point_Int_Storage_Type>(saturated_result));
         }
-        else
+        
+        if ((shift < 0) && ((-shift) < FIXED_POINT_BIT_WIDTH))
+        {
+            return Fixed_Point_Integer<F>::from_value(result.get_value() >> (-shift));
+        }
+
+        if ((shift < 0) && ((-shift) >= FIXED_POINT_BIT_WIDTH))
         {
             // We need to return a 0 for any shift bigger than the bit width of
             // our fixed point because shifting larger than that would be
             // undefined behavior.
-            if ((-shift) >= FIXED_POINT_BIT_WIDTH)
-            {
-                return Fixed_Point_Integer<F>::from_value(0);
-            }
-            result = Fixed_Point_Integer<F>::from_value(result.get_value()
-                                                        >> (-shift));
+            return Fixed_Point_Integer<F>::from_value(0);
         }
 
         return result;
-    }
-
-    // 3/3 Pade Approximation of ln(1+t) around 0.
-    template <uint8_t F>
-    Fixed_Point_Integer<F>
-    ln1p_approximation(const Fixed_Point_Integer<F> input)
-    {
-        const Fixed_Point_Integer<F> input_power_two = input * input;
-        const Fixed_Point_Integer<F> input_power_three =
-            input_power_two * input;
-
-        const Fixed_Point_Integer<F> numerator =
-            (input * Fixed_Point_Integer<F>::FP_SIXTY)
-            + (input_power_two * Fixed_Point_Integer<F>::FP_SIXTY)
-            + (input_power_three * 11);
-        const Fixed_Point_Integer<F> denominator =
-            (input * 90) + (input_power_two * 36) + (input_power_three * 3)
-            + Fixed_Point_Integer<F>::FP_SIXTY;
-
-        return numerator / denominator;
-    }
-
-    // 3/3 Pade Approximation of e^x around 0.
-    template <uint8_t F>
-    Fixed_Point_Integer<F>
-    exponential_approximation(const Fixed_Point_Integer<F> input)
-    {
-        const Fixed_Point_Integer<F> input_power_two = input * input;
-        const Fixed_Point_Integer<F> input_power_three =
-            input_power_two * input;
-
-        const Fixed_Point_Integer<F> numerator =
-            (input * Fixed_Point_Integer<F>::FP_SIXTY)
-            + (input_power_two * Fixed_Point_Integer<F>::FP_12)
-            + input_power_three + Fixed_Point_Integer<F>::FP_120;
-        const Fixed_Point_Integer<F> denominator =
-            (input * -Fixed_Point_Integer<F>::FP_SIXTY)
-            + (input_power_two * Fixed_Point_Integer<F>::FP_12)
-            - input_power_three + Fixed_Point_Integer<F>::FP_120;
-
-        return numerator / denominator;
     }
 
     template <uint8_t F>
