@@ -159,30 +159,23 @@ template <PIECE_COLOR moving_side>
 inline T Evaluator<T>::piece_square_score() const
 {
     // Accumulate the piece-square values from the piece-square tables for the
-    // present state of the board. The accumulations are per piece per side.
-    Multi_Array<T, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
-        color_piece_values {};
-    for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK;
-         ++color)
-    {
-        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
-        {
-            // Initialize the array value for the case of T = AD Value which
-            // contains optionals.
-            color_piece_values[color][piece] = constant_conversion(0.0);
+    // present state of the board for the moving side.
+    Multi_Array<T, NUM_OF_UNIQUE_PIECES_PER_PLAYER> color_piece_values {};
 
-            for (uint8_t square_idx = 0;
-                 square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-                 ++square_idx)
-            {
-                color_piece_values[color][piece] +=
-                    m_weights.piece_square_tables[color][piece][square_idx]
-                    * (m_chess_board
-                           .get_piece_occupancies((PIECE_COLOR) color,
-                                                  (PIECES) piece)
-                           .get_square(Square(square_idx))
-                       > 0);
-            }
+    for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
+    {
+        // Initialize the array value for the case of T = AD Value which
+        // contains optionals.
+        color_piece_values[piece] = constant_conversion(0.0);
+
+        const Bitboard piece_occupancy =
+            m_chess_board.get_piece_occupancies(moving_side, (PIECES) piece);
+
+        for (const Square s : piece_occupancy)
+        {
+            color_piece_values[piece] +=
+                m_weights
+                    .piece_square_tables[moving_side][piece][s.get_index()];
         }
     }
 
@@ -202,17 +195,17 @@ inline T Evaluator<T>::piece_square_score() const
 
     // NLR values for this side's pieces and their interaction.
     const T nlr_this_king_value =
-        nlr_this_king.value(color_piece_values[moving_side][PIECES::KING]);
+        nlr_this_king.value(color_piece_values[PIECES::KING]);
     const T nlr_this_queen_value =
-        nlr_this_queen.value(color_piece_values[moving_side][PIECES::QUEEN]);
+        nlr_this_queen.value(color_piece_values[PIECES::QUEEN]);
     const T nlr_this_rook_value =
-        nlr_this_rook.value(color_piece_values[moving_side][PIECES::ROOK]);
+        nlr_this_rook.value(color_piece_values[PIECES::ROOK]);
     const T nlr_this_bishop_value =
-        nlr_this_bishop.value(color_piece_values[moving_side][PIECES::BISHOP]);
+        nlr_this_bishop.value(color_piece_values[PIECES::BISHOP]);
     const T nlr_this_knight_value =
-        nlr_this_knight.value(color_piece_values[moving_side][PIECES::KNIGHT]);
+        nlr_this_knight.value(color_piece_values[PIECES::KNIGHT]);
     const T nlr_this_pawn_value =
-        nlr_this_pawn.value(color_piece_values[moving_side][PIECES::PAWN]);
+        nlr_this_pawn.value(color_piece_values[PIECES::PAWN]);
     const T nlr_this_interaction_value =
         nlr_this_king_value * nlr_this_queen_value * nlr_this_rook_value
         * nlr_this_bishop_value * nlr_this_knight_value * nlr_this_pawn_value;

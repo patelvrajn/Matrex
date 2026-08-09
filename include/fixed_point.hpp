@@ -951,7 +951,8 @@ namespace Matrex
             "LOG2 FACTORIZATION ERROR: m is not in the range [1, 2), m is {}",
             m.to_double());
 
-        constexpr std::size_t LOG2_LOOKUP_TABLE_BITS = std::log2(LOG2_LOOKUP_TABLE_SIZE);
+        constexpr std::size_t LOG2_LOOKUP_TABLE_BITS =
+            std::log2(LOG2_LOOKUP_TABLE_SIZE);
 
         std::size_t index;
 
@@ -999,15 +1000,18 @@ namespace Matrex
                       input.to_double());
 
         // Perform the table lookup for 2^(fractional_part).
-        constexpr std::size_t EXP2_LOOKUP_TABLE_BITS = std::log2(EXP2_LOOKUP_TABLE_SIZE);
+        constexpr std::size_t EXP2_LOOKUP_TABLE_BITS =
+            std::log2(EXP2_LOOKUP_TABLE_SIZE);
         std::size_t index;
         if constexpr (F >= EXP2_LOOKUP_TABLE_BITS)
         {
-            index = (fractional_part.get_value() >> (F - EXP2_LOOKUP_TABLE_BITS));
+            index =
+                (fractional_part.get_value() >> (F - EXP2_LOOKUP_TABLE_BITS));
         }
         else
         {
-            index = (fractional_part.get_value() << (EXP2_LOOKUP_TABLE_BITS - F));
+            index =
+                (fractional_part.get_value() << (EXP2_LOOKUP_TABLE_BITS - F));
         }
         const Fixed_Point_Integer<F> result =
             Fixed_Point_Integer<F>::from_value(
@@ -1023,18 +1027,21 @@ namespace Matrex
             // by.
             shift = std::clamp(shift, 0, (FIXED_POINT_BIT_WIDTH - 2));
 
-            const auto saturated_result = std::clamp((static_cast<int64_t>(result.get_value()) << shift), 
-                       static_cast<int64_t>(
-                           std::numeric_limits<Fixed_Point_Int_Storage_Type>::min()),
-                       static_cast<int64_t>(
-                           std::numeric_limits<Fixed_Point_Int_Storage_Type>::max()));
+            const auto saturated_result = std::clamp(
+                (static_cast<int64_t>(result.get_value()) << shift),
+                static_cast<int64_t>(
+                    std::numeric_limits<Fixed_Point_Int_Storage_Type>::min()),
+                static_cast<int64_t>(
+                    std::numeric_limits<Fixed_Point_Int_Storage_Type>::max()));
 
-            return Fixed_Point_Integer<F>::from_value(static_cast<Fixed_Point_Int_Storage_Type>(saturated_result));
+            return Fixed_Point_Integer<F>::from_value(
+                static_cast<Fixed_Point_Int_Storage_Type>(saturated_result));
         }
-        
+
         if ((shift < 0) && ((-shift) < FIXED_POINT_BIT_WIDTH))
         {
-            return Fixed_Point_Integer<F>::from_value(result.get_value() >> (-shift));
+            return Fixed_Point_Integer<F>::from_value(result.get_value()
+                                                      >> (-shift));
         }
 
         if ((shift < 0) && ((-shift) >= FIXED_POINT_BIT_WIDTH))

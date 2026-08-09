@@ -64,14 +64,14 @@ class Non_Linear_Response
 
     T calculate_function_M(const T x) const;
     T calculate_function_G(const T F) const;
-    T calculate_function_H(const T F) const;
+    T calculate_function_H(const T g) const;
     T calculate_function_S(const T F, const T m) const;
     T calculate_function_P_plus(const T m) const;
     T calculate_function_P_minus(const T m) const;
-    T calculate_function_P(const T F, const T m) const;
+    T calculate_function_P(const T m, const T g) const;
     T calculate_function_B_plus(const T m) const;
     T calculate_function_B_minus(const T m) const;
-    T calculate_function_B(const T F, const T m) const;
+    T calculate_function_B(const T m, const T g) const;
 
   private:
 
@@ -89,11 +89,12 @@ FORCE_INLINE T Non_Linear_Response<T>::value(const T F) const
 {
     const T u = calculate_u(F);
     const T m = calculate_function_M(u);
+    const T g = calculate_function_G(F);
 
-    const T H = calculate_function_H(F);
+    const T H = calculate_function_H(g);
     const T S = calculate_function_S(F, m);
-    const T P = calculate_function_P(F, m);
-    const T B = calculate_function_B(F, m);
+    const T P = calculate_function_P(m, g);
+    const T B = calculate_function_B(m, g);
 
     return (H * S * P * B);
 }
@@ -180,9 +181,8 @@ T Non_Linear_Response<T>::calculate_function_G(const T F) const
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_H(const T F) const
+T Non_Linear_Response<T>::calculate_function_H(const T g) const
 {
-    const T g           = calculate_function_G(F);
     const T first_term  = g * m_parameters.h_plus;
     const T second_term = (-g + 1) * m_parameters.h_minus;
     return (first_term + second_term);
@@ -212,10 +212,12 @@ T Non_Linear_Response<T>::calculate_function_P_minus(const T m) const
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_P(const T F, const T m) const
+T Non_Linear_Response<T>::calculate_function_P(const T m, const T g) const
 {
-    const T g = calculate_function_G(F);
-    const T first_term = g * calculate_function_P_plus(m);
+    if (g == 1) { return calculate_function_P_plus(m); }
+    else if (g == 0) { return calculate_function_P_minus(m); }
+
+    const T first_term  = g * calculate_function_P_plus(m);
     const T second_term = (1 - g) * calculate_function_P_minus(m);
     return (first_term + second_term);
 }
@@ -237,10 +239,12 @@ T Non_Linear_Response<T>::calculate_function_B_minus(const T m) const
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_B(const T F, const T m) const
+T Non_Linear_Response<T>::calculate_function_B(const T m, const T g) const
 {
-    const T g = calculate_function_G(F);
-    const T first_term = g * calculate_function_B_plus(m);
+    if (g == 1) { return calculate_function_B_plus(m); }
+    else if (g == 0) { return calculate_function_B_minus(m); }
+
+    const T first_term  = g * calculate_function_B_plus(m);
     const T second_term = (1 - g) * calculate_function_B_minus(m);
     return (first_term + second_term);
 }
