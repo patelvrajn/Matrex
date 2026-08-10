@@ -39,9 +39,13 @@ double Performance_Bench::bench_search(const uint16_t depth)
 
     // Constraints for a depth search.
     Search_Constraints constraints;
-    constraints.should_ignore_time       = true;
-    constraints.depth                    = depth;
-    constraints.transposition_table_size = 128;
+    constraints.time_controls[PIECE_COLOR::WHITE].time_remaining = 8000;
+    constraints.time_controls[PIECE_COLOR::WHITE].increment      = 80;
+    constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 8000;
+    constraints.time_controls[PIECE_COLOR::BLACK].increment      = 80;
+    constraints.should_ignore_time                               = true;
+    constraints.depth                                            = depth;
+    constraints.transposition_table_size                         = 128;
 
     uint64_t total_node_count = 0;
     uint64_t total_time       = 0;
