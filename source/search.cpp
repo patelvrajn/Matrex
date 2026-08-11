@@ -52,6 +52,8 @@ Search_Engine::negamax(Chess_Board&                    position,
 {
     const uint32_t depth_squared = (depth * depth);
 
+    ++m_num_of_nodes_searched;
+
     // The parent's PV must be cleared between negamax calls because sibling
     // moves could influence each other.
     principal_variation.clear();
@@ -151,7 +153,6 @@ Search_Engine::negamax(Chess_Board&                    position,
     // No legal moves available, return the appropriate mate or draw score.
     if (moves.get_max_index() == -1)
     {
-        ++m_num_of_nodes_searched;
         const Score mate_score = get_mate_score(mo, ply);
 
         // Cache the position's mate evaluation in the transposition table.
@@ -171,8 +172,6 @@ Search_Engine::negamax(Chess_Board&                    position,
 
         return {Chess_Move(), mate_score};
     }
-
-    ++m_num_of_nodes_searched;
 
     // Check if time has expired during the search.
     if (!m_constraints.should_ignore_time)
@@ -504,6 +503,8 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
                                                Score        alpha,
                                                Score        beta)
 {
+    ++m_num_of_nodes_searched;
+
     const Zobrist_Hash position_z_hash = position.get_zobrist_hash();
 
     Transposition_Table_Entry transposition_table_entry;
@@ -530,8 +531,6 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     // the transposition table is an upper bound (or <= alpha) until we find
     // out otherwise.
     Score_Bound_Type score_bound = Score_Bound_Type::UPPER_BOUND;
-
-    ++m_num_of_nodes_searched;
 
     // Generate sorted tactical moves in the current position if not in
     // check, if in check, we need all moves because it is not guaranteed
