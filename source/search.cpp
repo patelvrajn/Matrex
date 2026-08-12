@@ -190,7 +190,7 @@ Search_Engine::negamax(Chess_Board&                    position,
     }
 
     // Generate moves matrix for the opposing side for evaluation purposes.
-    const PIECE_COLOR opposing_side = ~position.get_side_to_move();
+    const PIECE_COLOR     opposing_side = ~position.get_side_to_move();
     Move_Generation_List  not_used_moves_list;
     Moves_Bitboard_Matrix opposing_side_matrix;
     Move_Generator        mg(position);
@@ -549,7 +549,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
 
     // Generate moves matrix for the opposing side for evaluation purposes.
-    const PIECE_COLOR opposing_side = ~position.get_side_to_move();
+    const PIECE_COLOR     opposing_side = ~position.get_side_to_move();
     Move_Generation_List  not_used_moves_list;
     Moves_Bitboard_Matrix opposing_side_matrix;
     Move_Generator        mg(position);

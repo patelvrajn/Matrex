@@ -109,9 +109,15 @@ class Fixed_Point_Integer
         return (FIXED_POINT_BIT_WIDTH - F);
     }
 
-    static consteval Fixed_Point_Int_Storage_Type scale() { return static_cast<Fixed_Point_Int_Storage_Type>(1 << F); }
+    static consteval Fixed_Point_Int_Storage_Type scale()
+    {
+        return static_cast<Fixed_Point_Int_Storage_Type>(1 << F);
+    }
 
-    static consteval double precision() { return (1.0 / static_cast<double>(scale())); }
+    static consteval double precision()
+    {
+        return (1.0 / static_cast<double>(scale()));
+    }
 
     // The maximum value the fractional component can have.
     static consteval double maximum_fractional()
