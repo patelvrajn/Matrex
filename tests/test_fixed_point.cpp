@@ -725,6 +725,7 @@ TEST(fixed_point_tests, nlr_test)
                    // the exponent.
         double expected_G =
             1.0 / (std::exp(-(double_u * NON_LINEAR_RESPONSE_T)) + 1.0);
+        Matrex_FP_Int g;
 
         MATREX_ASSERT(
             Matrex_FP_Int::is_representable(NON_LINEAR_RESPONSE_T),
@@ -733,11 +734,11 @@ TEST(fixed_point_tests, nlr_test)
 
         if (Matrex_FP_Int::is_representable(expected_G) && (errno == 0))
         {
-            Matrex_FP_Int result = nlr.calculate_function_G(fp_test_value);
+            g = nlr.calculate_function_G(fp_test_value);
             collect_error(errors,
                           double_test_value,
                           expected_G,
-                          result.to_double(),
+                          g.to_double(),
                           "G");
         }
 
@@ -747,7 +748,7 @@ TEST(fixed_point_tests, nlr_test)
             + ((1.0 - expected_G) * nlr_parameters.h_minus.to_double());
         if (Matrex_FP_Int::is_representable(expected_H) && (errno == 0))
         {
-            Matrex_FP_Int result = nlr.calculate_function_H(fp_test_value);
+            Matrex_FP_Int result = nlr.calculate_function_H(g);
             collect_error(errors,
                           double_test_value,
                           expected_H,
@@ -803,7 +804,7 @@ TEST(fixed_point_tests, nlr_test)
             && Matrex_FP_Int::is_representable(expected_P_Plus))
         {
             Matrex_FP_Int result =
-                nlr.calculate_function_P(fp_test_value, fp_expected_Mu);
+                nlr.calculate_function_P(fp_expected_Mu, g);
             collect_error(errors,
                           double_test_value,
                           expected_P,
@@ -850,7 +851,7 @@ TEST(fixed_point_tests, nlr_test)
             && Matrex_FP_Int::is_representable(expected_B_Minus))
         {
             Matrex_FP_Int result =
-                nlr.calculate_function_B(fp_test_value, fp_expected_Mu);
+                nlr.calculate_function_B(fp_expected_Mu, g);
             collect_error(errors,
                           double_test_value,
                           expected_B,
