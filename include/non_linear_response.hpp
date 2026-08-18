@@ -61,17 +61,17 @@ class Non_Linear_Response
     FORCE_INLINE T value(const T F) const;
 
     T calculate_u(const T F) const;
-
-    T calculate_function_M(const T x) const;
+    T calculate_l(const T u) const;
+    T calculate_function_M(const T l) const;
     T calculate_function_G(const T F) const;
     T calculate_function_H(const T g) const;
     T calculate_function_S(const T F, const T m) const;
-    T calculate_function_P_plus(const T m) const;
-    T calculate_function_P_minus(const T m) const;
-    T calculate_function_P(const T m, const T g) const;
-    T calculate_function_B_plus(const T m) const;
-    T calculate_function_B_minus(const T m) const;
-    T calculate_function_B(const T m, const T g) const;
+    T calculate_function_P_plus(const T l) const;
+    T calculate_function_P_minus(const T l) const;
+    T calculate_function_P(const T l, const T g) const;
+    T calculate_function_B_plus(const T l) const;
+    T calculate_function_B_minus(const T l) const;
+    T calculate_function_B(const T l, const T g) const;
 
   private:
 
@@ -88,13 +88,15 @@ template <typename T>
 FORCE_INLINE T Non_Linear_Response<T>::value(const T F) const
 {
     const T u = calculate_u(F);
-    const T m = calculate_function_M(u);
+    const T l = calculate_l(u);
+
+    const T m = calculate_function_M(l);
     const T g = calculate_function_G(F);
 
     const T H = calculate_function_H(g);
     const T S = calculate_function_S(F, m);
-    const T P = calculate_function_P(m, g);
-    const T B = calculate_function_B(m, g);
+    const T P = calculate_function_P(l, g);
+    const T B = calculate_function_B(l, g);
 
     return (H * S * P * B);
 }
@@ -106,33 +108,15 @@ T Non_Linear_Response<T>::calculate_u(const T F) const
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_M(const T x) const
+T Non_Linear_Response<T>::calculate_l(const T u) const
 {
-    if constexpr (std::is_same_v<T, Matrex_FP_Int>)
-    {
-        constexpr double MAX_SQRT_TERM = std::sqrt(
-            static_cast<double>(
-                std::numeric_limits<Fixed_Point_Int_Storage_Type>::max())
-            / static_cast<double>(1 << MATREX_FP_INT_FRACTIONAL_BITS));
-        MATREX_ASSERT(Matrex_FP_Int::is_representable(MAX_SQRT_TERM),
-                      "Maximum square root term of value {} in function M is "
-                      "out of bounds.",
-                      MAX_SQRT_TERM);
-        constexpr Matrex_FP_Int FP_MAX_SQRT_TERM =
-            Matrex_FP_Int::from_double(MAX_SQRT_TERM);
+    return 0.5 * Matrex::log2((u * u) + NON_LINEAR_RESPONSE_EPSILON);
+}
 
-        const T abs_x = ((x < 0) ? -x : x);
-
-        // This function is used calculate the absolute value of x in a manner
-        // where it is differentiable and the return value value is not zero (to
-        // support negative exponents). If x is large enough that it will result
-        // in overflow we just return the absolute value as long as it is
-        // non-zero. It is guaranteed to be non-zero otherwise, it wouldn't be
-        // greater than the maximum square root term.
-        if (abs_x >= FP_MAX_SQRT_TERM) { return abs_x; }
-    }
-
-    const T result = Matrex::sqrt((x * x) + NON_LINEAR_RESPONSE_EPSILON);
+template <typename T>
+T Non_Linear_Response<T>::calculate_function_M(const T l) const
+{
+    const T result = Matrex::exp2(l);
     return result;
 }
 
@@ -175,8 +159,8 @@ T Non_Linear_Response<T>::calculate_function_G(const T F) const
         }
     }
 
-    const T exponent = (negative_u * NON_LINEAR_RESPONSE_T);
-    const T sigmoid  = 1.0 / (Matrex::exp(exponent) + 1.0);
+    const T exponent = (negative_u * NON_LINEAR_RESPONSE_T) / LN_2;
+    const T sigmoid  = 1.0 / (Matrex::exp2(exponent) + 1.0);
     return sigmoid;
 }
 
@@ -198,53 +182,71 @@ T Non_Linear_Response<T>::calculate_function_S(const T F, const T m) const
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_P_plus(const T m) const
+T Non_Linear_Response<T>::calculate_function_P_plus(const T l) const
 {
-    const T term = Matrex::pow(m, m_parameters.q_plus);
+    const T term = Matrex::exp2(m_parameters.q_plus * l);
     return term;
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_P_minus(const T m) const
+T Non_Linear_Response<T>::calculate_function_P_minus(const T l) const
 {
-    const T term = Matrex::pow(m, m_parameters.q_minus);
+    const T term = Matrex::exp2(m_parameters.q_minus * l);
     return term;
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_P(const T m, const T g) const
+T Non_Linear_Response<T>::calculate_function_P(const T l, const T g) const
 {
-    if (g == 1) { return calculate_function_P_plus(m); }
-    else if (g == 0) { return calculate_function_P_minus(m); }
+    if (g == 1) { return calculate_function_P_plus(l); }
+    else if (g == 0) { return calculate_function_P_minus(l); }
 
-    const T first_term  = g * calculate_function_P_plus(m);
-    const T second_term = (1 - g) * calculate_function_P_minus(m);
+    const T first_term  = g * calculate_function_P_plus(l);
+    const T second_term = (1 - g) * calculate_function_P_minus(l);
     return (first_term + second_term);
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_B_plus(const T m) const
+T Non_Linear_Response<T>::calculate_function_B_plus(const T l) const
 {
-    const T v = m / calculate_function_M(m_parameters.g_plus);
-    const T w = Matrex::pow(v, m_parameters.r_plus);
-    return Matrex::tanh(w);
+    const T d = 0.5
+              * Matrex::log2((m_parameters.g_plus * m_parameters.g_plus)
+                             + NON_LINEAR_RESPONSE_EPSILON);
+
+    const T w = Matrex::exp2(m_parameters.r_plus * (l - d));
+
+    const T common_term = Matrex::exp2((-2 * w) / LN_2);
+
+    const T numerator   = 1 - common_term;
+    const T denominator = 1 + common_term;
+
+    return (numerator / denominator);
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_B_minus(const T m) const
+T Non_Linear_Response<T>::calculate_function_B_minus(const T l) const
 {
-    const T v = m / calculate_function_M(m_parameters.g_minus);
-    const T w = Matrex::pow(v, m_parameters.r_minus);
-    return Matrex::tanh(w);
+    const T d = 0.5
+              * Matrex::log2((m_parameters.g_minus * m_parameters.g_minus)
+                             + NON_LINEAR_RESPONSE_EPSILON);
+
+    const T w = Matrex::exp2(m_parameters.r_minus * (l - d));
+
+    const T common_term = Matrex::exp2((-2 * w) / LN_2);
+
+    const T numerator   = 1 - common_term;
+    const T denominator = 1 + common_term;
+
+    return (numerator / denominator);
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_B(const T m, const T g) const
+T Non_Linear_Response<T>::calculate_function_B(const T l, const T g) const
 {
-    if (g == 1) { return calculate_function_B_plus(m); }
-    else if (g == 0) { return calculate_function_B_minus(m); }
+    if (g == 1) { return calculate_function_B_plus(l); }
+    else if (g == 0) { return calculate_function_B_minus(l); }
 
-    const T first_term  = g * calculate_function_B_plus(m);
-    const T second_term = (1 - g) * calculate_function_B_minus(m);
+    const T first_term  = g * calculate_function_B_plus(l);
+    const T second_term = (1 - g) * calculate_function_B_minus(l);
     return (first_term + second_term);
 }

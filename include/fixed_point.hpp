@@ -857,8 +857,16 @@ namespace Matrex
     template <uint8_t F>
     Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input);
 
+    double log2(double x);
+
+    AD_Value log2(AD_Value x);
+
     template <uint8_t F>
     Fixed_Point_Integer<F> exp2(const Fixed_Point_Integer<F> input);
+
+    double exp2(double x);
+
+    AD_Value exp2(AD_Value x);
 
     template <uint8_t F>
     Fixed_Point_Integer<F> sqrt(const Fixed_Point_Integer<F> input);
