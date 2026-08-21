@@ -553,7 +553,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     // // Generate moves matrix for the opposing side for evaluation purposes.
     // const PIECE_COLOR     opposing_side = ~position.get_side_to_move();
     // Move_Generation_List  not_used_moves_list;
-    // Moves_Bitboard_Matrix opposing_side_matrix;
+    Moves_Bitboard_Matrix opposing_side_matrix;
     // Move_Generator        mg(position);
     // mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,
     //                                                  not_used_moves_list,
@@ -584,12 +584,12 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     }
 
     // Stand pat evaluation.
-    // const Evaluator e(TUNED_EVALUATION_WEIGHTS,
-    //                   position,
-    //                   moving_side_matrix,
-    //                   opposing_side_matrix);
+    const Evaluator e(TUNED_EVALUATION_WEIGHTS,
+                      position,
+                      moving_side_matrix,
+                      opposing_side_matrix);
 
-    Score stand_pat = Score(0); // e.evaluate(m_correction_history);
+    Score stand_pat = e.evaluate(m_correction_history);
 
     // // Update stand pat evaluation based on a transposition table hit which
     // // would most likely be based on a deeper search.

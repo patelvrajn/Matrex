@@ -68,15 +68,15 @@ T Evaluator<T>::evaluate_template_typed() const
     PIECE_COLOR moving_side = m_chess_board.get_side_to_move();
 
     T material;
-    T mobility;
+    // T mobility;
     T piece_square;
 
     if (moving_side == PIECE_COLOR::WHITE)
     {
         material = material_score<PIECE_COLOR::WHITE>()
                  - material_score<PIECE_COLOR::BLACK>();
-        mobility = mobility_score<PIECE_COLOR::WHITE>(m_moving_side_matrix)
-                 - mobility_score<PIECE_COLOR::BLACK>(m_opposing_side_matrix);
+        // mobility = mobility_score<PIECE_COLOR::WHITE>(m_moving_side_matrix)
+        //          - mobility_score<PIECE_COLOR::BLACK>(m_opposing_side_matrix);
         piece_square = piece_square_score<PIECE_COLOR::WHITE>()
                      - piece_square_score<PIECE_COLOR::BLACK>();
     }
@@ -84,13 +84,14 @@ T Evaluator<T>::evaluate_template_typed() const
     {
         material = material_score<PIECE_COLOR::BLACK>()
                  - material_score<PIECE_COLOR::WHITE>();
-        mobility = mobility_score<PIECE_COLOR::BLACK>(m_moving_side_matrix)
-                 - mobility_score<PIECE_COLOR::WHITE>(m_opposing_side_matrix);
+        // mobility = mobility_score<PIECE_COLOR::BLACK>(m_moving_side_matrix)
+        //          - mobility_score<PIECE_COLOR::WHITE>(m_opposing_side_matrix);
         piece_square = piece_square_score<PIECE_COLOR::BLACK>()
                      - piece_square_score<PIECE_COLOR::WHITE>();
     }
 
-    const T evaluation = material + mobility + piece_square;
+    const T evaluation = material + piece_square;
+    // const T evaluation = material + mobility + piece_square;
 
     return evaluation;
 }
