@@ -50,7 +50,7 @@ Search_Engine::negamax(Chess_Board&                    position,
                        Score                           alpha,
                        Score                           beta)
 {
-    const uint32_t depth_squared = (depth * depth);
+    // const uint32_t depth_squared = (depth * depth);
 
     ++m_num_of_nodes_searched;
 
@@ -58,54 +58,54 @@ Search_Engine::negamax(Chess_Board&                    position,
     // moves could influence each other.
     principal_variation.clear();
 
-    bool is_three_fold_repetition = false;
-    bool is_upcoming_repetition =
-        m_cuckoo_rm_table.is_upcoming_repetition(position,
-                                                 is_three_fold_repetition);
+    // bool is_three_fold_repetition = false;
+    // bool is_upcoming_repetition =
+    //     m_cuckoo_rm_table.is_upcoming_repetition(position,
+    //                                              is_three_fold_repetition);
 
-    if ((alpha < Score::from_int(ESCORE::DRAW)) && is_upcoming_repetition)
-    {
-        // If there is an upcoming repetition, the lowest score we can have is a
-        // draw.
-        alpha = Score::from_int(ESCORE::DRAW);
+    // if ((alpha < Score::from_int(ESCORE::DRAW)) && is_upcoming_repetition)
+    // {
+    //     // If there is an upcoming repetition, the lowest score we can have is a
+    //     // draw.
+    //     alpha = Score::from_int(ESCORE::DRAW);
 
-        // On fail-high, return the draw score even though we are in a fail-soft
-        // framework.
-        if (alpha >= beta) { return {Chess_Move(), alpha}; }
-    }
+    //     // On fail-high, return the draw score even though we are in a fail-soft
+    //     // framework.
+    //     if (alpha >= beta) { return {Chess_Move(), alpha}; }
+    // }
 
-    if (is_three_fold_repetition)
-    {
-        // If there is a three fold repetition, the score of the position is a
-        // draw and we can return immediately without searching the position.
-        return {Chess_Move(), Score::from_int(ESCORE::DRAW)};
-    }
+    // if (is_three_fold_repetition)
+    // {
+    //     // If there is a three fold repetition, the score of the position is a
+    //     // draw and we can return immediately without searching the position.
+    //     return {Chess_Move(), Score::from_int(ESCORE::DRAW)};
+    // }
 
-    // Note: Never cache draw by fifty move rule in the transposition table
-    // because the Zobrist Hash implementation does not take into consideration
-    // fifty move rule and a position can have a completely different evaluation
-    // if the half move clock was not at it's maximum.
-    if (position.is_draw_by_fifty_move_rule())
-    {
-        return {Chess_Move(), Score::from_int(ESCORE::DRAW)};
-    }
+    // // Note: Never cache draw by fifty move rule in the transposition table
+    // // because the Zobrist Hash implementation does not take into consideration
+    // // fifty move rule and a position can have a completely different evaluation
+    // // if the half move clock was not at it's maximum.
+    // if (position.is_draw_by_fifty_move_rule())
+    // {
+    //     return {Chess_Move(), Score::from_int(ESCORE::DRAW)};
+    // }
 
-    // Calling has_insufficient_mating_material() may be faster than writing to
-    // the transposition table - also the concern is writing it to the
-    // transposition table as an exact score but with a null move would result
-    // in a possible illegal move.
-    if (position.has_insufficient_mating_material())
-    {
-        return {Chess_Move(), Score::from_int(ESCORE::DRAW)};
-    }
+    // // Calling has_insufficient_mating_material() may be faster than writing to
+    // // the transposition table - also the concern is writing it to the
+    // // transposition table as an exact score but with a null move would result
+    // // in a possible illegal move.
+    // if (position.has_insufficient_mating_material())
+    // {
+    //     return {Chess_Move(), Score::from_int(ESCORE::DRAW)};
+    // }
 
-    const Zobrist_Hash        position_z_hash = position.get_zobrist_hash();
-    Transposition_Table_Entry transposition_table_entry;
-    const bool                did_transposition_table_hit =
-        m_transposition_table.read(m_current_search_depth,
-                                   ply,
-                                   position_z_hash,
-                                   transposition_table_entry);
+    // const Zobrist_Hash        position_z_hash = position.get_zobrist_hash();
+    // Transposition_Table_Entry transposition_table_entry;
+    // const bool                did_transposition_table_hit =
+    //     m_transposition_table.read(m_current_search_depth,
+    //                                ply,
+    //                                position_z_hash,
+    //                                transposition_table_entry);
 
     // A principal variation node is any node that requires an alpha-beta window
     // wider than 1 because in principal variation search we only search the
@@ -117,18 +117,18 @@ Search_Engine::negamax(Chess_Board&                    position,
     const bool is_pv_node =
         ((beta - alpha).to_int() > PV_WINDOW_SIZE.get_value());
 
-    // Transposition table cutoff - use the stored best move and score if it
-    // satisfies the conditions.
-    if (should_use_transposition_table_score(is_pv_node,
-                                             did_transposition_table_hit,
-                                             depth,
-                                             transposition_table_entry,
-                                             alpha,
-                                             beta))
-    {
-        return {transposition_table_entry.best_move,
-                transposition_table_entry.score};
-    }
+    // // Transposition table cutoff - use the stored best move and score if it
+    // // satisfies the conditions.
+    // if (should_use_transposition_table_score(is_pv_node,
+    //                                          did_transposition_table_hit,
+    //                                          depth,
+    //                                          transposition_table_entry,
+    //                                          alpha,
+    //                                          beta))
+    // {
+    //     return {transposition_table_entry.best_move,
+    //             transposition_table_entry.score};
+    // }
 
     // Base case: if depth is 0, perform quiescence search.
     if (depth == QUIESCENCE_SEARCH_DEPTH)
@@ -139,12 +139,16 @@ Search_Engine::negamax(Chess_Board&                    position,
     // Assume that the score bound for a position's score to be stored in the
     // transposition table is an upper bound (or <= alpha) until we find out
     // otherwise.
-    Score_Bound_Type score_bound = Score_Bound_Type::UPPER_BOUND;
+    // Score_Bound_Type score_bound = Score_Bound_Type::UPPER_BOUND;
 
     Move_Ordering mo(position,
-                     transposition_table_entry.best_move,
+                     Chess_Move(),
                      q_cont_hist_stack,
                      c_cont_hist_stack);
+    // Move_Ordering mo(position,
+    //                  transposition_table_entry.best_move,
+    //                  q_cont_hist_stack,
+    //                  c_cont_hist_stack);
     mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
     Move_Generation_List&  moves              = mo.get_sorted_moves();
     Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
@@ -155,20 +159,20 @@ Search_Engine::negamax(Chess_Board&                    position,
     {
         const Score mate_score = get_mate_score(mo, ply);
 
-        // Cache the position's mate evaluation in the transposition table.
-        transposition_table_entry = {
-            .best_move = Chess_Move(), // No best move in mate positions
-            .score     = mate_score,
-            .partial_zobrist =
-                Transposition_Table::get_partial_zobrist(position_z_hash),
-            .depth = depth,
-            .score_bound =
-                Score_Bound_Type::EXACT // Mate scores are always exact.
-        };
-        m_transposition_table.write(m_current_search_depth,
-                                    ply,
-                                    position_z_hash,
-                                    transposition_table_entry);
+        // // Cache the position's mate evaluation in the transposition table.
+        // transposition_table_entry = {
+        //     .best_move = Chess_Move(), // No best move in mate positions
+        //     .score     = mate_score,
+        //     .partial_zobrist =
+        //         Transposition_Table::get_partial_zobrist(position_z_hash),
+        //     .depth = depth,
+        //     .score_bound =
+        //         Score_Bound_Type::EXACT // Mate scores are always exact.
+        // };
+        // m_transposition_table.write(m_current_search_depth,
+        //                             ply,
+        //                             position_z_hash,
+        //                             transposition_table_entry);
 
         return {Chess_Move(), mate_score};
     }
@@ -190,20 +194,20 @@ Search_Engine::negamax(Chess_Board&                    position,
     }
 
     // Generate moves matrix for the opposing side for evaluation purposes.
-    const PIECE_COLOR     opposing_side = ~position.get_side_to_move();
-    Move_Generation_List  not_used_moves_list;
-    Moves_Bitboard_Matrix opposing_side_matrix;
-    Move_Generator        mg(position);
-    mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,
-                                                     not_used_moves_list,
-                                                     opposing_side_matrix);
+    // const PIECE_COLOR     opposing_side = ~position.get_side_to_move();
+    // Move_Generation_List  not_used_moves_list;
+    // Moves_Bitboard_Matrix opposing_side_matrix;
+    // Move_Generator        mg(position);
+    // mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,
+    //                                                  not_used_moves_list,
+    //                                                  opposing_side_matrix);
 
-    const Evaluator e(TUNED_EVALUATION_WEIGHTS,
-                      position,
-                      moving_side_matrix,
-                      opposing_side_matrix);
+    // const Evaluator e(TUNED_EVALUATION_WEIGHTS,
+    //                   position,
+    //                   moving_side_matrix,
+    //                   opposing_side_matrix);
 
-    const Score static_evaluation = e.evaluate(m_correction_history);
+    const Score static_evaluation = Score(0); // e.evaluate(m_correction_history);
 
     // const Matrex_FP_Int fp_reverse_futility_pruning_margin =
     //     Matrex_FP_Int::from_integer((2 * depth_squared) + (32 * depth) + 16);
@@ -220,78 +224,78 @@ Search_Engine::negamax(Chess_Board&                    position,
 
     Principal_Variation_List child_principal_variation;
     Chess_Move               best_move        = Chess_Move();
-    Chess_Move               beta_cutoff_move = Chess_Move();
+    // Chess_Move               beta_cutoff_move = Chess_Move();
     Score                    best_score       = Score(FP_NEGATIVE_INFINITY);
 
-    Move_Generation_List quiets_to_malus;
-    Move_Generation_List captures_to_malus;
+    // Move_Generation_List quiets_to_malus;
+    // Move_Generation_List captures_to_malus;
 
-    Static_Exchange_Evaluator<int64_t> see(position);
+    // Static_Exchange_Evaluator<int64_t> see(position);
 
     bool is_first_move = true;
     for (const Chess_Move& move : moves)
     {
-        // Static Exchange Evaluation Pruning (Captures Only)
-        if (should_do_see_pruning(move,
-                                  best_score,
-                                  is_side_to_move_in_check,
-                                  is_first_move))
-        {
-            const auto see_evaluation =
-                see.evaluate(move.destination_square, move.moving_piece, 1);
+        // // Static Exchange Evaluation Pruning (Captures Only)
+        // if (should_do_see_pruning(move,
+        //                           best_score,
+        //                           is_side_to_move_in_check,
+        //                           is_first_move))
+        // {
+        //     const auto see_evaluation =
+        //         see.evaluate(move.destination_square, move.moving_piece, 1);
 
-            if (see_evaluation < see.negamax_threshold(depth_squared))
-            {
-                continue;
-            }
-        }
+        //     if (see_evaluation < see.negamax_threshold(depth_squared))
+        //     {
+        //         continue;
+        //     }
+        // }
 
-        // Futility pruning - we have a large enough margin from alpha that
-        // evaluating this branch is futile. The margin is determined by depth
-        // and a fixed scaler because the more moves you have from the leaf the
-        // larger the deficit we can overcome.
-        const Matrex_FP_Int fp_quiet_futility_pruning_margin =
-            Matrex_FP_Int::from_integer((depth_squared * 20) + 25);
-        const Score quiet_futility_pruning_margin =
-            Score(fp_quiet_futility_pruning_margin);
-        const Score quiet_futility_threshold =
-            static_evaluation + quiet_futility_pruning_margin;
-        if (should_do_quiet_futility_pruning(move,
-                                             best_score,
-                                             is_side_to_move_in_check,
-                                             quiet_futility_threshold,
-                                             alpha,
-                                             is_first_move))
-        {
-            best_score = std::max(best_score, quiet_futility_threshold);
-            continue;
-        }
+        // // Futility pruning - we have a large enough margin from alpha that
+        // // evaluating this branch is futile. The margin is determined by depth
+        // // and a fixed scaler because the more moves you have from the leaf the
+        // // larger the deficit we can overcome.
+        // const Matrex_FP_Int fp_quiet_futility_pruning_margin =
+        //     Matrex_FP_Int::from_integer((depth_squared * 20) + 25);
+        // const Score quiet_futility_pruning_margin =
+        //     Score(fp_quiet_futility_pruning_margin);
+        // const Score quiet_futility_threshold =
+        //     static_evaluation + quiet_futility_pruning_margin;
+        // if (should_do_quiet_futility_pruning(move,
+        //                                      best_score,
+        //                                      is_side_to_move_in_check,
+        //                                      quiet_futility_threshold,
+        //                                      alpha,
+        //                                      is_first_move))
+        // {
+        //     best_score = std::max(best_score, quiet_futility_threshold);
+        //     continue;
+        // }
 
-        if (should_do_quiet_history_pruning(q_cont_hist_stack,
-                                            move,
-                                            best_score,
-                                            is_side_to_move_in_check,
-                                            is_first_move,
-                                            depth))
-        {
-            continue;
-        }
+        // if (should_do_quiet_history_pruning(q_cont_hist_stack,
+        //                                     move,
+        //                                     best_score,
+        //                                     is_side_to_move_in_check,
+        //                                     is_first_move,
+        //                                     depth))
+        // {
+        //     continue;
+        // }
 
         // Ensure each child has its own principal variation and is unaffected
         // by moves from the previous sibling.
         child_principal_variation.clear();
 
-        // Bind a reference to the history table for this child move's subtree
-        // to the stack indexed by ply. A history table is fetched from the
-        // continuation history table which is indexed by the "previous move"
-        // (this move is the previous move for it's subtree).
-        const auto q_cont_hist_max_idx =
-            q_cont_hist_stack.stack.get_max_index();
-        q_cont_hist_stack.bind_to_history_table(m_q_cont_hist_table[move], ply);
+        // // Bind a reference to the history table for this child move's subtree
+        // // to the stack indexed by ply. A history table is fetched from the
+        // // continuation history table which is indexed by the "previous move"
+        // // (this move is the previous move for it's subtree).
+        // const auto q_cont_hist_max_idx =
+        //     q_cont_hist_stack.stack.get_max_index();
+        // q_cont_hist_stack.bind_to_history_table(m_q_cont_hist_table[move], ply);
 
-        const auto c_cont_hist_max_idx =
-            c_cont_hist_stack.stack.get_max_index();
-        c_cont_hist_stack.bind_to_history_table(m_c_cont_hist_table[move], ply);
+        // const auto c_cont_hist_max_idx =
+        //     c_cont_hist_stack.stack.get_max_index();
+        // c_cont_hist_stack.bind_to_history_table(m_c_cont_hist_table[move], ply);
 
         // Explore the child move's subtree for it's evaluation. Negate the
         // result to compare it's score to the parent's scores (alpha,
@@ -354,12 +358,12 @@ Search_Engine::negamax(Chess_Board&                    position,
         const Score child_score = -child_result.second;
         position.undo_move(undo_move);
 
-        // Truncate the continuation history stack to the previous maximum index
-        // because the child's subtree may have added new references to history
-        // tables and we don't want those to be considered for the next
-        // sibling's subtree.
-        q_cont_hist_stack.stack.truncate(q_cont_hist_max_idx);
-        c_cont_hist_stack.stack.truncate(c_cont_hist_max_idx);
+        // // Truncate the continuation history stack to the previous maximum index
+        // // because the child's subtree may have added new references to history
+        // // tables and we don't want those to be considered for the next
+        // // sibling's subtree.
+        // q_cont_hist_stack.stack.truncate(q_cont_hist_max_idx);
+        // c_cont_hist_stack.stack.truncate(c_cont_hist_max_idx);
 
         // Update the best score and best move found so far at this node even if
         // the child is expected to cause a beta cutoff because the information
@@ -379,7 +383,7 @@ Search_Engine::negamax(Chess_Board&                    position,
         // invariant; alpha < score < beta.
         if (child_score > alpha)
         {
-            score_bound = Score_Bound_Type::EXACT;
+            // score_bound = Score_Bound_Type::EXACT;
             alpha       = child_score;
 
             principal_variation.push_and_copy(best_move,
@@ -415,68 +419,68 @@ Search_Engine::negamax(Chess_Board&                    position,
         // the score could of been if the other children were not pruned.
         if (alpha >= beta)
         {
-            beta_cutoff_move = move;
-            score_bound      = Score_Bound_Type::LOWER_BOUND;
+            // beta_cutoff_move = move;
+            // score_bound      = Score_Bound_Type::LOWER_BOUND;
             break;
         }
-        else
-        {
-            if (move.is_quiet_move()) { quiets_to_malus.append(move); }
+        // else
+        // {
+        //     if (move.is_quiet_move()) { quiets_to_malus.append(move); }
 
-            if (move.is_capture) { captures_to_malus.append(move); }
-        }
+        //     if (move.is_capture) { captures_to_malus.append(move); }
+        // }
 
         is_first_move = false;
     }
 
-    // Correction History Update.
-    if (should_update_correction_history(best_move,
-                                         best_score,
-                                         static_evaluation,
-                                         score_bound,
-                                         is_side_to_move_in_check))
-    {
-        m_correction_history.update(position,
-                                    depth,
-                                    best_score,
-                                    static_evaluation);
-    }
+    // // Correction History Update.
+    // if (should_update_correction_history(best_move,
+    //                                      best_score,
+    //                                      static_evaluation,
+    //                                      score_bound,
+    //                                      is_side_to_move_in_check))
+    // {
+    //     m_correction_history.update(position,
+    //                                 depth,
+    //                                 best_score,
+    //                                 static_evaluation);
+    // }
 
-    // Continuation History Update.
-    if (should_update_quiet_continuation_history(beta_cutoff_move, score_bound))
-    {
-        update_continuation_history(q_cont_hist_stack,
-                                    beta_cutoff_move,
-                                    ply,
-                                    depth_squared,
-                                    quiets_to_malus);
-    }
+    // // Continuation History Update.
+    // if (should_update_quiet_continuation_history(beta_cutoff_move, score_bound))
+    // {
+    //     update_continuation_history(q_cont_hist_stack,
+    //                                 beta_cutoff_move,
+    //                                 ply,
+    //                                 depth_squared,
+    //                                 quiets_to_malus);
+    // }
 
-    if (should_update_capture_continuation_history(beta_cutoff_move,
-                                                   score_bound))
-    {
-        update_continuation_history(c_cont_hist_stack,
-                                    beta_cutoff_move,
-                                    ply,
-                                    depth_squared,
-                                    depth,
-                                    captures_to_malus);
-    }
+    // if (should_update_capture_continuation_history(beta_cutoff_move,
+    //                                                score_bound))
+    // {
+    //     update_continuation_history(c_cont_hist_stack,
+    //                                 beta_cutoff_move,
+    //                                 ply,
+    //                                 depth_squared,
+    //                                 depth,
+    //                                 captures_to_malus);
+    // }
 
-    // Cache the position's best move and evaluation in the transposition table
-    // regardless of time because principal variation search guarantees the next
-    // move found is a better move.
-    transposition_table_entry = {
-        .best_move = best_move,
-        .score     = best_score,
-        .partial_zobrist =
-            Transposition_Table::get_partial_zobrist(position_z_hash),
-        .depth       = depth,
-        .score_bound = score_bound};
-    m_transposition_table.write(m_current_search_depth,
-                                ply,
-                                position_z_hash,
-                                transposition_table_entry);
+    // // Cache the position's best move and evaluation in the transposition table
+    // // regardless of time because principal variation search guarantees the next
+    // // move found is a better move.
+    // transposition_table_entry = {
+    //     .best_move = best_move,
+    //     .score     = best_score,
+    //     .partial_zobrist =
+    //         Transposition_Table::get_partial_zobrist(position_z_hash),
+    //     .depth       = depth,
+    //     .score_bound = score_bound};
+    // m_transposition_table.write(m_current_search_depth,
+    //                             ply,
+    //                             position_z_hash,
+    //                             transposition_table_entry);
 
     // Fail-soft. Always return the calculated score and don't bound it between
     // the alpha-beta invariant.
@@ -502,37 +506,38 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
 {
     ++m_num_of_nodes_searched;
 
-    const Zobrist_Hash position_z_hash = position.get_zobrist_hash();
+    // const Zobrist_Hash position_z_hash = position.get_zobrist_hash();
 
-    Transposition_Table_Entry transposition_table_entry;
-    const bool                did_transposition_table_hit =
-        m_transposition_table.read(m_current_search_depth,
-                                   ply,
-                                   position_z_hash,
-                                   transposition_table_entry);
+    // Transposition_Table_Entry transposition_table_entry;
+    // const bool                did_transposition_table_hit =
+    //     m_transposition_table.read(m_current_search_depth,
+    //                                ply,
+    //                                position_z_hash,
+    //                                transposition_table_entry);
 
-    // Transposition table cutoff - use the stored best move and score if it
-    // satisfies the conditions. Note, quiescence search is a zero depth
-    // search - it doesn't search all moves to depth.
-    if (should_use_transposition_table_score(did_transposition_table_hit,
-                                             QUIESCENCE_SEARCH_DEPTH,
-                                             transposition_table_entry,
-                                             alpha,
-                                             beta))
-    {
-        return {transposition_table_entry.best_move,
-                transposition_table_entry.score};
-    }
+    // // Transposition table cutoff - use the stored best move and score if it
+    // // satisfies the conditions. Note, quiescence search is a zero depth
+    // // search - it doesn't search all moves to depth.
+    // if (should_use_transposition_table_score(did_transposition_table_hit,
+    //                                          QUIESCENCE_SEARCH_DEPTH,
+    //                                          transposition_table_entry,
+    //                                          alpha,
+    //                                          beta))
+    // {
+    //     return {transposition_table_entry.best_move,
+    //             transposition_table_entry.score};
+    // }
 
-    // Assume that the score bound for a position's score to be stored in
-    // the transposition table is an upper bound (or <= alpha) until we find
-    // out otherwise.
-    Score_Bound_Type score_bound = Score_Bound_Type::UPPER_BOUND;
+    // // Assume that the score bound for a position's score to be stored in
+    // // the transposition table is an upper bound (or <= alpha) until we find
+    // // out otherwise.
+    // Score_Bound_Type score_bound = Score_Bound_Type::UPPER_BOUND;
 
     // Generate sorted tactical moves in the current position if not in
     // check, if in check, we need all moves because it is not guaranteed
     // that at least one tactical move is a check evasion move.
-    Move_Ordering<0> mo(position, transposition_table_entry.best_move);
+    // Move_Ordering<0> mo(position, transposition_table_entry.best_move);
+    Move_Ordering<0> mo(position, Chess_Move());
     const bool       is_side_to_move_in_check = mo.is_side_to_move_in_check();
     if (is_side_to_move_in_check)
     {
@@ -545,14 +550,14 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     Move_Generation_List&  moves              = mo.get_sorted_moves();
     Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
 
-    // Generate moves matrix for the opposing side for evaluation purposes.
-    const PIECE_COLOR     opposing_side = ~position.get_side_to_move();
-    Move_Generation_List  not_used_moves_list;
-    Moves_Bitboard_Matrix opposing_side_matrix;
-    Move_Generator        mg(position);
-    mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,
-                                                     not_used_moves_list,
-                                                     opposing_side_matrix);
+    // // Generate moves matrix for the opposing side for evaluation purposes.
+    // const PIECE_COLOR     opposing_side = ~position.get_side_to_move();
+    // Move_Generation_List  not_used_moves_list;
+    // Moves_Bitboard_Matrix opposing_side_matrix;
+    // Move_Generator        mg(position);
+    // mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,
+    //                                                  not_used_moves_list,
+    //                                                  opposing_side_matrix);
 
     // No moves and in check - return mate score. Note, we don't handle
     // stalemates in quiescence search.
@@ -560,59 +565,59 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     {
         const Score mate_score = get_mate_score(mo, ply);
 
-        // Cache the position's mate evaluation in the transposition table.
-        transposition_table_entry = {
-            .best_move = Chess_Move(), // No best move in mate positions.
-            .score     = mate_score,
-            .partial_zobrist =
-                Transposition_Table::get_partial_zobrist(position_z_hash),
-            .depth = QUIESCENCE_SEARCH_DEPTH,
-            .score_bound =
-                Score_Bound_Type::EXACT // Mate scores are always exact.
-        };
-        m_transposition_table.write(m_current_search_depth,
-                                    ply,
-                                    position_z_hash,
-                                    transposition_table_entry);
+        // // Cache the position's mate evaluation in the transposition table.
+        // transposition_table_entry = {
+        //     .best_move = Chess_Move(), // No best move in mate positions.
+        //     .score     = mate_score,
+        //     .partial_zobrist =
+        //         Transposition_Table::get_partial_zobrist(position_z_hash),
+        //     .depth = QUIESCENCE_SEARCH_DEPTH,
+        //     .score_bound =
+        //         Score_Bound_Type::EXACT // Mate scores are always exact.
+        // };
+        // m_transposition_table.write(m_current_search_depth,
+        //                             ply,
+        //                             position_z_hash,
+        //                             transposition_table_entry);
 
         return {Chess_Move(), mate_score};
     }
 
     // Stand pat evaluation.
-    const Evaluator e(TUNED_EVALUATION_WEIGHTS,
-                      position,
-                      moving_side_matrix,
-                      opposing_side_matrix);
+    // const Evaluator e(TUNED_EVALUATION_WEIGHTS,
+    //                   position,
+    //                   moving_side_matrix,
+    //                   opposing_side_matrix);
 
-    Score stand_pat = e.evaluate(m_correction_history);
+    Score stand_pat = Score(0); // e.evaluate(m_correction_history);
 
-    // Update stand pat evaluation based on a transposition table hit which
-    // would most likely be based on a deeper search.
-    if (should_use_transposition_table_score(did_transposition_table_hit,
-                                             QUIESCENCE_SEARCH_DEPTH,
-                                             transposition_table_entry,
-                                             stand_pat))
-    {
-        stand_pat = transposition_table_entry.score;
-    }
+    // // Update stand pat evaluation based on a transposition table hit which
+    // // would most likely be based on a deeper search.
+    // if (should_use_transposition_table_score(did_transposition_table_hit,
+    //                                          QUIESCENCE_SEARCH_DEPTH,
+    //                                          transposition_table_entry,
+    //                                          stand_pat))
+    // {
+    //     stand_pat = transposition_table_entry.score;
+    // }
 
     // No tactical moves - return the static evaluation (stand pat).
     if ((moves.get_max_index() == -1) && (!is_side_to_move_in_check))
     {
-        // Cache the position's stand pat evaluation in the transposition table.
-        transposition_table_entry = {
-            .best_move = Chess_Move(), // No best move.
-            .score     = stand_pat,
-            .partial_zobrist =
-                Transposition_Table::get_partial_zobrist(position_z_hash),
-            .depth = QUIESCENCE_SEARCH_DEPTH,
-            .score_bound =
-                Score_Bound_Type::EXACT // Static evaluations are always exact.
-        };
-        m_transposition_table.write(m_current_search_depth,
-                                    ply,
-                                    position_z_hash,
-                                    transposition_table_entry);
+        // // Cache the position's stand pat evaluation in the transposition table.
+        // transposition_table_entry = {
+        //     .best_move = Chess_Move(), // No best move.
+        //     .score     = stand_pat,
+        //     .partial_zobrist =
+        //         Transposition_Table::get_partial_zobrist(position_z_hash),
+        //     .depth = QUIESCENCE_SEARCH_DEPTH,
+        //     .score_bound =
+        //         Score_Bound_Type::EXACT // Static evaluations are always exact.
+        // };
+        // m_transposition_table.write(m_current_search_depth,
+        //                             ply,
+        //                             position_z_hash,
+        //                             transposition_table_entry);
 
         // Note: Only quiescence search's evaluation is ever used, the move is
         // not propagated up negamax's search tree. Quiescence replaces static
@@ -630,46 +635,46 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         // Update alpha if the stand pat score is greater than alpha.
         if (best_score > alpha)
         {
-            score_bound = Score_Bound_Type::EXACT;
+            // score_bound = Score_Bound_Type::EXACT;
             alpha       = best_score;
         }
 
         // Alpha-beta pruning based on stand pat score.
         if (alpha >= beta)
         {
-            // Cache the position's mate evaluation in the transposition
-            // table.
-            transposition_table_entry = {
-                .best_move = best_move,
-                .score     = best_score,
-                .partial_zobrist =
-                    Transposition_Table::get_partial_zobrist(position_z_hash),
-                .depth = QUIESCENCE_SEARCH_DEPTH,
-                .score_bound =
-                    Score_Bound_Type::LOWER_BOUND // Scores at beta cutoffs are
-                                                  // always lower bounds.
-            };
-            m_transposition_table.write(m_current_search_depth,
-                                        ply,
-                                        position_z_hash,
-                                        transposition_table_entry);
+            // // Cache the position's mate evaluation in the transposition
+            // // table.
+            // transposition_table_entry = {
+            //     .best_move = best_move,
+            //     .score     = best_score,
+            //     .partial_zobrist =
+            //         Transposition_Table::get_partial_zobrist(position_z_hash),
+            //     .depth = QUIESCENCE_SEARCH_DEPTH,
+            //     .score_bound =
+            //         Score_Bound_Type::LOWER_BOUND // Scores at beta cutoffs are
+            //                                       // always lower bounds.
+            // };
+            // m_transposition_table.write(m_current_search_depth,
+            //                             ply,
+            //                             position_z_hash,
+            //                             transposition_table_entry);
 
             return {best_move, best_score};
         }
     }
 
-    Static_Exchange_Evaluator<int64_t> see(position);
+    // Static_Exchange_Evaluator<int64_t> see(position);
 
     for (const Chess_Move& move : moves)
     {
-        // Static Exchange Evaluation Pruning
-        if (should_do_see_pruning(move, best_score, is_side_to_move_in_check))
-        {
-            const auto see_evaluation =
-                see.evaluate(move.destination_square, move.moving_piece, 1);
+        // // Static Exchange Evaluation Pruning
+        // if (should_do_see_pruning(move, best_score, is_side_to_move_in_check))
+        // {
+        //     const auto see_evaluation =
+        //         see.evaluate(move.destination_square, move.moving_piece, 1);
 
-            if (see_evaluation < see.quiescence_threshold()) { continue; }
-        }
+        //     if (see_evaluation < see.quiescence_threshold()) { continue; }
+        // }
 
         // Explore the child move's subtree for it's evaluation. Negate
         // the result to compare it's score to the parent's scores
@@ -691,30 +696,30 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         // Update alpha if the child's score is better than the alpha.
         if (child_score > alpha)
         {
-            score_bound = Score_Bound_Type::EXACT;
+            // score_bound = Score_Bound_Type::EXACT;
             alpha       = child_score;
         }
 
         // Alpha-beta pruning based on child's score.
         if (alpha >= beta)
         {
-            score_bound = Score_Bound_Type::LOWER_BOUND;
+            // score_bound = Score_Bound_Type::LOWER_BOUND;
             break;
         }
     }
 
-    // Cache the position's best move and evaluation in the transposition table.
-    transposition_table_entry = {
-        .best_move = best_move,
-        .score     = best_score,
-        .partial_zobrist =
-            Transposition_Table::get_partial_zobrist(position_z_hash),
-        .depth       = QUIESCENCE_SEARCH_DEPTH,
-        .score_bound = score_bound};
-    m_transposition_table.write(m_current_search_depth,
-                                ply,
-                                position_z_hash,
-                                transposition_table_entry);
+    // // Cache the position's best move and evaluation in the transposition table.
+    // transposition_table_entry = {
+    //     .best_move = best_move,
+    //     .score     = best_score,
+    //     .partial_zobrist =
+    //         Transposition_Table::get_partial_zobrist(position_z_hash),
+    //     .depth       = QUIESCENCE_SEARCH_DEPTH,
+    //     .score_bound = score_bound};
+    // m_transposition_table.write(m_current_search_depth,
+    //                             ply,
+    //                             position_z_hash,
+    //                             transposition_table_entry);
 
     return {best_move, best_score};
 }
