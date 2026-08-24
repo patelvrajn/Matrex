@@ -43,6 +43,62 @@ class Moves_Bitboard_Matrix
 {
   public:
 
+    class Iterator
+    {
+      public:
+
+        using pointer   = const Moves_Bitboard*;
+        using reference = const Moves_Bitboard&;
+
+        Iterator() = default;
+
+        Iterator(pointer matrix, const uint16_t piece_index_masks) :
+            m_matrix(matrix), m_piece_index_masks(piece_index_masks)
+        {
+        }
+
+        reference operator*() const
+        {
+            return m_matrix[std::countr_zero(m_piece_index_masks)];
+        }
+
+        Iterator& operator++()
+        {
+            m_piece_index_masks &= (m_piece_index_masks - 1);
+            return *this;
+        }
+
+        bool operator==(const Iterator&) const = default;
+
+      private:
+
+        pointer  m_matrix            = nullptr;
+        uint16_t m_piece_index_masks = 0;
+    };
+
+    class Iterable
+    {
+      public:
+
+        Iterable(const Moves_Bitboard* matrix,
+                 const uint16_t piece_index_masks) :
+            m_matrix(matrix), m_piece_index_masks(piece_index_masks)
+        {
+        }
+
+        Iterator begin() const
+        {
+            return Iterator(m_matrix, m_piece_index_masks);
+        }
+
+        Iterator end() const { return Iterator(m_matrix, 0); }
+
+      private:
+
+        const Moves_Bitboard* m_matrix;
+        uint16_t              m_piece_index_masks;
+    };
+
     Moves_Bitboard_Matrix();
 
     void set_move(const PIECE_COLOR color,
@@ -55,9 +111,10 @@ class Moves_Bitboard_Matrix
                              const Square      piece_square,
                              Moves_Bitboard&   output) const;
 
-    bool get_piece_moves_bitboards(const PIECE_COLOR            color,
-                                   const PIECES                 piece,
-                                   std::vector<Moves_Bitboard>& output) const;
+    Iterable get_iterable(const PIECE_COLOR color, const PIECES piece) const
+    {
+        return Iterable(&m_matrix[color][0], m_piece_index_masks[color][piece]);
+    }
 
   private:
 

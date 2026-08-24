@@ -60,28 +60,6 @@ bool Moves_Bitboard_Matrix::get_moves_bitboards(const PIECE_COLOR color,
     return true;
 }
 
-bool Moves_Bitboard_Matrix::get_piece_moves_bitboards(
-    const PIECE_COLOR            color,
-    const PIECES                 piece,
-    std::vector<Moves_Bitboard>& output) const
-{
-    uint16_t piece_index_mask = m_piece_index_masks[color][piece];
-
-    // No moves exist for that piece if the piece for that color exists.
-    if (piece_index_mask == 0) { return false; }
-
-    // Loop over the bits in the index mask of that piece to get indices of the
-    // relevant Move Bitboards then push the indexed Move Bitboards to output.
-    while (piece_index_mask)
-    {
-        const uint8_t index = __builtin_ctzll(piece_index_mask);
-        output.push_back(m_matrix[color][index]);
-        piece_index_mask &= (piece_index_mask - 1);
-    }
-
-    return true;
-}
-
 // Called externally to check if the side to move is in check. Never done
 // internally to check if a specific side is in check so we may assume
 // m_chess_board.get_side_to_move() is sufficient.

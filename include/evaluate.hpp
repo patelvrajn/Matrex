@@ -345,10 +345,8 @@ Evaluator<T>::calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
 {
     Attacks a;
 
-    std::vector<Moves_Bitboard> moves_bitboards;
-    matrix.get_piece_moves_bitboards(side, piece, moves_bitboards);
     T piece_mobility = constant_conversion(0.0);
-    for (Moves_Bitboard& mb : moves_bitboards)
+    for (const Moves_Bitboard& mb : matrix.get_iterable(side, piece))
     {
         const Bitboard diagonal_movements =
             mb.bitboard
