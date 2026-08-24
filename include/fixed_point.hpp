@@ -274,7 +274,7 @@ class Fixed_Point_Integer
         return Fixed_Point_Integer::from_value(value);
     }
 
-    static constexpr Fixed_Point_Integer from_double(const double real)
+    FORCE_INLINE static constexpr Fixed_Point_Integer from_double(const double real)
     {
         double rounded = std::llround(real * scale());
         rounded        = std::clamp(
