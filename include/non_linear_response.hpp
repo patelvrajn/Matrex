@@ -337,7 +337,7 @@ class Non_Linear_Response_Table // Only for Matrex fixed-point type.
         // Linear interpolation.
         const Matrex_FP_Int result =
             y1
-            + (((y2 - y1) * fraction) / NON_LINEAR_RESPONSE_TABLE_FP_PRECISION);
+            + (((y2 - y1) * fraction) * NON_LINEAR_RESPONSE_TABLE_FP_SCALE);
 
         return result;
     }

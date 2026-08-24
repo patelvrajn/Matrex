@@ -101,10 +101,10 @@ class Moves_Bitboard_Matrix
 
     Moves_Bitboard_Matrix();
 
-    void set_move(const PIECE_COLOR color,
-                  const PIECES      piece,
-                  const Square      piece_square,
-                  const Square      move_square);
+    FORCE_INLINE void set_move(const PIECE_COLOR color,
+                               const PIECES      piece,
+                               const Square      piece_square,
+                               const Square      move_square);
 
     bool get_moves_bitboards(const PIECE_COLOR color,
                              const PIECES      piece,
@@ -132,6 +132,30 @@ class Moves_Bitboard_Matrix
     Multi_Array<Moves_Bitboard, NUM_OF_PLAYERS, NUM_OF_PIECES_PER_PLAYER>
         m_matrix;
 };
+
+FORCE_INLINE void Moves_Bitboard_Matrix::set_move(const PIECE_COLOR color,
+                                                  const PIECES      piece,
+                                                  const Square piece_square,
+                                                  const Square move_square)
+{
+    // Index mappings - given a piece and color and the square the piece is on,
+    // find the index of a moves bitboard in the bitboard matrix.
+    int8_t& index = m_index_mappings[color][piece][piece_square.get_index()];
+
+    if (index == -1)
+    {
+        ++m_max_indices[color];       // Increment max index for this color.
+        index = m_max_indices[color]; // Assign new max index to index mappings.
+        // Update piece index mask - set the bit corresponding to this index -
+        // each piece has a bitmask representing which indices in the matrix
+        // correspond to it.
+        m_piece_index_masks[color][piece] |= (1 << index);
+        // Zero-initialize bitboard in the matrix.
+        m_matrix[color][index] = {piece, piece_square, Bitboard(0)};
+    }
+
+    m_matrix[color][index].bitboard.set_square(move_square);
+}
 
 class Move_Generator
 {

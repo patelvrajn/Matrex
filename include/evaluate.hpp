@@ -147,8 +147,7 @@ T Evaluator<T>::evaluate_template_typed() const
         material = material_score<PIECE_COLOR::WHITE>()
                  - material_score<PIECE_COLOR::BLACK>();
         mobility = mobility_score<PIECE_COLOR::WHITE>(m_moving_side_matrix)
-                 -
-                 mobility_score<PIECE_COLOR::BLACK>(m_opposing_side_matrix);
+                 - mobility_score<PIECE_COLOR::BLACK>(m_opposing_side_matrix);
         piece_square = piece_square_score<PIECE_COLOR::WHITE>()
                      - piece_square_score<PIECE_COLOR::BLACK>();
     }
@@ -157,8 +156,7 @@ T Evaluator<T>::evaluate_template_typed() const
         material = material_score<PIECE_COLOR::BLACK>()
                  - material_score<PIECE_COLOR::WHITE>();
         mobility = mobility_score<PIECE_COLOR::BLACK>(m_moving_side_matrix)
-                 -
-                 mobility_score<PIECE_COLOR::WHITE>(m_opposing_side_matrix);
+                 - mobility_score<PIECE_COLOR::WHITE>(m_opposing_side_matrix);
         piece_square = piece_square_score<PIECE_COLOR::BLACK>()
                      - piece_square_score<PIECE_COLOR::WHITE>();
     }
