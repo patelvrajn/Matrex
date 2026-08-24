@@ -81,7 +81,7 @@ class Moves_Bitboard_Matrix
       public:
 
         Iterable(const Moves_Bitboard* matrix,
-                 const uint16_t piece_index_masks) :
+                 const uint16_t        piece_index_masks) :
             m_matrix(matrix), m_piece_index_masks(piece_index_masks)
         {
         }

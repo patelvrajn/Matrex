@@ -97,6 +97,22 @@ class Evaluator
         return tables;
     }();
 
+    inline static const Multi_Array<Non_Linear_Response_Table,
+                                    NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+        m_mobility_nlr_tables = []
+    {
+        Multi_Array<Non_Linear_Response_Table, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+            tables;
+
+        for (size_t piece = 0; piece < tables.size; ++piece)
+        {
+            tables[piece] = Non_Linear_Response_Table(
+                TUNED_PIECE_MOBILITY_NLR_WEIGHTS[piece]);
+        }
+
+        return tables;
+    }();
+
     // Helpers
     template <PIECE_COLOR side>
     inline T calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
@@ -123,16 +139,16 @@ T Evaluator<T>::evaluate_template_typed() const
     PIECE_COLOR moving_side = m_chess_board.get_side_to_move();
 
     T material;
-    // T mobility;
+    T mobility;
     T piece_square;
 
     if (moving_side == PIECE_COLOR::WHITE)
     {
         material = material_score<PIECE_COLOR::WHITE>()
                  - material_score<PIECE_COLOR::BLACK>();
-        // mobility = mobility_score<PIECE_COLOR::WHITE>(m_moving_side_matrix)
-        //          -
-        //          mobility_score<PIECE_COLOR::BLACK>(m_opposing_side_matrix);
+        mobility = mobility_score<PIECE_COLOR::WHITE>(m_moving_side_matrix)
+                 -
+                 mobility_score<PIECE_COLOR::BLACK>(m_opposing_side_matrix);
         piece_square = piece_square_score<PIECE_COLOR::WHITE>()
                      - piece_square_score<PIECE_COLOR::BLACK>();
     }
@@ -140,15 +156,14 @@ T Evaluator<T>::evaluate_template_typed() const
     {
         material = material_score<PIECE_COLOR::BLACK>()
                  - material_score<PIECE_COLOR::WHITE>();
-        // mobility = mobility_score<PIECE_COLOR::BLACK>(m_moving_side_matrix)
-        //          -
-        //          mobility_score<PIECE_COLOR::WHITE>(m_opposing_side_matrix);
+        mobility = mobility_score<PIECE_COLOR::BLACK>(m_moving_side_matrix)
+                 -
+                 mobility_score<PIECE_COLOR::WHITE>(m_opposing_side_matrix);
         piece_square = piece_square_score<PIECE_COLOR::BLACK>()
                      - piece_square_score<PIECE_COLOR::WHITE>();
     }
 
-    const T evaluation = material + piece_square;
-    // const T evaluation = material + mobility + piece_square;
+    const T evaluation = material + mobility + piece_square;
 
     return evaluation;
 }
@@ -213,9 +228,22 @@ inline T Evaluator<T>::mobility_score(const Moves_Bitboard_Matrix& matrix) const
         const T piece_mobility =
             calculate_piece_mobility<moving_side>(matrix, (PIECES) piece);
 
-        mobility +=
-            Non_Linear_Response(m_weights.piece_mobility_NLR_parameters[piece])
-                .value(piece_mobility);
+        T non_linear_mobility;
+
+        if constexpr (std::is_same_v<T, Matrex_FP_Int>)
+        {
+            non_linear_mobility =
+                m_mobility_nlr_tables[piece].lookup(piece_mobility);
+        }
+        else
+        {
+            non_linear_mobility =
+                Non_Linear_Response(
+                    m_weights.piece_mobility_NLR_parameters[piece])
+                    .value(piece_mobility);
+        }
+
+        mobility += non_linear_mobility;
     }
 
     return static_cast<T>(mobility);
