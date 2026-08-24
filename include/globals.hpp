@@ -1130,3 +1130,14 @@ Partially_Filled_Array<T, capacity>::operator[](const std::size_t index) const
 
     return m_list[index];
 }
+
+// =============================================================================
+// Utility Functions
+// =============================================================================
+// Extracts bits from a number from the low-th bit to the high-th bit.
+inline uint64_t extract_bits(uint64_t value, uint8_t low, uint8_t high)
+{
+    uint8_t  count = (high - low + 1);
+    uint64_t mask  = (1ULL << count) - 1;
+    return (value >> low) & mask;
+}

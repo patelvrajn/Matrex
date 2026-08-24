@@ -840,52 +840,52 @@ constexpr exp2_lookup_table_type Fixed_Point_Integer<F>::make_exp2_table()
 namespace Matrex
 {
     template <uint8_t F>
-    Fixed_Point_Integer<F> tanh(const Fixed_Point_Integer<F> input);
+    constexpr Fixed_Point_Integer<F> tanh(const Fixed_Point_Integer<F> input);
 
-    double tanh(double x);
+    constexpr double tanh(double x);
 
     AD_Value tanh(AD_Value x);
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> pow(const Fixed_Point_Integer<F> base,
-                               const Fixed_Point_Integer<F> exponent);
+    constexpr Fixed_Point_Integer<F> pow(const Fixed_Point_Integer<F> base,
+                                         const Fixed_Point_Integer<F> exponent);
 
-    double pow(double base, double exponent);
+    constexpr double pow(double base, double exponent);
 
     AD_Value pow(AD_Value base, AD_Value exponent);
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input);
+    constexpr Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input);
 
-    double log2(double x);
+    constexpr double log2(double x);
 
     AD_Value log2(AD_Value x);
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> exp2(const Fixed_Point_Integer<F> input);
+    constexpr Fixed_Point_Integer<F> exp2(const Fixed_Point_Integer<F> input);
 
-    double exp2(double x);
+    constexpr double exp2(double x);
 
     AD_Value exp2(AD_Value x);
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> sqrt(const Fixed_Point_Integer<F> input);
+    constexpr Fixed_Point_Integer<F> sqrt(const Fixed_Point_Integer<F> input);
 
-    double sqrt(double x);
+    constexpr double sqrt(double x);
 
     AD_Value sqrt(AD_Value x);
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> exp(const Fixed_Point_Integer<F> input);
+    constexpr Fixed_Point_Integer<F> exp(const Fixed_Point_Integer<F> input);
 
-    double exp(double x);
+    constexpr double exp(double x);
 
     AD_Value exp(AD_Value x);
 
     // NOTE: Do not use a pade approximation, this method is exponentially more
     // accurate.
     template <uint8_t F>
-    Fixed_Point_Integer<F> tanh(const Fixed_Point_Integer<F> input)
+    constexpr Fixed_Point_Integer<F> tanh(const Fixed_Point_Integer<F> input)
     {
         const bool is_positive = (input.get_value() >= 0);
 
@@ -908,8 +908,8 @@ namespace Matrex
     // A pow function for fixed-point integers that uses the identity:
     // base^exponent = exp2(log2(base) * exponent)
     template <uint8_t F>
-    Fixed_Point_Integer<F> pow(const Fixed_Point_Integer<F> base,
-                               const Fixed_Point_Integer<F> exponent)
+    constexpr Fixed_Point_Integer<F> pow(const Fixed_Point_Integer<F> base,
+                                         const Fixed_Point_Integer<F> exponent)
     {
         if ((base == Fixed_Point_Integer<F>::from_integer(0))
             || (exponent == Fixed_Point_Integer<F>::from_integer(1)))
@@ -926,7 +926,7 @@ namespace Matrex
     }
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input)
+    constexpr Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input)
     {
         MATREX_ASSERT(
             input > 0,
@@ -986,7 +986,7 @@ namespace Matrex
     }
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> exp2(const Fixed_Point_Integer<F> input)
+    constexpr Fixed_Point_Integer<F> exp2(const Fixed_Point_Integer<F> input)
     {
         // What we are doing here is taking the input decomposing it into its
         // integer and fractional parts.
@@ -1070,16 +1070,31 @@ namespace Matrex
     }
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> sqrt(const Fixed_Point_Integer<F> input)
+    constexpr Fixed_Point_Integer<F> sqrt(const Fixed_Point_Integer<F> input)
     {
         return Matrex::pow(input, Fixed_Point_Integer<F>::from_double(0.5));
     }
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> exp(const Fixed_Point_Integer<F> input)
+    constexpr Fixed_Point_Integer<F> exp(const Fixed_Point_Integer<F> input)
     {
         return Matrex::pow(Fixed_Point_Integer<F>::FP_NATURAL_E, input);
     }
+
+    constexpr double tanh(double x) { return std::tanh(x); }
+
+    constexpr double pow(double base, double exponent)
+    {
+        return std::pow(base, exponent);
+    }
+
+    constexpr double sqrt(double x) { return std::sqrt(x); }
+
+    constexpr double exp(double x) { return std::exp(x); }
+
+    constexpr double log2(double x) { return std::log2(x); }
+
+    constexpr double exp2(double x) { return std::exp2(x); }
 } // namespace Matrex
 
 template <uint8_t F>

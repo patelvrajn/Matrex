@@ -2,21 +2,6 @@
 
 namespace Matrex
 {
-    double tanh(double x) { return std::tanh(x); }
-
-    double pow(double base, double exponent)
-    {
-        return std::pow(base, exponent);
-    }
-
-    double sqrt(double x) { return std::sqrt(x); }
-
-    double exp(double x) { return std::exp(x); }
-
-    double log2(double x) { return std::log2(x); }
-
-    double exp2(double x) { return std::exp2(x); }
-
     AD_Value exp2(AD_Value x)
     {
         const double result_value = std::exp2(x.value());
