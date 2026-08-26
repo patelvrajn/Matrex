@@ -467,20 +467,21 @@ Search_Engine::negamax(Chess_Board&                    position,
     //                                 captures_to_malus);
     // }
 
-    // // Cache the position's best move and evaluation in the transposition table
-    // // regardless of time because principal variation search guarantees the next
-    // // move found is a better move.
-    // transposition_table_entry = {
-    //     .best_move = best_move,
-    //     .score     = best_score,
-    //     .partial_zobrist =
-    //         Transposition_Table::get_partial_zobrist(position_z_hash),
-    //     .depth       = depth,
-    //     .score_bound = score_bound};
-    // m_transposition_table.write(m_current_search_depth,
-    //                             ply,
-    //                             position_z_hash,
-    //                             transposition_table_entry);
+    // // Cache the position's best move and evaluation in the transposition table.
+    // if (!m_timer_expired_during_search)
+    // {        
+    //     transposition_table_entry = {
+    //         .best_move = best_move,
+    //         .score     = best_score,
+    //         .partial_zobrist =
+    //             Transposition_Table::get_partial_zobrist(position_z_hash),
+    //         .depth       = depth,
+    //         .score_bound = score_bound};
+    //     m_transposition_table.write(m_current_search_depth,
+    //                                 ply,
+    //                                 position_z_hash,
+    //                                 transposition_table_entry);
+    // }
 
     // Fail-soft. Always return the calculated score and don't bound it between
     // the alpha-beta invariant.
@@ -743,6 +744,11 @@ Search_Engine_Result Search_Engine::iterative_deepening()
                                               m_q_cont_hist_stack,
                                               m_c_cont_hist_stack);
 
+        // Only update best search result if the timer didn't expire
+        // during the search. Otherwise, time has expired, break out
+        // of iterative deepening loop.
+        if (m_timer_expired_during_search) { break; }
+
         uint64_t current_time = m_timer.elapsed();
 
         UCI_Search_Information uci_search_info(m_current_search_depth,
@@ -753,20 +759,15 @@ Search_Engine_Result Search_Engine::iterative_deepening()
 
         std::cout << uci_search_info << std::endl;
 
+        best = result;
+
+        m_principal_variation.clear();
+
         if ((m_constraints.is_depth_search())
             && (current_depth == m_constraints.depth))
         {
             break;
         }
-
-        best = result;
-
-        m_principal_variation.clear();
-
-        // Only update best search result if the timer didn't expire
-        // during the search. Otherwise, time has expired, break out
-        // of iterative deepening loop.
-        if (m_timer_expired_during_search) { break; }
     }
 
     return best;

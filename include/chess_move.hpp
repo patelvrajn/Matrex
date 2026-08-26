@@ -15,22 +15,22 @@ typedef int16_t Move_Score; // Not the same as a search evaluation score.
 
 struct Chess_Move
 {
-    ESQUARE    source_square                    : 7;      // 7
-    ESQUARE    destination_square               : 7;      // 14
-    PIECES     moving_piece                     : 4;      // 18
-    PIECES     promoted_piece                   : 4;      // 22
-    PIECES     captured_piece                   : 4;      // 26
-    bool       is_capture                       : 1;      // 27
-    bool       is_short_castling                : 1;      // 28
-    bool       is_long_castling                 : 1;      // 29
-    ESQUARE    castling_rook_source_square      : 7;      // 36
-    ESQUARE    castling_rook_destination_square : 7;      // 43
-    bool       is_double_pawn_push              : 1;      // 44
-    bool       is_en_passant                    : 1;      // 45
-    ESQUARE    en_passant_victim_square         : 7;      // 52
-    bool       is_promotion                     : 1;      // 53
-    uint16_t   padding                          : 11 = 0; // 64
-    Move_Score score                                 = 0; // 80
+    ESQUARE    source_square                    : 7;  // 7
+    ESQUARE    destination_square               : 7;  // 14
+    PIECES     moving_piece                     : 4;  // 18
+    PIECES     promoted_piece                   : 4;  // 22
+    PIECES     captured_piece                   : 4;  // 26
+    bool       is_capture                       : 1;  // 27
+    bool       is_short_castling                : 1;  // 28
+    bool       is_long_castling                 : 1;  // 29
+    ESQUARE    castling_rook_source_square      : 7;  // 36
+    ESQUARE    castling_rook_destination_square : 7;  // 43
+    bool       is_double_pawn_push              : 1;  // 44
+    bool       is_en_passant                    : 1;  // 45
+    ESQUARE    en_passant_victim_square         : 7;  // 52
+    bool       is_promotion                     : 1;  // 53
+    uint16_t   padding                          : 11; // 64
+    Move_Score score;                                 // 80
 
     static Chess_Move reversible_move(const PIECES piece,
                                       const Square source,
@@ -159,7 +159,7 @@ class Chess_Move_List
     template <std::size_t S>
     inline void push_and_copy(const Chess_Move&         move,
                               const Chess_Move_List<S>& move_list);
-    inline void append(const Chess_Move& move);
+    FORCE_INLINE void append(const Chess_Move& move);
     inline void clear();
 
     Chess_Move* begin() const;
@@ -177,8 +177,8 @@ class Chess_Move_List
 
   private:
 
-    int16_t                           m_max_index;
-    Multi_Array<Chess_Move, capacity> m_list;
+    int16_t                          m_max_index;
+    std::array<Chess_Move, capacity> m_list;
 };
 
 template <std::size_t capacity>
@@ -211,7 +211,7 @@ Chess_Move_List<capacity>::push_and_copy(const Chess_Move&         move,
 }
 
 template <std::size_t capacity>
-inline void Chess_Move_List<capacity>::append(const Chess_Move& move)
+FORCE_INLINE void Chess_Move_List<capacity>::append(const Chess_Move& move)
 {
     ++m_max_index;
     m_list[m_max_index] = move;
@@ -251,7 +251,7 @@ Chess_Move& Chess_Move_List<capacity>::operator[](const uint16_t index)
 template <std::size_t capacity>
 void Chess_Move_List<capacity>::sort()
 {
-    std::stable_sort(begin(), end(), std::greater<Chess_Move>());
+    std::sort(begin(), end(), std::greater<Chess_Move>());
 }
 
 // Handles printing the principal variation.

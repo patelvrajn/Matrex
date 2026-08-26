@@ -136,16 +136,8 @@ Score Score::operator+(const Score& other) const
     Fixed_Point_Int_Storage_Type this_int  = to_int();
     Fixed_Point_Int_Storage_Type other_int = other.to_int();
 
-    if (m_fields.mate || other.m_fields.mate)
-    {
-        return Score::from_int(std::max(this_int, other_int));
-    }
-    else
-    {
-        Fixed_Point_Int_Storage_Type sum = this_int + other_int;
-        return Score(
-            std::clamp(sum, FP_NEGATIVE_INFINITY, FP_POSITIVE_INFINITY));
-    }
+    Fixed_Point_Int_Storage_Type sum = this_int + other_int;
+    return Score(std::clamp(sum, FP_NEGATIVE_INFINITY, FP_POSITIVE_INFINITY));
 }
 
 Score Score::operator-(const Score& other) const
@@ -153,16 +145,9 @@ Score Score::operator-(const Score& other) const
     Fixed_Point_Int_Storage_Type this_int  = to_int();
     Fixed_Point_Int_Storage_Type other_int = other.to_int();
 
-    if (m_fields.mate || other.m_fields.mate)
-    {
-        return Score::from_int(std::min(this_int, other_int));
-    }
-    else
-    {
-        Fixed_Point_Int_Storage_Type difference = this_int - other_int;
-        return Score(
-            std::clamp(difference, FP_NEGATIVE_INFINITY, FP_POSITIVE_INFINITY));
-    }
+    Fixed_Point_Int_Storage_Type difference = this_int - other_int;
+    return Score(
+        std::clamp(difference, FP_NEGATIVE_INFINITY, FP_POSITIVE_INFINITY));
 }
 
 Score Score::operator-() const { return Score::from_int(-to_int()); }

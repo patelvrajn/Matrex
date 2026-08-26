@@ -92,11 +92,11 @@ void Move_Ordering<CONT_HIST_STACK_SIZE>::generate_moves()
 template <std::size_t CONT_HIST_STACK_SIZE>
 Move_Generation_List& Move_Ordering<CONT_HIST_STACK_SIZE>::get_sorted_moves()
 {
-    // if (m_move_list.get_max_index() != -1)
-    // {
-    //     move_scorer();
-    //     m_move_list.sort();
-    // }
+    if (m_move_list.get_max_index() != -1)
+    {
+        move_scorer();
+        m_move_list.sort();
+    }
     return m_move_list;
 }
 

@@ -260,7 +260,7 @@ class Non_Linear_Response_Table // Only for Matrex fixed-point type.
   public:
 
     constexpr static std::size_t NON_LINEAR_RESPONSE_TABLE_INTEGER_BIT_WIDTH =
-        16;
+        15;
     constexpr static std::size_t
         NON_LINEAR_RESPONSE_TABLE_FRACTIONAL_BIT_WIDTH = 4;
     constexpr static std::size_t NON_LINEAR_RESPONSE_TABLE_BIT_WIDTH =
@@ -278,10 +278,9 @@ class Non_Linear_Response_Table // Only for Matrex fixed-point type.
 
     constexpr static double NON_LINEAR_RESPONSE_TABLE_FP_MAX =
         std::exp2(NON_LINEAR_RESPONSE_TABLE_INTEGER_BIT_WIDTH)
-        + Fixed_Point_Integer<NON_LINEAR_RESPONSE_TABLE_FRACTIONAL_BIT_WIDTH>::
-            maximum_fractional();
+        - NON_LINEAR_RESPONSE_TABLE_FP_PRECISION;
     constexpr static double NON_LINEAR_RESPONSE_TABLE_FP_MIN =
-        -1 * NON_LINEAR_RESPONSE_TABLE_FP_MAX;
+        -std::exp2(NON_LINEAR_RESPONSE_TABLE_INTEGER_BIT_WIDTH);
 
     using Table_Type =
         Multi_Array<Matrex_FP_Int, NON_LINEAR_RESPONSE_TABLE_SIZE>;
@@ -315,9 +314,14 @@ class Non_Linear_Response_Table // Only for Matrex fixed-point type.
             return (*m_table)[NON_LINEAR_RESPONSE_TABLE_SIZE - 1];
         }
 
-        std::size_t index =
-            (value - NON_LINEAR_RESPONSE_TABLE_FP_MIN).get_value()
-            >> (FIXED_POINT_BIT_WIDTH - NON_LINEAR_RESPONSE_TABLE_BIT_WIDTH);
+        constexpr uint8_t index_shift =
+            FIXED_POINT_BIT_WIDTH - NON_LINEAR_RESPONSE_TABLE_BIT_WIDTH;
+        constexpr int64_t minimum_value =
+            Matrex_FP_Int::from_double(NON_LINEAR_RESPONSE_TABLE_FP_MIN)
+                .get_value();
+        const uint64_t biased_value = static_cast<uint64_t>(
+            static_cast<int64_t>(value.get_value()) - minimum_value);
+        const std::size_t index = biased_value >> index_shift;
 
         if (index >= (NON_LINEAR_RESPONSE_TABLE_SIZE - 1))
         {
@@ -327,9 +331,9 @@ class Non_Linear_Response_Table // Only for Matrex fixed-point type.
         // The bottom bits of the fraction tell us where in between the indices
         // we are.
         const Matrex_FP_Int fraction = Matrex_FP_Int::from_value(extract_bits(
-            value.get_value(),
+            biased_value,
             0,
-            (FIXED_POINT_BIT_WIDTH - NON_LINEAR_RESPONSE_TABLE_BIT_WIDTH - 1)));
+            (index_shift - 1)));
 
         const Matrex_FP_Int y1 = (*m_table)[index];
         const Matrex_FP_Int y2 = (*m_table)[index + 1];
