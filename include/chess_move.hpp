@@ -50,7 +50,9 @@ struct Chess_Move
             .is_double_pawn_push              = false,
             .is_en_passant                    = false,
             .en_passant_victim_square         = static_cast<ESQUARE>(0),
-            .is_promotion                     = false};
+            .is_promotion                     = false,
+            .padding                          = 0,
+            .score                            = 0};
     }
 
     std::string to_coordinate_notation(const bool is_frc) const

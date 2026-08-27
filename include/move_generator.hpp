@@ -538,7 +538,9 @@ Move_Generator::generate_pawn_promotions(const Square source_square,
         .is_double_pawn_push              = false,
         .is_en_passant                    = false,
         .en_passant_victim_square         = ESQUARE::NO_SQUARE,
-        .is_promotion                     = true};
+        .is_promotion                     = true,
+        .padding                          = 0,
+        .score                            = 0};
 
     matrix_output.set_move(moving_side,
                            PIECES::PAWN,
@@ -655,7 +657,9 @@ inline void Move_Generator::generate_single_push_non_promotion_pawn_moves(
                 .is_double_pawn_push              = false,
                 .is_en_passant                    = false,
                 .en_passant_victim_square         = ESQUARE::NO_SQUARE,
-                .is_promotion                     = false};
+                .is_promotion                     = false,
+                .padding                          = 0,
+                .score                            = 0};
 
             matrix_output.set_move(moving_side,
                                    PIECES::PAWN,
@@ -718,7 +722,9 @@ inline void Move_Generator::generate_double_push_pawn_moves(
                 .is_double_pawn_push              = true,
                 .is_en_passant                    = false,
                 .en_passant_victim_square         = ESQUARE::NO_SQUARE,
-                .is_promotion                     = false};
+                .is_promotion                     = false,
+                .padding                          = 0,
+                .score                            = 0};
 
             matrix_output.set_move(moving_side,
                                    PIECES::PAWN,
@@ -815,7 +821,9 @@ inline void Move_Generator::generate_en_passant_captures(
                     .is_en_passant                    = true,
                     .en_passant_victim_square =
                         (ESQUARE) en_passant_victim_square.get_index(),
-                    .is_promotion = false};
+                    .is_promotion = false,
+                    .padding = 0,
+                    .score = 0};
 
                 matrix_output.set_move(moving_side,
                                        PIECES::PAWN,
@@ -881,7 +889,9 @@ inline void Move_Generator::generate_non_promotion_pawn_captures(
                 .is_double_pawn_push              = false,
                 .is_en_passant                    = false,
                 .en_passant_victim_square         = ESQUARE::NO_SQUARE,
-                .is_promotion                     = false};
+                .is_promotion                     = false,
+                .padding                          = 0,
+                .score                            = 0};
 
             matrix_output.set_move(moving_side,
                                    PIECES::PAWN,
@@ -999,7 +1009,9 @@ inline void Move_Generator::generate_minor_and_major_piece_moves(
                 .is_double_pawn_push              = false,
                 .is_en_passant                    = false,
                 .en_passant_victim_square         = ESQUARE::NO_SQUARE,
-                .is_promotion                     = false};
+                .is_promotion                     = false,
+                .padding                          = 0,
+                .score                            = 0};
 
             matrix_output.set_move(moving_side,
                                    moving_piece,
@@ -1072,7 +1084,9 @@ Move_Generator::generate_king_moves(Move_Generation_List&  output,
             .is_double_pawn_push              = false,
             .is_en_passant                    = false,
             .en_passant_victim_square         = ESQUARE::NO_SQUARE,
-            .is_promotion                     = false};
+            .is_promotion                     = false,
+            .padding                          = 0,
+            .score                            = 0};
 
         matrix_output.set_move(moving_side,
                                PIECES::KING,
@@ -1239,7 +1253,9 @@ Move_Generator::generate_castling_moves(const Bitboard         pinned,
                 .is_double_pawn_push      = false,
                 .is_en_passant            = false,
                 .en_passant_victim_square = ESQUARE::NO_SQUARE,
-                .is_promotion             = false};
+                .is_promotion             = false,
+                .padding                  = 0,
+                .score                    = 0};
 
             matrix_output.set_move(moving_side,
                                    PIECES::KING,
