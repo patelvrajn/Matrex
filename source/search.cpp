@@ -659,18 +659,18 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         }
     }
 
-    // Static_Exchange_Evaluator<int64_t> see(position);
+    Static_Exchange_Evaluator<int64_t> see(position);
 
     for (const Chess_Move& move : moves)
     {
-        // // Static Exchange Evaluation Pruning
-        // if (should_do_see_pruning(move, best_score, is_side_to_move_in_check))
-        // {
-        //     const auto see_evaluation =
-        //         see.evaluate(move.destination_square, move.moving_piece, 1);
+        // Static Exchange Evaluation Pruning
+        if (should_do_see_pruning(move, best_score, is_side_to_move_in_check))
+        {
+            const auto see_evaluation =
+                see.evaluate(move.destination_square, move.moving_piece, 1);
 
-        //     if (see_evaluation < see.quiescence_threshold()) { continue; }
-        // }
+            if (see_evaluation < see.quiescence_threshold()) { continue; }
+        }
 
         // Explore the child move's subtree for it's evaluation. Negate
         // the result to compare it's score to the parent's scores
