@@ -50,7 +50,7 @@ Search_Engine::negamax(Chess_Board&                    position,
                        Score                           alpha,
                        Score                           beta)
 {
-    // const uint32_t depth_squared = (depth * depth);
+    const uint32_t depth_squared = (depth * depth);
 
     ++m_num_of_nodes_searched;
 
@@ -190,20 +190,20 @@ Search_Engine::negamax(Chess_Board&                    position,
     }
 
     // Generate moves matrix for the opposing side for evaluation purposes.
-    // const PIECE_COLOR     opposing_side = ~position.get_side_to_move();
-    // Move_Generation_List  not_used_moves_list;
-    // Moves_Bitboard_Matrix opposing_side_matrix;
-    // Move_Generator        mg(position);
-    // mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,
-    //                                                  not_used_moves_list,
-    //                                                  opposing_side_matrix);
+    const PIECE_COLOR     opposing_side = ~position.get_side_to_move();
+    Move_Generation_List  not_used_moves_list;
+    Moves_Bitboard_Matrix opposing_side_matrix;
+    Move_Generator        mg(position);
+    mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,
+                                                     not_used_moves_list,
+                                                     opposing_side_matrix);
 
-    // const Evaluator e(TUNED_EVALUATION_WEIGHTS,
-    //                   position,
-    //                   moving_side_matrix,
-    //                   opposing_side_matrix);
+    const Evaluator e(TUNED_EVALUATION_WEIGHTS,
+                      position,
+                      moving_side_matrix,
+                      opposing_side_matrix);
 
-    const Score static_evaluation = Score(0); // e.evaluate(m_correction_history);
+    const Score static_evaluation = e.evaluate(m_correction_history);
 
     // const Matrex_FP_Int fp_reverse_futility_pruning_margin =
     //     Matrex_FP_Int::from_integer((2 * depth_squared) + (32 * depth) + 16);
@@ -246,26 +246,26 @@ Search_Engine::negamax(Chess_Board&                    position,
         //     }
         // }
 
-        // // Futility pruning - we have a large enough margin from alpha that
-        // // evaluating this branch is futile. The margin is determined by depth
-        // // and a fixed scaler because the more moves you have from the leaf the
-        // // larger the deficit we can overcome.
-        // const Matrex_FP_Int fp_quiet_futility_pruning_margin =
-        //     Matrex_FP_Int::from_integer((depth_squared * 20) + 25);
-        // const Score quiet_futility_pruning_margin =
-        //     Score(fp_quiet_futility_pruning_margin);
-        // const Score quiet_futility_threshold =
-        //     static_evaluation + quiet_futility_pruning_margin;
-        // if (should_do_quiet_futility_pruning(move,
-        //                                      best_score,
-        //                                      is_side_to_move_in_check,
-        //                                      quiet_futility_threshold,
-        //                                      alpha,
-        //                                      is_first_move))
-        // {
-        //     best_score = std::max(best_score, quiet_futility_threshold);
-        //     continue;
-        // }
+        // Futility pruning - we have a large enough margin from alpha that
+        // evaluating this branch is futile. The margin is determined by depth
+        // and a fixed scaler because the more moves you have from the leaf the
+        // larger the deficit we can overcome.
+        const Matrex_FP_Int fp_quiet_futility_pruning_margin =
+            Matrex_FP_Int::from_integer((depth_squared * 32) + 256);
+        const Score quiet_futility_pruning_margin =
+            Score(fp_quiet_futility_pruning_margin);
+        const Score quiet_futility_threshold =
+            static_evaluation + quiet_futility_pruning_margin;
+        if (should_do_quiet_futility_pruning(move,
+                                             best_score,
+                                             is_side_to_move_in_check,
+                                             quiet_futility_threshold,
+                                             alpha,
+                                             is_first_move))
+        {
+            // best_score = std::max(best_score, quiet_futility_threshold);
+            continue;
+        }
 
         // if (should_do_quiet_history_pruning(q_cont_hist_stack,
         //                                     move,
