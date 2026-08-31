@@ -56,22 +56,22 @@ class Non_Linear_Response
 {
   public:
 
-    Non_Linear_Response(const NLR_Parameters<T>& params);
+    constexpr Non_Linear_Response(const NLR_Parameters<T>& params);
 
-    FORCE_INLINE T value(const T F) const;
+    FORCE_INLINE constexpr T value(const T F) const;
 
-    T calculate_u(const T F) const;
-
-    T calculate_function_M(const T x) const;
-    T calculate_function_G(const T F) const;
-    T calculate_function_H(const T F) const;
-    T calculate_function_S(const T F, const T m) const;
-    T calculate_function_P_plus(const T m) const;
-    T calculate_function_P_minus(const T m) const;
-    T calculate_function_P(const T F, const T m) const;
-    T calculate_function_B_plus(const T m) const;
-    T calculate_function_B_minus(const T m) const;
-    T calculate_function_B(const T F, const T m) const;
+    constexpr T calculate_u(const T F) const;
+    constexpr T calculate_l(const T u) const;
+    constexpr T calculate_function_M(const T l) const;
+    constexpr T calculate_function_G(const T F) const;
+    constexpr T calculate_function_H(const T g) const;
+    constexpr T calculate_function_S(const T F, const T m) const;
+    constexpr T calculate_function_P_plus(const T l) const;
+    constexpr T calculate_function_P_minus(const T l) const;
+    constexpr T calculate_function_P(const T l, const T g) const;
+    constexpr T calculate_function_B_plus(const T l) const;
+    constexpr T calculate_function_B_minus(const T l) const;
+    constexpr T calculate_function_B(const T l, const T g) const;
 
   private:
 
@@ -79,64 +79,50 @@ class Non_Linear_Response
 };
 
 template <typename T>
-Non_Linear_Response<T>::Non_Linear_Response(const NLR_Parameters<T>& params) :
+constexpr Non_Linear_Response<T>::Non_Linear_Response(
+    const NLR_Parameters<T>& params) :
     m_parameters(params)
 {
 }
 
 template <typename T>
-FORCE_INLINE T Non_Linear_Response<T>::value(const T F) const
+FORCE_INLINE constexpr T Non_Linear_Response<T>::value(const T F) const
 {
     const T u = calculate_u(F);
-    const T m = calculate_function_M(u);
+    const T l = calculate_l(u);
 
-    const T H = calculate_function_H(F);
+    const T m = calculate_function_M(l);
+    const T g = calculate_function_G(F);
+
+    const T H = calculate_function_H(g);
     const T S = calculate_function_S(F, m);
-    const T P = calculate_function_P(F, m);
-    const T B = calculate_function_B(F, m);
+    const T P = calculate_function_P(l, g);
+    const T B = calculate_function_B(l, g);
 
     return (H * S * P * B);
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_u(const T F) const
+constexpr T Non_Linear_Response<T>::calculate_u(const T F) const
 {
     return (F - m_parameters.k);
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_M(const T x) const
+constexpr T Non_Linear_Response<T>::calculate_l(const T u) const
 {
-    if constexpr (std::is_same_v<T, Matrex_FP_Int>)
-    {
-        constexpr double MAX_SQRT_TERM = std::sqrt(
-            static_cast<double>(
-                std::numeric_limits<Fixed_Point_Int_Storage_Type>::max())
-            / static_cast<double>(1 << MATREX_FP_INT_FRACTIONAL_BITS));
-        MATREX_ASSERT(Matrex_FP_Int::is_representable(MAX_SQRT_TERM),
-                      "Maximum square root term of value {} in function M is "
-                      "out of bounds.",
-                      MAX_SQRT_TERM);
-        constexpr Matrex_FP_Int FP_MAX_SQRT_TERM =
-            Matrex_FP_Int::from_double(MAX_SQRT_TERM);
+    return 0.5 * Matrex::log2((u * u) + NON_LINEAR_RESPONSE_EPSILON);
+}
 
-        const T abs_x = ((x < 0) ? -x : x);
-
-        // This function is used calculate the absolute value of x in a manner
-        // where it is differentiable and the return value value is not zero (to
-        // support negative exponents). If x is large enough that it will result
-        // in overflow we just return the absolute value as long as it is
-        // non-zero. It is guaranteed to be non-zero otherwise, it wouldn't be
-        // greater than the maximum square root term.
-        if (abs_x >= FP_MAX_SQRT_TERM) { return abs_x; }
-    }
-
-    const T result = Matrex::sqrt((x * x) + NON_LINEAR_RESPONSE_EPSILON);
+template <typename T>
+constexpr T Non_Linear_Response<T>::calculate_function_M(const T l) const
+{
+    const T result = Matrex::exp2(l);
     return result;
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_G(const T F) const
+constexpr T Non_Linear_Response<T>::calculate_function_G(const T F) const
 {
     const T u = calculate_u(F);
 
@@ -174,22 +160,22 @@ T Non_Linear_Response<T>::calculate_function_G(const T F) const
         }
     }
 
-    const T exponent = (negative_u * NON_LINEAR_RESPONSE_T);
-    const T sigmoid  = 1.0 / (Matrex::exp(exponent) + 1.0);
+    const T exponent = (negative_u * NON_LINEAR_RESPONSE_T) / LN_2;
+    const T sigmoid  = 1.0 / (Matrex::exp2(exponent) + 1.0);
     return sigmoid;
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_H(const T F) const
+constexpr T Non_Linear_Response<T>::calculate_function_H(const T g) const
 {
-    const T g           = calculate_function_G(F);
     const T first_term  = g * m_parameters.h_plus;
     const T second_term = (-g + 1) * m_parameters.h_minus;
     return (first_term + second_term);
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_S(const T F, const T m) const
+constexpr T Non_Linear_Response<T>::calculate_function_S(const T F,
+                                                         const T m) const
 {
     const T u           = calculate_u(F);
     const T first_term  = m_parameters.z * u;
@@ -198,49 +184,171 @@ T Non_Linear_Response<T>::calculate_function_S(const T F, const T m) const
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_P_plus(const T m) const
+constexpr T Non_Linear_Response<T>::calculate_function_P_plus(const T l) const
 {
-    const T term = Matrex::pow(m, m_parameters.q_plus);
+    const T term = Matrex::exp2(m_parameters.q_plus * l);
     return term;
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_P_minus(const T m) const
+constexpr T Non_Linear_Response<T>::calculate_function_P_minus(const T l) const
 {
-    const T term = Matrex::pow(m, m_parameters.q_minus);
+    const T term = Matrex::exp2(m_parameters.q_minus * l);
     return term;
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_P(const T F, const T m) const
+constexpr T Non_Linear_Response<T>::calculate_function_P(const T l,
+                                                         const T g) const
 {
-    const T g = calculate_function_G(F);
-    const T first_term = g * calculate_function_P_plus(m);
-    const T second_term = (1 - g) * calculate_function_P_minus(m);
+    if (g == 1) { return calculate_function_P_plus(l); }
+    else if (g == 0) { return calculate_function_P_minus(l); }
+
+    const T first_term  = g * calculate_function_P_plus(l);
+    const T second_term = (1 - g) * calculate_function_P_minus(l);
     return (first_term + second_term);
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_B_plus(const T m) const
+constexpr T Non_Linear_Response<T>::calculate_function_B_plus(const T l) const
 {
-    const T v = m / calculate_function_M(m_parameters.g_plus);
-    const T w = Matrex::pow(v, m_parameters.r_plus);
-    return Matrex::tanh(w);
+    const T d = 0.5
+              * Matrex::log2((m_parameters.g_plus * m_parameters.g_plus)
+                             + NON_LINEAR_RESPONSE_EPSILON);
+
+    const T w = Matrex::exp2(m_parameters.r_plus * (l - d));
+
+    const T common_term = Matrex::exp2((-2 * w) / LN_2);
+
+    const T numerator   = 1 - common_term;
+    const T denominator = 1 + common_term;
+
+    return (numerator / denominator);
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_B_minus(const T m) const
+constexpr T Non_Linear_Response<T>::calculate_function_B_minus(const T l) const
 {
-    const T v = m / calculate_function_M(m_parameters.g_minus);
-    const T w = Matrex::pow(v, m_parameters.r_minus);
-    return Matrex::tanh(w);
+    const T d = 0.5
+              * Matrex::log2((m_parameters.g_minus * m_parameters.g_minus)
+                             + NON_LINEAR_RESPONSE_EPSILON);
+
+    const T w = Matrex::exp2(m_parameters.r_minus * (l - d));
+
+    const T common_term = Matrex::exp2((-2 * w) / LN_2);
+
+    const T numerator   = 1 - common_term;
+    const T denominator = 1 + common_term;
+
+    return (numerator / denominator);
 }
 
 template <typename T>
-T Non_Linear_Response<T>::calculate_function_B(const T F, const T m) const
+constexpr T Non_Linear_Response<T>::calculate_function_B(const T l,
+                                                         const T g) const
 {
-    const T g = calculate_function_G(F);
-    const T first_term = g * calculate_function_B_plus(m);
-    const T second_term = (1 - g) * calculate_function_B_minus(m);
+    if (g == 1) { return calculate_function_B_plus(l); }
+    else if (g == 0) { return calculate_function_B_minus(l); }
+
+    const T first_term  = g * calculate_function_B_plus(l);
+    const T second_term = (1 - g) * calculate_function_B_minus(l);
     return (first_term + second_term);
 }
+
+class Non_Linear_Response_Table // Only for Matrex fixed-point type.
+{
+  public:
+
+    constexpr static std::size_t NON_LINEAR_RESPONSE_TABLE_INTEGER_BIT_WIDTH =
+        15;
+    constexpr static std::size_t
+        NON_LINEAR_RESPONSE_TABLE_FRACTIONAL_BIT_WIDTH = 4;
+    constexpr static std::size_t NON_LINEAR_RESPONSE_TABLE_BIT_WIDTH =
+        NON_LINEAR_RESPONSE_TABLE_INTEGER_BIT_WIDTH
+        + NON_LINEAR_RESPONSE_TABLE_FRACTIONAL_BIT_WIDTH + 1;
+    constexpr static std::size_t NON_LINEAR_RESPONSE_TABLE_SIZE =
+        std::exp2(NON_LINEAR_RESPONSE_TABLE_BIT_WIDTH);
+
+    constexpr static double NON_LINEAR_RESPONSE_TABLE_FP_SCALE =
+        Fixed_Point_Integer<
+            NON_LINEAR_RESPONSE_TABLE_FRACTIONAL_BIT_WIDTH>::scale();
+    constexpr static double NON_LINEAR_RESPONSE_TABLE_FP_PRECISION =
+        Fixed_Point_Integer<
+            NON_LINEAR_RESPONSE_TABLE_FRACTIONAL_BIT_WIDTH>::precision();
+
+    constexpr static double NON_LINEAR_RESPONSE_TABLE_FP_MAX =
+        std::exp2(NON_LINEAR_RESPONSE_TABLE_INTEGER_BIT_WIDTH)
+        - NON_LINEAR_RESPONSE_TABLE_FP_PRECISION;
+    constexpr static double NON_LINEAR_RESPONSE_TABLE_FP_MIN =
+        -std::exp2(NON_LINEAR_RESPONSE_TABLE_INTEGER_BIT_WIDTH);
+
+    using Table_Type =
+        Multi_Array<Matrex_FP_Int, NON_LINEAR_RESPONSE_TABLE_SIZE>;
+
+    constexpr Non_Linear_Response_Table() :
+        m_parameters {}, m_table(std::make_unique<Table_Type>())
+    {
+    }
+
+    constexpr Non_Linear_Response_Table(
+        const NLR_Parameters<Matrex_FP_Int>& params) :
+        m_parameters(params), m_table(std::make_unique<Table_Type>())
+    {
+        Matrex_FP_Int value =
+            Matrex_FP_Int::from_double(NON_LINEAR_RESPONSE_TABLE_FP_MIN);
+
+        for (std::size_t i = 0; i < NON_LINEAR_RESPONSE_TABLE_SIZE; ++i)
+        {
+            Non_Linear_Response<Matrex_FP_Int> nlr(params);
+            (*m_table)[i]  = nlr.value(value);
+            value         += NON_LINEAR_RESPONSE_TABLE_FP_PRECISION;
+        }
+    }
+
+    constexpr Matrex_FP_Int lookup(const Matrex_FP_Int value) const
+    {
+        if (value <= NON_LINEAR_RESPONSE_TABLE_FP_MIN) { return (*m_table)[0]; }
+
+        if (value >= NON_LINEAR_RESPONSE_TABLE_FP_MAX)
+        {
+            return (*m_table)[NON_LINEAR_RESPONSE_TABLE_SIZE - 1];
+        }
+
+        constexpr uint8_t index_shift =
+            FIXED_POINT_BIT_WIDTH - NON_LINEAR_RESPONSE_TABLE_BIT_WIDTH;
+        constexpr int64_t minimum_value =
+            Matrex_FP_Int::from_double(NON_LINEAR_RESPONSE_TABLE_FP_MIN)
+                .get_value();
+        const uint64_t biased_value = static_cast<uint64_t>(
+            static_cast<int64_t>(value.get_value()) - minimum_value);
+        const std::size_t index = biased_value >> index_shift;
+
+        if (index >= (NON_LINEAR_RESPONSE_TABLE_SIZE - 1))
+        {
+            return (*m_table)[NON_LINEAR_RESPONSE_TABLE_SIZE - 1];
+        }
+
+        // The bottom bits of the fraction tell us where in between the indices
+        // we are.
+        const Matrex_FP_Int fraction = Matrex_FP_Int::from_value(extract_bits(
+            biased_value,
+            0,
+            (index_shift - 1)));
+
+        const Matrex_FP_Int y1 = (*m_table)[index];
+        const Matrex_FP_Int y2 = (*m_table)[index + 1];
+
+        // Linear interpolation.
+        const Matrex_FP_Int result =
+            y1
+            + (((y2 - y1) * fraction) * NON_LINEAR_RESPONSE_TABLE_FP_SCALE);
+
+        return result;
+    }
+
+  private:
+
+    NLR_Parameters<Matrex_FP_Int> m_parameters;
+
+    std::unique_ptr<Table_Type> m_table;
+};

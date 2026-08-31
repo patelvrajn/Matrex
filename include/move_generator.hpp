@@ -43,21 +43,78 @@ class Moves_Bitboard_Matrix
 {
   public:
 
+    class Iterator
+    {
+      public:
+
+        using pointer   = const Moves_Bitboard*;
+        using reference = const Moves_Bitboard&;
+
+        Iterator() = default;
+
+        Iterator(pointer matrix, const uint16_t piece_index_masks) :
+            m_matrix(matrix), m_piece_index_masks(piece_index_masks)
+        {
+        }
+
+        reference operator*() const
+        {
+            return m_matrix[std::countr_zero(m_piece_index_masks)];
+        }
+
+        Iterator& operator++()
+        {
+            m_piece_index_masks &= (m_piece_index_masks - 1);
+            return *this;
+        }
+
+        bool operator==(const Iterator&) const = default;
+
+      private:
+
+        pointer  m_matrix            = nullptr;
+        uint16_t m_piece_index_masks = 0;
+    };
+
+    class Iterable
+    {
+      public:
+
+        Iterable(const Moves_Bitboard* matrix,
+                 const uint16_t        piece_index_masks) :
+            m_matrix(matrix), m_piece_index_masks(piece_index_masks)
+        {
+        }
+
+        Iterator begin() const
+        {
+            return Iterator(m_matrix, m_piece_index_masks);
+        }
+
+        Iterator end() const { return Iterator(m_matrix, 0); }
+
+      private:
+
+        const Moves_Bitboard* m_matrix;
+        uint16_t              m_piece_index_masks;
+    };
+
     Moves_Bitboard_Matrix();
 
-    void set_move(const PIECE_COLOR color,
-                  const PIECES      piece,
-                  const Square      piece_square,
-                  const Square      move_square);
+    FORCE_INLINE void set_move(const PIECE_COLOR color,
+                               const PIECES      piece,
+                               const Square      piece_square,
+                               const Square      move_square);
 
     bool get_moves_bitboards(const PIECE_COLOR color,
                              const PIECES      piece,
                              const Square      piece_square,
                              Moves_Bitboard&   output) const;
 
-    bool get_piece_moves_bitboards(const PIECE_COLOR            color,
-                                   const PIECES                 piece,
-                                   std::vector<Moves_Bitboard>& output) const;
+    Iterable get_iterable(const PIECE_COLOR color, const PIECES piece) const
+    {
+        return Iterable(&m_matrix[color][0], m_piece_index_masks[color][piece]);
+    }
 
   private:
 
@@ -75,6 +132,30 @@ class Moves_Bitboard_Matrix
     Multi_Array<Moves_Bitboard, NUM_OF_PLAYERS, NUM_OF_PIECES_PER_PLAYER>
         m_matrix;
 };
+
+FORCE_INLINE void Moves_Bitboard_Matrix::set_move(const PIECE_COLOR color,
+                                                  const PIECES      piece,
+                                                  const Square piece_square,
+                                                  const Square move_square)
+{
+    // Index mappings - given a piece and color and the square the piece is on,
+    // find the index of a moves bitboard in the bitboard matrix.
+    int8_t& index = m_index_mappings[color][piece][piece_square.get_index()];
+
+    if (index == -1)
+    {
+        ++m_max_indices[color];       // Increment max index for this color.
+        index = m_max_indices[color]; // Assign new max index to index mappings.
+        // Update piece index mask - set the bit corresponding to this index -
+        // each piece has a bitmask representing which indices in the matrix
+        // correspond to it.
+        m_piece_index_masks[color][piece] |= (1 << index);
+        // Zero-initialize bitboard in the matrix.
+        m_matrix[color][index] = {piece, piece_square, Bitboard(0)};
+    }
+
+    m_matrix[color][index].bitboard.set_square(move_square);
+}
 
 class Move_Generator
 {
@@ -457,7 +538,9 @@ Move_Generator::generate_pawn_promotions(const Square source_square,
         .is_double_pawn_push              = false,
         .is_en_passant                    = false,
         .en_passant_victim_square         = ESQUARE::NO_SQUARE,
-        .is_promotion                     = true};
+        .is_promotion                     = true,
+        .padding                          = 0,
+        .score                            = 0};
 
     matrix_output.set_move(moving_side,
                            PIECES::PAWN,
@@ -574,7 +657,9 @@ inline void Move_Generator::generate_single_push_non_promotion_pawn_moves(
                 .is_double_pawn_push              = false,
                 .is_en_passant                    = false,
                 .en_passant_victim_square         = ESQUARE::NO_SQUARE,
-                .is_promotion                     = false};
+                .is_promotion                     = false,
+                .padding                          = 0,
+                .score                            = 0};
 
             matrix_output.set_move(moving_side,
                                    PIECES::PAWN,
@@ -637,7 +722,9 @@ inline void Move_Generator::generate_double_push_pawn_moves(
                 .is_double_pawn_push              = true,
                 .is_en_passant                    = false,
                 .en_passant_victim_square         = ESQUARE::NO_SQUARE,
-                .is_promotion                     = false};
+                .is_promotion                     = false,
+                .padding                          = 0,
+                .score                            = 0};
 
             matrix_output.set_move(moving_side,
                                    PIECES::PAWN,
@@ -734,7 +821,9 @@ inline void Move_Generator::generate_en_passant_captures(
                     .is_en_passant                    = true,
                     .en_passant_victim_square =
                         (ESQUARE) en_passant_victim_square.get_index(),
-                    .is_promotion = false};
+                    .is_promotion = false,
+                    .padding = 0,
+                    .score = 0};
 
                 matrix_output.set_move(moving_side,
                                        PIECES::PAWN,
@@ -800,7 +889,9 @@ inline void Move_Generator::generate_non_promotion_pawn_captures(
                 .is_double_pawn_push              = false,
                 .is_en_passant                    = false,
                 .en_passant_victim_square         = ESQUARE::NO_SQUARE,
-                .is_promotion                     = false};
+                .is_promotion                     = false,
+                .padding                          = 0,
+                .score                            = 0};
 
             matrix_output.set_move(moving_side,
                                    PIECES::PAWN,
@@ -918,7 +1009,9 @@ inline void Move_Generator::generate_minor_and_major_piece_moves(
                 .is_double_pawn_push              = false,
                 .is_en_passant                    = false,
                 .en_passant_victim_square         = ESQUARE::NO_SQUARE,
-                .is_promotion                     = false};
+                .is_promotion                     = false,
+                .padding                          = 0,
+                .score                            = 0};
 
             matrix_output.set_move(moving_side,
                                    moving_piece,
@@ -991,7 +1084,9 @@ Move_Generator::generate_king_moves(Move_Generation_List&  output,
             .is_double_pawn_push              = false,
             .is_en_passant                    = false,
             .en_passant_victim_square         = ESQUARE::NO_SQUARE,
-            .is_promotion                     = false};
+            .is_promotion                     = false,
+            .padding                          = 0,
+            .score                            = 0};
 
         matrix_output.set_move(moving_side,
                                PIECES::KING,
@@ -1158,7 +1253,9 @@ Move_Generator::generate_castling_moves(const Bitboard         pinned,
                 .is_double_pawn_push      = false,
                 .is_en_passant            = false,
                 .en_passant_victim_square = ESQUARE::NO_SQUARE,
-                .is_promotion             = false};
+                .is_promotion             = false,
+                .padding                  = 0,
+                .score                    = 0};
 
             matrix_output.set_move(moving_side,
                                    PIECES::KING,

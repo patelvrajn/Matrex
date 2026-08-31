@@ -30,11 +30,11 @@ int main(int argc, char* argv[])
         }
         else if (std::string(argv[1]) == "bench")
         {
-            constexpr uint16_t PERFT_BENCH_DEPTH  = 4;
-            constexpr uint16_t SEARCH_BENCH_DEPTH = 6;
+            // constexpr uint16_t PERFT_BENCH_DEPTH  = 5;
+            constexpr uint16_t SEARCH_BENCH_DEPTH = 8;
 
             Performance_Bench pb;
-            pb.bench_move_generation(PERFT_BENCH_DEPTH);
+            // pb.bench_move_generation(PERFT_BENCH_DEPTH);
             pb.bench_search(SEARCH_BENCH_DEPTH);
         }
         else

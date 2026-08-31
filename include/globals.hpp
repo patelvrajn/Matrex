@@ -865,6 +865,31 @@ class Compile_Time_Jagged_Array
 
     Parameter_Pack_Container<Pack...> m_parameter_pack;
 
+    template <typename Row>
+    static constexpr const T* row_pointer(const Row& row) noexcept
+    {
+        if constexpr (requires { row.data.data(); }) { return row.data.data(); }
+        else
+        {
+            return nullptr;
+        }
+    }
+
+    constexpr Multi_Array<const T*, size> generate_row_pointers() const noexcept
+    {
+        Multi_Array<const T*, size> output {};
+        std::size_t                 index = 0;
+
+        m_parameter_pack.apply(
+            [&](const auto&... rows)
+            { ((output[index++] = row_pointer(rows)), ...); });
+
+        return output;
+    }
+
+    // This method avoids std::visit for a performance gain.
+    Multi_Array<const T*, size> m_row_pointers = generate_row_pointers();
+
   public:
 
     constexpr Compile_Time_Jagged_Array() = default;
@@ -931,25 +956,14 @@ class Compile_Time_Jagged_Array
         }
     }
 
-    constexpr auto get(const std::size_t inner_array_index,
+    constexpr auto get(const std::size_t row_index,
                        const std::size_t element_index) const
     {
-        return std::visit(
-            [element_index](const auto& array) -> T
-            {
-                using T_no_ref = std::remove_cvref_t<decltype(array)>;
+        MATREX_ASSERT(row_index < size,
+                      "Compile Time Jagged Array Assertion FAILED; row index "
+                      "is out of bounds.");
 
-                if constexpr (std::is_same_v<T_no_ref, std::monostate>)
-                {
-                    throw std::out_of_range(
-                        "RUNTIME ERROR: Jagged Array indexed monostate.");
-                }
-                else
-                {
-                    return array.get()[element_index];
-                }
-            },
-            m_parameter_pack[inner_array_index]);
+        return m_row_pointers[row_index][element_index];
     }
 
     template <std::size_t size>
@@ -1115,4 +1129,15 @@ Partially_Filled_Array<T, capacity>::operator[](const std::size_t index) const
                   m_max_index);
 
     return m_list[index];
+}
+
+// =============================================================================
+// Utility Functions
+// =============================================================================
+// Extracts bits from a number from the low-th bit to the high-th bit.
+inline uint64_t extract_bits(uint64_t value, uint8_t low, uint8_t high)
+{
+    uint8_t  count = (high - low + 1);
+    uint64_t mask  = (1ULL << count) - 1;
+    return (value >> low) & mask;
 }

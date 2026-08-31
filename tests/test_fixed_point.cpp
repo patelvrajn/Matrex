@@ -671,6 +671,11 @@ TEST(fixed_point_tests, nlr_test)
         Matrex_FP_Int fp_test_value =
             Matrex_FP_Int::from_double(double_test_value);
 
+        double double_l =
+            0.5
+            * std::log2((double_u * double_u) + NON_LINEAR_RESPONSE_EPSILON);
+        Matrex_FP_Int fp_l = Matrex_FP_Int::from_double(double_l);
+
         if ((!Matrex_FP_Int::is_representable(double_test_value))
             || (!Matrex_FP_Int::is_representable(double_u)))
         {
@@ -712,7 +717,7 @@ TEST(fixed_point_tests, nlr_test)
 
         if (Matrex_FP_Int::is_representable(expected_M))
         {
-            Matrex_FP_Int result = nlr.calculate_function_M(fp_test_value);
+            Matrex_FP_Int result = nlr.calculate_function_M(fp_l);
             collect_error(errors,
                           double_test_value,
                           expected_M,
@@ -725,6 +730,7 @@ TEST(fixed_point_tests, nlr_test)
                    // the exponent.
         double expected_G =
             1.0 / (std::exp(-(double_u * NON_LINEAR_RESPONSE_T)) + 1.0);
+        Matrex_FP_Int g;
 
         MATREX_ASSERT(
             Matrex_FP_Int::is_representable(NON_LINEAR_RESPONSE_T),
@@ -733,11 +739,11 @@ TEST(fixed_point_tests, nlr_test)
 
         if (Matrex_FP_Int::is_representable(expected_G) && (errno == 0))
         {
-            Matrex_FP_Int result = nlr.calculate_function_G(fp_test_value);
+            g = nlr.calculate_function_G(fp_test_value);
             collect_error(errors,
                           double_test_value,
                           expected_G,
-                          result.to_double(),
+                          g.to_double(),
                           "G");
         }
 
@@ -747,7 +753,7 @@ TEST(fixed_point_tests, nlr_test)
             + ((1.0 - expected_G) * nlr_parameters.h_minus.to_double());
         if (Matrex_FP_Int::is_representable(expected_H) && (errno == 0))
         {
-            Matrex_FP_Int result = nlr.calculate_function_H(fp_test_value);
+            Matrex_FP_Int result = nlr.calculate_function_H(g);
             collect_error(errors,
                           double_test_value,
                           expected_H,
@@ -758,7 +764,8 @@ TEST(fixed_point_tests, nlr_test)
         // Test function S
         double expected_Mu =
             std::sqrt((double_u * double_u) + NON_LINEAR_RESPONSE_EPSILON);
-        const Matrex_FP_Int fp_expected_Mu = Matrex_FP_Int::from_double(expected_Mu);
+        const Matrex_FP_Int fp_expected_Mu =
+            Matrex_FP_Int::from_double(expected_Mu);
         double S_first_term = nlr_parameters.z.to_double() * double_u;
         double S_second_term =
             ((1.0 - nlr_parameters.z.to_double()) * expected_Mu);
@@ -766,7 +773,8 @@ TEST(fixed_point_tests, nlr_test)
         if (Matrex_FP_Int::is_representable(expected_S)
             && Matrex_FP_Int::is_representable(expected_Mu))
         {
-            Matrex_FP_Int result = nlr.calculate_function_S(fp_test_value, fp_expected_Mu);
+            Matrex_FP_Int result =
+                nlr.calculate_function_S(fp_test_value, fp_expected_Mu);
             collect_error(errors,
                           double_test_value,
                           expected_S,
@@ -779,7 +787,7 @@ TEST(fixed_point_tests, nlr_test)
             std::pow(expected_Mu, nlr_parameters.q_plus.to_double());
         if (Matrex_FP_Int::is_representable(expected_P_Plus))
         {
-            Matrex_FP_Int result = nlr.calculate_function_P_plus(fp_expected_Mu);
+            Matrex_FP_Int result = nlr.calculate_function_P_plus(fp_l);
             collect_error(errors,
                           double_test_value,
                           expected_P_Plus,
@@ -799,7 +807,7 @@ TEST(fixed_point_tests, nlr_test)
             && Matrex_FP_Int::is_representable(expected_P_Minus)
             && Matrex_FP_Int::is_representable(expected_P_Plus))
         {
-            Matrex_FP_Int result = nlr.calculate_function_P(fp_test_value, fp_expected_Mu);
+            Matrex_FP_Int result = nlr.calculate_function_P(fp_l, g);
             collect_error(errors,
                           double_test_value,
                           expected_P,
@@ -818,7 +826,7 @@ TEST(fixed_point_tests, nlr_test)
         double expected_B_Plus = std::tanh(expected_w_Plus);
         if (Matrex_FP_Int::is_representable(expected_B_Plus))
         {
-            Matrex_FP_Int result = nlr.calculate_function_B_plus(fp_expected_Mu);
+            Matrex_FP_Int result = nlr.calculate_function_B_plus(fp_l);
             collect_error(errors,
                           double_test_value,
                           expected_B_Plus,
@@ -844,7 +852,7 @@ TEST(fixed_point_tests, nlr_test)
             && Matrex_FP_Int::is_representable(expected_B_Plus)
             && Matrex_FP_Int::is_representable(expected_B_Minus))
         {
-            Matrex_FP_Int result = nlr.calculate_function_B(fp_test_value, fp_expected_Mu);
+            Matrex_FP_Int result = nlr.calculate_function_B(fp_l, g);
             collect_error(errors,
                           double_test_value,
                           expected_B,

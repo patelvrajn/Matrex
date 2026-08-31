@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <numbers>
 #include <stdexcept>
@@ -18,11 +19,11 @@ constexpr uint8_t FIXED_POINT_BIT_WIDTH =
 constexpr double LN_2      = 0.69314718056; // Precomputed value of ln(2).
 constexpr double NATURAL_E = std::numbers::e;
 
-constexpr std::size_t LOG2_LOOKUP_TABLE_SIZE = 4096;
+constexpr std::size_t LOG2_LOOKUP_TABLE_SIZE = 65536;
 using log2_lookup_table_type =
     Multi_Array<Fixed_Point_Int_Storage_Type, LOG2_LOOKUP_TABLE_SIZE>;
 
-constexpr std::size_t EXP2_LOOKUP_TABLE_SIZE = 4096;
+constexpr std::size_t EXP2_LOOKUP_TABLE_SIZE = 65536;
 using exp2_lookup_table_type =
     Multi_Array<Fixed_Point_Int_Storage_Type, EXP2_LOOKUP_TABLE_SIZE>;
 
@@ -108,9 +109,15 @@ class Fixed_Point_Integer
         return (FIXED_POINT_BIT_WIDTH - F);
     }
 
-    static consteval double scale() { return static_cast<double>(1 << F); }
+    static consteval Fixed_Point_Int_Storage_Type scale()
+    {
+        return static_cast<Fixed_Point_Int_Storage_Type>(1 << F);
+    }
 
-    static consteval double precision() { return (1.0 / scale()); }
+    static consteval double precision()
+    {
+        return (1.0 / static_cast<double>(scale()));
+    }
 
     // The maximum value the fractional component can have.
     static consteval double maximum_fractional()
@@ -267,7 +274,7 @@ class Fixed_Point_Integer
         return Fixed_Point_Integer::from_value(value);
     }
 
-    static constexpr Fixed_Point_Integer from_double(const double real)
+    FORCE_INLINE static constexpr Fixed_Point_Integer from_double(const double real)
     {
         double rounded = std::llround(real * scale());
         rounded        = std::clamp(
@@ -833,52 +840,52 @@ constexpr exp2_lookup_table_type Fixed_Point_Integer<F>::make_exp2_table()
 namespace Matrex
 {
     template <uint8_t F>
-    Fixed_Point_Integer<F> tanh(const Fixed_Point_Integer<F> input);
+    constexpr Fixed_Point_Integer<F> tanh(const Fixed_Point_Integer<F> input);
 
-    double tanh(double x);
+    constexpr double tanh(double x);
 
     AD_Value tanh(AD_Value x);
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> pow(const Fixed_Point_Integer<F> base,
-                               const Fixed_Point_Integer<F> exponent);
+    constexpr Fixed_Point_Integer<F> pow(const Fixed_Point_Integer<F> base,
+                                         const Fixed_Point_Integer<F> exponent);
 
-    double pow(double base, double exponent);
+    constexpr double pow(double base, double exponent);
 
     AD_Value pow(AD_Value base, AD_Value exponent);
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input);
+    constexpr Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input);
+
+    constexpr double log2(double x);
+
+    AD_Value log2(AD_Value x);
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> exp2(const Fixed_Point_Integer<F> input);
+    constexpr Fixed_Point_Integer<F> exp2(const Fixed_Point_Integer<F> input);
+
+    constexpr double exp2(double x);
+
+    AD_Value exp2(AD_Value x);
 
     template <uint8_t F>
-    Fixed_Point_Integer<F>
-    ln1p_approximation(const Fixed_Point_Integer<F> input);
+    constexpr Fixed_Point_Integer<F> sqrt(const Fixed_Point_Integer<F> input);
 
-    template <uint8_t F>
-    Fixed_Point_Integer<F>
-    exponential_approximation(const Fixed_Point_Integer<F> input);
-
-    template <uint8_t F>
-    Fixed_Point_Integer<F> sqrt(const Fixed_Point_Integer<F> input);
-
-    double sqrt(double x);
+    constexpr double sqrt(double x);
 
     AD_Value sqrt(AD_Value x);
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> exp(const Fixed_Point_Integer<F> input);
+    constexpr Fixed_Point_Integer<F> exp(const Fixed_Point_Integer<F> input);
 
-    double exp(double x);
+    constexpr double exp(double x);
 
     AD_Value exp(AD_Value x);
 
     // NOTE: Do not use a pade approximation, this method is exponentially more
     // accurate.
     template <uint8_t F>
-    Fixed_Point_Integer<F> tanh(const Fixed_Point_Integer<F> input)
+    constexpr Fixed_Point_Integer<F> tanh(const Fixed_Point_Integer<F> input)
     {
         const bool is_positive = (input.get_value() >= 0);
 
@@ -901,8 +908,8 @@ namespace Matrex
     // A pow function for fixed-point integers that uses the identity:
     // base^exponent = exp2(log2(base) * exponent)
     template <uint8_t F>
-    Fixed_Point_Integer<F> pow(const Fixed_Point_Integer<F> base,
-                               const Fixed_Point_Integer<F> exponent)
+    constexpr Fixed_Point_Integer<F> pow(const Fixed_Point_Integer<F> base,
+                                         const Fixed_Point_Integer<F> exponent)
     {
         if ((base == Fixed_Point_Integer<F>::from_integer(0))
             || (exponent == Fixed_Point_Integer<F>::from_integer(1)))
@@ -919,7 +926,7 @@ namespace Matrex
     }
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input)
+    constexpr Fixed_Point_Integer<F> log2(const Fixed_Point_Integer<F> input)
     {
         MATREX_ASSERT(
             input > 0,
@@ -934,95 +941,52 @@ namespace Matrex
         // off F. This is equivalent to floor(log2(input)) or the closest power
         // of two to the input without exceeding the input.
         const int8_t e = 31 - __builtin_clz(input.get_value()) - F;
-        Fixed_Point_Int_Storage_Type m_raw;
+        Fixed_Point_Int_Storage_Type mantissa_raw;
         if (e >= 0)
         {
             MATREX_ASSERT(e < FIXED_POINT_BIT_WIDTH,
                           "LOG2 SHIFT ERROR: e is not in bounds, e is {}",
                           e);
-            m_raw = input.get_value() >> e;
+            mantissa_raw = input.get_value() >> e;
         }
         else
         {
             MATREX_ASSERT((-e) <= (FIXED_POINT_BIT_WIDTH - 2),
                           "LOG2 SHIFT ERROR: e is not in bounds, e is {}",
                           e);
-            m_raw = input.get_value() << (-e);
+            mantissa_raw = input.get_value() << (-e);
         }
 
         const Fixed_Point_Integer<F> m =
-            Fixed_Point_Integer<F>::from_value(m_raw);
+            Fixed_Point_Integer<F>::from_value(mantissa_raw);
 
         MATREX_ASSERT(
             (m.to_double() >= 1.0 && m.to_double() < 2.0),
             "LOG2 FACTORIZATION ERROR: m is not in the range [1, 2), m is {}",
             m.to_double());
 
-        // Here we want to calculate the index in which log(c) is stored in the
-        // lookup table that we will be using to calculate the value of c. By
-        // design, we want m to be very close to c, this will make t a very
-        // small number which is ideal for a Pade approximation around 0 of
-        // ln(1+t). To calculate the index, we simply map the m we found which
-        // is a number in the range [1, 2) to an index in the range [0, N) (N
-        // being the number of entries in the lookup table) - this index is the
-        // "bucket" from which m is contained. Since, we want c close to m, we
-        // map the index we found in the range of [0, N) back to a number in the
-        // range [1, 2) and use that as c - c is thus the left edge of the
-        // bucket that m is contained in (given how we calculate it).
-        constexpr Fixed_Point_Integer<F> log2_lookup_table_size_in_fp =
-            Fixed_Point_Integer<F>::from_integer(
-                static_cast<Fixed_Point_Int_Storage_Type>(
-                    LOG2_LOOKUP_TABLE_SIZE));
-        std::size_t index = ((m - Fixed_Point_Integer<F>::FP_ONE)
-                             * log2_lookup_table_size_in_fp)
-                                .get_integer();
+        constexpr std::size_t LOG2_LOOKUP_TABLE_BITS =
+            std::log2(LOG2_LOOKUP_TABLE_SIZE);
 
-        // Clamp index to be within bounds because of rounding.
-        index = std::clamp(index,
-                           static_cast<std::size_t>(0),
-                           (LOG2_LOOKUP_TABLE_SIZE - 1));
+        std::size_t index;
 
-        const Fixed_Point_Integer<F> c =
-            Fixed_Point_Integer<F>::FP_ONE
-            + (Fixed_Point_Integer<F>::from_integer(
-                   static_cast<Fixed_Point_Int_Storage_Type>(index))
-               / log2_lookup_table_size_in_fp);
+        if constexpr (F >= LOG2_LOOKUP_TABLE_BITS)
+        {
+            index = (m.get_fractional() >> (F - LOG2_LOOKUP_TABLE_BITS));
+        }
+        else
+        {
+            index = (m.get_fractional() << (LOG2_LOOKUP_TABLE_BITS - F));
+        }
 
-        MATREX_ASSERT(
-            (c.to_double() >= 1.0 && c.to_double() < 2.0),
-            "LOG2 FACTORIZATION ERROR: c is not in the range [1, 2), c is {}",
-            c.to_double());
-
-        // t is the residual component of m where m is c * (1 + t). Note, that
-        // we use (1 + t) instead of t because in computing t = m/c (from m =
-        // ct), t is bounded between [0.5, 2) however, if we do t = ((m/c) - 1),
-        // t's upper bound is 1/N (N being the size of the lookup table) which
-        // is ideal for a Pade approximation around 0 - we know this because:
-        //  t = (m/c) - 1 which is (m - c) / c
-        //  and we know (m - c) must be less than (1/N) because m and c are in
-        //  the same bucket of size (1/N) and c is the left edge of the bucket.
-        //  Thus, t is strictly less than or equal to (1 / N).
-        const Fixed_Point_Integer<F> t =
-            (m / c) - Fixed_Point_Integer<F>::FP_ONE;
-
-        MATREX_ASSERT(
-            ((t.to_double()
-              <= (1.0 / static_cast<double>(LOG2_LOOKUP_TABLE_SIZE)))
-             && (t.to_double() >= 0.0)),
-            "LOG2 FACTORIZATION ERROR: c is not in the range [1, 2), c is {}",
-            c.to_double());
-
-        // Returns log2(2^e * m) = e + log2(m) = e + log2(c) + log2(1+t) which
-        // is the same as log2(input).
+        // Returns log2(2^e * m) = e + log2(m) which is the same as log2(input).
         return Fixed_Point_Integer<F>::from_integer(e)
              + Fixed_Point_Integer<F>::from_value(
-                   Fixed_Point_Integer<F>::lookup_log2_table(index))
-             + (Matrex::ln1p_approximation(t)
-                / Fixed_Point_Integer<F>::FP_LN_2);
+                   Fixed_Point_Integer<F>::lookup_log2_table(index));
     }
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> exp2(const Fixed_Point_Integer<F> input)
+    constexpr Fixed_Point_Integer<F> exp2(const Fixed_Point_Integer<F> input)
     {
         // What we are doing here is taking the input decomposing it into its
         // integer and fractional parts.
@@ -1049,134 +1013,88 @@ namespace Matrex
                       (integer_part + fractional_part).to_double(),
                       input.to_double());
 
-        // We can break the fractional part further:
-        // 2^fractional_part = 2^((i/N) + r) = 2^(i/N) * 2^(r)
-        // This is the same logic we applied in log2 to get a small enough
-        // residual r to approximate 2^r with a Pade approximation around 0. The
-        // fractional part f is a number in the range [0, 1). So to get a number
-        // i in the range [0, N) we can simply floor the multiplication of the
-        // fractional part by N (we floor as we don't want 2^(i/n) > 2^f). So:
-        // f = (i/N) + r where i = floor(f * N)
-        // r = f - (i/N) where i = floor(f * N)
-        // Remembering we have to divide i by N to get it back to the correct
-        // scale because i is in the range [0, N) but we want (i/N) to be in the
-        // range [0, 1).
-        const Fixed_Point_Integer<F> i =
-            (fractional_part
-             * Fixed_Point_Integer<F>::from_integer(
-                 static_cast<Fixed_Point_Int_Storage_Type>(
-                     EXP2_LOOKUP_TABLE_SIZE)))
-                .floor();
-        const Fixed_Point_Integer<F> r =
-            fractional_part
-            - (i
-               / Fixed_Point_Integer<F>::from_integer(
-                   static_cast<Fixed_Point_Int_Storage_Type>(
-                       EXP2_LOOKUP_TABLE_SIZE)));
-
-        // The clamped integer part of i becomes the index for the lookup table
-        // and we perform the lookup.
-        std::size_t index = i.get_integer();
-
-        // Clamp index to be within bounds because of rounding.
-        index = std::clamp(index,
-                           static_cast<std::size_t>(0),
-                           (EXP2_LOOKUP_TABLE_SIZE - 1));
-
-        Fixed_Point_Integer<F> table_lookup_value =
+        // Perform the table lookup for 2^(fractional_part).
+        constexpr std::size_t EXP2_LOOKUP_TABLE_BITS =
+            std::log2(EXP2_LOOKUP_TABLE_SIZE);
+        std::size_t index;
+        if constexpr (F >= EXP2_LOOKUP_TABLE_BITS)
+        {
+            index =
+                (fractional_part.get_value() >> (F - EXP2_LOOKUP_TABLE_BITS));
+        }
+        else
+        {
+            index =
+                (fractional_part.get_value() << (EXP2_LOOKUP_TABLE_BITS - F));
+        }
+        const Fixed_Point_Integer<F> result =
             Fixed_Point_Integer<F>::from_value(
                 Fixed_Point_Integer<F>::lookup_exp2_table(index));
-
-        // For r: we rewrite 2^r as e^(r * ln(2)).
-        Fixed_Point_Integer<F> exp2_r = Matrex::exponential_approximation(
-            Fixed_Point_Integer<F>::FP_LN_2 * r);
-        Fixed_Point_Integer<F> fractional_part_result =
-            (table_lookup_value * exp2_r);
 
         // Now we calculate 2^(integer_part) for both positive and negative
         // integer_part which simply translates into a bit shift of the
         // fractional part.
-        Fixed_Point_Int_Storage_Type shift  = integer_part.get_integer();
-        Fixed_Point_Integer<F>       result = fractional_part_result;
+        Fixed_Point_Int_Storage_Type shift = integer_part.get_integer();
         if (shift >= 0)
         {
             // Clamp the shift by what is safe to shift a signed integer left
             // by.
             shift = std::clamp(shift, 0, (FIXED_POINT_BIT_WIDTH - 2));
-            // Guard against overflow by using fixed point integer
-            // multiplication.
-            Fixed_Point_Integer<F> shift_fixed =
-                Fixed_Point_Integer<F>::from_integer((1 << shift));
-            result = result * shift_fixed;
+
+            const auto saturated_result = std::clamp(
+                (static_cast<int64_t>(result.get_value()) << shift),
+                static_cast<int64_t>(
+                    std::numeric_limits<Fixed_Point_Int_Storage_Type>::min()),
+                static_cast<int64_t>(
+                    std::numeric_limits<Fixed_Point_Int_Storage_Type>::max()));
+
+            return Fixed_Point_Integer<F>::from_value(
+                static_cast<Fixed_Point_Int_Storage_Type>(saturated_result));
         }
-        else
+
+        if ((shift < 0) && ((-shift) < FIXED_POINT_BIT_WIDTH))
+        {
+            return Fixed_Point_Integer<F>::from_value(result.get_value()
+                                                      >> (-shift));
+        }
+
+        if ((shift < 0) && ((-shift) >= FIXED_POINT_BIT_WIDTH))
         {
             // We need to return a 0 for any shift bigger than the bit width of
             // our fixed point because shifting larger than that would be
             // undefined behavior.
-            if ((-shift) >= FIXED_POINT_BIT_WIDTH)
-            {
-                return Fixed_Point_Integer<F>::from_value(0);
-            }
-            result = Fixed_Point_Integer<F>::from_value(result.get_value()
-                                                        >> (-shift));
+            return Fixed_Point_Integer<F>::from_value(0);
         }
 
         return result;
     }
 
-    // 3/3 Pade Approximation of ln(1+t) around 0.
     template <uint8_t F>
-    Fixed_Point_Integer<F>
-    ln1p_approximation(const Fixed_Point_Integer<F> input)
-    {
-        const Fixed_Point_Integer<F> input_power_two = input * input;
-        const Fixed_Point_Integer<F> input_power_three =
-            input_power_two * input;
-
-        const Fixed_Point_Integer<F> numerator =
-            (input * Fixed_Point_Integer<F>::FP_SIXTY)
-            + (input_power_two * Fixed_Point_Integer<F>::FP_SIXTY)
-            + (input_power_three * 11);
-        const Fixed_Point_Integer<F> denominator =
-            (input * 90) + (input_power_two * 36) + (input_power_three * 3)
-            + Fixed_Point_Integer<F>::FP_SIXTY;
-
-        return numerator / denominator;
-    }
-
-    // 3/3 Pade Approximation of e^x around 0.
-    template <uint8_t F>
-    Fixed_Point_Integer<F>
-    exponential_approximation(const Fixed_Point_Integer<F> input)
-    {
-        const Fixed_Point_Integer<F> input_power_two = input * input;
-        const Fixed_Point_Integer<F> input_power_three =
-            input_power_two * input;
-
-        const Fixed_Point_Integer<F> numerator =
-            (input * Fixed_Point_Integer<F>::FP_SIXTY)
-            + (input_power_two * Fixed_Point_Integer<F>::FP_12)
-            + input_power_three + Fixed_Point_Integer<F>::FP_120;
-        const Fixed_Point_Integer<F> denominator =
-            (input * -Fixed_Point_Integer<F>::FP_SIXTY)
-            + (input_power_two * Fixed_Point_Integer<F>::FP_12)
-            - input_power_three + Fixed_Point_Integer<F>::FP_120;
-
-        return numerator / denominator;
-    }
-
-    template <uint8_t F>
-    Fixed_Point_Integer<F> sqrt(const Fixed_Point_Integer<F> input)
+    constexpr Fixed_Point_Integer<F> sqrt(const Fixed_Point_Integer<F> input)
     {
         return Matrex::pow(input, Fixed_Point_Integer<F>::from_double(0.5));
     }
 
     template <uint8_t F>
-    Fixed_Point_Integer<F> exp(const Fixed_Point_Integer<F> input)
+    constexpr Fixed_Point_Integer<F> exp(const Fixed_Point_Integer<F> input)
     {
         return Matrex::pow(Fixed_Point_Integer<F>::FP_NATURAL_E, input);
     }
+
+    constexpr double tanh(double x) { return std::tanh(x); }
+
+    constexpr double pow(double base, double exponent)
+    {
+        return std::pow(base, exponent);
+    }
+
+    constexpr double sqrt(double x) { return std::sqrt(x); }
+
+    constexpr double exp(double x) { return std::exp(x); }
+
+    constexpr double log2(double x) { return std::log2(x); }
+
+    constexpr double exp2(double x) { return std::exp2(x); }
 } // namespace Matrex
 
 template <uint8_t F>

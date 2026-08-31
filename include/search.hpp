@@ -253,7 +253,7 @@ class Search_Engine
                                          const Score                      eval);
 
     inline bool
-    should_update_correction_history(const Chess_Move       best_move,
+    should_update_correction_history(const Chess_Move&      best_move,
                                      const Score            best_score,
                                      const Score            static_evaluation,
                                      const Score_Bound_Type score_bound,
@@ -409,7 +409,7 @@ inline bool Search_Engine::should_use_transposition_table_score(
 }
 
 inline bool Search_Engine::should_update_correction_history(
-    const Chess_Move       best_move,
+    const Chess_Move&      best_move,
     const Score            best_score,
     const Score            static_evaluation,
     const Score_Bound_Type score_bound,
