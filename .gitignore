@@ -7,3 +7,6 @@ matrex
 .vscode/
 .cache/
 compile_commands.json
+build/source/debug/*
+build/source/release/*
+build/tests/*

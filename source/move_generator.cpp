@@ -24,30 +24,6 @@ Moves_Bitboard_Matrix::Moves_Bitboard_Matrix() :
               int8_t(-1));
 }
 
-void Moves_Bitboard_Matrix::set_move(const PIECE_COLOR color,
-                                     const PIECES      piece,
-                                     const Square      piece_square,
-                                     const Square      move_square)
-{
-    // Index mappings - given a piece and color and the square the piece is on,
-    // find the index of a moves bitboard in the bitboard matrix.
-    int8_t& index = m_index_mappings[color][piece][piece_square.get_index()];
-
-    if (index == -1)
-    {
-        ++m_max_indices[color];       // Increment max index for this color.
-        index = m_max_indices[color]; // Assign new max index to index mappings.
-        // Update piece index mask - set the bit corresponding to this index -
-        // each piece has a bitmask representing which indices in the matrix
-        // correspond to it.
-        m_piece_index_masks[color][piece] |= (1 << index);
-        // Zero-initialize bitboard in the matrix.
-        m_matrix[color][index] = {piece, piece_square, Bitboard(0)};
-    }
-
-    m_matrix[color][index].bitboard.set_square(move_square);
-}
-
 bool Moves_Bitboard_Matrix::get_moves_bitboards(const PIECE_COLOR color,
                                                 const PIECES      piece,
                                                 const Square      piece_square,
@@ -57,28 +33,6 @@ bool Moves_Bitboard_Matrix::get_moves_bitboards(const PIECE_COLOR color,
         m_index_mappings[color][piece][piece_square.get_index()];
     if (index == -1) { return false; }
     output = m_matrix[color][index];
-    return true;
-}
-
-bool Moves_Bitboard_Matrix::get_piece_moves_bitboards(
-    const PIECE_COLOR            color,
-    const PIECES                 piece,
-    std::vector<Moves_Bitboard>& output) const
-{
-    uint16_t piece_index_mask = m_piece_index_masks[color][piece];
-
-    // No moves exist for that piece if the piece for that color exists.
-    if (piece_index_mask == 0) { return false; }
-
-    // Loop over the bits in the index mask of that piece to get indices of the
-    // relevant Move Bitboards then push the indexed Move Bitboards to output.
-    while (piece_index_mask)
-    {
-        const uint8_t index = __builtin_ctzll(piece_index_mask);
-        output.push_back(m_matrix[color][index]);
-        piece_index_mask &= (piece_index_mask - 1);
-    }
-
     return true;
 }
 
