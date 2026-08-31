@@ -136,7 +136,12 @@ Search_Engine::negamax(Chess_Board&                    position,
     // Base case: if depth is 0, perform quiescence search.
     if (depth == QUIESCENCE_SEARCH_DEPTH)
     {
-        return quiescence(position, ply, alpha, beta);
+        const Search_Engine_Result quiescence_result =
+            quiescence(position, ply, alpha, beta);
+
+        leaf_nodes_welford += quiescence_result.second.to_fixed_point();
+
+        return quiescence_result;
     }
 
     // Assume that the score bound for a position's score to be stored in the
@@ -175,19 +180,6 @@ Search_Engine::negamax(Chess_Board&                    position,
 
         return {Chess_Move(), mate_score};
     }
-
-    // Base case: if depth is 0, perform quiescence search.
-    if (depth == QUIESCENCE_SEARCH_DEPTH)
-    {
-        const Search_Engine_Result quiescence_result =
-            quiescence(position, ply, alpha, beta);
-
-        leaf_nodes_welford += quiescence_result.second.to_fixed_point();
-
-        return quiescence_result;
-    }
-
-    ++m_num_of_nodes_searched;
 
     // Check if time has expired during the search.
     if (!m_constraints.should_ignore_time)
@@ -746,6 +738,8 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
     Welford leaf_scores_welford;
  
     constexpr Matrex_FP_Int DEFAULT_WINDOW_WIDTH = Matrex_FP_Int::from_double(100.0);
+
+    constexpr Matrex_FP_Int RETRY_DELTA_DIVISOR = Matrex_FP_Int::from_double(7.5);
     
     const Matrex_FP_Int last_depth_score = window.search_result.second.to_fixed_point();
 
@@ -781,7 +775,9 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
 
         if (m_timer_expired_during_search) { break; }
 
-        retry_delta *= 1.34;
+        retry_delta *= leaf_scores_welford.get_standard_deviation();
+        retry_delta /= RETRY_DELTA_DIVISOR;
+        retry_delta = std::max(DEFAULT_WINDOW_WIDTH, retry_delta);
 
         // std::cout
         //     << "Current iteration's evaluation: "
