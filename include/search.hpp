@@ -104,7 +104,7 @@ class Welford
     constexpr Welford() :
         m_count(0),
         m_mean(Matrex_FP_Int::from_value(0)),
-        m_squared_differences_sum(Matrex_FP_Int::from_value(0))
+        m_squared_differences_sum(0)
     {
     }
 
@@ -115,7 +115,7 @@ class Welford
         const Matrex_FP_Int new_mean = m_mean + ((value - m_mean) / m_count);
 
         m_squared_differences_sum =
-            m_squared_differences_sum + ((value - m_mean) * (value - new_mean));
+            m_squared_differences_sum + ((value - m_mean) * (value - new_mean)).get_integer();
 
         m_mean = new_mean;
 
@@ -128,7 +128,12 @@ class Welford
 
     constexpr Matrex_FP_Int get_variance() const
     {
-        return (m_squared_differences_sum / (m_count - 1));
+        if (m_count <= 1)
+        {
+            return Matrex_FP_Int::from_integer(0);
+        }
+
+        return Matrex_FP_Int::from_integer(static_cast<Fixed_Point_Int_Storage_Type>(m_squared_differences_sum / (m_count - 1)));
     }
 
     constexpr Matrex_FP_Int get_standard_deviation() const
@@ -140,7 +145,7 @@ class Welford
 
     Fixed_Point_Int_Storage_Type m_count;
     Matrex_FP_Int                m_mean;
-    Matrex_FP_Int                m_squared_differences_sum;
+    int64_t                      m_squared_differences_sum;
 };
 
 struct Aspiration_Window

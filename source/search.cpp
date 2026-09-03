@@ -737,9 +737,9 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
 
     Welford leaf_scores_welford;
  
-    constexpr Matrex_FP_Int DEFAULT_WINDOW_WIDTH = Matrex_FP_Int::from_double(100.0);
+    constexpr Matrex_FP_Int DEFAULT_WINDOW_WIDTH = Matrex_FP_Int::from_double(71.0);
 
-    constexpr Matrex_FP_Int RETRY_DELTA_DIVISOR = Matrex_FP_Int::from_double(7.5);
+    constexpr Matrex_FP_Int RETRY_DELTA_MULTIPLIER = Matrex_FP_Int::from_double(1.0 / (11.75 * 11.75));
     
     const Matrex_FP_Int last_depth_score = window.search_result.second.to_fixed_point();
 
@@ -775,8 +775,8 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
 
         if (m_timer_expired_during_search) { break; }
 
-        retry_delta *= leaf_scores_welford.get_standard_deviation();
-        retry_delta /= RETRY_DELTA_DIVISOR;
+        retry_delta *= leaf_scores_welford.get_variance();
+        retry_delta *= RETRY_DELTA_MULTIPLIER;
         retry_delta = std::max(DEFAULT_WINDOW_WIDTH, retry_delta);
 
         // std::cout
@@ -871,6 +871,8 @@ Search_Engine_Result Search_Engine::iterative_deepening()
 
         aspiration_windows(window);
 
+        if (m_timer_expired_during_search) { break; }
+
         best = window.search_result;
 
         uint64_t current_time = m_timer.elapsed();
@@ -883,9 +885,6 @@ Search_Engine_Result Search_Engine::iterative_deepening()
             window.search_result.second);
 
         std::cout << uci_search_info << std::endl;
-
-        // Time has expired, break out of the iterative deepening loop.
-        if (m_timer_expired_during_search) { break; }
 
         if ((m_constraints.is_depth_search())
             && (current_depth == m_constraints.depth))
