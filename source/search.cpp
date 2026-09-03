@@ -1,8 +1,10 @@
 #include "search.hpp"
+#include <numeric>
 
 #include "chess_move.hpp"
 #include "evaluate.hpp"
 #include "evaluation_terms.hpp"
+#include "fixed_point.hpp"
 #include "static_exchange_evaluation.hpp"
 
 Search_Engine::Search_Engine() :
@@ -43,12 +45,13 @@ Search_Engine::search(const Chess_Board&        cb,
 Search_Engine_Result
 Search_Engine::negamax(Chess_Board&                    position,
                        uint16_t                        depth,
+                       Welford&                        leaf_nodes_welford,
                        Principal_Variation_List&       principal_variation,
                        Search_Quiet_Cont_Hist_Stack&   q_cont_hist_stack,
                        Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
-                       uint16_t                        ply,
                        Score                           alpha,
-                       Score                           beta)
+                       Score                           beta,
+                       uint16_t                        ply)
 {
     const uint32_t depth_squared = (depth * depth);
 
@@ -133,7 +136,12 @@ Search_Engine::negamax(Chess_Board&                    position,
     // Base case: if depth is 0, perform quiescence search.
     if (depth == QUIESCENCE_SEARCH_DEPTH)
     {
-        return quiescence(position, ply, alpha, beta);
+        const Search_Engine_Result quiescence_result =
+            quiescence(position, ply, alpha, beta);
+
+        leaf_nodes_welford += quiescence_result.second.to_fixed_point();
+
+        return quiescence_result;
     }
 
     // Assume that the score bound for a position's score to be stored in the
@@ -311,12 +319,13 @@ Search_Engine::negamax(Chess_Board&                    position,
             // to be a PV node.
             child_result = negamax(position,
                                    (depth - 1),
+                                   leaf_nodes_welford,
                                    child_principal_variation,
                                    q_cont_hist_stack,
                                    c_cont_hist_stack,
-                                   (ply + 1),
                                    -beta,
-                                   -alpha);
+                                   -alpha,
+                                   (ply + 1));
         }
         else
         {
@@ -324,12 +333,13 @@ Search_Engine::negamax(Chess_Board&                    position,
             // around alpha since, we assume no other move will raise alpha.
             child_result = negamax(position,
                                    (depth - 1),
+                                   leaf_nodes_welford,
                                    child_principal_variation,
                                    q_cont_hist_stack,
                                    c_cont_hist_stack,
-                                   (ply + 1),
                                    (-alpha - Score(PV_WINDOW_SIZE)),
-                                   -alpha);
+                                   -alpha,
+                                   (ply + 1));
 
             const Score child_score = -child_result.second;
 
@@ -342,12 +352,13 @@ Search_Engine::negamax(Chess_Board&                    position,
             {
                 child_result = negamax(position,
                                        (depth - 1),
+                                       leaf_nodes_welford,
                                        child_principal_variation,
                                        q_cont_hist_stack,
                                        c_cont_hist_stack,
-                                       (ply + 1),
                                        -beta,
-                                       -alpha);
+                                       -alpha,
+                                       (ply + 1));
             }
         }
 
@@ -631,7 +642,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         // Update alpha if the stand pat score is greater than alpha.
         if (best_score > alpha)
         {
-            // score_bound = Score_Bound_Type::EXACT;
+            score_bound = Score_Bound_Type::EXACT;
             alpha       = best_score;
         }
 
@@ -720,6 +731,110 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
     return {best_move, best_score};
 }
 
+void Search_Engine::aspiration_windows(Aspiration_Window& window)
+{
+    Aspiration_Window current_window = window;
+
+    Welford leaf_scores_welford;
+ 
+    constexpr Matrex_FP_Int DEFAULT_WINDOW_WIDTH = Matrex_FP_Int::from_double(71.0);
+
+    // This multiplier must be fractional and less than 1.0 because otherwise
+    // the retry deltas get too large.
+    constexpr Matrex_FP_Int RETRY_DELTA_MULTIPLIER = Matrex_FP_Int::from_double(1.0 / (11.75 * 11.75));
+    
+    const Matrex_FP_Int last_depth_score = window.search_result.second.to_fixed_point();
+
+    auto calculate_delta = [&]() 
+    {
+        if (current_window.root_score_error.get_count() <= 1)
+        {
+            return DEFAULT_WINDOW_WIDTH;
+        }
+        else
+        {
+            // Delta calculation based on the mathematics of prediction 
+            // intervals.
+            return std::max(DEFAULT_WINDOW_WIDTH, (CONFIDENCE_INTERVAL_Z_SCORE * current_window.root_score_error.get_standard_deviation()));
+        }
+    };
+
+    Matrex_FP_Int retry_delta = calculate_delta();
+
+    bool done = false;
+    while (!done)
+    {
+        Search_Engine_Result result = negamax(m_chess_board,
+                                              m_current_search_depth,
+                                              leaf_scores_welford,
+                                              m_principal_variation,
+                                              m_q_cont_hist_stack,
+                                              m_c_cont_hist_stack,
+                                              current_window.alpha,
+                                              current_window.beta);
+
+        current_window.search_result = result;
+
+        if (m_timer_expired_during_search) { break; }
+
+        // Variance was used instead of standard deviation in order to save a 
+        // square root calculation.
+        retry_delta *= leaf_scores_welford.get_variance();
+        retry_delta *= RETRY_DELTA_MULTIPLIER;
+        retry_delta = std::max(DEFAULT_WINDOW_WIDTH, retry_delta);
+
+        if (current_window.is_result_in_window())
+        {
+            current_window.root_score_error += (last_depth_score - current_window.search_result.second.to_fixed_point());
+
+            const Matrex_FP_Int delta = calculate_delta();
+
+            // The result was inside the window, create a window of finite width
+            // around the updated score using the delta calculated.
+            const Matrex_FP_Int fp_alpha = Matrex_FP_Int::adjustable_clamp(
+                (current_window.search_result.second.to_fixed_point() - delta),
+                Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
+                Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
+            const Matrex_FP_Int fp_beta = Matrex_FP_Int::adjustable_clamp(
+                (current_window.search_result.second.to_fixed_point() + delta),
+                Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
+                Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
+
+            current_window.alpha = Score(fp_alpha);
+            current_window.beta  = Score(fp_beta);
+
+            // The result was inside the window, update the PV and break out of
+            // the loop.
+            done = true;
+        }
+        else
+        {
+            // Based on which boundary was violated, update that side of the
+            // window.
+            if (current_window.is_fail_low())
+            {
+                const Matrex_FP_Int fp_alpha = Matrex_FP_Int::adjustable_clamp(
+                    (current_window.search_result.second.to_fixed_point()
+                     - retry_delta),
+                    Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
+                    Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
+                current_window.alpha = Score(fp_alpha);
+            }
+            else if (current_window.is_fail_high())
+            {
+                const Matrex_FP_Int fp_beta = Matrex_FP_Int::adjustable_clamp(
+                    (current_window.search_result.second.to_fixed_point()
+                     + retry_delta),
+                    Matrex_FP_Int::from_integer(ESCORE::NEGATIVE_INFINITY),
+                    Matrex_FP_Int::from_integer(ESCORE::POSITIVE_INFINITY));
+                current_window.beta = Score(fp_beta);
+            }
+        }
+    }
+
+    window = current_window;
+}
+
 Search_Engine_Result Search_Engine::iterative_deepening()
 {
     // Declare the best search result obtained.
@@ -728,41 +843,43 @@ Search_Engine_Result Search_Engine::iterative_deepening()
     // Iteratively increment the negamax search depth and start the
     // search timer.
     m_timer.start();
+
+    Aspiration_Window window = {
+        {Chess_Move(), Score(0)},
+        Score(FP_NEGATIVE_INFINITY),
+        Score(FP_POSITIVE_INFINITY),
+        Welford()
+    };
+
     for (uint16_t current_depth = 1; current_depth < MAX_SEARCH_DEPTH;
          ++current_depth)
     {
         m_current_search_depth = current_depth;
 
-        Search_Engine_Result result = negamax(m_chess_board,
-                                              current_depth,
-                                              m_principal_variation,
-                                              m_q_cont_hist_stack,
-                                              m_c_cont_hist_stack);
+        aspiration_windows(window);
 
-        // Only update best search result if the timer didn't expire
-        // during the search. Otherwise, time has expired, break out
-        // of iterative deepening loop.
         if (m_timer_expired_during_search) { break; }
+
+        best = window.search_result;
 
         uint64_t current_time = m_timer.elapsed();
 
-        UCI_Search_Information uci_search_info(m_current_search_depth,
-                                               current_time,
-                                               m_num_of_nodes_searched,
-                                               m_principal_variation,
-                                               result.second);
+        const UCI_Search_Information uci_search_info(
+            m_current_search_depth,
+            current_time,
+            m_num_of_nodes_searched,
+            m_principal_variation,
+            window.search_result.second);
 
         std::cout << uci_search_info << std::endl;
-
-        best = result;
-
-        m_principal_variation.clear();
 
         if ((m_constraints.is_depth_search())
             && (current_depth == m_constraints.depth))
         {
             break;
         }
+
+        m_principal_variation.clear();
     }
 
     return best;

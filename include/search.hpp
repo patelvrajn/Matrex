@@ -5,6 +5,7 @@
 #include "chess_board.hpp"
 #include "chess_move.hpp"
 #include "cuckoo_reversible_move_table.hpp"
+#include "fixed_point.hpp"
 #include "move_generator.hpp"
 #include "move_ordering.hpp"
 #include "score.hpp"
@@ -26,6 +27,9 @@ constexpr std::size_t CORRECTION_HISTORY_TABLE_SIZE = 16384;
 
 constexpr History_Score_Storage_Type QUIET_HISTORY_PRUNING_THRESHOLD   = -50;
 constexpr History_Score_Storage_Type CAPTURE_HISTORY_PRUNING_THRESHOLD = -35;
+
+constexpr Matrex_FP_Int CONFIDENCE_INTERVAL_Z_SCORE =
+    Matrex_FP_Int::from_double(2.576);
 
 struct Time_Control
 {
@@ -86,6 +90,83 @@ struct UCI_Search_Information
 
 typedef std::pair<Chess_Move, Score> Search_Engine_Result;
 
+// =============================================================================
+// Abstraction of Welford's online algorithm. Calculates the average of added
+// values using the rolling average formula (which is derived from the
+// definition of an average) to avoid overflow. Also keeps a running sum of
+// the squared differences from the current mean in order to calculate variance
+// or standard deviation.
+// =============================================================================
+class Welford
+{
+  public:
+
+    constexpr Welford() :
+        m_count(0),
+        m_mean(Matrex_FP_Int::from_value(0)),
+        m_squared_differences_sum(0)
+    {
+    }
+
+    constexpr Welford operator+=(const Matrex_FP_Int value)
+    {
+        ++m_count;
+
+        const Matrex_FP_Int new_mean = m_mean + ((value - m_mean) / m_count);
+
+        // Square difference sums are calculated using 64-bit integers in order 
+        // to avoid problems with the sum getting too large to fit in 
+        // Matrex_FP_Int. The sum slices off the fractional part of the squared 
+        // difference because we can't use doubles and the precision is most 
+        // likely not important for the use case. 
+        m_squared_differences_sum =
+            m_squared_differences_sum + ((value - m_mean) * (value - new_mean)).get_integer();
+
+        m_mean = new_mean;
+
+        return *this;
+    }
+
+    constexpr Fixed_Point_Int_Storage_Type get_count() const { return m_count; }
+
+    constexpr Matrex_FP_Int get_average() const { return m_mean; }
+
+    constexpr Matrex_FP_Int get_variance() const
+    {
+        if (m_count <= 1)
+        {
+            return Matrex_FP_Int::from_integer(0);
+        }
+
+        return Matrex_FP_Int::from_integer(static_cast<Fixed_Point_Int_Storage_Type>(m_squared_differences_sum / (m_count - 1)));
+    }
+
+    constexpr Matrex_FP_Int get_standard_deviation() const
+    {
+        return Matrex::sqrt(get_variance());
+    }
+
+  private:
+
+    Fixed_Point_Int_Storage_Type m_count;
+    Matrex_FP_Int                m_mean;
+    int64_t                      m_squared_differences_sum;
+};
+
+struct Aspiration_Window
+{
+    Search_Engine_Result search_result;
+    Score                alpha;
+    Score                beta;
+    Welford              root_score_error;
+
+    bool is_fail_low() { return (search_result.second <= alpha); }
+
+    bool is_fail_high() { return (search_result.second >= beta); }
+
+    bool is_result_in_window() { return (!(is_fail_low() || is_fail_high())); }
+};
+
 using Search_Quiet_Cont_Hist_Stack =
     Quiet_Continuation_History_Stack<MAX_SEARCH_DEPTH_SOFT_LIMIT>;
 using Search_Capture_Cont_Hist_Stack =
@@ -108,16 +189,19 @@ class Search_Engine
 
   private:
 
-    Chess_Board              m_chess_board;
-    Transposition_Table      m_transposition_table;
-    Search_Constraints       m_constraints;
-    PIECE_COLOR              m_my_side;
-    Timer                    m_timer;
-    bool                     m_timer_expired_during_search;
-    uint64_t                 m_num_of_nodes_searched;
-    uint16_t                 m_current_search_depth;
+    Chess_Board         m_chess_board;
+    Transposition_Table m_transposition_table;
+    Search_Constraints  m_constraints;
+    PIECE_COLOR         m_my_side;
+    Timer               m_timer;
+    bool                m_timer_expired_during_search;
+    uint64_t            m_num_of_nodes_searched;
+    uint16_t            m_current_search_depth;
+
     Principal_Variation_List m_principal_variation;
-    const Cuckoo_RM_Table    m_cuckoo_rm_table;
+
+    const Cuckoo_RM_Table m_cuckoo_rm_table;
+
     Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>
         m_correction_history;
 
@@ -139,14 +223,19 @@ class Search_Engine
     Search_Engine_Result
     negamax(Chess_Board&                    position,
             uint16_t                        depth,
+            Welford&                        leaf_nodes_welford,
             Principal_Variation_List&       principal_variation,
             Search_Quiet_Cont_Hist_Stack&   q_cont_hist_stack,
             Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
-            uint16_t                        ply   = 0,
             Score                           alpha = Score(FP_NEGATIVE_INFINITY),
-            Score                           beta = Score(FP_POSITIVE_INFINITY));
+            Score                           beta  = Score(FP_POSITIVE_INFINITY),
+            uint16_t                        ply   = 0);
+
     Search_Engine_Result
     quiescence(Chess_Board& position, uint16_t ply, Score alpha, Score beta);
+
+    void aspiration_windows(Aspiration_Window& window);
+
     Search_Engine_Result iterative_deepening();
 
     template <std::size_t CONT_HIST_STACK_SIZE>
