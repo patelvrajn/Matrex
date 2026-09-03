@@ -642,7 +642,7 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
         // Update alpha if the stand pat score is greater than alpha.
         if (best_score > alpha)
         {
-            // score_bound = Score_Bound_Type::EXACT;
+            score_bound = Score_Bound_Type::EXACT;
             alpha       = best_score;
         }
 
