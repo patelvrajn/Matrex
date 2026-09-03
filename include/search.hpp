@@ -114,6 +114,11 @@ class Welford
 
         const Matrex_FP_Int new_mean = m_mean + ((value - m_mean) / m_count);
 
+        // Square difference sums are calculated using 64-bit integers in order 
+        // to avoid problems with the sum getting too large to fit in 
+        // Matrex_FP_Int. The sum slices off the fractional part of the squared 
+        // difference because we can't use doubles and the precision is most 
+        // likely not important for the use case. 
         m_squared_differences_sum =
             m_squared_differences_sum + ((value - m_mean) * (value - new_mean)).get_integer();
 

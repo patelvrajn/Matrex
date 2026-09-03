@@ -739,6 +739,8 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
  
     constexpr Matrex_FP_Int DEFAULT_WINDOW_WIDTH = Matrex_FP_Int::from_double(71.0);
 
+    // This multiplier must be fractional and less than 1.0 because otherwise
+    // the retry deltas get too large.
     constexpr Matrex_FP_Int RETRY_DELTA_MULTIPLIER = Matrex_FP_Int::from_double(1.0 / (11.75 * 11.75));
     
     const Matrex_FP_Int last_depth_score = window.search_result.second.to_fixed_point();
@@ -751,13 +753,13 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
         }
         else
         {
+            // Delta calculation based on the mathematics of prediction 
+            // intervals.
             return std::max(DEFAULT_WINDOW_WIDTH, (CONFIDENCE_INTERVAL_Z_SCORE * current_window.root_score_error.get_standard_deviation()));
         }
     };
 
     Matrex_FP_Int retry_delta = calculate_delta();
-
-    // std::cout << "Initial retry delta is: " << retry_delta.to_double() << std::endl;
 
     bool done = false;
     while (!done)
@@ -775,26 +777,11 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
 
         if (m_timer_expired_during_search) { break; }
 
+        // Variance was used instead of standard deviation in order to save a 
+        // square root calculation.
         retry_delta *= leaf_scores_welford.get_variance();
         retry_delta *= RETRY_DELTA_MULTIPLIER;
         retry_delta = std::max(DEFAULT_WINDOW_WIDTH, retry_delta);
-
-        // std::cout
-        //     << "Current iteration's evaluation: "
-        //     << current_window.search_result.second.to_fixed_point().to_double()
-        //     << std::endl;
-        // std::cout << "Current iteration's alpha: "
-        //           << current_window.alpha.to_fixed_point().to_double()
-        //           << std::endl;
-        // std::cout << "Current iteration's beta: "
-        //           << current_window.beta.to_fixed_point().to_double()
-        //           << std::endl;
-        // std::cout << "Current iteration's window result: "
-        //           << (current_window.is_fail_low()    ? "FAIL LOW"
-        //               : current_window.is_fail_high() ? "FAIL HIGH"
-        //                                               : "EXACT")
-        //           << std::endl;
-        // std::cout << "Retry delta: " << retry_delta.to_double() << std::endl;
 
         if (current_window.is_result_in_window())
         {
