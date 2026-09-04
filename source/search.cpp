@@ -228,10 +228,10 @@ Search_Engine::negamax(Chess_Board&                    position,
 
     Principal_Variation_List child_principal_variation;
     Chess_Move               best_move        = Chess_Move();
-    // Chess_Move               beta_cutoff_move = Chess_Move();
+    Chess_Move               beta_cutoff_move = Chess_Move();
     Score                    best_score       = Score(FP_NEGATIVE_INFINITY);
 
-    // Move_Generation_List quiets_to_malus;
+    Move_Generation_List quiets_to_malus;
     // Move_Generation_List captures_to_malus;
 
     // Static_Exchange_Evaluator<int64_t> see(position);
@@ -289,13 +289,13 @@ Search_Engine::negamax(Chess_Board&                    position,
         // by moves from the previous sibling.
         child_principal_variation.clear();
 
-        // // Bind a reference to the history table for this child move's subtree
-        // // to the stack indexed by ply. A history table is fetched from the
-        // // continuation history table which is indexed by the "previous move"
-        // // (this move is the previous move for it's subtree).
-        // const auto q_cont_hist_max_idx =
-        //     q_cont_hist_stack.stack.get_max_index();
-        // q_cont_hist_stack.bind_to_history_table(m_q_cont_hist_table[move], ply);
+        // Bind a reference to the history table for this child move's subtree
+        // to the stack indexed by ply. A history table is fetched from the
+        // continuation history table which is indexed by the "previous move"
+        // (this move is the previous move for it's subtree).
+        const auto q_cont_hist_max_idx =
+            q_cont_hist_stack.stack.get_max_index();
+        q_cont_hist_stack.bind_to_history_table(m_q_cont_hist_table[move], ply);
 
         // const auto c_cont_hist_max_idx =
         //     c_cont_hist_stack.stack.get_max_index();
@@ -365,11 +365,11 @@ Search_Engine::negamax(Chess_Board&                    position,
         const Score child_score = -child_result.second;
         position.undo_move(undo_move);
 
-        // // Truncate the continuation history stack to the previous maximum index
-        // // because the child's subtree may have added new references to history
-        // // tables and we don't want those to be considered for the next
-        // // sibling's subtree.
-        // q_cont_hist_stack.stack.truncate(q_cont_hist_max_idx);
+        // Truncate the continuation history stack to the previous maximum index
+        // because the child's subtree may have added new references to history
+        // tables and we don't want those to be considered for the next
+        // sibling's subtree.
+        q_cont_hist_stack.stack.truncate(q_cont_hist_max_idx);
         // c_cont_hist_stack.stack.truncate(c_cont_hist_max_idx);
 
         // Update the best score and best move found so far at this node even if
@@ -426,16 +426,16 @@ Search_Engine::negamax(Chess_Board&                    position,
         // the score could of been if the other children were not pruned.
         if (alpha >= beta)
         {
-            // beta_cutoff_move = move;
+            beta_cutoff_move = move;
             score_bound      = Score_Bound_Type::LOWER_BOUND;
             break;
         }
-        // else
-        // {
-        //     if (move.is_quiet_move()) { quiets_to_malus.append(move); }
+        else
+        {
+            if (move.is_quiet_move()) { quiets_to_malus.append(move); }
 
-        //     if (move.is_capture) { captures_to_malus.append(move); }
-        // }
+            // if (move.is_capture) { captures_to_malus.append(move); }
+        }
 
         is_first_move = false;
     }
@@ -453,15 +453,15 @@ Search_Engine::negamax(Chess_Board&                    position,
     //                                 static_evaluation);
     // }
 
-    // // Continuation History Update.
-    // if (should_update_quiet_continuation_history(beta_cutoff_move, score_bound))
-    // {
-    //     update_continuation_history(q_cont_hist_stack,
-    //                                 beta_cutoff_move,
-    //                                 ply,
-    //                                 depth_squared,
-    //                                 quiets_to_malus);
-    // }
+    // Continuation History Update.
+    if (should_update_quiet_continuation_history(beta_cutoff_move, score_bound))
+    {
+        update_continuation_history(q_cont_hist_stack,
+                                    beta_cutoff_move,
+                                    ply,
+                                    depth_squared,
+                                    quiets_to_malus);
+    }
 
     // if (should_update_capture_continuation_history(beta_cutoff_move,
     //                                                score_bound))

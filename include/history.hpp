@@ -236,7 +236,7 @@ Quiet_Continuation_History_Stack<STACK_SIZE>::get_score(
                                 - static_cast<int64_t>(
                                     QUIET_CONTINUATION_HISTORY_LOOKBACK_DEPTH);
 
-    History_Score_Storage_Type score = 0;
+    int64_t score = 0;
     if ((start >= 0) && (end >= 0))
     {
         for (int64_t i = start; i >= end; --i)
@@ -246,7 +246,10 @@ Quiet_Continuation_History_Stack<STACK_SIZE>::get_score(
         }
     }
 
-    return score;
+    return static_cast<History_Score_Storage_Type>(
+        std::clamp(score,
+                   static_cast<int64_t>(MIN_HISTORY),
+                   static_cast<int64_t>(MAX_HISTORY)));
 }
 
 template <std::size_t STACK_SIZE>
@@ -278,7 +281,7 @@ Capture_Continuation_History_Stack<STACK_SIZE>::get_score(
                   - static_cast<int64_t>(
                       CAPTURE_CONTINUATION_HISTORY_LOOKBACK_DEPTH);
 
-    History_Score_Storage_Type score = 0;
+    int64_t score = 0;
     if ((start >= 0) && (end >= 0))
     {
         for (int64_t i = start; i >= end; --i)
@@ -288,5 +291,8 @@ Capture_Continuation_History_Stack<STACK_SIZE>::get_score(
         }
     }
 
-    return score;
+    return static_cast<History_Score_Storage_Type>(
+        std::clamp(score,
+                   static_cast<int64_t>(MIN_HISTORY),
+                   static_cast<int64_t>(MAX_HISTORY)));
 }
