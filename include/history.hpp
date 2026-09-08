@@ -19,8 +19,8 @@ constexpr History_Score_Storage_Type MIN_HISTORY =
 constexpr History_Score_Storage_Type MIN_QUIET_HISTORY_BONUS = -128;
 constexpr History_Score_Storage_Type MAX_QUIET_HISTORY_BONUS = 128;
 
-constexpr History_Score_Storage_Type MIN_CAPTURE_HISTORY_BONUS = -128;
-constexpr History_Score_Storage_Type MAX_CAPTURE_HISTORY_BONUS = 128;
+constexpr History_Score_Storage_Type MIN_CAPTURE_HISTORY_BONUS = -256;
+constexpr History_Score_Storage_Type MAX_CAPTURE_HISTORY_BONUS = 256;
 
 // Number of plies to look back in continuation histories.
 constexpr std::size_t QUIET_CONTINUATION_HISTORY_LOOKBACK_DEPTH   = 4;

@@ -232,7 +232,7 @@ Search_Engine::negamax(Chess_Board&                    position,
     Score                    best_score       = Score(FP_NEGATIVE_INFINITY);
 
     Move_Generation_List quiets_to_malus;
-    // Move_Generation_List captures_to_malus;
+    Move_Generation_List captures_to_malus;
 
     // Static_Exchange_Evaluator<int64_t> see(position);
 
@@ -297,9 +297,9 @@ Search_Engine::negamax(Chess_Board&                    position,
             q_cont_hist_stack.stack.get_max_index();
         q_cont_hist_stack.bind_to_history_table(m_q_cont_hist_table[move], ply);
 
-        // const auto c_cont_hist_max_idx =
-        //     c_cont_hist_stack.stack.get_max_index();
-        // c_cont_hist_stack.bind_to_history_table(m_c_cont_hist_table[move], ply);
+        const auto c_cont_hist_max_idx =
+            c_cont_hist_stack.stack.get_max_index();
+        c_cont_hist_stack.bind_to_history_table(m_c_cont_hist_table[move], ply);
 
         // Explore the child move's subtree for it's evaluation. Negate the
         // result to compare it's score to the parent's scores (alpha,
@@ -370,7 +370,7 @@ Search_Engine::negamax(Chess_Board&                    position,
         // tables and we don't want those to be considered for the next
         // sibling's subtree.
         q_cont_hist_stack.stack.truncate(q_cont_hist_max_idx);
-        // c_cont_hist_stack.stack.truncate(c_cont_hist_max_idx);
+        c_cont_hist_stack.stack.truncate(c_cont_hist_max_idx);
 
         // Update the best score and best move found so far at this node even if
         // the child is expected to cause a beta cutoff because the information
@@ -434,7 +434,7 @@ Search_Engine::negamax(Chess_Board&                    position,
         {
             if (move.is_quiet_move()) { quiets_to_malus.append(move); }
 
-            // if (move.is_capture) { captures_to_malus.append(move); }
+            if (move.is_capture) { captures_to_malus.append(move); }
         }
 
         is_first_move = false;
@@ -463,16 +463,16 @@ Search_Engine::negamax(Chess_Board&                    position,
                                     quiets_to_malus);
     }
 
-    // if (should_update_capture_continuation_history(beta_cutoff_move,
-    //                                                score_bound))
-    // {
-    //     update_continuation_history(c_cont_hist_stack,
-    //                                 beta_cutoff_move,
-    //                                 ply,
-    //                                 depth_squared,
-    //                                 depth,
-    //                                 captures_to_malus);
-    // }
+    if (should_update_capture_continuation_history(beta_cutoff_move,
+                                                   score_bound))
+    {
+        update_continuation_history(c_cont_hist_stack,
+                                    beta_cutoff_move,
+                                    ply,
+                                    depth_squared,
+                                    depth,
+                                    captures_to_malus);
+    }
 
     // Cache the position's best move and evaluation in the transposition table.
     if (!m_timer_expired_during_search)
@@ -967,7 +967,7 @@ void Search_Engine::update_continuation_history(
         auto& entry = c_cont_hist_stack.stack[static_cast<std::size_t>(i)];
         entry.get_ref().gravity_update<BONUS>(
             move,
-            ((8 * depth_squared) + (16 * depth)));
+            ((3 * depth_squared) + (16 * depth) - 8));
 
         // Malus all move pairs for the given move that didn't cause a beta
         // cutoff.
@@ -975,7 +975,7 @@ void Search_Engine::update_continuation_history(
         {
             entry.get_ref().gravity_update<MALUS>(
                 malus_move,
-                ((4 * depth_squared) + (8 * depth)));
+                ((1 * depth_squared) + (8 * depth)));
         }
     }
 }
