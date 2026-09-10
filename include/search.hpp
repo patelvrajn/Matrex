@@ -263,7 +263,8 @@ class Search_Engine
                                          const Score                      eval);
 
     inline bool
-    should_update_correction_history(const Chess_Move&      best_move,
+    should_update_correction_history(const bool             is_search_timer_expired,
+                                     const Chess_Move&      best_move,
                                      const Score            best_score,
                                      const Score            static_evaluation,
                                      const Score_Bound_Type score_bound,
@@ -419,13 +420,14 @@ inline bool Search_Engine::should_use_transposition_table_score(
 }
 
 inline bool Search_Engine::should_update_correction_history(
+    const bool             is_search_timer_expired,
     const Chess_Move&      best_move,
     const Score            best_score,
     const Score            static_evaluation,
     const Score_Bound_Type score_bound,
     const bool             is_side_to_move_in_check)
 {
-    return (best_move.is_quiet_move()
+    return ((!is_search_timer_expired) && best_move.is_quiet_move()
             && ((score_bound == Score_Bound_Type::EXACT)
                 || ((score_bound == Score_Bound_Type::UPPER_BOUND)
                     && (best_score < static_evaluation))

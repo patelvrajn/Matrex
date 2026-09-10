@@ -4,13 +4,17 @@
 #include "fixed_point.hpp"
 #include "score.hpp"
 
-constexpr double CORR_HIST_FRACTIONAL_UPDATE = 0.15;
-constexpr double CORR_HIST_SCALE             = (1.0 / 8.0);
+constexpr double CORR_HIST_SCALE = (1.0 / 8.0);
+
+constexpr Matrex_FP_Int CORR_HIST_LIMIT = Matrex_FP_Int::from_integer(1024);
 
 constexpr Matrex_FP_Int CORR_HIST_MIN_CORRECTION =
     Matrex_FP_Int::from_integer(-256);
 constexpr Matrex_FP_Int CORR_HIST_MAX_CORRECTION =
     Matrex_FP_Int::from_integer(256);
+
+constexpr Matrex_FP_Int CORR_HIST_CORRECTION_DIVISOR =
+    Matrex_FP_Int::from_double(1.0 / 4.0);
 
 constexpr Matrex_FP_Int CORR_HIST_PAWNS_WEIGHT =
     Matrex_FP_Int::from_double(0.35);
@@ -130,10 +134,14 @@ void Correction_History_Tables<size>::update(const Chess_Board& position,
     Score& material_entry =
         m_tables[side_to_move].material_table[indices.material_index];
 
-    // Establish the lambda that will return the new correction based on an
-    // additive correction.
+    // Establish the lambda that will return the new correction based on a 
+    // gravitized correction.
     const auto update_entry = [&](Score& entry)
-    { entry += Score(correction * CORR_HIST_FRACTIONAL_UPDATE); };
+    { 
+        entry =
+        Score(entry.to_fixed_point() + correction
+        - ((entry.to_fixed_point() / CORR_HIST_LIMIT) * Matrex_FP_Int::abs(correction)));
+    };
 
     // Update correction history entries.
     update_entry(pawns_entry);
@@ -177,7 +185,9 @@ Score Correction_History_Tables<size>::get_correction(
                           + (knights_entry * CORR_HIST_KNIGHTS_WEIGHT)
                           + (material_entry * CORR_HIST_MATERIALS_WEIGHT);
 
-    return Score(correction);
+    // Note, that this division is different from just dividing the correction 
+    // limit because changing the maximum correction would affect gravity.
+    return Score(correction * CORR_HIST_CORRECTION_DIVISOR);
 }
 
 template <std::size_t size>

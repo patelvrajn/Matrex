@@ -260,6 +260,11 @@ class Fixed_Point_Integer
                        maximum.get_value()));
     }
 
+    static constexpr Fixed_Point_Integer<F> abs(const Fixed_Point_Integer<F> value)
+    {
+        return Fixed_Point_Integer<F>::from_value(std::abs(value.get_value()));
+    }
+
     static constexpr Fixed_Point_Integer
     from_integer(Fixed_Point_Int_Storage_Type integer)
     {

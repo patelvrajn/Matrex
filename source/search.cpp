@@ -440,18 +440,19 @@ Search_Engine::negamax(Chess_Board&                    position,
         is_first_move = false;
     }
 
-    // // Correction History Update.
-    // if (should_update_correction_history(best_move,
-    //                                      best_score,
-    //                                      static_evaluation,
-    //                                      score_bound,
-    //                                      is_side_to_move_in_check))
-    // {
-    //     m_correction_history.update(position,
-    //                                 depth,
-    //                                 best_score,
-    //                                 static_evaluation);
-    // }
+    // Correction History Update.
+    if (should_update_correction_history(m_timer_expired_during_search, 
+                                            best_move,
+                                            best_score,
+                                            static_evaluation,
+                                            score_bound,
+                                            is_side_to_move_in_check))
+    {
+        m_correction_history.update(position,
+                                    depth,
+                                    best_score,
+                                    static_evaluation);
+    }
 
     // Continuation History Update.
     if (should_update_quiet_continuation_history(beta_cutoff_move, score_bound))
