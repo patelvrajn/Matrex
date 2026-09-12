@@ -7,7 +7,7 @@
 #include "static_exchange_evaluation.hpp"
 #include "history.hpp"
 
-constexpr Move_Score MVV_LVA_ATTACKER_VALUES[] = {10, 20, 30, 40, 50, 60};
+constexpr Move_Score MVV_LVA_ATTACKER_VALUES[] = {1000, 3000, 3500, 5000, 9000, 30000};
 
 // Attacker: Pawn, Knight, Bishop, Rook, Queen, King
 // Victims: Pawn, Knight, Bishop, Rook, Queen
@@ -117,7 +117,7 @@ mvv_lva_array Move_Ordering<CONT_HIST_STACK_SIZE>::generate_mvv_lva_array()
         {
             return_value[attacker][victim] =
                 ((MVV_LVA_ATTACKER_VALUES[victim]
-                  + NUM_OF_UNIQUE_PIECES_PER_PLAYER)
+                  + (NUM_OF_UNIQUE_PIECES_PER_PLAYER * 100))
                  - (MVV_LVA_ATTACKER_VALUES[attacker] / 10));
         }
     }

@@ -225,19 +225,31 @@ Chess_Board::what_piece_is_on_square(const Square s) const
 
 Undo_Chess_Move Chess_Board::make_move(const Chess_Move& move)
 {
+    const bool is_move_irreversible =
+        ((move.moving_piece == PIECES::PAWN) || (move.is_capture)
+         || (move.is_en_passant));
+
+    const std::size_t hash_history_write_index =
+        is_move_irreversible
+            ? 0
+            : (static_cast<std::size_t>(m_state.half_move_clock) + 1);
+
+    const bool does_move_write_hash_history =
+        hash_history_write_index < HASH_HISTORY_SIZE;
+
     const Undo_Chess_Move undo_move = {
         .move                = move,
         .castling_rights     = m_state.castling_rights,
         .half_move_clock     = m_state.half_move_clock,
         .enpassant_square    = m_state.enpassant_square,
         .hash_history_start  = m_state.hash_history_start,
-        .hash_history_length = m_state.hash_history_length};
+        .hash_history_length = m_state.hash_history_length,
+        .overwritten_hash_history_entry =
+            does_move_write_hash_history
+                ? m_hash_history[hash_history_write_index].get_hash_value()
+                : 0};
 
     calculate_next_board_state(m_state.side_to_move, move);
-
-    const bool is_move_irreversible =
-        ((move.moving_piece == PIECES::PAWN) || (move.is_capture)
-         || (move.is_en_passant));
 
     if (is_move_irreversible) { m_state.half_move_clock = 0; }
     else
@@ -399,6 +411,24 @@ void Chess_Board::undo_move(const Undo_Chess_Move& undo_move)
 
     m_state.hash_history_start  = undo_move.hash_history_start;
     m_state.hash_history_length = undo_move.hash_history_length;
+
+    const bool is_move_irreversible =
+        ((undo_move.move.moving_piece == PIECES::PAWN)
+         || (undo_move.move.is_capture) || (undo_move.move.is_en_passant));
+
+    const std::size_t hash_history_write_index =
+        is_move_irreversible
+            ? 0
+            : (static_cast<std::size_t>(undo_move.half_move_clock) + 1);
+
+    const bool did_move_write_hash_history =
+        hash_history_write_index < HASH_HISTORY_SIZE;
+
+    if (did_move_write_hash_history)
+    {
+        m_hash_history[hash_history_write_index] =
+            Zobrist_Hash(undo_move.overwritten_hash_history_entry);
+    }
 }
 
 void Chess_Board::make_moves_from_string(const std::string& moves_str,

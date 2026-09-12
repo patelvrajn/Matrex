@@ -148,6 +148,7 @@ struct Undo_Chess_Move
     ESQUARE    enpassant_square    : 7;
     uint16_t   hash_history_start  : 7;
     uint16_t   hash_history_length : 7;
+    uint64_t   overwritten_hash_history_entry;
 };
 
 // A partially filled array class specialized for Chess Moves.
