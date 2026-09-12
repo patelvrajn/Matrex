@@ -557,5 +557,5 @@ inline bool Search_Engine::should_do_late_move_reductions(
     const bool        is_side_to_move_in_check)
 {
     return (move.is_quiet_move() && (!is_side_to_move_in_check)
-            && (!best_score.is_enemy_mate()) && (move.score < 0));
+            && (!best_score.is_enemy_mate()) && (move.score <= 0));
 }

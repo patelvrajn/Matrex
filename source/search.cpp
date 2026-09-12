@@ -134,7 +134,7 @@ Search_Engine::negamax(Chess_Board&                    position,
     }
 
     // Base case: if depth is 0, perform quiescence search.
-    if (depth == QUIESCENCE_SEARCH_DEPTH)
+    if (depth <= QUIESCENCE_SEARCH_DEPTH)
     {
         const Search_Engine_Result quiescence_result =
             quiescence(position, ply, alpha, beta);
@@ -324,9 +324,9 @@ Search_Engine::negamax(Chess_Board&                    position,
                                    child_principal_variation,
                                    q_cont_hist_stack,
                                    c_cont_hist_stack,
+                                   (ply + 1),
                                    -beta,
-                                   -alpha,
-                                   (ply + 1));
+                                   -alpha);
         }
         else
         {
@@ -338,6 +338,7 @@ Search_Engine::negamax(Chess_Board&                    position,
 
                 child_result = negamax(position,
                                        (depth - 1 - depth_reduction),
+                                       leaf_nodes_welford,
                                        child_principal_variation,
                                        q_cont_hist_stack,
                                        c_cont_hist_stack,
@@ -379,6 +380,7 @@ Search_Engine::negamax(Chess_Board&                    position,
                 {
                     child_result = negamax(position,
                                            (depth - 1),
+                                           leaf_nodes_welford,
                                            child_principal_variation,
                                            q_cont_hist_stack,
                                            c_cont_hist_stack,
@@ -799,6 +801,7 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
                                               m_principal_variation,
                                               m_q_cont_hist_stack,
                                               m_c_cont_hist_stack,
+                                              0,
                                               current_window.alpha,
                                               current_window.beta);
 
