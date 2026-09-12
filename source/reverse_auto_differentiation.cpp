@@ -1,4 +1,5 @@
 #include <cmath>
+#include "fixed_point.hpp"
 #include "globals.hpp"
 
 #include "reverse_auto_differentiation.hpp"
@@ -123,6 +124,24 @@ void AD_Adjoint_Pow::operator()(
                               / left_node().value());
     right_node().adjoint() +=
         (value() * this_node_value * std::log(left_node().value()));
+}
+
+void AD_Adjoint_Exp2::operator()(
+    MAYBE_UNUSED const std::initializer_list<double> args)
+{
+    MATREX_ASSERT((args.size() == 1),
+                  "Automatic Differentation Adjoint exp2 requires 1 argument; "
+                  "(1) This node's value");
+
+    const double& this_node_value = (args.begin())[0];
+
+    left_node().adjoint() += (value() * LN_2 * this_node_value);
+}
+
+void AD_Adjoint_Log2::operator()(
+    MAYBE_UNUSED const std::initializer_list<double> args)
+{
+    left_node().adjoint() += value() / (left_node().value() * LN_2);
 }
 
 AD_Node::AD_Node() : m_adjoint(nullptr) {}

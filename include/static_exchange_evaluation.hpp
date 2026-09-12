@@ -79,7 +79,7 @@ class Static_Exchange_Evaluator
         m_material_weights = {10, 30, 35, 50, 90, 150};
 
     static constexpr Multi_Array<Integral_Type, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
-        m_moving_piece_penalties = {1, 3, 4, 5, 9, 15};
+        m_moving_piece_penalties = {10, 30, 35, 50, 90, 150};
 
     SEE_Attackers_Array
     what_pieces_attack_this_square(const Square      s,

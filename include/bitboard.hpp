@@ -315,7 +315,7 @@ class Bitboard
 
     // Bitwise operators overload.
     constexpr Bitboard  operator|(const Bitboard& other) const;
-    constexpr Bitboard  operator&(const Bitboard& other) const;
+    FORCE_INLINE constexpr Bitboard operator&(const Bitboard& other) const;
     constexpr Bitboard  operator^(const Bitboard& other) const;
     constexpr Bitboard  operator<<(const uint8_t shift) const;
     constexpr Bitboard  operator>>(const uint8_t shift) const;
@@ -594,7 +594,7 @@ constexpr Bitboard Bitboard::operator|(const Bitboard& other) const
     return Bitboard(m_board | other.m_board);
 }
 
-constexpr Bitboard Bitboard::operator&(const Bitboard& other) const
+FORCE_INLINE constexpr Bitboard Bitboard::operator&(const Bitboard& other) const
 {
     return Bitboard(m_board & other.m_board);
 }

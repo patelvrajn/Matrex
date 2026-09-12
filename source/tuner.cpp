@@ -545,7 +545,8 @@ Evaluation_Weights<double> Tuner::ad_backward_pass(AD_Tape& tape,
         if ((typeid(adjoint) == typeid(AD_Adjoint_Tanh))
             || (typeid(adjoint) == typeid(AD_Adjoint_Exp))
             || (typeid(adjoint) == typeid(AD_Adjoint_Sqrt))
-            || (typeid(adjoint) == typeid(AD_Adjoint_Pow)))
+            || (typeid(adjoint) == typeid(AD_Adjoint_Pow))
+            || (typeid(adjoint) == typeid(AD_Adjoint_Exp2)))
         {
             adjoint({node.value()});
         }

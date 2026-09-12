@@ -74,7 +74,7 @@ constexpr void cuckoo_storage_insert(Cuckoo_RM_Table_Storage<capacity>& storage,
 }
 
 template <std::size_t capacity>
-constexpr Cuckoo_RM_Table_Storage<capacity> initialize_cuckoo_rm_storage()
+Cuckoo_RM_Table_Storage<capacity> initialize_cuckoo_rm_storage()
 {
     Attacks                           a;
     Cuckoo_RM_Table_Storage<capacity> storage;
@@ -159,8 +159,7 @@ class Cuckoo_RM_Table // RM = reversible move
 
   private:
 
-    static constexpr Cuckoo_RM_Table_Storage<CUCKOO_RM_TABLE_SIZE> m_storage =
-        initialize_cuckoo_rm_storage<CUCKOO_RM_TABLE_SIZE>();
+    static Cuckoo_RM_Table_Storage<CUCKOO_RM_TABLE_SIZE> m_storage;
 };
 
 constexpr bool

@@ -200,6 +200,26 @@ class AD_Adjoint_Pow : public AD_Adjoint
     operator()(MAYBE_UNUSED const std::initializer_list<double> args) override;
 };
 
+class AD_Adjoint_Exp2 : public AD_Adjoint
+{
+  public:
+
+    using AD_Adjoint::AD_Adjoint;
+
+    virtual void
+    operator()(MAYBE_UNUSED const std::initializer_list<double> args) override;
+};
+
+class AD_Adjoint_Log2 : public AD_Adjoint
+{
+  public:
+
+    using AD_Adjoint::AD_Adjoint;
+
+    virtual void
+    operator()(MAYBE_UNUSED const std::initializer_list<double> args) override;
+};
+
 using AD_Adjoint_Pointer = std::unique_ptr<AD_Adjoint>;
 
 //==============================================================================
@@ -241,7 +261,7 @@ class AD_Node
 };
 
 //==============================================================================
-// Automatic Differentiation Node Class
+// Automatic Differentiation Tape Class
 //
 // This class is an abstraction of a computational graph.
 //==============================================================================
@@ -269,7 +289,7 @@ class AD_Tape
 };
 
 //==============================================================================
-// Automatic Differentiation Node Class
+// Automatic Differentiation Value Class
 //
 // This class is the data type for each evaluation weight when passed into the
 // evaluator. Through operator and function overloading, it automatically fills

@@ -80,7 +80,7 @@ class Chess_Board
 
     Bitboard get_piece_occupancies(const PIECES p) const;
 
-    auto get_piece_occupancies() const { return m_piece_bitboards; }
+    const auto& get_piece_occupancies() const { return m_piece_bitboards; }
 
     uint8_t get_piece_count(const PIECES p) const;
 
