@@ -30,8 +30,8 @@ int main(int argc, char* argv[])
         }
         else if (std::string(argv[1]) == "bench")
         {
-            constexpr Depth_Int PERFT_BENCH_DEPTH  = 4;
-            constexpr Depth_Int SEARCH_BENCH_DEPTH = 6;
+            constexpr Depth_Int PERFT_BENCH_DEPTH  = 5;
+            constexpr Depth_Int SEARCH_BENCH_DEPTH = 9;
 
             Performance_Bench pb;
             pb.bench_move_generation(PERFT_BENCH_DEPTH);

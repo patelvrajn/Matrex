@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdlib>
+#include <cstdint>
 #include <format>
 #include <functional>
 #include <iostream>
