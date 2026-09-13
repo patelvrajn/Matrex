@@ -236,8 +236,8 @@ Search_Engine::negamax(Chess_Board&                    position,
 
     // Static_Exchange_Evaluator<int64_t> see(position);
 
-    bool is_first_move = true;
-    uint8_t move_index = 0;
+    bool    is_first_move = true;
+    uint8_t move_index    = 0;
     for (const Chess_Move& move : moves)
     {
         // // Static Exchange Evaluation Pruning (Captures Only)
@@ -334,7 +334,12 @@ Search_Engine::negamax(Chess_Board&                    position,
                                                best_score,
                                                is_side_to_move_in_check))
             {
-                const Depth_Int depth_reduction = std::clamp(static_cast<Depth_Int>((0.75 + (std::log(depth) * std::log(move_index))) / 2.25), static_cast<Depth_Int>(1), static_cast<Depth_Int>(4));
+                const Depth_Int depth_reduction = std::clamp(
+                    static_cast<Depth_Int>(
+                        (0.75 + (std::log(depth) * std::log(move_index)))
+                        / 2.25),
+                    static_cast<Depth_Int>(1),
+                    static_cast<Depth_Int>(4));
 
                 child_result = negamax(position,
                                        (depth - 1 - depth_reduction),
@@ -471,12 +476,12 @@ Search_Engine::negamax(Chess_Board&                    position,
     }
 
     // Correction History Update.
-    if (should_update_correction_history(m_timer_expired_during_search, 
-                                            best_move,
-                                            best_score,
-                                            static_evaluation,
-                                            score_bound,
-                                            is_side_to_move_in_check))
+    if (should_update_correction_history(m_timer_expired_during_search,
+                                         best_move,
+                                         best_score,
+                                         static_evaluation,
+                                         score_bound,
+                                         is_side_to_move_in_check))
     {
         m_correction_history.update(position,
                                     depth,
@@ -507,7 +512,7 @@ Search_Engine::negamax(Chess_Board&                    position,
 
     // Cache the position's best move and evaluation in the transposition table.
     if (!m_timer_expired_during_search)
-    {        
+    {
         transposition_table_entry = {
             .best_move = best_move,
             .score     = best_score,
@@ -767,16 +772,19 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
     Aspiration_Window current_window = window;
 
     Welford leaf_scores_welford;
- 
-    constexpr Matrex_FP_Int DEFAULT_WINDOW_WIDTH = Matrex_FP_Int::from_double(71.0);
+
+    constexpr Matrex_FP_Int DEFAULT_WINDOW_WIDTH =
+        Matrex_FP_Int::from_double(71.0);
 
     // This multiplier must be fractional and less than 1.0 because otherwise
     // the retry deltas get too large.
-    constexpr Matrex_FP_Int RETRY_DELTA_MULTIPLIER = Matrex_FP_Int::from_double(1.0 / (11.75 * 11.75));
-    
-    const Matrex_FP_Int last_depth_score = window.search_result.second.to_fixed_point();
+    constexpr Matrex_FP_Int RETRY_DELTA_MULTIPLIER =
+        Matrex_FP_Int::from_double(1.0 / (11.75 * 11.75));
 
-    auto calculate_delta = [&]() 
+    const Matrex_FP_Int last_depth_score =
+        window.search_result.second.to_fixed_point();
+
+    auto calculate_delta = [&]()
     {
         if (current_window.root_score_error.get_count() <= 1)
         {
@@ -784,9 +792,12 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
         }
         else
         {
-            // Delta calculation based on the mathematics of prediction 
+            // Delta calculation based on the mathematics of prediction
             // intervals.
-            return std::max(DEFAULT_WINDOW_WIDTH, (CONFIDENCE_INTERVAL_Z_SCORE * current_window.root_score_error.get_standard_deviation()));
+            return std::max(
+                DEFAULT_WINDOW_WIDTH,
+                (CONFIDENCE_INTERVAL_Z_SCORE
+                 * current_window.root_score_error.get_standard_deviation()));
         }
     };
 
@@ -809,15 +820,17 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
 
         if (m_timer_expired_during_search) { break; }
 
-        // Variance was used instead of standard deviation in order to save a 
+        // Variance was used instead of standard deviation in order to save a
         // square root calculation.
         retry_delta *= leaf_scores_welford.get_variance();
         retry_delta *= RETRY_DELTA_MULTIPLIER;
-        retry_delta = std::max(DEFAULT_WINDOW_WIDTH, retry_delta);
+        retry_delta  = std::max(DEFAULT_WINDOW_WIDTH, retry_delta);
 
         if (current_window.is_result_in_window())
         {
-            current_window.root_score_error += (last_depth_score - current_window.search_result.second.to_fixed_point());
+            current_window.root_score_error +=
+                (last_depth_score
+                 - current_window.search_result.second.to_fixed_point());
 
             const Matrex_FP_Int delta = calculate_delta();
 

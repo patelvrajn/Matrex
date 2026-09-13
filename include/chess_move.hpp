@@ -160,10 +160,10 @@ class Chess_Move_List
     Chess_Move_List();
 
     template <std::size_t S>
-    inline void push_and_copy(const Chess_Move&         move,
-                              const Chess_Move_List<S>& move_list);
+    inline void       push_and_copy(const Chess_Move&         move,
+                                    const Chess_Move_List<S>& move_list);
     FORCE_INLINE void append(const Chess_Move& move);
-    inline void clear();
+    inline void       clear();
 
     Chess_Move* begin() const;
     Chess_Move* end() const;

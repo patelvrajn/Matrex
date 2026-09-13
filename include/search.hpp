@@ -111,13 +111,14 @@ class Welford
 
         const Matrex_FP_Int new_mean = m_mean + ((value - m_mean) / m_count);
 
-        // Square difference sums are calculated using 64-bit integers in order 
-        // to avoid problems with the sum getting too large to fit in 
-        // Matrex_FP_Int. The sum slices off the fractional part of the squared 
-        // difference because we can't use doubles and the precision is most 
-        // likely not important for the use case. 
+        // Square difference sums are calculated using 64-bit integers in order
+        // to avoid problems with the sum getting too large to fit in
+        // Matrex_FP_Int. The sum slices off the fractional part of the squared
+        // difference because we can't use doubles and the precision is most
+        // likely not important for the use case.
         m_squared_differences_sum =
-            m_squared_differences_sum + ((value - m_mean) * (value - new_mean)).get_integer();
+            m_squared_differences_sum
+            + ((value - m_mean) * (value - new_mean)).get_integer();
 
         m_mean = new_mean;
 
@@ -130,12 +131,11 @@ class Welford
 
     constexpr Matrex_FP_Int get_variance() const
     {
-        if (m_count <= 1)
-        {
-            return Matrex_FP_Int::from_integer(0);
-        }
+        if (m_count <= 1) { return Matrex_FP_Int::from_integer(0); }
 
-        return Matrex_FP_Int::from_integer(static_cast<Fixed_Point_Int_Storage_Type>(m_squared_differences_sum / (m_count - 1)));
+        return Matrex_FP_Int::from_integer(
+            static_cast<Fixed_Point_Int_Storage_Type>(m_squared_differences_sum
+                                                      / (m_count - 1)));
     }
 
     constexpr Matrex_FP_Int get_standard_deviation() const
@@ -225,11 +225,11 @@ class Search_Engine
             Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
             Depth_Int                       ply   = 0,
             Score                           alpha = Score(FP_NEGATIVE_INFINITY),
-            Score                           beta  = Score(FP_POSITIVE_INFINITY));
+            Score                           beta = Score(FP_POSITIVE_INFINITY));
 
     Search_Engine_Result
     quiescence(Chess_Board& position, Depth_Int ply, Score alpha, Score beta);
-    void aspiration_windows(Aspiration_Window& window);
+    void                 aspiration_windows(Aspiration_Window& window);
     Search_Engine_Result iterative_deepening();
 
     template <std::size_t CONT_HIST_STACK_SIZE>
@@ -257,10 +257,10 @@ class Search_Engine
                                          const Score                      eval);
 
     inline bool
-    should_update_correction_history(const bool             is_search_timer_expired,
-                                     const Chess_Move&      best_move,
-                                     const Score            best_score,
-                                     const Score            static_evaluation,
+    should_update_correction_history(const bool        is_search_timer_expired,
+                                     const Chess_Move& best_move,
+                                     const Score       best_score,
+                                     const Score       static_evaluation,
                                      const Score_Bound_Type score_bound,
                                      bool is_side_to_move_in_check);
 

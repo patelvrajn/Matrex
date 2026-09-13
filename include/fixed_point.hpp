@@ -260,7 +260,8 @@ class Fixed_Point_Integer
                        maximum.get_value()));
     }
 
-    static constexpr Fixed_Point_Integer<F> abs(const Fixed_Point_Integer<F> value)
+    static constexpr Fixed_Point_Integer<F>
+    abs(const Fixed_Point_Integer<F> value)
     {
         return Fixed_Point_Integer<F>::from_value(std::abs(value.get_value()));
     }
@@ -279,7 +280,8 @@ class Fixed_Point_Integer
         return Fixed_Point_Integer::from_value(value);
     }
 
-    FORCE_INLINE static constexpr Fixed_Point_Integer from_double(const double real)
+    FORCE_INLINE static constexpr Fixed_Point_Integer
+    from_double(const double real)
     {
         double rounded = std::llround(real * scale());
         rounded        = std::clamp(

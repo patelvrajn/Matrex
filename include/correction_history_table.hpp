@@ -134,13 +134,13 @@ void Correction_History_Tables<size>::update(const Chess_Board& position,
     Score& material_entry =
         m_tables[side_to_move].material_table[indices.material_index];
 
-    // Establish the lambda that will return the new correction based on a 
+    // Establish the lambda that will return the new correction based on a
     // gravitized correction.
     const auto update_entry = [&](Score& entry)
-    { 
-        entry =
-        Score(entry.to_fixed_point() + correction
-        - ((entry.to_fixed_point() / CORR_HIST_LIMIT) * Matrex_FP_Int::abs(correction)));
+    {
+        entry = Score(entry.to_fixed_point() + correction
+                      - ((entry.to_fixed_point() / CORR_HIST_LIMIT)
+                         * Matrex_FP_Int::abs(correction)));
     };
 
     // Update correction history entries.
@@ -185,7 +185,7 @@ Score Correction_History_Tables<size>::get_correction(
                           + (knights_entry * CORR_HIST_KNIGHTS_WEIGHT)
                           + (material_entry * CORR_HIST_MATERIALS_WEIGHT);
 
-    // Note, that this division is different from just dividing the correction 
+    // Note, that this division is different from just dividing the correction
     // limit because changing the maximum correction would affect gravity.
     return Score(correction * CORR_HIST_CORRECTION_DIVISOR);
 }

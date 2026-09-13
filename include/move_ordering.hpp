@@ -7,7 +7,8 @@
 #include "static_exchange_evaluation.hpp"
 #include "history.hpp"
 
-constexpr Move_Score MVV_LVA_ATTACKER_VALUES[] = {1000, 3000, 3500, 5000, 9000, 30000};
+constexpr Move_Score MVV_LVA_ATTACKER_VALUES[] =
+    {1000, 3000, 3500, 5000, 9000, 30000};
 
 // Attacker: Pawn, Knight, Bishop, Rook, Queen, King
 // Victims: Pawn, Knight, Bishop, Rook, Queen

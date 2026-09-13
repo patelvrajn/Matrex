@@ -330,18 +330,15 @@ class Non_Linear_Response_Table // Only for Matrex fixed-point type.
 
         // The bottom bits of the fraction tell us where in between the indices
         // we are.
-        const Matrex_FP_Int fraction = Matrex_FP_Int::from_value(extract_bits(
-            biased_value,
-            0,
-            (index_shift - 1)));
+        const Matrex_FP_Int fraction = Matrex_FP_Int::from_value(
+            extract_bits(biased_value, 0, (index_shift - 1)));
 
         const Matrex_FP_Int y1 = (*m_table)[index];
         const Matrex_FP_Int y2 = (*m_table)[index + 1];
 
         // Linear interpolation.
         const Matrex_FP_Int result =
-            y1
-            + (((y2 - y1) * fraction) * NON_LINEAR_RESPONSE_TABLE_FP_SCALE);
+            y1 + (((y2 - y1) * fraction) * NON_LINEAR_RESPONSE_TABLE_FP_SCALE);
 
         return result;
     }
