@@ -146,8 +146,8 @@ struct Undo_Chess_Move
     uint8_t    castling_rights     : 4;
     uint8_t    half_move_clock     : 7;
     ESQUARE    enpassant_square    : 7;
-    uint16_t   hash_history_start  : 7;
-    uint16_t   hash_history_length : 7;
+    uint8_t    hash_history_start  : 7;
+    uint8_t    hash_history_length : 7;
     uint64_t   overwritten_hash_history_entry;
 };
 
@@ -160,10 +160,10 @@ class Chess_Move_List
     Chess_Move_List();
 
     template <std::size_t S>
-    inline void push_and_copy(const Chess_Move&         move,
-                              const Chess_Move_List<S>& move_list);
+    inline void       push_and_copy(const Chess_Move&         move,
+                                    const Chess_Move_List<S>& move_list);
     FORCE_INLINE void append(const Chess_Move& move);
-    inline void clear();
+    inline void       clear();
 
     Chess_Move* begin() const;
     Chess_Move* end() const;

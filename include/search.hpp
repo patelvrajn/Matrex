@@ -14,12 +14,9 @@
 #include "correction_history_table.hpp"
 #include "history.hpp"
 
-// 5898.5 is the theoritical maximum number of moves (2-ply) in a chess game.
-constexpr uint16_t MAX_SEARCH_DEPTH = (5899 * NUM_OF_PLAYERS);
+constexpr Depth_Int MAX_SEARCH_DEPTH_SOFT_LIMIT = 256;
 
-constexpr uint16_t MAX_SEARCH_DEPTH_SOFT_LIMIT = 256;
-
-constexpr uint16_t QUIESCENCE_SEARCH_DEPTH = 0;
+constexpr Depth_Int QUIESCENCE_SEARCH_DEPTH = 0;
 
 constexpr Matrex_FP_Int PV_WINDOW_SIZE = Matrex_FP_Int::from_integer(1);
 
@@ -49,13 +46,13 @@ struct Search_Constraints
 
 struct UCI_Search_Information
 {
-    uint16_t&                 depth;
+    Depth_Int&                depth;
     uint64_t&                 time;
     uint64_t&                 node_count;
     Principal_Variation_List& principal_variation;
     Score&                    score;
 
-    UCI_Search_Information(uint16_t&                 search_depth,
+    UCI_Search_Information(Depth_Int&                search_depth,
                            uint64_t&                 search_time,
                            uint64_t&                 search_node_count,
                            Principal_Variation_List& search_principal_variation,
@@ -114,13 +111,14 @@ class Welford
 
         const Matrex_FP_Int new_mean = m_mean + ((value - m_mean) / m_count);
 
-        // Square difference sums are calculated using 64-bit integers in order 
-        // to avoid problems with the sum getting too large to fit in 
-        // Matrex_FP_Int. The sum slices off the fractional part of the squared 
-        // difference because we can't use doubles and the precision is most 
-        // likely not important for the use case. 
+        // Square difference sums are calculated using 64-bit integers in order
+        // to avoid problems with the sum getting too large to fit in
+        // Matrex_FP_Int. The sum slices off the fractional part of the squared
+        // difference because we can't use doubles and the precision is most
+        // likely not important for the use case.
         m_squared_differences_sum =
-            m_squared_differences_sum + ((value - m_mean) * (value - new_mean)).get_integer();
+            m_squared_differences_sum
+            + ((value - m_mean) * (value - new_mean)).get_integer();
 
         m_mean = new_mean;
 
@@ -133,12 +131,11 @@ class Welford
 
     constexpr Matrex_FP_Int get_variance() const
     {
-        if (m_count <= 1)
-        {
-            return Matrex_FP_Int::from_integer(0);
-        }
+        if (m_count <= 1) { return Matrex_FP_Int::from_integer(0); }
 
-        return Matrex_FP_Int::from_integer(static_cast<Fixed_Point_Int_Storage_Type>(m_squared_differences_sum / (m_count - 1)));
+        return Matrex_FP_Int::from_integer(
+            static_cast<Fixed_Point_Int_Storage_Type>(m_squared_differences_sum
+                                                      / (m_count - 1)));
     }
 
     constexpr Matrex_FP_Int get_standard_deviation() const
@@ -189,15 +186,14 @@ class Search_Engine
 
   private:
 
-    Chess_Board         m_chess_board;
-    Transposition_Table m_transposition_table;
-    Search_Constraints  m_constraints;
-    PIECE_COLOR         m_my_side;
-    Timer               m_timer;
-    bool                m_timer_expired_during_search;
-    uint64_t            m_num_of_nodes_searched;
-    uint16_t            m_current_search_depth;
-
+    Chess_Board              m_chess_board;
+    Transposition_Table      m_transposition_table;
+    Search_Constraints       m_constraints;
+    PIECE_COLOR              m_my_side;
+    Timer                    m_timer;
+    bool                     m_timer_expired_during_search;
+    uint64_t                 m_num_of_nodes_searched;
+    Depth_Int                m_current_search_depth;
     Principal_Variation_List m_principal_variation;
 
     const Cuckoo_RM_Table m_cuckoo_rm_table;
@@ -222,51 +218,49 @@ class Search_Engine
 
     Search_Engine_Result
     negamax(Chess_Board&                    position,
-            uint16_t                        depth,
+            Depth_Int                       depth,
             Welford&                        leaf_nodes_welford,
             Principal_Variation_List&       principal_variation,
             Search_Quiet_Cont_Hist_Stack&   q_cont_hist_stack,
             Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
+            Depth_Int                       ply   = 0,
             Score                           alpha = Score(FP_NEGATIVE_INFINITY),
-            Score                           beta  = Score(FP_POSITIVE_INFINITY),
-            uint16_t                        ply   = 0);
+            Score                           beta = Score(FP_POSITIVE_INFINITY));
 
     Search_Engine_Result
-    quiescence(Chess_Board& position, uint16_t ply, Score alpha, Score beta);
-
-    void aspiration_windows(Aspiration_Window& window);
-
+    quiescence(Chess_Board& position, Depth_Int ply, Score alpha, Score beta);
+    void                 aspiration_windows(Aspiration_Window& window);
     Search_Engine_Result iterative_deepening();
 
     template <std::size_t CONT_HIST_STACK_SIZE>
     inline Score get_mate_score(const Move_Ordering<CONT_HIST_STACK_SIZE>& mo,
-                                uint16_t                                   ply);
+                                const Depth_Int                            ply);
 
     inline bool
-    should_use_transposition_table_score(const bool     is_pv,
-                                         const bool     is_hit,
-                                         const uint16_t depth,
+    should_use_transposition_table_score(const bool      is_pv,
+                                         const bool      is_hit,
+                                         const Depth_Int depth,
                                          const Transposition_Table_Entry& entry,
                                          const Score                      alpha,
                                          const Score                      beta);
 
     inline bool
-    should_use_transposition_table_score(const bool     is_hit,
-                                         const uint16_t depth,
+    should_use_transposition_table_score(const bool      is_hit,
+                                         const Depth_Int depth,
                                          const Transposition_Table_Entry& entry,
                                          const Score                      alpha,
                                          const Score                      beta);
     inline bool
-    should_use_transposition_table_score(const bool     is_hit,
-                                         const uint16_t depth,
+    should_use_transposition_table_score(const bool      is_hit,
+                                         const Depth_Int depth,
                                          const Transposition_Table_Entry& entry,
                                          const Score                      eval);
 
     inline bool
-    should_update_correction_history(const bool             is_search_timer_expired,
-                                     const Chess_Move&      best_move,
-                                     const Score            best_score,
-                                     const Score            static_evaluation,
+    should_update_correction_history(const bool        is_search_timer_expired,
+                                     const Chess_Move& best_move,
+                                     const Score       best_score,
+                                     const Score       static_evaluation,
                                      const Score_Bound_Type score_bound,
                                      bool is_side_to_move_in_check);
 
@@ -281,16 +275,16 @@ class Search_Engine
     void
     update_continuation_history(Search_Quiet_Cont_Hist_Stack& q_cont_hist_stack,
                                 const Chess_Move&             move,
-                                const uint16_t                ply,
+                                const Depth_Int               ply,
                                 const uint32_t                depth_squared,
                                 const Move_Generation_List&   quiets_to_malus);
 
     void update_continuation_history(
         Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
         const Chess_Move&               move,
-        const uint16_t                  ply,
+        const Depth_Int                 ply,
         const uint32_t                  depth_squared,
-        const uint16_t                  depth,
+        const Depth_Int                 depth,
         const Move_Generation_List&     captures_to_malus);
 
     inline bool should_do_move_loop_pruning(const Score best_score,
@@ -312,7 +306,7 @@ class Search_Engine
         const Score                         best_score,
         const bool                          is_side_to_move_in_check,
         const bool                          is_first_move,
-        const uint16_t                      depth);
+        const Depth_Int                     depth);
 
     inline bool should_do_capture_history_pruning(
         const Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
@@ -320,7 +314,7 @@ class Search_Engine
         const Score                           best_score,
         const bool                            is_side_to_move_in_check,
         const bool                            is_first_move,
-        const uint16_t                        depth);
+        const Depth_Int                       depth);
 
     inline bool
     should_do_quiet_futility_pruning(const Chess_Move& move,
@@ -342,6 +336,11 @@ class Search_Engine
     should_do_reverse_futility_pruning(const bool  is_side_to_move_in_check,
                                        const Score evaluation_with_margin,
                                        const Score beta);
+
+    inline bool
+    should_do_late_move_reductions(const Chess_Move& move,
+                                   const Score       best_score,
+                                   const bool        is_side_to_move_in_check);
 };
 
 inline uint64_t Search_Engine::get_node_count()
@@ -352,7 +351,7 @@ inline uint64_t Search_Engine::get_node_count()
 template <std::size_t CONT_HIST_STACK_SIZE>
 inline Score
 Search_Engine::get_mate_score(const Move_Ordering<CONT_HIST_STACK_SIZE>& mo,
-                              uint16_t                                   ply)
+                              Depth_Int                                  ply)
 {
     Score mate_score;
 
@@ -377,7 +376,7 @@ Search_Engine::get_mate_score(const Move_Ordering<CONT_HIST_STACK_SIZE>& mo,
 inline bool Search_Engine::should_use_transposition_table_score(
     const bool                       is_pv,
     const bool                       is_hit,
-    const uint16_t                   depth,
+    const Depth_Int                  depth,
     const Transposition_Table_Entry& entry,
     const Score                      alpha,
     const Score                      beta)
@@ -392,7 +391,7 @@ inline bool Search_Engine::should_use_transposition_table_score(
 
 inline bool Search_Engine::should_use_transposition_table_score(
     const bool                       is_hit,
-    const uint16_t                   depth,
+    const Depth_Int                  depth,
     const Transposition_Table_Entry& entry,
     const Score                      alpha,
     const Score                      beta)
@@ -407,7 +406,7 @@ inline bool Search_Engine::should_use_transposition_table_score(
 
 inline bool Search_Engine::should_use_transposition_table_score(
     const bool                       is_hit,
-    const uint16_t                   depth,
+    const Depth_Int                  depth,
     const Transposition_Table_Entry& entry,
     const Score                      eval)
 {
@@ -490,7 +489,7 @@ inline bool Search_Engine::should_do_quiet_history_pruning(
     const Score                         best_score,
     const bool                          is_side_to_move_in_check,
     const bool                          is_first_move,
-    const uint16_t                      depth)
+    const Depth_Int                     depth)
 {
     return ((q_cont_hist_stack.get_score(move)
              <= (QUIET_HISTORY_PRUNING_THRESHOLD * depth))
@@ -506,7 +505,7 @@ inline bool Search_Engine::should_do_capture_history_pruning(
     const Score                           best_score,
     const bool                            is_side_to_move_in_check,
     const bool                            is_first_move,
-    const uint16_t                        depth)
+    const Depth_Int                       depth)
 {
     return ((c_cont_hist_stack.get_score(move) <= (((8 * depth) + 12) * -1))
             && move.is_capture
@@ -550,4 +549,13 @@ inline bool Search_Engine::should_do_reverse_futility_pruning(
     const Score beta)
 {
     return ((evaluation_with_margin >= beta) && (!is_side_to_move_in_check));
+}
+
+inline bool Search_Engine::should_do_late_move_reductions(
+    const Chess_Move& move,
+    const Score       best_score,
+    const bool        is_side_to_move_in_check)
+{
+    return (move.is_quiet_move() && (!is_side_to_move_in_check)
+            && (!best_score.is_enemy_mate()) && (move.score <= 0));
 }

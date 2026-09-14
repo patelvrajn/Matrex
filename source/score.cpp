@@ -106,7 +106,7 @@ Score Score::from_int(Fixed_Point_Int_Storage_Type i)
 
 bool Score::is_mating_score() const { return m_fields.mate; }
 
-uint16_t Score::mate_in() const
+Depth_Int Score::mate_in() const
 {
     return m_fields.value; // Assumes a check for is_mating_score is done.
 }

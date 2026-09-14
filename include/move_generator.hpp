@@ -822,8 +822,8 @@ inline void Move_Generator::generate_en_passant_captures(
                     .en_passant_victim_square =
                         (ESQUARE) en_passant_victim_square.get_index(),
                     .is_promotion = false,
-                    .padding = 0,
-                    .score = 0};
+                    .padding      = 0,
+                    .score        = 0};
 
                 matrix_output.set_move(moving_side,
                                        PIECES::PAWN,

@@ -44,14 +44,14 @@ Search_Engine::search(const Chess_Board&        cb,
 
 Search_Engine_Result
 Search_Engine::negamax(Chess_Board&                    position,
-                       uint16_t                        depth,
+                       Depth_Int                       depth,
                        Welford&                        leaf_nodes_welford,
                        Principal_Variation_List&       principal_variation,
                        Search_Quiet_Cont_Hist_Stack&   q_cont_hist_stack,
                        Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
+                       Depth_Int                       ply,
                        Score                           alpha,
-                       Score                           beta,
-                       uint16_t                        ply)
+                       Score                           beta)
 {
     const uint32_t depth_squared = (depth * depth);
 
@@ -134,7 +134,7 @@ Search_Engine::negamax(Chess_Board&                    position,
     }
 
     // Base case: if depth is 0, perform quiescence search.
-    if (depth == QUIESCENCE_SEARCH_DEPTH)
+    if (depth <= QUIESCENCE_SEARCH_DEPTH)
     {
         const Search_Engine_Result quiescence_result =
             quiescence(position, ply, alpha, beta);
@@ -236,7 +236,8 @@ Search_Engine::negamax(Chess_Board&                    position,
 
     // Static_Exchange_Evaluator<int64_t> see(position);
 
-    bool is_first_move = true;
+    bool    is_first_move = true;
+    uint8_t move_index    = 0;
     for (const Chess_Move& move : moves)
     {
         // // Static Exchange Evaluation Pruning (Captures Only)
@@ -323,42 +324,80 @@ Search_Engine::negamax(Chess_Board&                    position,
                                    child_principal_variation,
                                    q_cont_hist_stack,
                                    c_cont_hist_stack,
+                                   (ply + 1),
                                    -beta,
-                                   -alpha,
-                                   (ply + 1));
+                                   -alpha);
         }
         else
         {
-            // Search the presumably non-PV node with the narrowest window
-            // around alpha since, we assume no other move will raise alpha.
-            child_result = negamax(position,
-                                   (depth - 1),
-                                   leaf_nodes_welford,
-                                   child_principal_variation,
-                                   q_cont_hist_stack,
-                                   c_cont_hist_stack,
-                                   (-alpha - Score(PV_WINDOW_SIZE)),
-                                   -alpha,
-                                   (ply + 1));
-
-            const Score child_score = -child_result.second;
-
-            // If the child result's score raised alpha and was within the full
-            // alpha-beta window - redo the search because we found out that
-            // the first move is not the PV node for this position. We only want
-            // to redo the search if the current search is a full-window search
-            // otherwise, we may do redundant searches for non-PV nodes.
-            if (((child_score > alpha) && (child_score < beta)) && is_pv_node)
+            if (should_do_late_move_reductions(move,
+                                               best_score,
+                                               is_side_to_move_in_check))
             {
+                const Depth_Int depth_reduction = std::clamp(
+                    static_cast<Depth_Int>(
+                        (0.75 + (std::log(depth) * std::log(move_index)))
+                        / 2.25),
+                    static_cast<Depth_Int>(1),
+                    static_cast<Depth_Int>(4));
+
+                // Late move reductions (LMR) - search this subtree with reduced 
+                // depth because we are late(r) into the move ordering and we 
+                // assume that these moves are not as good as the earlier moves.
+                // Note, we use move score as indicator of move quality rather 
+                // than move index in the condition to do LMR.
+                child_result = negamax(position,
+                                       (depth - 1 - depth_reduction),
+                                       leaf_nodes_welford,
+                                       child_principal_variation,
+                                       q_cont_hist_stack,
+                                       c_cont_hist_stack,
+                                       (ply + 1),
+                                       (-alpha - Score(PV_WINDOW_SIZE)),
+                                       -alpha);
+            }
+            else
+            {
+                child_result = {
+                    best_move,
+                    -(alpha + Score(Matrex_FP_Int::from_integer(1)))};
+            }
+
+            if ((-child_result.second) > alpha)
+            {
+                // Search the presumably non-PV node with the narrowest window
+                // around alpha since, we assume no other move will raise alpha.
                 child_result = negamax(position,
                                        (depth - 1),
                                        leaf_nodes_welford,
                                        child_principal_variation,
                                        q_cont_hist_stack,
                                        c_cont_hist_stack,
-                                       -beta,
-                                       -alpha,
-                                       (ply + 1));
+                                       (ply + 1),
+                                       (-alpha - Score(PV_WINDOW_SIZE)),
+                                       -alpha);
+
+                const Score child_score = -child_result.second;
+
+                // If the child result's score raised alpha and was within the
+                // full alpha-beta window - redo the search because we found out
+                // that the first move is not the PV node for this position. We
+                // only want to redo the search if the current search is a full-
+                // window search otherwise, we may do redundant searches for
+                // non-PV nodes.
+                if (((child_score > alpha) && (child_score < beta))
+                    && is_pv_node)
+                {
+                    child_result = negamax(position,
+                                           (depth - 1),
+                                           leaf_nodes_welford,
+                                           child_principal_variation,
+                                           q_cont_hist_stack,
+                                           c_cont_hist_stack,
+                                           (ply + 1),
+                                           -beta,
+                                           -alpha);
+                }
             }
         }
 
@@ -438,15 +477,16 @@ Search_Engine::negamax(Chess_Board&                    position,
         }
 
         is_first_move = false;
+        ++move_index;
     }
 
     // Correction History Update.
-    if (should_update_correction_history(m_timer_expired_during_search, 
-                                            best_move,
-                                            best_score,
-                                            static_evaluation,
-                                            score_bound,
-                                            is_side_to_move_in_check))
+    if (should_update_correction_history(m_timer_expired_during_search,
+                                         best_move,
+                                         best_score,
+                                         static_evaluation,
+                                         score_bound,
+                                         is_side_to_move_in_check))
     {
         m_correction_history.update(position,
                                     depth,
@@ -477,7 +517,7 @@ Search_Engine::negamax(Chess_Board&                    position,
 
     // Cache the position's best move and evaluation in the transposition table.
     if (!m_timer_expired_during_search)
-    {        
+    {
         transposition_table_entry = {
             .best_move = best_move,
             .score     = best_score,
@@ -509,7 +549,7 @@ Search_Engine::negamax(Chess_Board&                    position,
 //    check.
 //    3. There is no depth limit.
 Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
-                                               uint16_t     ply,
+                                               Depth_Int    ply,
                                                Score        alpha,
                                                Score        beta)
 {
@@ -737,16 +777,19 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
     Aspiration_Window current_window = window;
 
     Welford leaf_scores_welford;
- 
-    constexpr Matrex_FP_Int DEFAULT_WINDOW_WIDTH = Matrex_FP_Int::from_double(71.0);
+
+    constexpr Matrex_FP_Int DEFAULT_WINDOW_WIDTH =
+        Matrex_FP_Int::from_double(71.0);
 
     // This multiplier must be fractional and less than 1.0 because otherwise
     // the retry deltas get too large.
-    constexpr Matrex_FP_Int RETRY_DELTA_MULTIPLIER = Matrex_FP_Int::from_double(1.0 / (11.75 * 11.75));
-    
-    const Matrex_FP_Int last_depth_score = window.search_result.second.to_fixed_point();
+    constexpr Matrex_FP_Int RETRY_DELTA_MULTIPLIER =
+        Matrex_FP_Int::from_double(1.0 / (11.75 * 11.75));
 
-    auto calculate_delta = [&]() 
+    const Matrex_FP_Int last_depth_score =
+        window.search_result.second.to_fixed_point();
+
+    auto calculate_delta = [&]()
     {
         if (current_window.root_score_error.get_count() <= 1)
         {
@@ -754,9 +797,12 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
         }
         else
         {
-            // Delta calculation based on the mathematics of prediction 
+            // Delta calculation based on the mathematics of prediction
             // intervals.
-            return std::max(DEFAULT_WINDOW_WIDTH, (CONFIDENCE_INTERVAL_Z_SCORE * current_window.root_score_error.get_standard_deviation()));
+            return std::max(
+                DEFAULT_WINDOW_WIDTH,
+                (CONFIDENCE_INTERVAL_Z_SCORE
+                 * current_window.root_score_error.get_standard_deviation()));
         }
     };
 
@@ -771,6 +817,7 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
                                               m_principal_variation,
                                               m_q_cont_hist_stack,
                                               m_c_cont_hist_stack,
+                                              0,
                                               current_window.alpha,
                                               current_window.beta);
 
@@ -778,15 +825,17 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
 
         if (m_timer_expired_during_search) { break; }
 
-        // Variance was used instead of standard deviation in order to save a 
+        // Variance was used instead of standard deviation in order to save a
         // square root calculation.
         retry_delta *= leaf_scores_welford.get_variance();
         retry_delta *= RETRY_DELTA_MULTIPLIER;
-        retry_delta = std::max(DEFAULT_WINDOW_WIDTH, retry_delta);
+        retry_delta  = std::max(DEFAULT_WINDOW_WIDTH, retry_delta);
 
         if (current_window.is_result_in_window())
         {
-            current_window.root_score_error += (last_depth_score - current_window.search_result.second.to_fixed_point());
+            current_window.root_score_error +=
+                (last_depth_score
+                 - current_window.search_result.second.to_fixed_point());
 
             const Matrex_FP_Int delta = calculate_delta();
 
@@ -847,12 +896,12 @@ Search_Engine_Result Search_Engine::iterative_deepening()
 
     Aspiration_Window window = {
         {Chess_Move(), Score(0)},
-        Score(FP_NEGATIVE_INFINITY),
         Score(FP_POSITIVE_INFINITY),
+        Score(FP_NEGATIVE_INFINITY),
         Welford()
     };
 
-    for (uint16_t current_depth = 1; current_depth < MAX_SEARCH_DEPTH;
+    for (Depth_Int current_depth = 1; current_depth < MAX_SEARCH_DEPTH;
          ++current_depth)
     {
         m_current_search_depth = current_depth;
@@ -899,7 +948,7 @@ const Transposition_Table_Statistics& Search_Engine::get_tt_statistics() const
 void Search_Engine::update_continuation_history(
     Search_Quiet_Cont_Hist_Stack& q_cont_hist_stack,
     const Chess_Move&             move,
-    const uint16_t                ply,
+    const Depth_Int               ply,
     const uint32_t                depth_squared,
     const Move_Generation_List&   quiets_to_malus)
 {
@@ -940,9 +989,9 @@ void Search_Engine::update_continuation_history(
 void Search_Engine::update_continuation_history(
     Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
     const Chess_Move&               move,
-    const uint16_t                  ply,
+    const Depth_Int                 ply,
     const uint32_t                  depth_squared,
-    const uint16_t                  depth,
+    const Depth_Int                 depth,
     const Move_Generation_List&     captures_to_malus)
 {
     if (move.is_same_move(Chess_Move())) { return; }
