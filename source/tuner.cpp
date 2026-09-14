@@ -43,7 +43,7 @@ NLR_Parameters<double> Tuner::random_nlr(const double h_mean)
             .g_minus = perturb(1.0L)};
 }
 
-Evaluation_Weights<double> Tuner::init_weights()
+Game_Phased_Eval_Weights<double> Tuner::init_weights()
 {
     std::random_device                     rd;
     std::mt19937_64                        rng(rd());
@@ -51,54 +51,62 @@ Evaluation_Weights<double> Tuner::init_weights()
         Matrex_FP_Int::safe_minimum(),
         Matrex_FP_Int::safe_maximum());
 
-    Evaluation_Weights<double> weights;
+    Game_Phased_Eval_Weights<double> weights;
 
-    weights.material_NLR_parameters = {random_nlr(0.25L),
-                                       random_nlr(0.5L),
-                                       random_nlr(0.65L),
-                                       random_nlr(0.85L),
-                                       random_nlr(0.95L)};
-    weights.material                = {perturb(0.1L),
-                                       perturb(0.3L),
-                                       perturb(0.35L),
-                                       perturb(0.65L),
-                                       perturb(0.9L)};
-
-    weights.piece_mobility_NLR_parameters = {random_nlr(0.05L),
-                                             random_nlr(0.15L),
-                                             random_nlr(0.2L),
-                                             random_nlr(0.3L),
-                                             random_nlr(0.6L),
-                                             random_nlr(0.1L)};
-    weights.diagonal_mobility             = perturb(0.43L);
-    weights.orthogonal_mobility           = perturb(0.34L);
-    weights.knight_movement_mobility      = perturb(0.57L);
-    weights.multi_movement_mobility       = perturb(1.0L);
-    weights.backwards_movement_mobility   = perturb(0.36L);
-
-    for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK;
-         ++color)
+    for (uint8_t phase = MIDDLE_GAME; phase <= END_GAME; ++phase)
     {
-        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
-        {
-            weights.piece_square_NLR_parameters[color][piece] = random_nlr(1);
-        }
-    }
+        Evaluation_Weights<double>& phase_weights =
+            weights[static_cast<EGAME_PHASE>(phase)];
 
-    weights.interactive_piece_square_NLR_parameters = {random_nlr(1),
-                                                       random_nlr(1)};
+        phase_weights.material_NLR_parameters = {random_nlr(0.25L),
+                                                 random_nlr(0.5L),
+                                                 random_nlr(0.65L),
+                                                 random_nlr(0.85L),
+                                                 random_nlr(0.95L)};
+        phase_weights.material                = {perturb(0.1L),
+                                                 perturb(0.3L),
+                                                 perturb(0.35L),
+                                                 perturb(0.65L),
+                                                 perturb(0.9L)};
 
-    for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK;
-         ++color)
-    {
-        for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
+        phase_weights.piece_mobility_NLR_parameters = {random_nlr(0.05L),
+                                                       random_nlr(0.15L),
+                                                       random_nlr(0.2L),
+                                                       random_nlr(0.3L),
+                                                       random_nlr(0.6L),
+                                                       random_nlr(0.1L)};
+        phase_weights.diagonal_mobility             = perturb(0.43L);
+        phase_weights.orthogonal_mobility           = perturb(0.34L);
+        phase_weights.knight_movement_mobility      = perturb(0.57L);
+        phase_weights.multi_movement_mobility       = perturb(1.0L);
+        phase_weights.backwards_movement_mobility   = perturb(0.36L);
+
+        for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK;
+             ++color)
         {
-            for (uint8_t square_idx = 0;
-                 square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
-                 ++square_idx)
+            for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
             {
-                weights.piece_square_tables[color][piece][square_idx] =
-                    distribution(rng);
+                phase_weights.piece_square_NLR_parameters[color][piece] =
+                    random_nlr(1);
+            }
+        }
+
+        phase_weights.interactive_piece_square_NLR_parameters = {random_nlr(1),
+                                                                 random_nlr(1)};
+
+        for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK;
+             ++color)
+        {
+            for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
+            {
+                for (uint8_t square_idx = 0;
+                     square_idx < NUM_OF_SQUARES_ON_CHESS_BOARD;
+                     ++square_idx)
+                {
+                    phase_weights
+                        .piece_square_tables[color][piece][square_idx] =
+                        distribution(rng);
+                }
             }
         }
     }
@@ -106,14 +114,14 @@ Evaluation_Weights<double> Tuner::init_weights()
     return weights;
 }
 
-Evaluation_Weights<double> Tuner::tune()
+Game_Phased_Eval_Weights<double> Tuner::tune()
 {
     Tuner_Step_State global_state;
     global_state.weights = init_weights();
 
     m_log << "[INFO] Initial weights: " << global_state.weights << std::endl;
 
-    Evaluation_Weights<double> best_weights = global_state.weights;
+    Game_Phased_Eval_Weights<double> best_weights = global_state.weights;
 
     const std::size_t num_of_mini_batches =
         m_training_dataset.mini_batches.size();
@@ -289,11 +297,11 @@ Evaluation_Weights<double> Tuner::tune()
 // fixed point math we are using for static evaluation - this is to prevent the
 // algorithm from jumping back and forth between the valid range and outside the
 // valid range because of momentum.
-Evaluation_Weights<double>
-Tuner::projected_gradient(const Evaluation_Weights<double>& weights,
-                          const Evaluation_Weights<double>& gradient) const
+Game_Phased_Eval_Weights<double> Tuner::projected_gradient(
+    const Game_Phased_Eval_Weights<double>& weights,
+    const Game_Phased_Eval_Weights<double>& gradient) const
 {
-    Evaluation_Weights<double> result;
+    Game_Phased_Eval_Weights<double> result;
 
     for (std::size_t i = 0; i < weights.get_size(); ++i)
     {
@@ -332,11 +340,11 @@ Tuner::projected_gradient(const Evaluation_Weights<double>& weights,
 // Here we are using a concept from projected gradient descent where we project
 // the weights back into a valid range for the fixed point math we are using for
 // static evaluation.
-Evaluation_Weights<double> Tuner::projected_weight_change(
-    const Evaluation_Weights<double>& weights,
-    const Evaluation_Weights<double>& weight_update) const
+Game_Phased_Eval_Weights<double> Tuner::projected_weight_change(
+    const Game_Phased_Eval_Weights<double>& weights,
+    const Game_Phased_Eval_Weights<double>& weight_update) const
 {
-    Evaluation_Weights<double> result;
+    Game_Phased_Eval_Weights<double> result;
 
     for (std::size_t i = 0; i < weights.get_size(); ++i)
     {
@@ -529,8 +537,8 @@ Tuner_Eval_Params Tuner::compute_eval_params(const Mini_Batch& mini_batch) const
     return return_value;
 }
 
-Evaluation_Weights<double> Tuner::ad_backward_pass(AD_Tape& tape,
-                                                   AD_Value output) const
+Game_Phased_Eval_Weights<double> Tuner::ad_backward_pass(AD_Tape& tape,
+                                                         AD_Value output) const
 {
     // The partial derivative of the output scalar with respect to itself is 1.
     output.node.get_ref().adjoint().set_value(1.0);
@@ -558,7 +566,7 @@ Evaluation_Weights<double> Tuner::ad_backward_pass(AD_Tape& tape,
 
     // The adjoints propagated back to the weights (variables in the computation
     // graph) form the gradient.
-    Evaluation_Weights<double> gradient;
+    Game_Phased_Eval_Weights<double> gradient;
     for (const auto& node : tape)
     {
         if (node.weight_index() != -1)
@@ -574,11 +582,11 @@ Evaluation_Weights<double> Tuner::ad_backward_pass(AD_Tape& tape,
     return gradient;
 }
 
-Evaluation_Weights<double>
-Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
-                        const Mini_Batch&                 mini_batch) const
+Game_Phased_Eval_Weights<double>
+Tuner::compute_gradient(const Game_Phased_Eval_Weights<double>& weights,
+                        const Mini_Batch& mini_batch) const
 {
-    Evaluation_Weights<double> gradient;
+    Game_Phased_Eval_Weights<double> gradient;
 
     std::size_t N = mini_batch.fens.size();
 
@@ -612,7 +620,7 @@ Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
         const double error = target_evaluation - sigmoid(evaluation_white);
         const double huber_loss_derivative = derivative_huber_loss(error);
         const double sigmoid_derivative = derivative_sigmoid(evaluation_white);
-        const Evaluation_Weights<double> evaluation_deriative =
+        const Game_Phased_Eval_Weights<double> evaluation_deriative =
             ad_backward_pass(tape, result) * sign;
 
         gradient = gradient
@@ -625,8 +633,8 @@ Tuner::compute_gradient(const Evaluation_Weights<double>& weights,
     return gradient;
 }
 
-double Tuner::compute_loss(const Dataset&                    d,
-                           const Evaluation_Weights<double>& weights)
+double Tuner::compute_loss(const Dataset&                          d,
+                           const Game_Phased_Eval_Weights<double>& weights)
 {
     double            loss = 0.0L;
     const std::size_t N    = d.size;
@@ -742,86 +750,101 @@ void Tuner::print_multi_array_as_cpp(std::ofstream&                    ofs,
     ofs << "}";
 }
 
-void Tuner::print_header_file(const Evaluation_Weights<double>& weights)
+void Tuner::print_phase_header(const Evaluation_Weights<double>& weights,
+                               const std::string_view            phase_name)
 {
-    // Includes
-    m_output << "#pragma once" << std::endl << std::endl;
-    m_output << "#include \"evaluate.hpp\"" << std::endl;
-    m_output << "#include \"globals.hpp\"" << std::endl << std::endl;
+    const std::string prefix = "TUNED_" + std::string(phase_name) + "_";
 
     // Material
     m_output << "constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>, "
                 "(NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)> "
-                "TUNED_MATERIAL_NLR_WEIGHTS = ";
+             << prefix << "MATERIAL_NLR_WEIGHTS = ";
     print_multi_array_as_cpp(m_output, weights.material_NLR_parameters);
     m_output << ";" << std::endl;
     m_output << "constexpr Multi_Array<Matrex_FP_Int, "
                 "(NUM_OF_UNIQUE_PIECES_PER_PLAYER "
-                "- 1)> TUNED_MATERIAL_WEIGHTS = ";
+                "- 1)> "
+             << prefix << "MATERIAL_WEIGHTS = ";
     print_multi_array_as_cpp(m_output, weights.material);
     m_output << ";" << std::endl;
 
     // Mobility
     m_output << "constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>, "
                 "NUM_OF_UNIQUE_PIECES_PER_PLAYER> "
-                "TUNED_PIECE_MOBILITY_NLR_WEIGHTS = ";
+             << prefix << "PIECE_MOBILITY_NLR_WEIGHTS = ";
     print_multi_array_as_cpp(m_output, weights.piece_mobility_NLR_parameters);
     m_output << ";" << std::endl;
-    m_output << "constexpr Matrex_FP_Int TUNED_DIAGONAL_MOBILITY_WEIGHT = "
-                "Matrex_FP_Int("
+    m_output << "constexpr Matrex_FP_Int " << prefix
+             << "DIAGONAL_MOBILITY_WEIGHT = Matrex_FP_Int("
              << Matrex_FP_Int::from_double(weights.diagonal_mobility) << ");"
              << std::endl;
-    m_output << "constexpr Matrex_FP_Int TUNED_ORTHOGONAL_MOBILITY_WEIGHT = "
-                "Matrex_FP_Int("
+    m_output << "constexpr Matrex_FP_Int " << prefix
+             << "ORTHOGONAL_MOBILITY_WEIGHT = Matrex_FP_Int("
              << Matrex_FP_Int::from_double(weights.orthogonal_mobility) << ");"
              << std::endl;
-    m_output
-        << "constexpr Matrex_FP_Int TUNED_KNIGHT_MOVEMENT_MOBILITY_WEIGHT = "
-           "Matrex_FP_Int("
-        << Matrex_FP_Int::from_double(weights.knight_movement_mobility) << ");"
-        << std::endl;
-    m_output
-        << "constexpr Matrex_FP_Int TUNED_MULTI_MOVEMENT_MOBILITY_WEIGHT = "
-           "Matrex_FP_Int("
-        << Matrex_FP_Int::from_double(weights.multi_movement_mobility) << ");"
-        << std::endl;
-    m_output << "constexpr Matrex_FP_Int "
-                "TUNED_BACKWARDS_MOVEMENT_MOBILITY_WEIGHT = Matrex_FP_Int("
+    m_output << "constexpr Matrex_FP_Int " << prefix
+             << "KNIGHT_MOVEMENT_MOBILITY_WEIGHT = Matrex_FP_Int("
+             << Matrex_FP_Int::from_double(weights.knight_movement_mobility)
+             << ");" << std::endl;
+    m_output << "constexpr Matrex_FP_Int " << prefix
+             << "MULTI_MOVEMENT_MOBILITY_WEIGHT = Matrex_FP_Int("
+             << Matrex_FP_Int::from_double(weights.multi_movement_mobility)
+             << ");" << std::endl;
+    m_output << "constexpr Matrex_FP_Int " << prefix
+             << "BACKWARDS_MOVEMENT_MOBILITY_WEIGHT = Matrex_FP_Int("
              << Matrex_FP_Int::from_double(weights.backwards_movement_mobility)
              << ");" << std::endl;
 
     // Piece Square Tables
     m_output << "constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>, "
                 "NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER> "
-                "TUNED_PIECE_SQUARE_NLR_WEIGHTS = ";
+             << prefix << "PIECE_SQUARE_NLR_WEIGHTS = ";
     print_multi_array_as_cpp(m_output, weights.piece_square_NLR_parameters);
     m_output << ";" << std::endl;
 
     m_output << "constexpr Multi_Array<Matrex_FP_Int, NUM_OF_PLAYERS, "
                 "NUM_OF_UNIQUE_PIECES_PER_PLAYER, "
-                "NUM_OF_SQUARES_ON_CHESS_BOARD> TUNED_PIECE_SQUARE_TABLE = ";
+                "NUM_OF_SQUARES_ON_CHESS_BOARD> "
+             << prefix << "PIECE_SQUARE_TABLE = ";
     print_multi_array_as_cpp(m_output, weights.piece_square_tables);
     m_output << ";" << std::endl;
 
     m_output << "constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>, "
-                "NUM_OF_PLAYERS> TUNED_INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS = ";
+                "NUM_OF_PLAYERS> "
+             << prefix << "INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS = ";
     print_multi_array_as_cpp(m_output,
                              weights.interactive_piece_square_NLR_parameters);
     m_output << ";" << std::endl;
 
     // Weights
-    m_output << "const Evaluation_Weights<Matrex_FP_Int> "
-                "TUNED_EVALUATION_WEIGHTS(TUNED_MATERIAL_NLR_WEIGHTS,"
-                "TUNED_MATERIAL_WEIGHTS,"
-                "TUNED_PIECE_MOBILITY_NLR_WEIGHTS,"
-                "TUNED_DIAGONAL_MOBILITY_WEIGHT,"
-                "TUNED_ORTHOGONAL_MOBILITY_WEIGHT,"
-                "TUNED_KNIGHT_MOVEMENT_MOBILITY_WEIGHT,"
-                "TUNED_MULTI_MOVEMENT_MOBILITY_WEIGHT,"
-                "TUNED_BACKWARDS_MOVEMENT_MOBILITY_WEIGHT,"
-                "TUNED_PIECE_SQUARE_NLR_WEIGHTS,"
-                "TUNED_PIECE_SQUARE_TABLE,"
-                "TUNED_INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS);";
+    m_output << "const Evaluation_Weights<Matrex_FP_Int> " << prefix
+             << "EVALUATION_WEIGHTS(" << prefix << "MATERIAL_NLR_WEIGHTS,"
+             << prefix << "MATERIAL_WEIGHTS," << prefix
+             << "PIECE_MOBILITY_NLR_WEIGHTS," << prefix
+             << "DIAGONAL_MOBILITY_WEIGHT," << prefix
+             << "ORTHOGONAL_MOBILITY_WEIGHT," << prefix
+             << "KNIGHT_MOVEMENT_MOBILITY_WEIGHT," << prefix
+             << "MULTI_MOVEMENT_MOBILITY_WEIGHT," << prefix
+             << "BACKWARDS_MOVEMENT_MOBILITY_WEIGHT," << prefix
+             << "PIECE_SQUARE_NLR_WEIGHTS," << prefix << "PIECE_SQUARE_TABLE,"
+             << prefix << "INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS);" << std::endl;
+}
+
+void Tuner::print_header_file(const Game_Phased_Eval_Weights<double>& weights)
+{
+    // Includes
+    m_output << "#pragma once" << std::endl << std::endl;
+    m_output << "#include \"evaluation_weights.hpp\"" << std::endl;
+    m_output << "#include \"globals.hpp\"" << std::endl << std::endl;
+
+    print_phase_header(weights[MIDDLE_GAME], "MIDDLE_GAME");
+    m_output << std::endl;
+    print_phase_header(weights[END_GAME], "END_GAME");
+    m_output << std::endl;
+
+    m_output << "const Game_Phased_Eval_Weights<Matrex_FP_Int> "
+                "TUNED_EVALUATION_WEIGHTS(TUNED_MIDDLE_GAME_EVALUATION_WEIGHTS,"
+                "TUNED_END_GAME_EVALUATION_WEIGHTS);";
     m_output.flush();
 }
 
