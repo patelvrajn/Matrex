@@ -72,19 +72,19 @@ class Tuner
     Tuner(std::ostream&  logging,
           std::ifstream& dataset_file,
           std::ofstream& output);
-    Evaluation_Weights<double> tune();
+    Game_Phased_Eval_Weights<double> tune();
 
-    Evaluation_Weights<double>
-    compute_gradient(const Evaluation_Weights<double>& weights,
-                     const Mini_Batch&                 mini_batch) const;
+    Game_Phased_Eval_Weights<double>
+    compute_gradient(const Game_Phased_Eval_Weights<double>& weights,
+                     const Mini_Batch&                       mini_batch) const;
 
-    Evaluation_Weights<double>
-    projected_gradient(const Evaluation_Weights<double>& weights,
-                       const Evaluation_Weights<double>& gradient) const;
+    Game_Phased_Eval_Weights<double>
+    projected_gradient(const Game_Phased_Eval_Weights<double>& weights,
+                       const Game_Phased_Eval_Weights<double>& gradient) const;
 
-    Evaluation_Weights<double> projected_weight_change(
-        const Evaluation_Weights<double>& weights,
-        const Evaluation_Weights<double>& weight_update) const;
+    Game_Phased_Eval_Weights<double> projected_weight_change(
+        const Game_Phased_Eval_Weights<double>& weights,
+        const Game_Phased_Eval_Weights<double>& weight_update) const;
 
   private:
 
@@ -98,7 +98,7 @@ class Tuner
     double                 perturb(const double mean);
     NLR_Parameters<double> random_nlr(const double h_mean);
 
-    Evaluation_Weights<double> init_weights();
+    Game_Phased_Eval_Weights<double> init_weights();
 
     double learning_rate_scheduler(const uint64_t epoch) const;
 
@@ -112,10 +112,11 @@ class Tuner
 
     Tuner_Eval_Params compute_eval_params(const Mini_Batch& mini_batch) const;
 
-    auto create_ad_weights(AD_Tape&                          tape,
-                           const Evaluation_Weights<double>& weights) const
+    auto
+    create_ad_weights(AD_Tape&                                tape,
+                      const Game_Phased_Eval_Weights<double>& weights) const
     {
-        Evaluation_Weights<AD_Value> output;
+        Game_Phased_Eval_Weights<AD_Value> output;
 
         for (std::size_t i = 0; i < weights.get_size(); ++i)
         {
@@ -125,11 +126,11 @@ class Tuner
         return output;
     }
 
-    Evaluation_Weights<double> ad_backward_pass(AD_Tape& tape,
-                                                AD_Value output) const;
+    Game_Phased_Eval_Weights<double> ad_backward_pass(AD_Tape& tape,
+                                                      AD_Value output) const;
 
-    double compute_loss(const Dataset&                    d,
-                        const Evaluation_Weights<double>& weights);
+    double compute_loss(const Dataset&                          d,
+                        const Game_Phased_Eval_Weights<double>& weights);
 
     double compute_max_data_loss(const Dataset& d);
 
@@ -145,7 +146,9 @@ class Tuner
     void print_multi_array_as_cpp(std::ofstream&                    ofs,
                                   const Multi_Array<T, N, Rest...>& arr);
 
-    void print_header_file(const Evaluation_Weights<double>& weights);
+    void print_phase_header(const Evaluation_Weights<double>& weights,
+                            const std::string_view            phase_name);
+    void print_header_file(const Game_Phased_Eval_Weights<double>& weights);
 
     double huber_loss(const double a) const;
     double derivative_huber_loss(const double a) const;
@@ -156,9 +159,9 @@ class Tuner
 
 struct Tuner_Step_State
 {
-    Evaluation_Weights<double> first_moment;
-    Evaluation_Weights<double> second_moment;
-    Evaluation_Weights<double> weights;
+    Game_Phased_Eval_Weights<double> first_moment;
+    Game_Phased_Eval_Weights<double> second_moment;
+    Game_Phased_Eval_Weights<double> weights;
 };
 
 using Tuner_Step_States_Array =
@@ -211,13 +214,13 @@ class Tuner_Step : public Thread_Job
                 .get();
 
         // Calculate the local gradient using the global state's weights.
-        Evaluation_Weights<double> gradient =
+        Game_Phased_Eval_Weights<double> gradient =
             tuner_instance.compute_gradient(global_state.weights, batch);
         gradient =
             tuner_instance.projected_gradient(global_state.weights, gradient);
 
         // Local first moment calculation based on global first moment.
-        const Evaluation_Weights<double> first_moment =
+        const Game_Phased_Eval_Weights<double> first_moment =
             (global_state.first_moment * TUNER_DECAY_FACTOR)
             + (gradient * (1.0L - TUNER_DECAY_FACTOR));
 
@@ -229,7 +232,7 @@ class Tuner_Step : public Thread_Job
             { states[get_assigned_thread_id()].first_moment = first_moment; });
 
         // Second moment calculation
-        const Evaluation_Weights<double> second_moment =
+        const Game_Phased_Eval_Weights<double> second_moment =
             (global_state.second_moment * TUNER_NU)
             + ((gradient * gradient) * (1.0L - TUNER_NU));
 
@@ -247,19 +250,19 @@ class Tuner_Step : public Thread_Job
         // into play. This addition is algebraically equivalent to considering
         // the previous momentum into the calculation of this iteration's
         // gradient.
-        const Evaluation_Weights<double> first_moment_corrected =
+        const Game_Phased_Eval_Weights<double> first_moment_corrected =
             ((first_moment * TUNER_DECAY_FACTOR)
              / (1.0L - std::pow(TUNER_DECAY_FACTOR, (global_timestep + 1))))
             + ((gradient * (1.0L - TUNER_DECAY_FACTOR))
                / (1.0L - std::pow(TUNER_DECAY_FACTOR, global_timestep)));
 
         // Bias-corrected second moment calculation
-        const Evaluation_Weights<double> second_moment_corrected =
+        const Game_Phased_Eval_Weights<double> second_moment_corrected =
             (second_moment * TUNER_NU)
             / (1.0L - std::pow(TUNER_NU, global_timestep));
 
         // Weight update with respect to the gradient and moments.
-        const Evaluation_Weights<double> weight_update =
+        const Game_Phased_Eval_Weights<double> weight_update =
             ((global_learning_rate
               / (second_moment_corrected + TUNER_EPSILON).sqrt())
              * first_moment_corrected);
@@ -273,18 +276,18 @@ class Tuner_Step : public Thread_Job
                                  { average += weight_update_magnitude; });
 
         // Decoupled weight decay calculation (concept from AdamW)
-        const Evaluation_Weights<double> decoupled_weight_decay =
+        const Game_Phased_Eval_Weights<double> decoupled_weight_decay =
             global_state.weights * TUNER_REGULARIZATION_LAMBDA;
-        const Evaluation_Weights<double> weight_decay_update =
+        const Game_Phased_Eval_Weights<double> weight_decay_update =
             decoupled_weight_decay * global_learning_rate;
 
         // Total weight update
-        const Evaluation_Weights<double> total_weight_update =
+        const Game_Phased_Eval_Weights<double> total_weight_update =
             weight_update + weight_decay_update;
 
         // Calculate the final weights and commit them to this thread's local
         // state in shared memory.
-        const Evaluation_Weights<double> weights =
+        const Game_Phased_Eval_Weights<double> weights =
             tuner_instance.projected_weight_change(global_state.weights,
                                                    total_weight_update);
         call_shared_data<Tuner_Step_States_Array>(

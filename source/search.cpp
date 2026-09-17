@@ -341,10 +341,10 @@ Search_Engine::negamax(Chess_Board&                    position,
                     static_cast<Depth_Int>(1),
                     static_cast<Depth_Int>(4));
 
-                // Late move reductions (LMR) - search this subtree with reduced 
-                // depth because we are late(r) into the move ordering and we 
+                // Late move reductions (LMR) - search this subtree with reduced
+                // depth because we are late(r) into the move ordering and we
                 // assume that these moves are not as good as the earlier moves.
-                // Note, we use move score as indicator of move quality rather 
+                // Note, we use move score as indicator of move quality rather
                 // than move index in the condition to do LMR.
                 child_result = negamax(position,
                                        (depth - 1 - depth_reduction),

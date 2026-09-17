@@ -294,13 +294,24 @@ class Non_Linear_Response_Table // Only for Matrex fixed-point type.
         const NLR_Parameters<Matrex_FP_Int>& params) :
         m_parameters(params), m_table(std::make_unique<Table_Type>())
     {
-        Matrex_FP_Int value =
-            Matrex_FP_Int::from_double(NON_LINEAR_RESPONSE_TABLE_FP_MIN);
+        const NLR_Parameters<double> double_params {
+            .h_plus  = params.h_plus.to_double(),
+            .h_minus = params.h_minus.to_double(),
+            .z       = params.z.to_double(),
+            .k       = params.k.to_double(),
+            .q_plus  = params.q_plus.to_double(),
+            .q_minus = params.q_minus.to_double(),
+            .r_plus  = params.r_plus.to_double(),
+            .r_minus = params.r_minus.to_double(),
+            .g_plus  = params.g_plus.to_double(),
+            .g_minus = params.g_minus.to_double()};
+        const Non_Linear_Response<double> nlr(double_params);
+
+        double value = NON_LINEAR_RESPONSE_TABLE_FP_MIN;
 
         for (std::size_t i = 0; i < NON_LINEAR_RESPONSE_TABLE_SIZE; ++i)
         {
-            Non_Linear_Response<Matrex_FP_Int> nlr(params);
-            (*m_table)[i]  = nlr.value(value);
+            (*m_table)[i]  = Matrex_FP_Int::from_double(nlr.value(value));
             value         += NON_LINEAR_RESPONSE_TABLE_FP_PRECISION;
         }
     }

@@ -272,6 +272,231 @@ class Evaluation_Weights
     Evaluation_Weights_Reference_Array m_weight_ref_array;
 };
 
+enum EGAME_PHASE : uint8_t
+{
+    MIDDLE_GAME = 0,
+    END_GAME    = 1
+};
+
+constexpr uint8_t NUM_OF_GAME_PHASES = 2;
+
+template <typename T>
+struct Game_Phase
+{
+    T middle_game {};
+    T end_game {};
+
+    Game_Phase() = default;
+
+    Game_Phase(const T& middle_game_value, const T& end_game_value) :
+        middle_game(middle_game_value), end_game(end_game_value)
+    {
+    }
+
+    T& operator[](EGAME_PHASE index)
+    {
+        return (index == MIDDLE_GAME) ? middle_game : end_game;
+    }
+
+    const T& operator[](EGAME_PHASE index) const
+    {
+        return (index == MIDDLE_GAME) ? middle_game : end_game;
+    }
+};
+
+template <typename T>
+class Game_Phased_Eval_Weights : public Game_Phase<Evaluation_Weights<T>>
+{
+    using Phase_Weights = Evaluation_Weights<T>;
+    using Base          = Game_Phase<Phase_Weights>;
+
+  public:
+
+    Game_Phased_Eval_Weights() = default;
+
+    Game_Phased_Eval_Weights(const Phase_Weights& middle_game_weights,
+                             const Phase_Weights& end_game_weights) :
+        Base(middle_game_weights, end_game_weights)
+    {
+    }
+
+    using Base::operator[];
+
+    T& operator[](const std::size_t index)
+    {
+        const std::size_t phase_size = this->middle_game.get_size();
+        if (index < phase_size) { return this->middle_game[index]; }
+        return this->end_game[index - phase_size];
+    }
+
+    const T& operator[](const std::size_t index) const
+    {
+        const std::size_t phase_size = this->middle_game.get_size();
+        if (index < phase_size) { return this->middle_game[index]; }
+        return this->end_game[index - phase_size];
+    }
+
+    std::size_t get_size() const
+    {
+        return (NUM_OF_GAME_PHASES * this->middle_game.get_size());
+    }
+
+    Game_Phased_Eval_Weights
+    operator+(const Game_Phased_Eval_Weights& other) const
+    {
+        return {this->middle_game + other.middle_game,
+                this->end_game + other.end_game};
+    }
+
+    Game_Phased_Eval_Weights
+    operator-(const Game_Phased_Eval_Weights& other) const
+    {
+        return {this->middle_game - other.middle_game,
+                this->end_game - other.end_game};
+    }
+
+    Game_Phased_Eval_Weights
+    operator/(const Game_Phased_Eval_Weights& other) const
+    {
+        return {this->middle_game / other.middle_game,
+                this->end_game / other.end_game};
+    }
+
+    Game_Phased_Eval_Weights
+    operator*(const Game_Phased_Eval_Weights& other) const
+    {
+        return {this->middle_game * other.middle_game,
+                this->end_game * other.end_game};
+    }
+
+    Game_Phased_Eval_Weights& operator+=(const Game_Phased_Eval_Weights& other)
+    {
+        this->middle_game += other.middle_game;
+        this->end_game    += other.end_game;
+        return *this;
+    }
+
+    Game_Phased_Eval_Weights& operator-=(const Game_Phased_Eval_Weights& other)
+    {
+        this->middle_game -= other.middle_game;
+        this->end_game    -= other.end_game;
+        return *this;
+    }
+
+    Game_Phased_Eval_Weights& operator/=(const Game_Phased_Eval_Weights& other)
+    {
+        this->middle_game /= other.middle_game;
+        this->end_game    /= other.end_game;
+        return *this;
+    }
+
+    Game_Phased_Eval_Weights& operator*=(const Game_Phased_Eval_Weights& other)
+    {
+        this->middle_game *= other.middle_game;
+        this->end_game    *= other.end_game;
+        return *this;
+    }
+
+    Game_Phased_Eval_Weights operator-() const
+    {
+        return {-this->middle_game, -this->end_game};
+    }
+
+    Game_Phased_Eval_Weights operator+(const T value) const
+    {
+        return {this->middle_game + value, this->end_game + value};
+    }
+
+    Game_Phased_Eval_Weights operator-(const T value) const
+    {
+        return {this->middle_game - value, this->end_game - value};
+    }
+
+    Game_Phased_Eval_Weights operator*(const T value) const
+    {
+        return {this->middle_game * value, this->end_game * value};
+    }
+
+    Game_Phased_Eval_Weights operator/(const T value) const
+    {
+        return {this->middle_game / value, this->end_game / value};
+    }
+
+    Game_Phased_Eval_Weights& operator+=(const T value)
+    {
+        this->middle_game += value;
+        this->end_game    += value;
+        return *this;
+    }
+
+    Game_Phased_Eval_Weights& operator-=(const T value)
+    {
+        this->middle_game -= value;
+        this->end_game    -= value;
+        return *this;
+    }
+
+    Game_Phased_Eval_Weights& operator/=(const T value)
+    {
+        this->middle_game /= value;
+        this->end_game    /= value;
+        return *this;
+    }
+
+    Game_Phased_Eval_Weights& operator*=(const T value)
+    {
+        this->middle_game *= value;
+        this->end_game    *= value;
+        return *this;
+    }
+
+    Game_Phased_Eval_Weights sqrt() const
+    {
+        return {this->middle_game.sqrt(), this->end_game.sqrt()};
+    }
+
+    T magnitude() const
+    {
+        const T middle_game_magnitude = this->middle_game.magnitude();
+        const T end_game_magnitude    = this->end_game.magnitude();
+        return static_cast<T>(
+            std::sqrt((middle_game_magnitude * middle_game_magnitude)
+                      + (end_game_magnitude * end_game_magnitude)));
+    }
+
+    Game_Phased_Eval_Weights<double> to_double() const
+    {
+        return {this->middle_game.to_double(), this->end_game.to_double()};
+    }
+
+    Game_Phased_Eval_Weights<Matrex_FP_Int> to_matrex_fp_int() const
+    {
+        return {this->middle_game.to_matrex_fp_int(),
+                this->end_game.to_matrex_fp_int()};
+    }
+};
+
+template <typename T>
+Game_Phased_Eval_Weights<T>
+operator/(const T scalar, const Game_Phased_Eval_Weights<T>& weights)
+{
+    Game_Phased_Eval_Weights<T> result;
+    for (std::size_t i = 0; i < result.get_size(); ++i)
+    {
+        result[i] = scalar / weights[i];
+    }
+    return result;
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream&                      os,
+                         const Game_Phased_Eval_Weights<T>& weights)
+{
+    os << "{middle_game = " << weights[MIDDLE_GAME]
+       << ", end_game = " << weights[END_GAME] << "}";
+    return os;
+}
+
 // Function prototype for non-member function.
 template <typename T>
 Evaluation_Weights<T> operator/(T scalar, const Evaluation_Weights<T>& weights);
