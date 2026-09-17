@@ -221,6 +221,8 @@ template <typename T>
 T Evaluator<T>::evaluate_template_typed() const
 {
     constexpr uint8_t MAXIMUM_PHASE_VALUE = 64;
+    constexpr double  PHASE_DIVISOR =
+        1.0 / static_cast<double>(MAXIMUM_PHASE_VALUE);
 
     const uint64_t queen_phase_value =
         9
@@ -248,9 +250,9 @@ T Evaluator<T>::evaluate_template_typed() const
         phased_evaluate_template_typed<MIDDLE_GAME>();
     const T end_game_evaluation = phased_evaluate_template_typed<END_GAME>();
 
-    const T tapered_evaluation = ((middle_game_evaluation * middle_game_phase)
-                                  + (end_game_evaluation * end_game_phase))
-                               / MAXIMUM_PHASE_VALUE;
+    const T tapered_evaluation =
+        (middle_game_evaluation * (middle_game_phase * PHASE_DIVISOR))
+        + (end_game_evaluation * (end_game_phase * PHASE_DIVISOR));
 
     return tapered_evaluation;
 }
