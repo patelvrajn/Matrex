@@ -264,7 +264,7 @@ class Tuner_Step : public Thread_Job
         // Weight update with respect to the gradient and moments.
         const Game_Phased_Eval_Weights<double> weight_update =
             ((global_learning_rate
-              / (second_moment_corrected + TUNER_EPSILON).sqrt())
+              / (second_moment_corrected.sqrt() + TUNER_EPSILON))
              * first_moment_corrected);
 
         // Calculate the magnitude of the weight update vector and then sum it
