@@ -155,6 +155,9 @@ class Tuner
 
     double sigmoid(const double s) const;
     double derivative_sigmoid(const double s) const;
+
+    double binary_cross_entropy(const double logit, const double target) const;
+    double derivative_binary_cross_entropy(const double logit, const double target) const;
 };
 
 struct Tuner_Step_State

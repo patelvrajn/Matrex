@@ -617,15 +617,13 @@ Tuner::compute_gradient(const Game_Phased_Eval_Weights<double>& weights,
             sign * result.value(); // Convert side-to-move's evaluation to
                                    // white's perspective.
         const double target_evaluation = mini_batch.scores[i];
-        const double error = target_evaluation - sigmoid(evaluation_white);
-        const double huber_loss_derivative = derivative_huber_loss(error);
-        const double sigmoid_derivative = derivative_sigmoid(evaluation_white);
+        
+        const double loss_derivative = derivative_binary_cross_entropy(evaluation_white, target_evaluation);
+
         const Game_Phased_Eval_Weights<double> evaluation_deriative =
             ad_backward_pass(tape, result) * sign;
 
-        gradient = gradient
-                 + (evaluation_deriative
-                    * (huber_loss_derivative * sigmoid_derivative));
+        gradient = gradient + (evaluation_deriative * loss_derivative);
     }
 
     gradient = gradient / static_cast<double>(N);
@@ -659,8 +657,7 @@ double Tuner::compute_loss(const Dataset&                          d,
                 sign * evaluation; // Convert side-to-move's evaluation to
                                    // white's perspective.
             const double target_evaluation = mini_batch.scores[i];
-            const double error  = target_evaluation - sigmoid(evaluation_white);
-            loss               += huber_loss(error);
+            loss += binary_cross_entropy(evaluation_white, target_evaluation);
         }
     }
 
@@ -686,8 +683,8 @@ double Tuner::compute_max_data_loss(const Dataset& d)
         }
     }
 
-    const double loss_on_decisive = huber_loss(1.0L);
-    const double loss_on_draw     = huber_loss(0.5L);
+    const double loss_on_decisive = binary_cross_entropy(static_cast<double>(ESCORE::POSITIVE_INFINITY), 0.0L);
+    const double loss_on_draw     = binary_cross_entropy(static_cast<double>(ESCORE::POSITIVE_INFINITY), 0.5L);
 
     const double max_data_loss = ((num_of_decisive_games * loss_on_decisive)
                                   + (num_of_draws * loss_on_draw))
@@ -877,4 +874,15 @@ double Tuner::sigmoid(const double s) const
 double Tuner::derivative_sigmoid(const double s) const
 {
     return sigmoid(s) * (1 - sigmoid(s)) * TUNER_SIGMOID_K;
+}
+
+double Tuner::binary_cross_entropy(const double logit, const double target) const
+{
+    const double scaled_logit = TUNER_SIGMOID_K * logit;
+    return std::log(1 + std::exp(scaled_logit)) - (target * scaled_logit);
+}
+
+double Tuner::derivative_binary_cross_entropy(const double logit, const double target) const
+{
+    return TUNER_SIGMOID_K * (sigmoid(logit) - target); 
 }
