@@ -879,7 +879,14 @@ double Tuner::derivative_sigmoid(const double s) const
 double Tuner::binary_cross_entropy(const double logit, const double target) const
 {
     const double scaled_logit = TUNER_SIGMOID_K * logit;
-    return std::log(1 + std::exp(scaled_logit)) - (target * scaled_logit);
+    const double exp_scaled_logit = std::exp(scaled_logit);
+    
+    if (!std::isfinite(exp_scaled_logit))
+    {
+        return (1.0 - target) * scaled_logit;
+    }
+
+    return std::log(1 + exp_scaled_logit) - (target * scaled_logit);
 }
 
 double Tuner::derivative_binary_cross_entropy(const double logit, const double target) const
