@@ -219,8 +219,8 @@ class Tuner_Step : public Thread_Job
         // Calculate the local gradient using the global state's weights.
         Game_Phased_Eval_Weights<double> gradient =
             tuner_instance.compute_gradient(global_state.weights, batch);
-        gradient =
-            tuner_instance.projected_gradient(global_state.weights, gradient);
+        // gradient =
+        //     tuner_instance.projected_gradient(global_state.weights, gradient);
 
         // Local first moment calculation based on global first moment.
         const Game_Phased_Eval_Weights<double> first_moment =

@@ -49,7 +49,7 @@ struct NLR_Parameters // NLR = Non-Linear Response
         (x).r_plus, (x).r_minus, (x).g_plus, (x).g_minus
 
 constexpr double NON_LINEAR_RESPONSE_EPSILON = Matrex_FP_Int::precision();
-constexpr double NON_LINEAR_RESPONSE_T       = Matrex_FP_Int::safe_maximum();
+constexpr double NON_LINEAR_RESPONSE_T       = 1.0;
 
 template <typename T>
 class Non_Linear_Response
