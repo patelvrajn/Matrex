@@ -13,17 +13,17 @@ constexpr double   TUNER_BLOCK_LEARNING_RATE = 1;
 constexpr double   TUNER_BLOCK_MOMENTUM =
     1.0 - (1.0 / static_cast<double>(TUNER_NUM_OF_THREADS));
 
-constexpr uint64_t TUNER_MAX_EPOCHS       = 30;
+constexpr uint64_t TUNER_MAX_EPOCHS       = 50;
 constexpr uint64_t TUNER_MINI_BATCH_SIZE  = 16384;
 constexpr double   TUNER_VALIDATION_SPLIT = 0.2;
 
-constexpr uint64_t TUNER_LINEAR_LR_MAX_EPOCHS = 8;
-constexpr double   TUNER_MIN_LINEAR_LR        = 1e-4;
-constexpr double   TUNER_MAX_LINEAR_LR        = 1e-2;
+constexpr uint64_t TUNER_LINEAR_LR_MAX_EPOCHS = 15;
+constexpr double   TUNER_MIN_LINEAR_LR        = 1e-5;
+constexpr double   TUNER_MAX_LINEAR_LR        = 1e-3;
 
 constexpr uint64_t TUNER_COSINE_LR_MAX_EPOCHS =
     TUNER_MAX_EPOCHS - TUNER_LINEAR_LR_MAX_EPOCHS;
-constexpr double TUNER_MIN_COSINE_LR = 1e-6;
+constexpr double TUNER_MIN_COSINE_LR = 1e-7;
 constexpr double TUNER_MAX_COSINE_LR = TUNER_MAX_LINEAR_LR;
 
 constexpr double TUNER_DECAY_FACTOR     = 0.975;
