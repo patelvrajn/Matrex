@@ -2,6 +2,9 @@
 
 #include "fixed_point.hpp"
 
+#include <unordered_map>
+#include <vector>
+
 template <typename T>
 struct NLR_Parameters // NLR = Non-Linear Response
 {
@@ -285,16 +288,22 @@ class Non_Linear_Response_Table // Only for Matrex fixed-point type.
     using Table_Type =
         Multi_Array<Matrex_FP_Int, NON_LINEAR_RESPONSE_TABLE_SIZE>;
 
-    constexpr Non_Linear_Response_Table() :
+    // Target absolute error in evaluation units, checked at interior probes.
+    // Refinement stops at adjacent representable inputs, so all sampling
+    // happens during construction. This is not a formal bound for every
+    // unsampled input of an arbitrary nonlinear curve.
+    constexpr static double INTERPOLATION_ERROR_TOLERANCE = 0.01;
+
+    Non_Linear_Response_Table() :
         m_parameters {}, m_table(std::make_unique<Table_Type>())
     {
     }
 
-    constexpr Non_Linear_Response_Table(
+    Non_Linear_Response_Table(
         const NLR_Parameters<Matrex_FP_Int>& params) :
         m_parameters(params), m_table(std::make_unique<Table_Type>())
     {
-        const NLR_Parameters<double> double_params {
+        const NLR_Parameters<double> double_parameters {
             .h_plus  = params.h_plus.to_double(),
             .h_minus = params.h_minus.to_double(),
             .z       = params.z.to_double(),
@@ -305,31 +314,49 @@ class Non_Linear_Response_Table // Only for Matrex fixed-point type.
             .r_minus = params.r_minus.to_double(),
             .g_plus  = params.g_plus.to_double(),
             .g_minus = params.g_minus.to_double()};
-        const Non_Linear_Response<double> nlr(double_params);
 
         double value = NON_LINEAR_RESPONSE_TABLE_FP_MIN;
 
         for (std::size_t i = 0; i < NON_LINEAR_RESPONSE_TABLE_SIZE; ++i)
         {
-            (*m_table)[i]  = Matrex_FP_Int::from_double(nlr.value(value));
+            (*m_table)[i]  = sample(value, double_parameters);
             value         += NON_LINEAR_RESPONSE_TABLE_FP_PRECISION;
+        }
+
+        constexpr int64_t step = static_cast<int64_t>(
+            NON_LINEAR_RESPONSE_TABLE_FP_PRECISION * Matrex_FP_Int::scale());
+        const int64_t first = Matrex_FP_Int::from_double(
+            NON_LINEAR_RESPONSE_TABLE_FP_MIN).get_value();
+        for (std::size_t i = 0; i + 1 < NON_LINEAR_RESPONSE_TABLE_SIZE; ++i)
+        {
+            const int64_t x = first + static_cast<int64_t>(i) * step;
+            const Sample left {x, (*m_table)[i].get_value()};
+            const Sample right {x + step, (*m_table)[i + 1].get_value()};
+            if (!accurate(left, right, double_parameters))
+            {
+                auto& samples = m_refinements[i];
+                refine(left, right, samples, double_parameters);
+                samples.push_back(right);
+            }
         }
     }
 
-    constexpr Matrex_FP_Int lookup(const Matrex_FP_Int value) const
+    Matrex_FP_Int lookup(const Matrex_FP_Int value) const
     {
-        if (value <= NON_LINEAR_RESPONSE_TABLE_FP_MIN) { return (*m_table)[0]; }
-
-        if (value >= NON_LINEAR_RESPONSE_TABLE_FP_MAX)
+        constexpr uint8_t index_shift =
+            FIXED_POINT_BIT_WIDTH - NON_LINEAR_RESPONSE_TABLE_BIT_WIDTH;
+        constexpr int64_t minimum_value =
+            std::numeric_limits<Fixed_Point_Int_Storage_Type>::min();
+        constexpr int64_t maximum_value = minimum_value
+            + ((static_cast<int64_t>(NON_LINEAR_RESPONSE_TABLE_SIZE) - 1)
+               << index_shift);
+        const int64_t x = value.get_value();
+        if (x <= minimum_value) { return (*m_table)[0]; }
+        if (x >= maximum_value)
         {
             return (*m_table)[NON_LINEAR_RESPONSE_TABLE_SIZE - 1];
         }
 
-        constexpr uint8_t index_shift =
-            FIXED_POINT_BIT_WIDTH - NON_LINEAR_RESPONSE_TABLE_BIT_WIDTH;
-        constexpr int64_t minimum_value =
-            Matrex_FP_Int::from_double(NON_LINEAR_RESPONSE_TABLE_FP_MIN)
-                .get_value();
         const uint64_t biased_value = static_cast<uint64_t>(
             static_cast<int64_t>(value.get_value()) - minimum_value);
         const std::size_t index = biased_value >> index_shift;
@@ -339,24 +366,93 @@ class Non_Linear_Response_Table // Only for Matrex fixed-point type.
             return (*m_table)[NON_LINEAR_RESPONSE_TABLE_SIZE - 1];
         }
 
-        // The bottom bits of the fraction tell us where in between the indices
-        // we are.
-        const Matrex_FP_Int fraction = Matrex_FP_Int::from_value(
-            extract_bits(biased_value, 0, (index_shift - 1)));
+        if (const auto it = m_refinements.find(index); it != m_refinements.end())
+        {
+            const auto& samples = it->second;
+            const auto right = std::upper_bound(
+                samples.begin(), samples.end(), x,
+                [](int64_t input, const Sample& point) { return input < point.x; });
+            const auto& left = *(right - 1);
+            return interpolate(left, *right, x);
+        }
 
-        const Matrex_FP_Int y1 = (*m_table)[index];
-        const Matrex_FP_Int y2 = (*m_table)[index + 1];
-
-        // Linear interpolation.
-        const Matrex_FP_Int result =
-            y1 + (((y2 - y1) * fraction) * NON_LINEAR_RESPONSE_TABLE_FP_SCALE);
-
-        return result;
+        const int64_t left_x =
+            minimum_value + (static_cast<int64_t>(index) << index_shift);
+        return interpolate({left_x, (*m_table)[index].get_value()},
+                           {left_x + (int64_t {1} << index_shift),
+                            (*m_table)[index + 1].get_value()}, x);
     }
 
   private:
 
-    NLR_Parameters<Matrex_FP_Int> m_parameters;
+    struct Sample
+    {
+        int64_t x;
+        int64_t y;
+    };
 
+    static Matrex_FP_Int sample(
+        double x, const NLR_Parameters<double>& double_parameters)
+    {
+        const double y = Non_Linear_Response(double_parameters).value(x);
+        // Clamp before conversion so llround cannot overflow on steep tails.
+        return Matrex_FP_Int::from_double(std::clamp(
+            y, Matrex_FP_Int::minimum(), Matrex_FP_Int::maximum()));
+    }
+
+    static Matrex_FP_Int interpolate(const Sample& left, const Sample& right,
+                                    int64_t x)
+    {
+        // Wide intermediates preserve the scale even across steep intervals.
+        return Matrex_FP_Int::from_value(static_cast<Fixed_Point_Int_Storage_Type>(
+            left.y + (right.y - left.y) * (x - left.x) / (right.x - left.x)));
+    }
+
+    static bool accurate(const Sample& left, const Sample& right,
+                         const NLR_Parameters<double>& double_parameters)
+    {
+        const auto acceptable = [&](int64_t x)
+        {
+            if (x <= left.x || x >= right.x) { return true; }
+            return std::abs(sample(x * Matrex_FP_Int::precision(),
+                                   double_parameters).to_double()
+                            - interpolate(left, right, x).to_double())
+                   <= INTERPOLATION_ERROR_TOLERANCE / 2;
+        };
+        for (int fraction = 1; fraction <= 3; ++fraction)
+        {
+            if (!acceptable(left.x + (right.x - left.x) * fraction / 4))
+            { return false; }
+        }
+        // Uniform probes can miss a narrow spike: also check its known center
+        // and the shoulders set by the smoothing epsilon.
+        const double k = double_parameters.k;
+        for (double x : {k, k - std::sqrt(NON_LINEAR_RESPONSE_EPSILON),
+                         k + std::sqrt(NON_LINEAR_RESPONSE_EPSILON)})
+        {
+            if (!acceptable(Matrex_FP_Int::from_double(x).get_value()))
+            { return false; }
+        }
+        return true;
+    }
+
+    static void refine(const Sample& left, const Sample& right,
+                       std::vector<Sample>& samples,
+                       const NLR_Parameters<double>& double_parameters)
+    {
+        if (right.x - left.x <= 1 || accurate(left, right, double_parameters))
+        {
+            samples.push_back(left);
+            return;
+        }
+        const int64_t x = left.x + (right.x - left.x) / 2;
+        const Sample middle {
+            x, sample(x * Matrex_FP_Int::precision(), double_parameters).get_value()};
+        refine(left, middle, samples, double_parameters);
+        refine(middle, right, samples, double_parameters);
+    }
+
+    NLR_Parameters<Matrex_FP_Int> m_parameters;
+    std::unordered_map<std::size_t, std::vector<Sample>> m_refinements;
     std::unique_ptr<Table_Type> m_table;
 };
