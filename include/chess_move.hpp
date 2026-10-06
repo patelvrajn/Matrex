@@ -169,6 +169,7 @@ class Chess_Move_List
     Chess_Move* end() const;
 
     int16_t get_max_index() const;
+    int64_t truncate(const int16_t max_index);
 
     Chess_Move& operator[](const uint16_t index);
 
@@ -241,6 +242,13 @@ Chess_Move* Chess_Move_List<capacity>::end() const
 template <std::size_t capacity>
 int16_t Chess_Move_List<capacity>::get_max_index() const
 {
+    return m_max_index;
+}
+
+template <std::size_t capacity>
+int64_t Chess_Move_List<capacity>::truncate(const int16_t max_index)
+{
+    m_max_index = std::min(m_max_index, max_index);
     return m_max_index;
 }
 

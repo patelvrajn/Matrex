@@ -1,4 +1,5 @@
 #include "search.hpp"
+#include <algorithm>
 #include <numeric>
 
 #include "chess_move.hpp"
@@ -8,7 +9,11 @@
 #include "static_exchange_evaluation.hpp"
 
 Search_Engine::Search_Engine() :
-    m_timer_expired_during_search(false), m_num_of_nodes_searched(0)
+    m_shared_data(m_transposition_table,
+                  m_cuckoo_rm_table,
+                  m_correction_history,
+                  m_q_cont_hist_table,
+                  m_c_cont_hist_table)
 {
 }
 
@@ -21,50 +26,115 @@ void Search_Engine::new_game()
     m_transposition_table.clear();
     m_correction_history.clear();
     m_q_cont_hist_table.clear();
-    m_q_cont_hist_stack.stack.clear();
     m_c_cont_hist_table.clear();
-    m_c_cont_hist_stack.stack.clear();
 }
 
 Search_Engine_Result
 Search_Engine::search(const Chess_Board&        cb,
                       const Search_Constraints& constraints)
 {
-    m_chess_board                 = cb;
-    m_constraints                 = constraints;
-    m_my_side                     = cb.get_side_to_move();
-    m_num_of_nodes_searched       = 0;
-    m_timer_expired_during_search = false;
+    m_chess_board           = cb;
+    m_constraints           = constraints;
+    m_my_side               = cb.get_side_to_move();
+    m_num_of_nodes_searched = 0;
 
+    m_worker_pool.set_max_num_of_threads(m_constraints.num_of_search_workers);
     m_transposition_table.resize(constraints.transposition_table_size);
     m_principal_variation.clear();
 
     return iterative_deepening();
 }
 
-Search_Engine_Result
-Search_Engine::negamax(Chess_Board&                    position,
-                       Depth_Int                       depth,
-                       Welford&                        leaf_nodes_welford,
-                       Principal_Variation_List&       principal_variation,
-                       Search_Quiet_Cont_Hist_Stack&   q_cont_hist_stack,
-                       Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
-                       Depth_Int                       ply,
-                       Score                           alpha,
-                       Score                           beta)
+Search_Work::Search_Work(Threads_Shared_Data& shared_data,
+                         Chess_Board          position,
+                         Depth_Int            depth,
+                         Score                alpha,
+                         Score                beta,
+                         Timer&               timer,
+                         Search_Constraints&  constraints) :
+    Thread_Job(shared_data)
 {
+    m_index_to_position = write_to_private_data<Chess_Board>(position);
+    m_index_to_my_side =
+        write_to_private_data<PIECE_COLOR>(position.get_side_to_move());
+    m_index_to_depth       = write_to_private_data<Depth_Int>(depth);
+    m_index_to_alpha       = write_to_private_data<Score>(alpha);
+    m_index_to_beta        = write_to_private_data<Score>(beta);
+    m_index_to_timer       = write_reference_to_private_data(timer);
+    m_index_to_constraints = write_reference_to_private_data(constraints);
+}
+
+bool Search_Work::has_job() const { return true; }
+
+std::any Search_Work::operator()(std::stop_token)
+{
+    Chess_Board position =
+        read_private_data<Chess_Board>(m_index_to_position);
+    const Depth_Int depth = read_private_data<Depth_Int>(m_index_to_depth);
+    Search_Quiet_Cont_Hist_Stack   q_cont_hist_stack;
+    Search_Capture_Cont_Hist_Stack c_cont_hist_stack;
+    const Score        alpha = read_private_data<Score>(m_index_to_alpha);
+    const Score        beta  = read_private_data<Score>(m_index_to_beta);
+    Search_Worker_Data worker_data;
+
+    Search_Engine_Result search_result =
+        negamax(position,
+                depth,
+                worker_data.principal_variation,
+                q_cont_hist_stack,
+                c_cont_hist_stack,
+                worker_data.timer_expired_during_search,
+                0,
+                alpha,
+                beta);
+
+    call_shared_data<Search_Worker_Data*>(
+        INDEX_TO_WORKER_DATA_ARRAY,
+        [&](Search_Worker_Data*& workers)
+        {
+            workers[get_assigned_thread_id()].search_result = search_result;
+            workers[get_assigned_thread_id()].principal_variation =
+                worker_data.principal_variation;
+            workers[get_assigned_thread_id()].timer_expired_during_search =
+                worker_data.timer_expired_during_search;
+        });
+
+    return search_result;
+}
+
+Search_Engine_Result
+Search_Work::negamax(Chess_Board&                    position,
+                     Depth_Int                       depth,
+                     Principal_Variation_List&       principal_variation,
+                     Search_Quiet_Cont_Hist_Stack&   q_cont_hist_stack,
+                     Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
+                     bool&     timer_expired_during_search,
+                     Depth_Int ply,
+                     Score     alpha,
+                     Score     beta)
+{
+    const Depth_Int maximum_depth =
+        read_private_data<Depth_Int>(m_index_to_depth);
+
     const uint32_t depth_squared = (depth * depth);
 
-    ++m_num_of_nodes_searched;
+    call_shared_data<Search_Worker_Data*>(
+        INDEX_TO_WORKER_DATA_ARRAY,
+        [this](Search_Worker_Data*& workers)
+        { ++workers[get_assigned_thread_id()].num_of_nodes_searched; });
 
     // The parent's PV must be cleared between negamax calls because sibling
     // moves could influence each other.
     principal_variation.clear();
 
     bool is_three_fold_repetition = false;
-    bool is_upcoming_repetition =
-        m_cuckoo_rm_table.is_upcoming_repetition(position,
-                                                 is_three_fold_repetition);
+    bool is_upcoming_repetition   = call_shared_data<const Cuckoo_RM_Table>(
+        m_index_to_cuckoo_rm_table,
+        [&](const Cuckoo_RM_Table& table)
+        {
+            return table.is_upcoming_repetition(position,
+                                                is_three_fold_repetition);
+        });
 
     if ((alpha < Score::from_int(ESCORE::DRAW)) && is_upcoming_repetition)
     {
@@ -105,10 +175,15 @@ Search_Engine::negamax(Chess_Board&                    position,
     const Zobrist_Hash        position_z_hash = position.get_zobrist_hash();
     Transposition_Table_Entry transposition_table_entry;
     const bool                did_transposition_table_hit =
-        m_transposition_table.read(m_current_search_depth,
-                                   ply,
-                                   position_z_hash,
-                                   transposition_table_entry);
+        call_shared_data<Transposition_Table>(
+            m_index_to_transposition_table,
+            [&](Transposition_Table& table)
+            {
+                return table.read(maximum_depth,
+                                  ply,
+                                  position_z_hash,
+                                  transposition_table_entry);
+            });
 
     // A principal variation node is any node that requires an alpha-beta window
     // wider than 1 because in principal variation search we only search the
@@ -139,7 +214,10 @@ Search_Engine::negamax(Chess_Board&                    position,
         const Search_Engine_Result quiescence_result =
             quiescence(position, ply, alpha, beta);
 
-        leaf_nodes_welford += quiescence_result.second.to_fixed_point();
+        call_shared_data<Welford>(
+            INDEX_TO_WELFORD,
+            [&](Welford& accumulator)
+            { accumulator += quiescence_result.second.to_fixed_point(); });
 
         return quiescence_result;
     }
@@ -173,26 +251,43 @@ Search_Engine::negamax(Chess_Board&                    position,
             .score_bound =
                 Score_Bound_Type::EXACT // Mate scores are always exact.
         };
-        m_transposition_table.write(m_current_search_depth,
-                                    ply,
-                                    position_z_hash,
-                                    transposition_table_entry);
+
+        call_shared_data<Transposition_Table>(
+            m_index_to_transposition_table,
+            [&](Transposition_Table& table)
+            {
+                return table.write(maximum_depth,
+                                   ply,
+                                   position_z_hash,
+                                   transposition_table_entry);
+            });
 
         return {Chess_Move(), mate_score};
     }
 
+    const Timer& timer =
+        read_private_data<std::reference_wrapper<Timer>>(
+            m_index_to_timer).get();
+
+    const Search_Constraints& constraints =
+        read_private_data<std::reference_wrapper<Search_Constraints>>(
+            m_index_to_constraints).get();
+
+    const PIECE_COLOR my_side =
+        read_private_data<PIECE_COLOR>(m_index_to_my_side);
+
     // Check if time has expired during the search.
-    if (!m_constraints.should_ignore_time)
+    if (!constraints.should_ignore_time)
     {
-        m_timer_expired_during_search = m_timer.is_search_time_expired(
-            m_constraints.time_controls[m_my_side].time_remaining,
-            m_constraints.time_controls[m_my_side].increment);
+        timer_expired_during_search = timer.is_search_time_expired(
+            constraints.time_controls[my_side].time_remaining,
+            constraints.time_controls[my_side].increment);
     }
 
     // When time expires return positive infinity because it will be negated and
     // become the alpha of the parent as the child score and this way it doesn't
     // affect the best move of the parent.
-    if ((!m_constraints.should_ignore_time) && m_timer_expired_during_search)
+    if ((!constraints.should_ignore_time) && timer_expired_during_search)
     {
         return {moves[0], Score(FP_POSITIVE_INFINITY)};
     }
@@ -211,7 +306,11 @@ Search_Engine::negamax(Chess_Board&                    position,
                       moving_side_matrix,
                       opposing_side_matrix);
 
-    const Score static_evaluation = e.evaluate(m_correction_history);
+    const Score static_evaluation = call_shared_data<
+        Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>>(
+        m_index_to_correction_history,
+        [&](const auto& correction_history)
+        { return e.evaluate(correction_history); });
 
     // const Matrex_FP_Int fp_reverse_futility_pruning_margin =
     //     Matrex_FP_Int::from_integer((2 * depth_squared) + (32 * depth) + 16);
@@ -294,13 +393,23 @@ Search_Engine::negamax(Chess_Board&                    position,
         // to the stack indexed by ply. A history table is fetched from the
         // continuation history table which is indexed by the "previous move"
         // (this move is the previous move for it's subtree).
+        auto& q_cont_hist_table =
+            read_shared_data<Quiet_Continuation_History_Table>(
+                m_index_to_q_cont_hist_table)
+                .get();
+
+        auto& c_cont_hist_table =
+            read_shared_data<Capture_Continuation_History_Table>(
+                m_index_to_c_cont_hist_table)
+                .get();
+
         const auto q_cont_hist_max_idx =
             q_cont_hist_stack.stack.get_max_index();
-        q_cont_hist_stack.bind_to_history_table(m_q_cont_hist_table[move], ply);
+        q_cont_hist_stack.bind_to_history_table(q_cont_hist_table[move], ply);
 
         const auto c_cont_hist_max_idx =
             c_cont_hist_stack.stack.get_max_index();
-        c_cont_hist_stack.bind_to_history_table(m_c_cont_hist_table[move], ply);
+        c_cont_hist_stack.bind_to_history_table(c_cont_hist_table[move], ply);
 
         // Explore the child move's subtree for it's evaluation. Negate the
         // result to compare it's score to the parent's scores (alpha,
@@ -320,10 +429,10 @@ Search_Engine::negamax(Chess_Board&                    position,
             // to be a PV node.
             child_result = negamax(position,
                                    (depth - 1),
-                                   leaf_nodes_welford,
                                    child_principal_variation,
                                    q_cont_hist_stack,
                                    c_cont_hist_stack,
+                                   timer_expired_during_search,
                                    (ply + 1),
                                    -beta,
                                    -alpha);
@@ -348,10 +457,10 @@ Search_Engine::negamax(Chess_Board&                    position,
                 // than move index in the condition to do LMR.
                 child_result = negamax(position,
                                        (depth - 1 - depth_reduction),
-                                       leaf_nodes_welford,
                                        child_principal_variation,
                                        q_cont_hist_stack,
                                        c_cont_hist_stack,
+                                       timer_expired_during_search,
                                        (ply + 1),
                                        (-alpha - Score(PV_WINDOW_SIZE)),
                                        -alpha);
@@ -369,10 +478,10 @@ Search_Engine::negamax(Chess_Board&                    position,
                 // around alpha since, we assume no other move will raise alpha.
                 child_result = negamax(position,
                                        (depth - 1),
-                                       leaf_nodes_welford,
                                        child_principal_variation,
                                        q_cont_hist_stack,
                                        c_cont_hist_stack,
+                                       timer_expired_during_search,
                                        (ply + 1),
                                        (-alpha - Score(PV_WINDOW_SIZE)),
                                        -alpha);
@@ -390,10 +499,10 @@ Search_Engine::negamax(Chess_Board&                    position,
                 {
                     child_result = negamax(position,
                                            (depth - 1),
-                                           leaf_nodes_welford,
                                            child_principal_variation,
                                            q_cont_hist_stack,
                                            c_cont_hist_stack,
+                                           timer_expired_during_search,
                                            (ply + 1),
                                            -beta,
                                            -alpha);
@@ -481,17 +590,23 @@ Search_Engine::negamax(Chess_Board&                    position,
     }
 
     // Correction History Update.
-    if (should_update_correction_history(m_timer_expired_during_search,
+    if (should_update_correction_history(timer_expired_during_search,
                                          best_move,
                                          best_score,
                                          static_evaluation,
                                          score_bound,
                                          is_side_to_move_in_check))
     {
-        m_correction_history.update(position,
-                                    depth,
-                                    best_score,
-                                    static_evaluation);
+        call_shared_data<
+            Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>>(
+            m_index_to_correction_history,
+            [&](auto& correction_history)
+            {
+                correction_history.update(position,
+                                          depth,
+                                          best_score,
+                                          static_evaluation);
+            });
     }
 
     // Continuation History Update.
@@ -516,7 +631,7 @@ Search_Engine::negamax(Chess_Board&                    position,
     }
 
     // Cache the position's best move and evaluation in the transposition table.
-    if (!m_timer_expired_during_search)
+    if (!timer_expired_during_search)
     {
         transposition_table_entry = {
             .best_move = best_move,
@@ -525,10 +640,16 @@ Search_Engine::negamax(Chess_Board&                    position,
                 Transposition_Table::get_partial_zobrist(position_z_hash),
             .depth       = depth,
             .score_bound = score_bound};
-        m_transposition_table.write(m_current_search_depth,
-                                    ply,
-                                    position_z_hash,
-                                    transposition_table_entry);
+
+        call_shared_data<Transposition_Table>(
+            m_index_to_transposition_table,
+            [&](Transposition_Table& table)
+            {
+                return table.write(maximum_depth,
+                                   ply,
+                                   position_z_hash,
+                                   transposition_table_entry);
+            });
     }
 
     // Fail-soft. Always return the calculated score and don't bound it between
@@ -548,21 +669,32 @@ Search_Engine::negamax(Chess_Board&                    position,
 //    2. Only tactical moves are generated every iteration unless we are in
 //    check.
 //    3. There is no depth limit.
-Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
-                                               Depth_Int    ply,
-                                               Score        alpha,
-                                               Score        beta)
+Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
+                                             Depth_Int    ply,
+                                             Score        alpha,
+                                             Score        beta)
 {
-    ++m_num_of_nodes_searched;
+    const Depth_Int maximum_depth =
+        read_private_data<Depth_Int>(m_index_to_depth);
+
+    call_shared_data<Search_Worker_Data*>(
+        INDEX_TO_WORKER_DATA_ARRAY,
+        [this](Search_Worker_Data*& workers)
+        { ++workers[get_assigned_thread_id()].num_of_nodes_searched; });
 
     const Zobrist_Hash position_z_hash = position.get_zobrist_hash();
 
     Transposition_Table_Entry transposition_table_entry;
     const bool                did_transposition_table_hit =
-        m_transposition_table.read(m_current_search_depth,
-                                   ply,
-                                   position_z_hash,
-                                   transposition_table_entry);
+        call_shared_data<Transposition_Table>(
+            m_index_to_transposition_table,
+            [&](Transposition_Table& table)
+            {
+                return table.read(maximum_depth,
+                                  ply,
+                                  position_z_hash,
+                                  transposition_table_entry);
+            });
 
     // Transposition table cutoff - use the stored best move and score if it
     // satisfies the conditions. Note, quiescence search is a zero depth
@@ -623,10 +755,16 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
             .score_bound =
                 Score_Bound_Type::EXACT // Mate scores are always exact.
         };
-        m_transposition_table.write(m_current_search_depth,
-                                    ply,
-                                    position_z_hash,
-                                    transposition_table_entry);
+
+        call_shared_data<Transposition_Table>(
+            m_index_to_transposition_table,
+            [&](Transposition_Table& table)
+            {
+                return table.write(maximum_depth,
+                                   ply,
+                                   position_z_hash,
+                                   transposition_table_entry);
+            });
 
         return {Chess_Move(), mate_score};
     }
@@ -637,7 +775,11 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
                       moving_side_matrix,
                       opposing_side_matrix);
 
-    Score stand_pat = e.evaluate(m_correction_history);
+    Score stand_pat = call_shared_data<
+        Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>>(
+        m_index_to_correction_history,
+        [&](const auto& correction_history)
+        { return e.evaluate(correction_history); });
 
     // Update stand pat evaluation based on a transposition table hit which
     // would most likely be based on a deeper search.
@@ -662,10 +804,16 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
             .score_bound =
                 Score_Bound_Type::EXACT // Static evaluations are always exact.
         };
-        m_transposition_table.write(m_current_search_depth,
-                                    ply,
-                                    position_z_hash,
-                                    transposition_table_entry);
+
+        call_shared_data<Transposition_Table>(
+            m_index_to_transposition_table,
+            [&](Transposition_Table& table)
+            {
+                return table.write(maximum_depth,
+                                   ply,
+                                   position_z_hash,
+                                   transposition_table_entry);
+            });
 
         // Note: Only quiescence search's evaluation is ever used, the move is
         // not propagated up negamax's search tree. Quiescence replaces static
@@ -702,10 +850,16 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
                     Score_Bound_Type::LOWER_BOUND // Scores at beta cutoffs are
                                                   // always lower bounds.
             };
-            m_transposition_table.write(m_current_search_depth,
-                                        ply,
-                                        position_z_hash,
-                                        transposition_table_entry);
+
+            call_shared_data<Transposition_Table>(
+                m_index_to_transposition_table,
+                [&](Transposition_Table& table)
+                {
+                    return table.write(maximum_depth,
+                                       ply,
+                                       position_z_hash,
+                                       transposition_table_entry);
+                });
 
             return {best_move, best_score};
         }
@@ -764,10 +918,16 @@ Search_Engine_Result Search_Engine::quiescence(Chess_Board& position,
             Transposition_Table::get_partial_zobrist(position_z_hash),
         .depth       = QUIESCENCE_SEARCH_DEPTH,
         .score_bound = score_bound};
-    m_transposition_table.write(m_current_search_depth,
-                                ply,
-                                position_z_hash,
-                                transposition_table_entry);
+
+    call_shared_data<Transposition_Table>(m_index_to_transposition_table,
+                                          [&](Transposition_Table& table)
+                                          {
+                                              return table.write(
+                                                  maximum_depth,
+                                                  ply,
+                                                  position_z_hash,
+                                                  transposition_table_entry);
+                                          });
 
     return {best_move, best_score};
 }
@@ -811,17 +971,63 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
     bool done = false;
     while (!done)
     {
-        Search_Engine_Result result = negamax(m_chess_board,
-                                              m_current_search_depth,
-                                              leaf_scores_welford,
-                                              m_principal_variation,
-                                              m_q_cont_hist_stack,
-                                              m_c_cont_hist_stack,
-                                              0,
-                                              current_window.alpha,
-                                              current_window.beta);
+        Search_Worker_Data* workers_data =
+            new Search_Worker_Data[m_constraints.num_of_search_workers];
+        m_shared_data.write(std::ref(workers_data));
+        m_shared_data.write(std::ref(leaf_scores_welford));
 
-        current_window.search_result = result;
+        for (std::size_t i = 0; i < m_constraints.num_of_search_workers; ++i)
+        {
+            Depth_Int depth = m_current_search_depth + (((i % 2) != 0) ? 1 : 0);
+
+            std::unique_ptr<Thread_Job> job =
+                std::make_unique<Search_Work>(m_shared_data,
+                m_chess_board,
+                depth,
+                current_window.alpha,
+                current_window.beta,
+                m_timer,
+                m_constraints);
+
+            m_worker_pool.push_job(std::move(job));
+        }
+
+        m_worker_pool.wait_for_jobs_to_complete();
+        m_shared_data.remove(INDEX_TO_WELFORD);
+        m_shared_data.remove(INDEX_TO_WORKER_DATA_ARRAY);
+
+        m_num_of_nodes_searched += std::accumulate(
+            workers_data,
+            workers_data + m_constraints.num_of_search_workers,
+            uint64_t{0},
+            [](uint64_t total, const Search_Worker_Data& worker)
+            {
+                return total + worker.num_of_nodes_searched;
+            });
+
+        Search_Worker_Data* best_worker = std::max_element(
+            workers_data,
+            workers_data + m_constraints.num_of_search_workers,
+            [](const Search_Worker_Data& lhs, const Search_Worker_Data& rhs)
+            {
+                return lhs.search_result.second < rhs.search_result.second;
+            });
+
+        best_worker->principal_variation.truncate(m_current_search_depth - 1);
+
+        current_window.search_result = best_worker->search_result;
+        m_principal_variation        = best_worker->principal_variation;
+
+        m_timer_expired_during_search = std::accumulate(
+            workers_data,
+            workers_data + m_constraints.num_of_search_workers,
+            false,
+            [](bool expired, const Search_Worker_Data& worker)
+            {
+                return expired || worker.timer_expired_during_search;
+            });
+
+        delete[] workers_data;
 
         if (m_timer_expired_during_search) { break; }
 
@@ -896,8 +1102,8 @@ Search_Engine_Result Search_Engine::iterative_deepening()
 
     Aspiration_Window window = {
         {Chess_Move(), Score(0)},
-        Score(FP_POSITIVE_INFINITY),
         Score(FP_NEGATIVE_INFINITY),
+        Score(FP_POSITIVE_INFINITY),
         Welford()
     };
 
@@ -945,7 +1151,7 @@ const Transposition_Table_Statistics& Search_Engine::get_tt_statistics() const
 #endif
 }
 
-void Search_Engine::update_continuation_history(
+void Search_Work::update_continuation_history(
     Search_Quiet_Cont_Hist_Stack& q_cont_hist_stack,
     const Chess_Move&             move,
     const Depth_Int               ply,
@@ -986,7 +1192,7 @@ void Search_Engine::update_continuation_history(
     }
 }
 
-void Search_Engine::update_continuation_history(
+void Search_Work::update_continuation_history(
     Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
     const Chess_Move&               move,
     const Depth_Int                 ply,

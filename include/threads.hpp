@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <optional>
 #include <thread>
 #include <vector>
@@ -24,44 +25,35 @@ class Threads_Shared_Data
 {
   public:
 
-    // This constructor treates every argument as a seperate object and
-    // stores references to the arguments passed in (which are expected to
-    // live longer than the Threads Shared Data object).
     template <typename... Args>
     explicit Threads_Shared_Data(Args&... args)
     {
-        (m_data.emplace_back(std::ref(args)), ...);
+        (
+            [&]
+            {
+                m_data.emplace_back(std::ref(args));
+                m_mutexes.emplace_back(std::make_unique<std::mutex>());
+            }(),
+            ...);
     }
 
-    // This performs a write of a reference to data (the reference is expected
-    // to live longer than this shared data instance) to the shared data guarded
-    // by the mutex.
-    template <typename T>
-    std::size_t write(std::reference_wrapper<T> data)
-    {
-        std::scoped_lock<std::mutex> lock(m_mutex);
-
-        m_data.push_back(data);
-
-        return (m_data.size() - 1);
-    }
-
-    // This performs a read to the shared data guarded by the mutex.
     template <typename T>
     auto read(std::size_t index)
     {
-        std::scoped_lock<std::mutex> lock(m_mutex);
+        // Prevent remove() from changing indexes/vector storage.
+        std::shared_lock structure_lock(m_structure_mutex);
+
+        std::scoped_lock data_lock(*m_mutexes[index]);
 
         return std::any_cast<std::reference_wrapper<T>>(m_data[index]);
     }
 
-    // Call any function on the shared data object guarded by the mutex.
-    // Warning: do not return a reference to the data and manipulate it as
-    // this escapes the lock!
     template <typename Expected_Obj_Type, typename Function_Type>
     decltype(auto) call(std::size_t index, Function_Type&& func)
     {
-        std::scoped_lock<std::mutex> lock(m_mutex);
+        std::shared_lock structure_lock(m_structure_mutex);
+
+        std::scoped_lock data_lock(*m_mutexes[index]);
 
         Expected_Obj_Type& obj =
             std::any_cast<std::reference_wrapper<Expected_Obj_Type>>(
@@ -71,10 +63,34 @@ class Threads_Shared_Data
         return std::forward<Function_Type>(func)(obj);
     }
 
+    // This performs a write of a reference to data (the reference is expected
+    // to live longer than this shared data instance) to the shared data guarded
+    // by the mutex.
+    template <typename T>
+    std::size_t write(std::reference_wrapper<T> data)
+    {
+        std::unique_lock structure_lock(m_structure_mutex);
+
+        m_data.emplace_back(data);
+        m_mutexes.emplace_back(std::make_unique<std::mutex>());
+
+        return (m_data.size() - 1);
+    }
+
+    // Thread-safe method to remove an element from the shared data vector.
+    void remove(std::size_t index)
+    {
+        std::unique_lock structure_lock(m_structure_mutex);
+
+        m_data.erase(m_data.begin() + index);
+        m_mutexes.erase(m_mutexes.begin() + index);
+    }
+
   private:
 
-    std::mutex            m_mutex;
-    std::vector<std::any> m_data;
+    std::shared_mutex                        m_structure_mutex;
+    std::vector<std::unique_ptr<std::mutex>> m_mutexes;
+    std::vector<std::any>                    m_data;
 };
 
 // =============================================================================
@@ -145,9 +161,10 @@ class Thread_Job
     }
 
     // Any job needs to be able to read from their private data.
-    std::any& read_private_data(std::size_t index)
+    template <typename T>
+    T& read_private_data(std::size_t index)
     {
-        return (*m_private_data[index]);
+        return std::any_cast<T&>(*m_private_data[index]);
     }
 
     // Any job needs to be able to call functions on their private data.
@@ -320,6 +337,11 @@ class Thread_Pool
         m_max_num_of_threads(max_num_of_threads),
         m_dispatcher([this](std::stop_token stop) { dispatcher_loop(stop); })
     {
+    }
+
+    void set_max_num_of_threads(std::size_t max_num_of_threads)
+    {
+        m_max_num_of_threads = max_num_of_threads;
     }
 
     // Allows pushing a job to the job vector for the dispatcher to assign to a

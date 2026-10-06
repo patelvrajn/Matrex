@@ -217,6 +217,14 @@ void UCI::handle_setoption(const std::string& arguments)
                 m_search_constraints.transposition_table_size =
                     std::stoull(tokens->at(current_index));
             }
+
+            if (option_name == "Threads")
+            {
+                current_index += 2; // Skip "Threads" and "value"
+
+                m_search_constraints.num_of_search_workers =
+                    std::stoull(tokens->at(current_index));
+            }
         }
 
         ++current_index;
