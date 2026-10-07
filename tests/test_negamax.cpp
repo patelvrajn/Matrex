@@ -194,6 +194,6 @@ TEST(negamax, DISABLED_debug)
                 cb,
                 moving_side_matrix,
                 opposing_side_matrix);
-    const Score evaluation = e.evaluate(corr_hist_table);
+    const Score evaluation = e.evaluate(corr_hist_table.get_correction(cb));
     std::cout << "Evaluation: " << evaluation.to_int() << std::endl;
 }

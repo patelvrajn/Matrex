@@ -306,11 +306,12 @@ Search_Work::negamax(Chess_Board&                    position,
                       moving_side_matrix,
                       opposing_side_matrix);
 
-    const Score static_evaluation = call_shared_data<
+    const Score correction = call_shared_data<
         Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>>(
         m_index_to_correction_history,
         [&](const auto& correction_history)
-        { return e.evaluate(correction_history); });
+        { return correction_history.get_correction(position); });
+    const Score static_evaluation = e.evaluate(correction);
 
     // const Matrex_FP_Int fp_reverse_futility_pruning_margin =
     //     Matrex_FP_Int::from_integer((2 * depth_squared) + (32 * depth) + 16);
@@ -775,11 +776,12 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
                       moving_side_matrix,
                       opposing_side_matrix);
 
-    Score stand_pat = call_shared_data<
+    const Score correction = call_shared_data<
         Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>>(
         m_index_to_correction_history,
         [&](const auto& correction_history)
-        { return e.evaluate(correction_history); });
+        { return correction_history.get_correction(position); });
+    Score stand_pat = e.evaluate(correction);
 
     // Update stand pat evaluation based on a transposition table hit which
     // would most likely be based on a deeper search.
