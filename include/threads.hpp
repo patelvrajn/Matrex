@@ -1,6 +1,8 @@
 #pragma once
 
+#include <algorithm>
 #include <any>
+#include <atomic>
 #include <condition_variable>
 #include <cstddef>
 #include <functional>
@@ -227,10 +229,9 @@ class Thread_Worker
 
     // An overloaded constructor to assign an initial job to the worker thread.
     Thread_Worker(std::size_t id, Thread_Job& job) :
-        m_id(id),
-        m_job(job),
-        m_thread([this](std::stop_token stop) { worker_loop(stop); })
+        Thread_Worker(id)
     {
+        assign_job(job);
     }
 
     // Assigns an incomplete valid job to the thread.
@@ -239,6 +240,7 @@ class Thread_Worker
         if (job.get().has_job() && (!job.get().is_complete()))
         {
             std::scoped_lock lock(m_job_assignment_mutex);
+            job.get().set_assigned_thread_id(m_id);
             m_job = std::move(job);
 
             m_conditional_variable.notify_one();
@@ -251,7 +253,7 @@ class Thread_Worker
     // A check for if the worker currently has a job.
     bool has_job()
     {
-        std::unique_lock lock(m_job_status_mutex);
+        std::unique_lock lock(m_job_assignment_mutex);
         return (m_job.has_ref() && m_job.get_ref().has_job()
                 && (!m_job.get_ref().is_complete()));
     }
@@ -264,16 +266,13 @@ class Thread_Worker
 
     // The thread for the worker and it's job.
     Optional_Reference<Thread_Job> m_job;
-    std::jthread                   m_thread;
 
     // Mutex and conditional variable for when the thread is being assigned a
     // job or is waiting for a job to be assigned.
     std::mutex                  m_job_assignment_mutex;
     std::condition_variable_any m_conditional_variable;
 
-    // Mutex for any reading and/or manipulation of the status (like has_job or
-    // complete) of a job.
-    std::mutex m_job_status_mutex;
+    std::jthread m_thread;
 
     // Discards the job by assigning no value through the optional.
     void discard_job() { m_job.unbound_ref(); }
@@ -307,13 +306,14 @@ class Thread_Worker
 
             // Atomically manipulate m_job.
             {
-                std::scoped_lock lock(m_job_status_mutex);
-
-                // Set the job to complete.
-                m_job.get_ref().set_complete(true);
+                std::scoped_lock lock(m_job_assignment_mutex);
+                auto& job = m_job.get_ref();
 
                 // Discard the job from the thread.
                 discard_job();
+
+                // The dispatcher may delete the job as soon as this is set.
+                job.set_complete(true);
             }
         }
     }
@@ -341,7 +341,9 @@ class Thread_Pool
 
     void set_max_num_of_threads(std::size_t max_num_of_threads)
     {
+        std::scoped_lock lock(m_jobs_mutex);
         m_max_num_of_threads = max_num_of_threads;
+        m_next_thread_id = std::min(m_next_thread_id, max_num_of_threads);
     }
 
     // Allows pushing a job to the job vector for the dispatcher to assign to a
@@ -378,6 +380,10 @@ class Thread_Pool
     std::size_t                                 m_max_num_of_threads;
     std::vector<std::unique_ptr<Thread_Worker>> m_threads;
 
+    // IDs are indices in [0, N). IDs below this ID have been used in this 
+    // round.
+    std::size_t m_next_thread_id = 0;
+
     // The jobs vector and its respective mutex because the dispatcher has to
     // manipulate the jobs vector while, we are able to push jobs.
     std::mutex                               m_jobs_mutex;
@@ -394,6 +400,14 @@ class Thread_Pool
             // We need the jobs mutex to be unlocked for the dispatcher to do
             // its loop which involves manipulating the jobs vector.
             std::scoped_lock lock(m_jobs_mutex);
+
+            // Pop workers that are above the max number of threads and 
+            // currently have no jobs assigned to them.
+            while (m_threads.size() > m_max_num_of_threads
+                   && (!m_threads.back()->has_job()))
+            {
+                m_threads.pop_back();
+            }
 
             // Discard all jobs in the jobs vector that are labeled complete
             // or do not have a job.
@@ -426,45 +440,38 @@ class Thread_Pool
             // If there is no job that needs to be assigned, do nothing.
             if (next_job_iterator == m_jobs.end()) { continue; }
 
-            // Find the first thread in the threads vector that doesn't have
-            // a job.
-            auto next_thread_iterator = std::ranges::find_if(
-                m_threads,
-                [](auto& worker) { return (!worker->has_job()); });
-
-            // If all threads are busy and the thread vector is at the
-            // maximum number of threads allowed, do nothing.
-            if ((m_threads.size() == m_max_num_of_threads)
-                && (next_thread_iterator == m_threads.end()))
+            // Zero maximum number of threads pauses assignment. If there are 
+            // more threads than the maximum number of threads, wait for them to
+            // be popped.
+            if (m_max_num_of_threads == 0
+                || m_threads.size() > m_max_num_of_threads)
             {
                 continue;
             }
 
-            // Get the indices to the next available thread and the next
-            // job that needs to be assigned.
-            std::size_t next_job_index =
-                std::distance(m_jobs.begin(), next_job_iterator);
-            std::size_t next_thread_index =
-                std::distance(m_threads.begin(), next_thread_iterator);
+            // Only begin a new round of IDs after every ID has been assigned. 
+            const std::size_t next_thread_id =
+                (m_next_thread_id == m_max_num_of_threads) ? 0 : m_next_thread_id;
 
-            // There is no free thread, create one and assign it the next
-            // job.
-            if (next_thread_iterator == m_threads.end())
+            // Wait if the minimum unused ID is busy rather than skipping it.
+            if (next_thread_id < m_threads.size()
+                && m_threads[next_thread_id]->has_job())
             {
-                m_jobs.at(next_job_index)
-                    ->set_assigned_thread_id(m_threads.size());
-                m_threads.emplace_back(std::make_unique<Thread_Worker>(
-                    next_thread_index,
-                    *m_jobs.at(next_job_index)));
+                continue;
             }
-            // There is a free thread, assign it the next job.
+
+            if (next_thread_id == m_threads.size())
+            {
+                m_threads.emplace_back(std::make_unique<Thread_Worker>(
+                    next_thread_id,
+                    **next_job_iterator));
+            }
             else
             {
-                m_jobs.at(next_job_index)
-                    ->set_assigned_thread_id(next_thread_index);
-                m_threads.at(next_thread_index)
-                    ->assign_job(*m_jobs.at(next_job_index));
+                m_threads[next_thread_id]->assign_job(**next_job_iterator);
             }
+
+            m_next_thread_id = next_thread_id + 1;
         }
     }
 };

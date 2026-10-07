@@ -196,7 +196,6 @@ class Search_Engine
     Chess_Board              m_chess_board;
     Transposition_Table      m_transposition_table;
     Search_Constraints       m_constraints;
-    PIECE_COLOR              m_my_side;
     Timer                    m_timer;
     bool                     m_timer_expired_during_search = false;
     uint64_t                 m_num_of_nodes_searched = 0;

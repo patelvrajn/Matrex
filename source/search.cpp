@@ -35,7 +35,6 @@ Search_Engine::search(const Chess_Board&        cb,
 {
     m_chess_board           = cb;
     m_constraints           = constraints;
-    m_my_side               = cb.get_side_to_move();
     m_num_of_nodes_searched = 0;
 
     m_worker_pool.set_max_num_of_threads(m_constraints.num_of_search_workers);
