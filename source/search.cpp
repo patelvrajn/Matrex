@@ -70,10 +70,23 @@ std::any Search_Work::operator()(std::stop_token)
     Chess_Board position =
         read_private_data<Chess_Board>(m_index_to_position);
     const Depth_Int depth = read_private_data<Depth_Int>(m_index_to_depth);
-    Search_Quiet_Cont_Hist_Stack   q_cont_hist_stack;
-    Search_Capture_Cont_Hist_Stack c_cont_hist_stack;
-    const Score        alpha = read_private_data<Score>(m_index_to_alpha);
-    const Score        beta  = read_private_data<Score>(m_index_to_beta);
+
+    Search_Quiet_Cont_Hist_Stack q_cont_hist_stack(
+        [this](const auto& read)
+        {
+            call_shared_data<Quiet_Continuation_History_Table>(
+                m_index_to_q_cont_hist_table, read);
+        });
+    Search_Capture_Cont_Hist_Stack c_cont_hist_stack(
+        [this](const auto& read)
+        {
+            call_shared_data<Capture_Continuation_History_Table>(
+                m_index_to_c_cont_hist_table, read);
+        });
+
+    const Score alpha = read_private_data<Score>(m_index_to_alpha);
+    const Score beta  = read_private_data<Score>(m_index_to_beta);
+    
     Search_Worker_Data worker_data;
 
     Search_Engine_Result search_result =
@@ -389,27 +402,13 @@ Search_Work::negamax(Chess_Board&                    position,
         // by moves from the previous sibling.
         child_principal_variation.clear();
 
-        // Bind a reference to the history table for this child move's subtree
-        // to the stack indexed by ply. A history table is fetched from the
-        // continuation history table which is indexed by the "previous move"
-        // (this move is the previous move for it's subtree).
-        auto& q_cont_hist_table =
-            read_shared_data<Quiet_Continuation_History_Table>(
-                m_index_to_q_cont_hist_table)
-                .get();
-
-        auto& c_cont_hist_table =
-            read_shared_data<Capture_Continuation_History_Table>(
-                m_index_to_c_cont_hist_table)
-                .get();
-
         const auto q_cont_hist_max_idx =
             q_cont_hist_stack.stack.get_max_index();
-        q_cont_hist_stack.bind_to_history_table(q_cont_hist_table[move], ply);
+        q_cont_hist_stack.bind_to_move(move, ply);
 
         const auto c_cont_hist_max_idx =
             c_cont_hist_stack.stack.get_max_index();
-        c_cont_hist_stack.bind_to_history_table(c_cont_hist_table[move], ply);
+        c_cont_hist_stack.bind_to_move(move, ply);
 
         // Explore the child move's subtree for it's evaluation. Negate the
         // result to compare it's score to the parent's scores (alpha,
@@ -514,9 +513,8 @@ Search_Work::negamax(Chess_Board&                    position,
         position.undo_move(undo_move);
 
         // Truncate the continuation history stack to the previous maximum index
-        // because the child's subtree may have added new references to history
-        // tables and we don't want those to be considered for the next
-        // sibling's subtree.
+        // because the child's subtree may have added new moves we don't want 
+        // those to be considered for the next sibling's subtree.
         q_cont_hist_stack.stack.truncate(q_cont_hist_max_idx);
         c_cont_hist_stack.stack.truncate(c_cont_hist_max_idx);
 
@@ -1176,21 +1174,27 @@ void Search_Work::update_continuation_history(
     constexpr bool MALUS = true;
     constexpr bool BONUS = false;
 
-    for (int64_t i = start; i >= end; --i)
-    {
-        auto& entry = q_cont_hist_stack.stack[static_cast<std::size_t>(i)];
-
-        // Give a bonus to this move pair (preceeding move, given move).
-        entry.get_ref().gravity_update<BONUS>(move, depth_squared);
-
-        // Malus all move pairs for the given move that didn't cause a beta
-        // cutoff.
-        for (const Chess_Move& malus_move : quiets_to_malus)
+    call_shared_data<Quiet_Continuation_History_Table>(
+        m_index_to_q_cont_hist_table,
+        [&](Quiet_Continuation_History_Table& table)
         {
-            entry.get_ref().gravity_update<MALUS>(malus_move,
-                                                  (depth_squared >> 1));
-        }
-    }
+            for (int64_t i = start; i >= end; --i)
+            {
+                auto& entry =
+                    table[q_cont_hist_stack.stack[static_cast<std::size_t>(i)]];
+
+                // Give a bonus to this move pair (preceeding move, given move).
+                entry.gravity_update<BONUS>(move, depth_squared);
+
+                // Malus all move pairs for the given move that didn't cause a beta
+                // cutoff.
+                for (const Chess_Move& malus_move : quiets_to_malus)
+                {
+                    entry.gravity_update<MALUS>(malus_move,
+                                                (depth_squared >> 1));
+                }
+            }
+        });
 }
 
 void Search_Work::update_continuation_history(
@@ -1218,21 +1222,27 @@ void Search_Work::update_continuation_history(
     constexpr bool MALUS = true;
     constexpr bool BONUS = false;
 
-    for (int64_t i = start; i >= end; --i)
-    {
-        // Give a bonus to this move pair (preceeding move, given move).
-        auto& entry = c_cont_hist_stack.stack[static_cast<std::size_t>(i)];
-        entry.get_ref().gravity_update<BONUS>(
-            move,
-            ((3 * depth_squared) + (16 * depth) - 8));
-
-        // Malus all move pairs for the given move that didn't cause a beta
-        // cutoff.
-        for (const Chess_Move& malus_move : captures_to_malus)
+    call_shared_data<Capture_Continuation_History_Table>(
+        m_index_to_c_cont_hist_table,
+        [&](Capture_Continuation_History_Table& table)
         {
-            entry.get_ref().gravity_update<MALUS>(
-                malus_move,
-                ((1 * depth_squared) + (8 * depth)));
-        }
-    }
+            for (int64_t i = start; i >= end; --i)
+            {
+                // Give a bonus to this move pair (preceeding move, given move).
+                auto& entry =
+                    table[c_cont_hist_stack.stack[static_cast<std::size_t>(i)]];
+                entry.gravity_update<BONUS>(
+                    move,
+                    ((3 * depth_squared) + (16 * depth) - 8));
+
+                // Malus all move pairs for the given move that didn't cause a beta
+                // cutoff.
+                for (const Chess_Move& malus_move : captures_to_malus)
+                {
+                    entry.gravity_update<MALUS>(
+                        malus_move,
+                        ((1 * depth_squared) + (8 * depth)));
+                }
+            }
+        });
 }
