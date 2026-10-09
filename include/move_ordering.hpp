@@ -1,5 +1,8 @@
 #pragma once
 
+#include <algorithm>
+#include <random>
+
 #include "chess_board.hpp"
 #include "chess_move.hpp"
 #include "globals.hpp"
@@ -16,6 +19,8 @@ constexpr Move_Score MVV_LVA_ATTACKER_VALUES[] =
 typedef Multi_Array<Move_Score, (PIECES::KING + 1), (PIECES::QUEEN + 1)>
     mvv_lva_array;
 
+constexpr Move_Score DEFAULT_SHUFFLE_MOVES_SCORE_SIMILARITY = 100;
+
 template <std::size_t CONT_HIST_STACK_SIZE>
 class Move_Ordering
 {
@@ -30,7 +35,11 @@ class Move_Ordering
         const Capture_Continuation_History_Stack<CONT_HIST_STACK_SIZE>&
             c_cont_hist_stack);
 
-    Move_Generation_List&  get_sorted_moves();
+    void shuffle_similar_moves(Move_Generation_List& moves, const Move_Score similarity);
+    
+    template <bool should_shuffle>
+    Move_Generation_List&  get_sorted_moves(const Move_Score similarity = DEFAULT_SHUFFLE_MOVES_SCORE_SIMILARITY);
+
     Moves_Bitboard_Matrix& get_moves_matrix();
     bool                   is_side_to_move_in_check() const;
 
@@ -91,12 +100,44 @@ void Move_Ordering<CONT_HIST_STACK_SIZE>::generate_moves()
 }
 
 template <std::size_t CONT_HIST_STACK_SIZE>
-Move_Generation_List& Move_Ordering<CONT_HIST_STACK_SIZE>::get_sorted_moves()
+void Move_Ordering<CONT_HIST_STACK_SIZE>::shuffle_similar_moves(Move_Generation_List& moves, const Move_Score similarity)
+{
+    if (moves.get_max_index() < 1)
+    {
+        return;
+    }
+
+    static thread_local std::mt19937 rng(std::random_device {}());
+    for (auto first = moves.begin(); first != moves.end();)
+    {
+        const int lowest_score = static_cast<int>(first->score) - similarity;
+        
+        // Finds the last move in the list that has a score greater than or 
+        // equal to the lowest score in the partition.
+        const auto last = std::find_if(
+            first + 1, moves.end(), [lowest_score](const Chess_Move& move)
+            { return move.score < lowest_score; });
+
+        // Randomly shuffle the moves in the partition.
+        std::shuffle(first, last, rng);
+
+        first = last;
+    }
+}
+
+template <std::size_t CONT_HIST_STACK_SIZE>
+template <bool should_shuffle>
+Move_Generation_List& Move_Ordering<CONT_HIST_STACK_SIZE>::get_sorted_moves(
+    const Move_Score similarity)
 {
     if (m_move_list.get_max_index() != -1)
     {
         move_scorer();
         m_move_list.sort();
+        if constexpr (should_shuffle)
+        {
+            shuffle_similar_moves(m_move_list, similarity);
+        }
     }
     return m_move_list;
 }

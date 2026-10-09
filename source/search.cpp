@@ -244,7 +244,7 @@ Search_Work::negamax(Chess_Board&                    position,
                      q_cont_hist_stack,
                      c_cont_hist_stack);
     mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
-    Move_Generation_List&  moves              = mo.get_sorted_moves();
+    Move_Generation_List&  moves              = mo.get_sorted_moves<true>((75 * depth_squared) / 64);
     Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
     const bool is_side_to_move_in_check       = mo.is_side_to_move_in_check();
 
@@ -725,7 +725,7 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
     {
         mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>();
     }
-    Move_Generation_List&  moves              = mo.get_sorted_moves();
+    Move_Generation_List&  moves              = mo.get_sorted_moves<false>();
     Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
 
     // Generate moves matrix for the opposing side for evaluation purposes.
