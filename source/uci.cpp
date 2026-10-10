@@ -182,8 +182,7 @@ void UCI::handle_uci(const std::string&)
     std::cout << "option name Hash type spin default "
               << DEFAULT_TRANSPOSITION_TABLE_SIZE << " min 1 max 1024"
               << std::endl;
-    std::cout << "option name Threads type spin default "
-              << 1 << " min 1 max 8"
+    std::cout << "option name Threads type spin default " << 1 << " min 1 max 8"
               << std::endl;
     std::cout << "uciok" << std::endl;
 }

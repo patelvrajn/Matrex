@@ -35,10 +35,13 @@ class Move_Ordering
         const Capture_Continuation_History_Stack<CONT_HIST_STACK_SIZE>&
             c_cont_hist_stack);
 
-    void shuffle_similar_moves(Move_Generation_List& moves, const Move_Score similarity);
-    
+    void shuffle_similar_moves(Move_Generation_List&       moves,
+                               const Move_Score            similarity,
+                               const Move_Generation_List& excluded_moves);
+
     template <bool should_shuffle>
-    Move_Generation_List&  get_sorted_moves(const Move_Score similarity = DEFAULT_SHUFFLE_MOVES_SCORE_SIMILARITY);
+    Move_Generation_List& get_sorted_moves(
+        const Move_Score similarity = DEFAULT_SHUFFLE_MOVES_SCORE_SIMILARITY);
 
     Moves_Bitboard_Matrix& get_moves_matrix();
     bool                   is_side_to_move_in_check() const;
@@ -100,23 +103,40 @@ void Move_Ordering<CONT_HIST_STACK_SIZE>::generate_moves()
 }
 
 template <std::size_t CONT_HIST_STACK_SIZE>
-void Move_Ordering<CONT_HIST_STACK_SIZE>::shuffle_similar_moves(Move_Generation_List& moves, const Move_Score similarity)
+void Move_Ordering<CONT_HIST_STACK_SIZE>::shuffle_similar_moves(
+    Move_Generation_List&       moves,
+    const Move_Score            similarity,
+    const Move_Generation_List& excluded_moves)
 {
-    if (moves.get_max_index() < 1)
+    if (moves.get_max_index() < 1) { return; }
+
+    const auto is_excluded = [&excluded_moves](const Chess_Move& move)
     {
-        return;
-    }
+        return std::any_of(excluded_moves.begin(),
+                           excluded_moves.end(),
+                           [&move](const Chess_Move& excluded)
+                           { return move.is_same_move(excluded); });
+    };
 
     static thread_local std::mt19937 rng(std::random_device {}());
     for (auto first = moves.begin(); first != moves.end();)
     {
+        // Skip excluded moves.
+        if (is_excluded(*first))
+        {
+            ++first;
+            continue;
+        }
+
         const int lowest_score = static_cast<int>(first->score) - similarity;
-        
-        // Finds the last move in the list that has a score greater than or 
-        // equal to the lowest score in the partition.
+
+        // Finds the last move in the list that has a score greater than or
+        // equal to the lowest score in the partition and is not excluded.
         const auto last = std::find_if(
-            first + 1, moves.end(), [lowest_score](const Chess_Move& move)
-            { return move.score < lowest_score; });
+            first + 1,
+            moves.end(),
+            [lowest_score, &is_excluded](const Chess_Move& move)
+            { return ((move.score < lowest_score) || is_excluded(move)); });
 
         // Randomly shuffle the moves in the partition.
         std::shuffle(first, last, rng);
@@ -136,7 +156,9 @@ Move_Generation_List& Move_Ordering<CONT_HIST_STACK_SIZE>::get_sorted_moves(
         m_move_list.sort();
         if constexpr (should_shuffle)
         {
-            shuffle_similar_moves(m_move_list, similarity);
+            Move_Generation_List excluded_moves;
+            excluded_moves.append(m_hash_move);
+            shuffle_similar_moves(m_move_list, similarity, excluded_moves);
         }
     }
     return m_move_list;

@@ -67,26 +67,27 @@ bool Search_Work::has_job() const { return true; }
 
 std::any Search_Work::operator()(std::stop_token)
 {
-    Chess_Board position =
-        read_private_data<Chess_Board>(m_index_to_position);
+    Chess_Board position  = read_private_data<Chess_Board>(m_index_to_position);
     const Depth_Int depth = read_private_data<Depth_Int>(m_index_to_depth);
 
     Search_Quiet_Cont_Hist_Stack q_cont_hist_stack(
         [this](const auto& read)
         {
             call_shared_data<Quiet_Continuation_History_Table>(
-                m_index_to_q_cont_hist_table, read);
+                m_index_to_q_cont_hist_table,
+                read);
         });
     Search_Capture_Cont_Hist_Stack c_cont_hist_stack(
         [this](const auto& read)
         {
             call_shared_data<Capture_Continuation_History_Table>(
-                m_index_to_c_cont_hist_table, read);
+                m_index_to_c_cont_hist_table,
+                read);
         });
 
     const Score alpha = read_private_data<Score>(m_index_to_alpha);
     const Score beta  = read_private_data<Score>(m_index_to_beta);
-    
+
     Search_Worker_Data worker_data;
 
     Search_Engine_Result search_result =
@@ -244,7 +245,11 @@ Search_Work::negamax(Chess_Board&                    position,
                      q_cont_hist_stack,
                      c_cont_hist_stack);
     mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
-    Move_Generation_List&  moves              = mo.get_sorted_moves<true>((75 * depth_squared) / 64);
+
+    const Move_Score similarity =
+        static_cast<Move_Score>(2U * std::min(depth_squared, 128U));
+    Move_Generation_List& moves = mo.get_sorted_moves<true>(similarity);
+
     Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
     const bool is_side_to_move_in_check       = mo.is_side_to_move_in_check();
 
@@ -278,12 +283,13 @@ Search_Work::negamax(Chess_Board&                    position,
     }
 
     const Timer& timer =
-        read_private_data<std::reference_wrapper<Timer>>(
-            m_index_to_timer).get();
+        read_private_data<std::reference_wrapper<Timer>>(m_index_to_timer)
+            .get();
 
     const Search_Constraints& constraints =
         read_private_data<std::reference_wrapper<Search_Constraints>>(
-            m_index_to_constraints).get();
+            m_index_to_constraints)
+            .get();
 
     const PIECE_COLOR my_side =
         read_private_data<PIECE_COLOR>(m_index_to_my_side);
@@ -513,7 +519,7 @@ Search_Work::negamax(Chess_Board&                    position,
         position.undo_move(undo_move);
 
         // Truncate the continuation history stack to the previous maximum index
-        // because the child's subtree may have added new moves we don't want 
+        // because the child's subtree may have added new moves we don't want
         // those to be considered for the next sibling's subtree.
         q_cont_hist_stack.stack.truncate(q_cont_hist_max_idx);
         c_cont_hist_stack.stack.truncate(c_cont_hist_max_idx);
@@ -981,12 +987,12 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
 
             std::unique_ptr<Thread_Job> job =
                 std::make_unique<Search_Work>(m_shared_data,
-                m_chess_board,
-                depth,
-                current_window.alpha,
-                current_window.beta,
-                m_timer,
-                m_constraints);
+                                              m_chess_board,
+                                              depth,
+                                              current_window.alpha,
+                                              current_window.beta,
+                                              m_timer,
+                                              m_constraints);
 
             m_worker_pool.push_job(std::move(job));
         }
@@ -995,22 +1001,18 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
         m_shared_data.remove(INDEX_TO_WELFORD);
         m_shared_data.remove(INDEX_TO_WORKER_DATA_ARRAY);
 
-        m_num_of_nodes_searched += std::accumulate(
-            workers_data,
-            workers_data + m_constraints.num_of_search_workers,
-            uint64_t{0},
-            [](uint64_t total, const Search_Worker_Data& worker)
-            {
-                return total + worker.num_of_nodes_searched;
-            });
+        m_num_of_nodes_searched +=
+            std::accumulate(workers_data,
+                            workers_data + m_constraints.num_of_search_workers,
+                            uint64_t {0},
+                            [](uint64_t total, const Search_Worker_Data& worker)
+                            { return total + worker.num_of_nodes_searched; });
 
         Search_Worker_Data* best_worker = std::max_element(
             workers_data,
             workers_data + m_constraints.num_of_search_workers,
             [](const Search_Worker_Data& lhs, const Search_Worker_Data& rhs)
-            {
-                return lhs.search_result.second < rhs.search_result.second;
-            });
+            { return lhs.search_result.second < rhs.search_result.second; });
 
         best_worker->principal_variation.truncate(m_current_search_depth - 1);
 
@@ -1022,9 +1024,7 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
             workers_data + m_constraints.num_of_search_workers,
             false,
             [](bool expired, const Search_Worker_Data& worker)
-            {
-                return expired || worker.timer_expired_during_search;
-            });
+            { return expired || worker.timer_expired_during_search; });
 
         delete[] workers_data;
 
@@ -1186,8 +1186,8 @@ void Search_Work::update_continuation_history(
                 // Give a bonus to this move pair (preceeding move, given move).
                 entry.gravity_update<BONUS>(move, depth_squared);
 
-                // Malus all move pairs for the given move that didn't cause a beta
-                // cutoff.
+                // Malus all move pairs for the given move that didn't cause a
+                // beta cutoff.
                 for (const Chess_Move& malus_move : quiets_to_malus)
                 {
                     entry.gravity_update<MALUS>(malus_move,
@@ -1235,8 +1235,8 @@ void Search_Work::update_continuation_history(
                     move,
                     ((3 * depth_squared) + (16 * depth) - 8));
 
-                // Malus all move pairs for the given move that didn't cause a beta
-                // cutoff.
+                // Malus all move pairs for the given move that didn't cause a
+                // beta cutoff.
                 for (const Chess_Move& malus_move : captures_to_malus)
                 {
                     entry.gravity_update<MALUS>(

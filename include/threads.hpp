@@ -228,8 +228,7 @@ class Thread_Worker
     }
 
     // An overloaded constructor to assign an initial job to the worker thread.
-    Thread_Worker(std::size_t id, Thread_Job& job) :
-        Thread_Worker(id)
+    Thread_Worker(std::size_t id, Thread_Job& job) : Thread_Worker(id)
     {
         assign_job(job);
     }
@@ -307,7 +306,7 @@ class Thread_Worker
             // Atomically manipulate m_job.
             {
                 std::scoped_lock lock(m_job_assignment_mutex);
-                auto& job = m_job.get_ref();
+                auto&            job = m_job.get_ref();
 
                 // Discard the job from the thread.
                 discard_job();
@@ -343,7 +342,7 @@ class Thread_Pool
     {
         std::scoped_lock lock(m_jobs_mutex);
         m_max_num_of_threads = max_num_of_threads;
-        m_next_thread_id = std::min(m_next_thread_id, max_num_of_threads);
+        m_next_thread_id     = std::min(m_next_thread_id, max_num_of_threads);
     }
 
     // Allows pushing a job to the job vector for the dispatcher to assign to a
@@ -380,7 +379,7 @@ class Thread_Pool
     std::size_t                                 m_max_num_of_threads;
     std::vector<std::unique_ptr<Thread_Worker>> m_threads;
 
-    // IDs are indices in [0, N). IDs below this ID have been used in this 
+    // IDs are indices in [0, N). IDs below this ID have been used in this
     // round.
     std::size_t m_next_thread_id = 0;
 
@@ -401,7 +400,7 @@ class Thread_Pool
             // its loop which involves manipulating the jobs vector.
             std::scoped_lock lock(m_jobs_mutex);
 
-            // Pop workers that are above the max number of threads and 
+            // Pop workers that are above the max number of threads and
             // currently have no jobs assigned to them.
             while (m_threads.size() > m_max_num_of_threads
                    && (!m_threads.back()->has_job()))
@@ -440,7 +439,7 @@ class Thread_Pool
             // If there is no job that needs to be assigned, do nothing.
             if (next_job_iterator == m_jobs.end()) { continue; }
 
-            // Zero maximum number of threads pauses assignment. If there are 
+            // Zero maximum number of threads pauses assignment. If there are
             // more threads than the maximum number of threads, wait for them to
             // be popped.
             if (m_max_num_of_threads == 0
@@ -449,9 +448,10 @@ class Thread_Pool
                 continue;
             }
 
-            // Only begin a new round of IDs after every ID has been assigned. 
+            // Only begin a new round of IDs after every ID has been assigned.
             const std::size_t next_thread_id =
-                (m_next_thread_id == m_max_num_of_threads) ? 0 : m_next_thread_id;
+                (m_next_thread_id == m_max_num_of_threads) ? 0
+                                                           : m_next_thread_id;
 
             // Wait if the minimum unused ID is busy rather than skipping it.
             if (next_thread_id < m_threads.size()
@@ -462,9 +462,9 @@ class Thread_Pool
 
             if (next_thread_id == m_threads.size())
             {
-                m_threads.emplace_back(std::make_unique<Thread_Worker>(
-                    next_thread_id,
-                    **next_job_iterator));
+                m_threads.emplace_back(
+                    std::make_unique<Thread_Worker>(next_thread_id,
+                                                    **next_job_iterator));
             }
             else
             {

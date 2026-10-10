@@ -198,7 +198,7 @@ class Search_Engine
     Search_Constraints       m_constraints;
     Timer                    m_timer;
     bool                     m_timer_expired_during_search = false;
-    uint64_t                 m_num_of_nodes_searched = 0;
+    uint64_t                 m_num_of_nodes_searched       = 0;
     Depth_Int                m_current_search_depth;
     Principal_Variation_List m_principal_variation;
 
