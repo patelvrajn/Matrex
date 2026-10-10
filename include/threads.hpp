@@ -222,13 +222,21 @@ class Thread_Worker
 
     // Construct the thread worker - mainly, assign the worker thread the task
     // of the worker loop.
-    Thread_Worker(std::size_t id) :
-        m_id(id), m_thread([this](std::stop_token stop) { worker_loop(stop); })
+    Thread_Worker(
+        std::size_t                               id,
+        std::reference_wrapper<std::atomic<bool>> should_dispatch_pulse) :
+        m_id(id),
+        m_should_dispatch_pulse(should_dispatch_pulse),
+        m_thread([this](std::stop_token stop) { worker_loop(stop); })
     {
     }
 
     // An overloaded constructor to assign an initial job to the worker thread.
-    Thread_Worker(std::size_t id, Thread_Job& job) : Thread_Worker(id)
+    Thread_Worker(
+        std::size_t                               id,
+        Thread_Job&                               job,
+        std::reference_wrapper<std::atomic<bool>> should_dispatch_pulse) :
+        Thread_Worker(id, should_dispatch_pulse)
     {
         assign_job(job);
     }
@@ -270,6 +278,8 @@ class Thread_Worker
     // job or is waiting for a job to be assigned.
     std::mutex                  m_job_assignment_mutex;
     std::condition_variable_any m_conditional_variable;
+
+    std::reference_wrapper<std::atomic<bool>> m_should_dispatch_pulse;
 
     std::jthread m_thread;
 
@@ -313,6 +323,10 @@ class Thread_Worker
 
                 // The dispatcher may delete the job as soon as this is set.
                 job.set_complete(true);
+
+                // Publish completion before waking the dispatcher.
+                m_should_dispatch_pulse.get().store(true);
+                m_should_dispatch_pulse.get().notify_one();
             }
         }
     }
@@ -343,6 +357,8 @@ class Thread_Pool
         std::scoped_lock lock(m_jobs_mutex);
         m_max_num_of_threads = max_num_of_threads;
         m_next_thread_id     = std::min(m_next_thread_id, max_num_of_threads);
+        m_should_dispatch_pulse.store(true);
+        m_should_dispatch_pulse.notify_one();
     }
 
     // Allows pushing a job to the job vector for the dispatcher to assign to a
@@ -352,14 +368,22 @@ class Thread_Pool
         std::scoped_lock lock(m_jobs_mutex);
         m_are_jobs_done.store(false);
         m_jobs.push_back(std::move(job));
+        m_should_dispatch_pulse.store(true);
+        m_should_dispatch_pulse.notify_one();
     }
 
     // Terminate all workers and the dispatcher thread.
     void terminate_all()
     {
-        for (auto& worker : m_threads) { worker->stop(); }
-
         m_dispatcher.request_stop();
+        m_should_dispatch_pulse.store(true);
+        m_should_dispatch_pulse.notify_one();
+        if (m_dispatcher.joinable()) { m_dispatcher.join(); }
+
+        // The dispatcher no longer changes the workers. Join them while their
+        // jobs and the dispatch notification are still alive.
+        for (auto& worker : m_threads) { worker->stop(); }
+        m_threads.clear();
     }
 
     // Waits for all pushed jobs to complete.
@@ -373,6 +397,13 @@ class Thread_Pool
     // Atomic signifying if the dispatcher has an empty job queue and all jobs
     // requested are complete.
     std::atomic<bool> m_are_jobs_done {false};
+
+    // Should Dispatch Pulse - used to notify the dispatcher that a job has
+    // completed and it may need to assign a new job to a thread OR that a job
+    // has been pushed to the jobs vector and it may need to assign a job to a
+    // thread.
+    // Start with a pulse so an initially empty pool is marked complete.
+    std::atomic<bool> m_should_dispatch_pulse {true};
 
     // The threads vector and the maximum number of threads allowed to be
     // spawned concurrently.
@@ -396,6 +427,15 @@ class Thread_Pool
     {
         while (!stop.stop_requested())
         {
+            // Wait for the dispatch pulse to continue utilizing a CPU core for
+            // dispatching. After waiting, reset the pulse to false.
+            m_should_dispatch_pulse.wait(false);
+            m_should_dispatch_pulse.store(false);
+
+            // Stop could have arrived while waiting for the dispatch pulse. If
+            // so, exit the loop.
+            if (stop.stop_requested()) { return; }
+
             // We need the jobs mutex to be unlocked for the dispatcher to do
             // its loop which involves manipulating the jobs vector.
             std::scoped_lock lock(m_jobs_mutex);
@@ -462,9 +502,10 @@ class Thread_Pool
 
             if (next_thread_id == m_threads.size())
             {
-                m_threads.emplace_back(
-                    std::make_unique<Thread_Worker>(next_thread_id,
-                                                    **next_job_iterator));
+                m_threads.emplace_back(std::make_unique<Thread_Worker>(
+                    next_thread_id,
+                    **next_job_iterator,
+                    std::ref(m_should_dispatch_pulse)));
             }
             else
             {
@@ -472,6 +513,8 @@ class Thread_Pool
             }
 
             m_next_thread_id = next_thread_id + 1;
+
+            m_should_dispatch_pulse.store(true);
         }
     }
 };
