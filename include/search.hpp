@@ -212,7 +212,7 @@ class Search_Engine
 
     Threads_Shared_Data m_shared_data;
 
-    void aspiration_windows(Aspiration_Window& window);
+    bool aspiration_windows(Aspiration_Window& window);
 
     Search_Engine_Result iterative_deepening();
 };

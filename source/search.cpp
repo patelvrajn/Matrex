@@ -937,7 +937,7 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
     return {best_move, best_score};
 }
 
-void Search_Engine::aspiration_windows(Aspiration_Window& window)
+bool Search_Engine::aspiration_windows(Aspiration_Window& window)
 {
     Aspiration_Window current_window = window;
 
@@ -1008,6 +1008,52 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
                             [](uint64_t total, const Search_Worker_Data& worker)
                             { return total + worker.num_of_nodes_searched; });
 
+        m_timer_expired_during_search =
+            std::any_of(workers_data,
+                        workers_data + m_constraints.num_of_search_workers,
+                        [](const Search_Worker_Data& worker)
+                        { return worker.timer_expired_during_search; });
+
+        if (m_timer_expired_during_search)
+        {
+            // Keep a completed result even if another worker timed out. Failed
+            // aspiration searches cannot be accepted because they need a retry.
+            const auto is_eligible = [&](const Search_Worker_Data& worker)
+            {
+                const Score score = worker.search_result.second;
+                return !worker.timer_expired_during_search
+                    && score > current_window.alpha
+                    && score < current_window.beta;
+            };
+
+            const auto workers_end =
+                workers_data + m_constraints.num_of_search_workers;
+
+            const auto completed_worker = std::max_element(
+                workers_data,
+                workers_end,
+                [&](const Search_Worker_Data& lhs,
+                    const Search_Worker_Data& rhs)
+                {
+                    const bool lhs_eligible = is_eligible(lhs);
+                    const bool rhs_eligible = is_eligible(rhs);
+                    if (lhs_eligible != rhs_eligible) { return !lhs_eligible; }
+                    return lhs.search_result.second < rhs.search_result.second;
+                });
+
+            const bool has_completed_result = (completed_worker != workers_end)
+                                           && is_eligible(*completed_worker);
+            if (has_completed_result)
+            {
+                window.search_result  = completed_worker->search_result;
+                m_principal_variation = completed_worker->principal_variation;
+                m_principal_variation.truncate(m_current_search_depth - 1);
+            }
+
+            delete[] workers_data;
+            return has_completed_result;
+        }
+
         Search_Worker_Data* best_worker = std::max_element(
             workers_data,
             workers_data + m_constraints.num_of_search_workers,
@@ -1019,16 +1065,7 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
         current_window.search_result = best_worker->search_result;
         m_principal_variation        = best_worker->principal_variation;
 
-        m_timer_expired_during_search = std::accumulate(
-            workers_data,
-            workers_data + m_constraints.num_of_search_workers,
-            false,
-            [](bool expired, const Search_Worker_Data& worker)
-            { return expired || worker.timer_expired_during_search; });
-
         delete[] workers_data;
-
-        if (m_timer_expired_during_search) { break; }
 
         // Variance was used instead of standard deviation in order to save a
         // square root calculation.
@@ -1088,6 +1125,7 @@ void Search_Engine::aspiration_windows(Aspiration_Window& window)
     }
 
     window = current_window;
+    return true;
 }
 
 Search_Engine_Result Search_Engine::iterative_deepening()
@@ -1111,9 +1149,7 @@ Search_Engine_Result Search_Engine::iterative_deepening()
     {
         m_current_search_depth = current_depth;
 
-        aspiration_windows(window);
-
-        if (m_timer_expired_during_search) { break; }
+        if (!aspiration_windows(window)) { break; }
 
         best = window.search_result;
 
@@ -1127,6 +1163,8 @@ Search_Engine_Result Search_Engine::iterative_deepening()
             window.search_result.second);
 
         std::cout << uci_search_info << std::endl;
+
+        if (m_timer_expired_during_search) { break; }
 
         if ((m_constraints.is_depth_search())
             && (current_depth == m_constraints.depth))
