@@ -16,6 +16,41 @@
 #include "globals.hpp"
 
 // =============================================================================
+// Threads States Class
+//
+// An abstraction of data that represents the state of multiple threads. The
+// typename T is expected to be a class/struct that represents the state of a
+// single thread.
+// =============================================================================
+template <typename T>
+class Threads_States
+{
+  public:
+
+    Threads_States() {}
+
+    Threads_States(std::size_t num_of_threads) : m_states(num_of_threads) {}
+
+    T& operator[](std::size_t index) { return m_states[index]; }
+
+    auto begin() { return m_states.begin(); }
+
+    auto begin() const { return m_states.begin(); }
+
+    auto end() { return m_states.end(); }
+
+    auto end() const { return m_states.end(); }
+
+    void resize(std::size_t num_of_threads) { m_states.resize(num_of_threads); }
+
+    void reset() { std::fill((*this).begin(), (*this).end(), T {}); }
+
+  private:
+
+    std::vector<T> m_states;
+};
+
+// =============================================================================
 // Threads Shared Data Class
 //
 // An abstraction of data shared between threads. It lives as a vector of

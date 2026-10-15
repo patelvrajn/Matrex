@@ -29,9 +29,6 @@ constexpr History_Score_Storage_Type CAPTURE_HISTORY_PRUNING_THRESHOLD = -35;
 constexpr Matrex_FP_Int CONFIDENCE_INTERVAL_Z_SCORE =
     Matrex_FP_Int::from_double(2.576);
 
-constexpr static std::size_t INDEX_TO_WORKER_DATA_ARRAY = 5;
-constexpr static std::size_t INDEX_TO_WELFORD           = 6;
-
 struct Time_Control
 {
     uint64_t time_remaining; // Time in milliseconds.
@@ -130,6 +127,32 @@ class Welford
         return *this;
     }
 
+    constexpr Welford operator+(const Welford& other) const
+    {
+        if (m_count == 0) { return other; }
+        if (other.m_count == 0) { return *this; }
+
+        Welford combined;
+        combined.m_count = m_count + other.m_count;
+
+        const int64_t delta =
+            static_cast<int64_t>(other.m_mean.get_value()) - m_mean.get_value();
+        combined.m_mean =
+            Matrex_FP_Int::from_value(static_cast<Fixed_Point_Int_Storage_Type>(
+                m_mean.get_value()
+                + ((delta * other.m_count) / combined.m_count)));
+
+        constexpr int64_t scale      = Matrex_FP_Int::scale();
+        const int64_t     correction = static_cast<int64_t>(
+            static_cast<__int128_t>(delta) * delta * m_count * other.m_count
+            / (static_cast<__int128_t>(combined.m_count) * scale * scale));
+        combined.m_squared_differences_sum = m_squared_differences_sum
+                                           + other.m_squared_differences_sum
+                                           + correction;
+
+        return combined;
+    }
+
     constexpr Fixed_Point_Int_Storage_Type get_count() const { return m_count; }
 
     constexpr Matrex_FP_Int get_average() const { return m_mean; }
@@ -174,6 +197,15 @@ using Search_Quiet_Cont_Hist_Stack =
 using Search_Capture_Cont_Hist_Stack =
     Capture_Continuation_History_Stack<MAX_SEARCH_DEPTH_SOFT_LIMIT>;
 
+struct Search_Worker_Data
+{
+    uint64_t                 num_of_nodes_searched = 0;
+    Search_Engine_Result     search_result;
+    Principal_Variation_List principal_variation;
+    bool                     timer_expired_during_search = false;
+    Welford                  leaf_scores_welford;
+};
+
 class Search_Engine
 {
   public:
@@ -191,7 +223,8 @@ class Search_Engine
 
   private:
 
-    Thread_Pool m_worker_pool;
+    Thread_Pool                        m_worker_pool;
+    Threads_States<Search_Worker_Data> m_threads_states;
 
     Chess_Board              m_chess_board;
     Transposition_Table      m_transposition_table;
@@ -217,25 +250,18 @@ class Search_Engine
     Search_Engine_Result iterative_deepening();
 };
 
-struct Search_Worker_Data
-{
-    uint64_t                 num_of_nodes_searched = 0;
-    Search_Engine_Result     search_result;
-    Principal_Variation_List principal_variation;
-    bool                     timer_expired_during_search = false;
-};
-
 class Search_Work : public Thread_Job
 {
   public:
 
-    Search_Work(Threads_Shared_Data& shared_data,
-                Chess_Board          position,
-                Depth_Int            depth,
-                Score                alpha,
-                Score                beta,
-                Timer&               timer,
-                Search_Constraints&  constraints);
+    Search_Work(Threads_Shared_Data&                shared_data,
+                Threads_States<Search_Worker_Data>& threads_states,
+                Chess_Board                         position,
+                Depth_Int                           depth,
+                Score                               alpha,
+                Score                               beta,
+                Timer&                              timer,
+                Search_Constraints&                 constraints);
 
     virtual bool has_job() const override;
 
@@ -248,6 +274,8 @@ class Search_Work : public Thread_Job
     constexpr static std::size_t m_index_to_correction_history  = 2;
     constexpr static std::size_t m_index_to_q_cont_hist_table   = 3;
     constexpr static std::size_t m_index_to_c_cont_hist_table   = 4;
+
+    Threads_States<Search_Worker_Data>& m_threads_states;
 
     std::size_t m_index_to_position;
     std::size_t m_index_to_my_side;

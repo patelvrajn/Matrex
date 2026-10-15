@@ -38,20 +38,23 @@ Search_Engine::search(const Chess_Board&        cb,
     m_num_of_nodes_searched = 0;
 
     m_worker_pool.set_max_num_of_threads(m_constraints.num_of_search_workers);
+    m_threads_states.resize(m_constraints.num_of_search_workers);
+
     m_transposition_table.resize(constraints.transposition_table_size);
     m_principal_variation.clear();
 
     return iterative_deepening();
 }
 
-Search_Work::Search_Work(Threads_Shared_Data& shared_data,
-                         Chess_Board          position,
-                         Depth_Int            depth,
-                         Score                alpha,
-                         Score                beta,
-                         Timer&               timer,
-                         Search_Constraints&  constraints) :
-    Thread_Job(shared_data)
+Search_Work::Search_Work(Threads_Shared_Data&                shared_data,
+                         Threads_States<Search_Worker_Data>& threads_states,
+                         Chess_Board                         position,
+                         Depth_Int                           depth,
+                         Score                               alpha,
+                         Score                               beta,
+                         Timer&                              timer,
+                         Search_Constraints&                 constraints) :
+    Thread_Job(shared_data), m_threads_states(threads_states)
 {
     m_index_to_position = write_to_private_data<Chess_Board>(position);
     m_index_to_my_side =
@@ -88,31 +91,19 @@ std::any Search_Work::operator()(std::stop_token)
     const Score alpha = read_private_data<Score>(m_index_to_alpha);
     const Score beta  = read_private_data<Score>(m_index_to_beta);
 
-    Search_Worker_Data worker_data;
+    auto& worker_data = m_threads_states[get_assigned_thread_id()];
 
-    Search_Engine_Result search_result =
-        negamax(position,
-                depth,
-                worker_data.principal_variation,
-                q_cont_hist_stack,
-                c_cont_hist_stack,
-                worker_data.timer_expired_during_search,
-                0,
-                alpha,
-                beta);
+    worker_data.search_result = negamax(position,
+                                        depth,
+                                        worker_data.principal_variation,
+                                        q_cont_hist_stack,
+                                        c_cont_hist_stack,
+                                        worker_data.timer_expired_during_search,
+                                        0,
+                                        alpha,
+                                        beta);
 
-    call_shared_data<Search_Worker_Data*>(
-        INDEX_TO_WORKER_DATA_ARRAY,
-        [&](Search_Worker_Data*& workers)
-        {
-            workers[get_assigned_thread_id()].search_result = search_result;
-            workers[get_assigned_thread_id()].principal_variation =
-                worker_data.principal_variation;
-            workers[get_assigned_thread_id()].timer_expired_during_search =
-                worker_data.timer_expired_during_search;
-        });
-
-    return search_result;
+    return worker_data.search_result;
 }
 
 Search_Engine_Result
@@ -131,10 +122,7 @@ Search_Work::negamax(Chess_Board&                    position,
 
     const uint32_t depth_squared = (depth * depth);
 
-    call_shared_data<Search_Worker_Data*>(
-        INDEX_TO_WORKER_DATA_ARRAY,
-        [this](Search_Worker_Data*& workers)
-        { ++workers[get_assigned_thread_id()].num_of_nodes_searched; });
+    ++m_threads_states[get_assigned_thread_id()].num_of_nodes_searched;
 
     // The parent's PV must be cleared between negamax calls because sibling
     // moves could influence each other.
@@ -227,10 +215,8 @@ Search_Work::negamax(Chess_Board&                    position,
         const Search_Engine_Result quiescence_result =
             quiescence(position, ply, alpha, beta);
 
-        call_shared_data<Welford>(
-            INDEX_TO_WELFORD,
-            [&](Welford& accumulator)
-            { accumulator += quiescence_result.second.to_fixed_point(); });
+        m_threads_states[get_assigned_thread_id()].leaf_scores_welford +=
+            quiescence_result.second.to_fixed_point();
 
         return quiescence_result;
     }
@@ -681,10 +667,7 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
     const Depth_Int maximum_depth =
         read_private_data<Depth_Int>(m_index_to_depth);
 
-    call_shared_data<Search_Worker_Data*>(
-        INDEX_TO_WORKER_DATA_ARRAY,
-        [this](Search_Worker_Data*& workers)
-        { ++workers[get_assigned_thread_id()].num_of_nodes_searched; });
+    ++m_threads_states[get_assigned_thread_id()].num_of_nodes_searched;
 
     const Zobrist_Hash position_z_hash = position.get_zobrist_hash();
 
@@ -976,10 +959,7 @@ bool Search_Engine::aspiration_windows(Aspiration_Window& window)
     bool done = false;
     while (!done)
     {
-        Search_Worker_Data* workers_data =
-            new Search_Worker_Data[m_constraints.num_of_search_workers];
-        m_shared_data.write(std::ref(workers_data));
-        m_shared_data.write(std::ref(leaf_scores_welford));
+        m_threads_states.reset();
 
         for (std::size_t i = 0; i < m_constraints.num_of_search_workers; ++i)
         {
@@ -987,6 +967,7 @@ bool Search_Engine::aspiration_windows(Aspiration_Window& window)
 
             std::unique_ptr<Thread_Job> job =
                 std::make_unique<Search_Work>(m_shared_data,
+                                              m_threads_states,
                                               m_chess_board,
                                               depth,
                                               current_window.alpha,
@@ -998,19 +979,22 @@ bool Search_Engine::aspiration_windows(Aspiration_Window& window)
         }
 
         m_worker_pool.wait_for_jobs_to_complete();
-        m_shared_data.remove(INDEX_TO_WELFORD);
-        m_shared_data.remove(INDEX_TO_WORKER_DATA_ARRAY);
+        for (const auto& worker : m_threads_states)
+        {
+            leaf_scores_welford =
+                leaf_scores_welford + worker.leaf_scores_welford;
+        }
 
         m_num_of_nodes_searched +=
-            std::accumulate(workers_data,
-                            workers_data + m_constraints.num_of_search_workers,
+            std::accumulate(m_threads_states.begin(),
+                            m_threads_states.end(),
                             uint64_t {0},
                             [](uint64_t total, const Search_Worker_Data& worker)
                             { return total + worker.num_of_nodes_searched; });
 
         m_timer_expired_during_search =
-            std::any_of(workers_data,
-                        workers_data + m_constraints.num_of_search_workers,
+            std::any_of(m_threads_states.begin(),
+                        m_threads_states.end(),
                         [](const Search_Worker_Data& worker)
                         { return worker.timer_expired_during_search; });
 
@@ -1026,12 +1010,9 @@ bool Search_Engine::aspiration_windows(Aspiration_Window& window)
                     && score < current_window.beta;
             };
 
-            const auto workers_end =
-                workers_data + m_constraints.num_of_search_workers;
-
             const auto completed_worker = std::max_element(
-                workers_data,
-                workers_end,
+                m_threads_states.begin(),
+                m_threads_states.end(),
                 [&](const Search_Worker_Data& lhs,
                     const Search_Worker_Data& rhs)
                 {
@@ -1041,8 +1022,9 @@ bool Search_Engine::aspiration_windows(Aspiration_Window& window)
                     return lhs.search_result.second < rhs.search_result.second;
                 });
 
-            const bool has_completed_result = (completed_worker != workers_end)
-                                           && is_eligible(*completed_worker);
+            const bool has_completed_result =
+                (completed_worker != m_threads_states.end())
+                && is_eligible(*completed_worker);
             if (has_completed_result)
             {
                 window.search_result  = completed_worker->search_result;
@@ -1050,13 +1032,12 @@ bool Search_Engine::aspiration_windows(Aspiration_Window& window)
                 m_principal_variation.truncate(m_current_search_depth - 1);
             }
 
-            delete[] workers_data;
             return has_completed_result;
         }
 
-        Search_Worker_Data* best_worker = std::max_element(
-            workers_data,
-            workers_data + m_constraints.num_of_search_workers,
+        const auto best_worker = std::max_element(
+            m_threads_states.begin(),
+            m_threads_states.end(),
             [](const Search_Worker_Data& lhs, const Search_Worker_Data& rhs)
             { return lhs.search_result.second < rhs.search_result.second; });
 
@@ -1064,8 +1045,6 @@ bool Search_Engine::aspiration_windows(Aspiration_Window& window)
 
         current_window.search_result = best_worker->search_result;
         m_principal_variation        = best_worker->principal_variation;
-
-        delete[] workers_data;
 
         // Variance was used instead of standard deviation in order to save a
         // square root calculation.
