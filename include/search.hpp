@@ -254,14 +254,15 @@ class Search_Work : public Thread_Job
 {
   public:
 
-    Search_Work(Threads_Shared_Data&                shared_data,
-                Threads_States<Search_Worker_Data>& threads_states,
-                Chess_Board                         position,
-                Depth_Int                           depth,
-                Score                               alpha,
-                Score                               beta,
-                Timer&                              timer,
-                Search_Constraints&                 constraints);
+    Search_Work(Threads_Shared_Data&   shared_data,
+                Search_Worker_Data&    thread_state,
+                const Cuckoo_RM_Table& cuckoo_rm_table,
+                Chess_Board            position,
+                Depth_Int              depth,
+                Score                  alpha,
+                Score                  beta,
+                Timer&                 timer,
+                Search_Constraints&    constraints);
 
     virtual bool has_job() const override;
 
@@ -270,12 +271,9 @@ class Search_Work : public Thread_Job
   private:
 
     constexpr static std::size_t m_index_to_transposition_table = 0;
-    constexpr static std::size_t m_index_to_cuckoo_rm_table     = 1;
-    constexpr static std::size_t m_index_to_correction_history  = 2;
-    constexpr static std::size_t m_index_to_q_cont_hist_table   = 3;
-    constexpr static std::size_t m_index_to_c_cont_hist_table   = 4;
-
-    Threads_States<Search_Worker_Data>& m_threads_states;
+    constexpr static std::size_t m_index_to_correction_history  = 1;
+    constexpr static std::size_t m_index_to_q_cont_hist_table   = 2;
+    constexpr static std::size_t m_index_to_c_cont_hist_table   = 3;
 
     std::size_t m_index_to_position;
     std::size_t m_index_to_my_side;
@@ -284,6 +282,8 @@ class Search_Work : public Thread_Job
     std::size_t m_index_to_beta;
     std::size_t m_index_to_timer;
     std::size_t m_index_to_constraints;
+    std::size_t m_index_to_thread_state;
+    std::size_t m_index_to_cuckoo_rm_table;
 
     Search_Engine_Result
     negamax(Chess_Board&                    position,

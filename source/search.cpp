@@ -10,7 +10,6 @@
 
 Search_Engine::Search_Engine() :
     m_shared_data(m_transposition_table,
-                  m_cuckoo_rm_table,
                   m_correction_history,
                   m_q_cont_hist_table,
                   m_c_cont_hist_table)
@@ -46,24 +45,28 @@ Search_Engine::search(const Chess_Board&        cb,
     return iterative_deepening();
 }
 
-Search_Work::Search_Work(Threads_Shared_Data&                shared_data,
-                         Threads_States<Search_Worker_Data>& threads_states,
-                         Chess_Board                         position,
-                         Depth_Int                           depth,
-                         Score                               alpha,
-                         Score                               beta,
-                         Timer&                              timer,
-                         Search_Constraints&                 constraints) :
-    Thread_Job(shared_data), m_threads_states(threads_states)
+Search_Work::Search_Work(Threads_Shared_Data&   shared_data,
+                         Search_Worker_Data&    thread_state,
+                         const Cuckoo_RM_Table& cuckoo_rm_table,
+                         Chess_Board            position,
+                         Depth_Int              depth,
+                         Score                  alpha,
+                         Score                  beta,
+                         Timer&                 timer,
+                         Search_Constraints&    constraints) :
+    Thread_Job(shared_data)
 {
     m_index_to_position = write_to_private_data<Chess_Board>(position);
     m_index_to_my_side =
         write_to_private_data<PIECE_COLOR>(position.get_side_to_move());
-    m_index_to_depth       = write_to_private_data<Depth_Int>(depth);
-    m_index_to_alpha       = write_to_private_data<Score>(alpha);
-    m_index_to_beta        = write_to_private_data<Score>(beta);
-    m_index_to_timer       = write_reference_to_private_data(timer);
-    m_index_to_constraints = write_reference_to_private_data(constraints);
+    m_index_to_depth        = write_to_private_data<Depth_Int>(depth);
+    m_index_to_alpha        = write_to_private_data<Score>(alpha);
+    m_index_to_beta         = write_to_private_data<Score>(beta);
+    m_index_to_timer        = write_reference_to_private_data(timer);
+    m_index_to_constraints  = write_reference_to_private_data(constraints);
+    m_index_to_thread_state = write_reference_to_private_data(thread_state);
+    m_index_to_cuckoo_rm_table =
+        write_reference_to_private_data(cuckoo_rm_table);
 }
 
 bool Search_Work::has_job() const { return true; }
@@ -91,7 +94,10 @@ std::any Search_Work::operator()(std::stop_token)
     const Score alpha = read_private_data<Score>(m_index_to_alpha);
     const Score beta  = read_private_data<Score>(m_index_to_beta);
 
-    auto& worker_data = m_threads_states[get_assigned_thread_id()];
+    auto& worker_data =
+        read_private_data<std::reference_wrapper<Search_Worker_Data>>(
+            m_index_to_thread_state)
+            .get();
 
     worker_data.search_result = negamax(position,
                                         depth,
@@ -122,20 +128,25 @@ Search_Work::negamax(Chess_Board&                    position,
 
     const uint32_t depth_squared = (depth * depth);
 
-    ++m_threads_states[get_assigned_thread_id()].num_of_nodes_searched;
+    auto& worker_data =
+        read_private_data<std::reference_wrapper<Search_Worker_Data>>(
+            m_index_to_thread_state)
+            .get();
+
+    ++worker_data.num_of_nodes_searched;
 
     // The parent's PV must be cleared between negamax calls because sibling
     // moves could influence each other.
     principal_variation.clear();
 
-    bool is_three_fold_repetition = false;
-    bool is_upcoming_repetition   = call_shared_data<const Cuckoo_RM_Table>(
-        m_index_to_cuckoo_rm_table,
-        [&](const Cuckoo_RM_Table& table)
-        {
-            return table.is_upcoming_repetition(position,
-                                                is_three_fold_repetition);
-        });
+    bool        is_three_fold_repetition = false;
+    const auto& cuckoo_rm_table =
+        read_private_data<std::reference_wrapper<const Cuckoo_RM_Table>>(
+            m_index_to_cuckoo_rm_table)
+            .get();
+    bool is_upcoming_repetition =
+        cuckoo_rm_table.is_upcoming_repetition(position,
+                                               is_three_fold_repetition);
 
     if ((alpha < Score::from_int(ESCORE::DRAW)) && is_upcoming_repetition)
     {
@@ -215,7 +226,7 @@ Search_Work::negamax(Chess_Board&                    position,
         const Search_Engine_Result quiescence_result =
             quiescence(position, ply, alpha, beta);
 
-        m_threads_states[get_assigned_thread_id()].leaf_scores_welford +=
+        worker_data.leaf_scores_welford +=
             quiescence_result.second.to_fixed_point();
 
         return quiescence_result;
@@ -667,7 +678,12 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
     const Depth_Int maximum_depth =
         read_private_data<Depth_Int>(m_index_to_depth);
 
-    ++m_threads_states[get_assigned_thread_id()].num_of_nodes_searched;
+    auto& worker_data =
+        read_private_data<std::reference_wrapper<Search_Worker_Data>>(
+            m_index_to_thread_state)
+            .get();
+
+    ++worker_data.num_of_nodes_searched;
 
     const Zobrist_Hash position_z_hash = position.get_zobrist_hash();
 
@@ -967,7 +983,8 @@ bool Search_Engine::aspiration_windows(Aspiration_Window& window)
 
             std::unique_ptr<Thread_Job> job =
                 std::make_unique<Search_Work>(m_shared_data,
-                                              m_threads_states,
+                                              m_threads_states[i],
+                                              m_cuckoo_rm_table,
                                               m_chess_board,
                                               depth,
                                               current_window.alpha,
