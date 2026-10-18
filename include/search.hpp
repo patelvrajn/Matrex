@@ -197,13 +197,38 @@ using Search_Quiet_Cont_Hist_Stack =
 using Search_Capture_Cont_Hist_Stack =
     Capture_Continuation_History_Stack<MAX_SEARCH_DEPTH_SOFT_LIMIT>;
 
+struct Search_Worker_History
+{
+    Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE> correction;
+    Quiet_Continuation_History_Table                         quiet_continuation;
+    Capture_Continuation_History_Table capture_continuation;
+
+    void clear()
+    {
+        correction.clear();
+        quiet_continuation.clear();
+        capture_continuation.clear();
+    }
+};
+
 struct Search_Worker_Data
 {
+    Search_Worker_History    history;
     uint64_t                 num_of_nodes_searched = 0;
     Search_Engine_Result     search_result;
     Principal_Variation_List principal_variation;
     bool                     timer_expired_during_search = false;
     Welford                  leaf_scores_welford;
+
+    // Reset after a batch of threads die, histories persist.
+    void reset()
+    {
+        num_of_nodes_searched = 0;
+        search_result         = {};
+        principal_variation.clear();
+        timer_expired_during_search = false;
+        leaf_scores_welford         = {};
+    }
 };
 
 class Search_Engine
@@ -237,12 +262,6 @@ class Search_Engine
 
     const Cuckoo_RM_Table m_cuckoo_rm_table;
 
-    Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>
-        m_correction_history;
-
-    Quiet_Continuation_History_Table   m_q_cont_hist_table;
-    Capture_Continuation_History_Table m_c_cont_hist_table;
-
     Threads_Shared_Data m_shared_data;
 
     bool aspiration_windows(Aspiration_Window& window);
@@ -270,10 +289,9 @@ class Search_Work : public Thread_Job
 
   private:
 
+    Search_Worker_History& m_history;
+
     constexpr static std::size_t m_index_to_transposition_table = 0;
-    constexpr static std::size_t m_index_to_correction_history  = 1;
-    constexpr static std::size_t m_index_to_q_cont_hist_table   = 2;
-    constexpr static std::size_t m_index_to_c_cont_hist_table   = 3;
 
     std::size_t m_index_to_position;
     std::size_t m_index_to_my_side;

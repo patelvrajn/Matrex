@@ -43,7 +43,17 @@ class Threads_States
 
     void resize(std::size_t num_of_threads) { m_states.resize(num_of_threads); }
 
-    void reset() { std::fill((*this).begin(), (*this).end(), T {}); }
+    void reset()
+    {
+        for (auto& state : m_states)
+        {
+            if constexpr (requires { state.reset(); }) { state.reset(); }
+            else
+            {
+                state = T {};
+            }
+        }
+    }
 
   private:
 

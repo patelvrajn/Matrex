@@ -8,13 +8,7 @@
 #include "fixed_point.hpp"
 #include "static_exchange_evaluation.hpp"
 
-Search_Engine::Search_Engine() :
-    m_shared_data(m_transposition_table,
-                  m_correction_history,
-                  m_q_cont_hist_table,
-                  m_c_cont_hist_table)
-{
-}
+Search_Engine::Search_Engine() : m_shared_data(m_transposition_table) {}
 
 void Search_Engine::new_game()
 {
@@ -23,9 +17,7 @@ void Search_Engine::new_game()
     m_transposition_table.clear_statistics();
 #endif
     m_transposition_table.clear();
-    m_correction_history.clear();
-    m_q_cont_hist_table.clear();
-    m_c_cont_hist_table.clear();
+    for (auto& worker : m_threads_states) { worker.history.clear(); }
 }
 
 Search_Engine_Result
@@ -54,7 +46,7 @@ Search_Work::Search_Work(Threads_Shared_Data&   shared_data,
                          Score                  beta,
                          Timer&                 timer,
                          Search_Constraints&    constraints) :
-    Thread_Job(shared_data)
+    Thread_Job(shared_data), m_history(thread_state.history)
 {
     m_index_to_position = write_to_private_data<Chess_Board>(position);
     m_index_to_my_side =
@@ -77,19 +69,9 @@ std::any Search_Work::operator()(std::stop_token)
     const Depth_Int depth = read_private_data<Depth_Int>(m_index_to_depth);
 
     Search_Quiet_Cont_Hist_Stack q_cont_hist_stack(
-        [this](const auto& read)
-        {
-            call_shared_data<Quiet_Continuation_History_Table>(
-                m_index_to_q_cont_hist_table,
-                read);
-        });
+        m_history.quiet_continuation);
     Search_Capture_Cont_Hist_Stack c_cont_hist_stack(
-        [this](const auto& read)
-        {
-            call_shared_data<Capture_Continuation_History_Table>(
-                m_index_to_c_cont_hist_table,
-                read);
-        });
+        m_history.capture_continuation);
 
     const Score alpha = read_private_data<Score>(m_index_to_alpha);
     const Score beta  = read_private_data<Score>(m_index_to_beta);
@@ -243,9 +225,7 @@ Search_Work::negamax(Chess_Board&                    position,
                      c_cont_hist_stack);
     mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
 
-    const Move_Score similarity =
-        static_cast<Move_Score>(2U * std::min(depth_squared, 128U));
-    Move_Generation_List& moves = mo.get_sorted_moves<true>(similarity);
+    Move_Generation_List& moves = mo.get_sorted_moves<false>();
 
     Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
     const bool is_side_to_move_in_check       = mo.is_side_to_move_in_check();
@@ -321,11 +301,7 @@ Search_Work::negamax(Chess_Board&                    position,
                       moving_side_matrix,
                       opposing_side_matrix);
 
-    const Score correction = call_shared_data<
-        Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>>(
-        m_index_to_correction_history,
-        [&](const auto& correction_history)
-        { return correction_history.get_correction(position); });
+    const Score correction = m_history.correction.get_correction(position);
     const Score static_evaluation = e.evaluate(correction);
 
     // const Matrex_FP_Int fp_reverse_futility_pruning_margin =
@@ -598,16 +574,10 @@ Search_Work::negamax(Chess_Board&                    position,
                                          score_bound,
                                          is_side_to_move_in_check))
     {
-        call_shared_data<
-            Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>>(
-            m_index_to_correction_history,
-            [&](auto& correction_history)
-            {
-                correction_history.update(position,
-                                          depth,
-                                          best_score,
-                                          static_evaluation);
-            });
+        m_history.correction.update(position,
+                                    depth,
+                                    best_score,
+                                    static_evaluation);
     }
 
     // Continuation History Update.
@@ -778,12 +748,8 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
                       moving_side_matrix,
                       opposing_side_matrix);
 
-    const Score correction = call_shared_data<
-        Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>>(
-        m_index_to_correction_history,
-        [&](const auto& correction_history)
-        { return correction_history.get_correction(position); });
-    Score stand_pat = e.evaluate(correction);
+    const Score correction = m_history.correction.get_correction(position);
+    Score       stand_pat  = e.evaluate(correction);
 
     // Update stand pat evaluation based on a transposition table hit which
     // would most likely be based on a deeper search.
@@ -1208,27 +1174,22 @@ void Search_Work::update_continuation_history(
     constexpr bool MALUS = true;
     constexpr bool BONUS = false;
 
-    call_shared_data<Quiet_Continuation_History_Table>(
-        m_index_to_q_cont_hist_table,
-        [&](Quiet_Continuation_History_Table& table)
+    for (int64_t i = start; i >= end; --i)
+    {
+        auto& entry =
+            m_history.quiet_continuation
+                [q_cont_hist_stack.stack[static_cast<std::size_t>(i)]];
+
+        // Give a bonus to this move pair (preceeding move, given move).
+        entry.gravity_update<BONUS>(move, depth_squared);
+
+        // Malus all move pairs for the given move that didn't cause a
+        // beta cutoff.
+        for (const Chess_Move& malus_move : quiets_to_malus)
         {
-            for (int64_t i = start; i >= end; --i)
-            {
-                auto& entry =
-                    table[q_cont_hist_stack.stack[static_cast<std::size_t>(i)]];
-
-                // Give a bonus to this move pair (preceeding move, given move).
-                entry.gravity_update<BONUS>(move, depth_squared);
-
-                // Malus all move pairs for the given move that didn't cause a
-                // beta cutoff.
-                for (const Chess_Move& malus_move : quiets_to_malus)
-                {
-                    entry.gravity_update<MALUS>(malus_move,
-                                                (depth_squared >> 1));
-                }
-            }
-        });
+            entry.gravity_update<MALUS>(malus_move, (depth_squared >> 1));
+        }
+    }
 }
 
 void Search_Work::update_continuation_history(
@@ -1256,27 +1217,21 @@ void Search_Work::update_continuation_history(
     constexpr bool MALUS = true;
     constexpr bool BONUS = false;
 
-    call_shared_data<Capture_Continuation_History_Table>(
-        m_index_to_c_cont_hist_table,
-        [&](Capture_Continuation_History_Table& table)
-        {
-            for (int64_t i = start; i >= end; --i)
-            {
-                // Give a bonus to this move pair (preceeding move, given move).
-                auto& entry =
-                    table[c_cont_hist_stack.stack[static_cast<std::size_t>(i)]];
-                entry.gravity_update<BONUS>(
-                    move,
-                    ((3 * depth_squared) + (16 * depth) - 8));
+    for (int64_t i = start; i >= end; --i)
+    {
+        // Give a bonus to this move pair (preceeding move, given move).
+        auto& entry =
+            m_history.capture_continuation
+                [c_cont_hist_stack.stack[static_cast<std::size_t>(i)]];
+        entry.gravity_update<BONUS>(move,
+                                    ((3 * depth_squared) + (16 * depth) - 8));
 
-                // Malus all move pairs for the given move that didn't cause a
-                // beta cutoff.
-                for (const Chess_Move& malus_move : captures_to_malus)
-                {
-                    entry.gravity_update<MALUS>(
-                        malus_move,
-                        ((1 * depth_squared) + (8 * depth)));
-                }
-            }
-        });
+        // Malus all move pairs for the given move that didn't cause a
+        // beta cutoff.
+        for (const Chess_Move& malus_move : captures_to_malus)
+        {
+            entry.gravity_update<MALUS>(malus_move,
+                                        ((1 * depth_squared) + (8 * depth)));
+        }
+    }
 }
