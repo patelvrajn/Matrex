@@ -84,6 +84,7 @@ std::any Search_Work::operator()(std::stop_token)
             m_index_to_thread_state)
             .get();
 
+    worker_data.search_depth  = depth;
     worker_data.search_result = negamax(position,
                                         depth,
                                         worker_data.principal_variation,
@@ -916,7 +917,7 @@ bool Search_Engine::aspiration_windows(Aspiration_Window& window)
 
         for (std::size_t i = 0; i < m_constraints.num_of_search_workers; ++i)
         {
-            Depth_Int depth = m_current_search_depth + (((i % 2) != 0) ? 1 : 0);
+            Depth_Int depth = m_current_search_depth + (i % 2);
 
             std::unique_ptr<Thread_Job> job =
                 std::make_unique<Search_Work>(m_shared_data,
@@ -965,17 +966,20 @@ bool Search_Engine::aspiration_windows(Aspiration_Window& window)
                     && score < current_window.beta;
             };
 
-            const auto completed_worker = std::max_element(
-                m_threads_states.begin(),
-                m_threads_states.end(),
-                [&](const Search_Worker_Data& lhs,
-                    const Search_Worker_Data& rhs)
-                {
-                    const bool lhs_eligible = is_eligible(lhs);
-                    const bool rhs_eligible = is_eligible(rhs);
-                    if (lhs_eligible != rhs_eligible) { return !lhs_eligible; }
-                    return lhs.search_result.second < rhs.search_result.second;
-                });
+            const auto completed_worker =
+                std::max_element(m_threads_states.begin(),
+                                 m_threads_states.end(),
+                                 [&](const Search_Worker_Data& lhs,
+                                     const Search_Worker_Data& rhs)
+                                 {
+                                     const bool lhs_eligible = is_eligible(lhs);
+                                     const bool rhs_eligible = is_eligible(rhs);
+                                     if (lhs_eligible != rhs_eligible)
+                                     {
+                                         return !lhs_eligible;
+                                     }
+                                     return rhs.has_better_result_than(lhs);
+                                 });
 
             const bool has_completed_result =
                 (completed_worker != m_threads_states.end())
@@ -994,7 +998,7 @@ bool Search_Engine::aspiration_windows(Aspiration_Window& window)
             m_threads_states.begin(),
             m_threads_states.end(),
             [](const Search_Worker_Data& lhs, const Search_Worker_Data& rhs)
-            { return lhs.search_result.second < rhs.search_result.second; });
+            { return rhs.has_better_result_than(lhs); });
 
         best_worker->principal_variation.truncate(m_current_search_depth - 1);
 

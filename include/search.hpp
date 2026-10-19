@@ -216,15 +216,28 @@ struct Search_Worker_Data
     Search_Worker_History    history;
     uint64_t                 num_of_nodes_searched = 0;
     Search_Engine_Result     search_result;
+    Depth_Int                search_depth = 0;
     Principal_Variation_List principal_variation;
     bool                     timer_expired_during_search = false;
     Welford                  leaf_scores_welford;
+
+    bool has_better_result_than(const Search_Worker_Data& other) const
+    {
+        if (timer_expired_during_search) { return false; }
+        if (other.timer_expired_during_search) { return true; }
+        if (search_depth != other.search_depth)
+        {
+            return search_depth > other.search_depth;
+        }
+        return search_result.second > other.search_result.second;
+    }
 
     // Reset after a batch of threads die, histories persist.
     void reset()
     {
         num_of_nodes_searched = 0;
         search_result         = {};
+        search_depth          = 0;
         principal_variation.clear();
         timer_expired_during_search = false;
         leaf_scores_welford         = {};
