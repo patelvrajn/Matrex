@@ -8,7 +8,7 @@
 #include "fixed_point.hpp"
 #include "static_exchange_evaluation.hpp"
 
-Search_Engine::Search_Engine() : m_shared_data(m_transposition_table) {}
+Search_Engine::Search_Engine() = default;
 
 void Search_Engine::new_game()
 {
@@ -38,6 +38,7 @@ Search_Engine::search(const Chess_Board&        cb,
 }
 
 Search_Work::Search_Work(Threads_Shared_Data&   shared_data,
+                         Transposition_Table&   transposition_table,
                          Search_Worker_Data&    thread_state,
                          const Cuckoo_RM_Table& cuckoo_rm_table,
                          Chess_Board            position,
@@ -48,6 +49,8 @@ Search_Work::Search_Work(Threads_Shared_Data&   shared_data,
                          Search_Constraints&    constraints) :
     Thread_Job(shared_data), m_history(thread_state.history)
 {
+    m_index_to_transposition_table =
+        write_reference_to_private_data(transposition_table);
     m_index_to_position = write_to_private_data<Chess_Board>(position);
     m_index_to_my_side =
         write_to_private_data<PIECE_COLOR>(position.get_side_to_move());
@@ -166,18 +169,17 @@ Search_Work::negamax(Chess_Board&                    position,
         return {Chess_Move(), Score::from_int(ESCORE::DRAW)};
     }
 
-    const Zobrist_Hash        position_z_hash = position.get_zobrist_hash();
+    const Zobrist_Hash position_z_hash = position.get_zobrist_hash();
+    auto&              transposition_table =
+        read_private_data<std::reference_wrapper<Transposition_Table>>(
+            m_index_to_transposition_table)
+            .get();
     Transposition_Table_Entry transposition_table_entry;
     const bool                did_transposition_table_hit =
-        call_shared_data<Transposition_Table>(
-            m_index_to_transposition_table,
-            [&](Transposition_Table& table)
-            {
-                return table.read(maximum_depth,
-                                  ply,
-                                  position_z_hash,
-                                  transposition_table_entry);
-            });
+        transposition_table.read(maximum_depth,
+                                 ply,
+                                 position_z_hash,
+                                 transposition_table_entry);
 
     // A principal variation node is any node that requires an alpha-beta window
     // wider than 1 because in principal variation search we only search the
@@ -246,15 +248,10 @@ Search_Work::negamax(Chess_Board&                    position,
                 Score_Bound_Type::EXACT // Mate scores are always exact.
         };
 
-        call_shared_data<Transposition_Table>(
-            m_index_to_transposition_table,
-            [&](Transposition_Table& table)
-            {
-                return table.write(maximum_depth,
-                                   ply,
-                                   position_z_hash,
-                                   transposition_table_entry);
-            });
+        transposition_table.write(maximum_depth,
+                                  ply,
+                                  position_z_hash,
+                                  transposition_table_entry);
 
         return {Chess_Move(), mate_score};
     }
@@ -612,15 +609,10 @@ Search_Work::negamax(Chess_Board&                    position,
             .depth       = depth,
             .score_bound = score_bound};
 
-        call_shared_data<Transposition_Table>(
-            m_index_to_transposition_table,
-            [&](Transposition_Table& table)
-            {
-                return table.write(maximum_depth,
-                                   ply,
-                                   position_z_hash,
-                                   transposition_table_entry);
-            });
+        transposition_table.write(maximum_depth,
+                                  ply,
+                                  position_z_hash,
+                                  transposition_table_entry);
     }
 
     // Fail-soft. Always return the calculated score and don't bound it between
@@ -657,17 +649,16 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
 
     const Zobrist_Hash position_z_hash = position.get_zobrist_hash();
 
+    auto& transposition_table =
+        read_private_data<std::reference_wrapper<Transposition_Table>>(
+            m_index_to_transposition_table)
+            .get();
     Transposition_Table_Entry transposition_table_entry;
     const bool                did_transposition_table_hit =
-        call_shared_data<Transposition_Table>(
-            m_index_to_transposition_table,
-            [&](Transposition_Table& table)
-            {
-                return table.read(maximum_depth,
-                                  ply,
-                                  position_z_hash,
-                                  transposition_table_entry);
-            });
+        transposition_table.read(maximum_depth,
+                                 ply,
+                                 position_z_hash,
+                                 transposition_table_entry);
 
     // Transposition table cutoff - use the stored best move and score if it
     // satisfies the conditions. Note, quiescence search is a zero depth
@@ -729,15 +720,10 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
                 Score_Bound_Type::EXACT // Mate scores are always exact.
         };
 
-        call_shared_data<Transposition_Table>(
-            m_index_to_transposition_table,
-            [&](Transposition_Table& table)
-            {
-                return table.write(maximum_depth,
-                                   ply,
-                                   position_z_hash,
-                                   transposition_table_entry);
-            });
+        transposition_table.write(maximum_depth,
+                                  ply,
+                                  position_z_hash,
+                                  transposition_table_entry);
 
         return {Chess_Move(), mate_score};
     }
@@ -775,15 +761,10 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
                 Score_Bound_Type::EXACT // Static evaluations are always exact.
         };
 
-        call_shared_data<Transposition_Table>(
-            m_index_to_transposition_table,
-            [&](Transposition_Table& table)
-            {
-                return table.write(maximum_depth,
-                                   ply,
-                                   position_z_hash,
-                                   transposition_table_entry);
-            });
+        transposition_table.write(maximum_depth,
+                                  ply,
+                                  position_z_hash,
+                                  transposition_table_entry);
 
         // Note: Only quiescence search's evaluation is ever used, the move is
         // not propagated up negamax's search tree. Quiescence replaces static
@@ -821,15 +802,10 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
                                                   // always lower bounds.
             };
 
-            call_shared_data<Transposition_Table>(
-                m_index_to_transposition_table,
-                [&](Transposition_Table& table)
-                {
-                    return table.write(maximum_depth,
-                                       ply,
-                                       position_z_hash,
-                                       transposition_table_entry);
-                });
+            transposition_table.write(maximum_depth,
+                                      ply,
+                                      position_z_hash,
+                                      transposition_table_entry);
 
             return {best_move, best_score};
         }
@@ -889,15 +865,10 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
         .depth       = QUIESCENCE_SEARCH_DEPTH,
         .score_bound = score_bound};
 
-    call_shared_data<Transposition_Table>(m_index_to_transposition_table,
-                                          [&](Transposition_Table& table)
-                                          {
-                                              return table.write(
-                                                  maximum_depth,
-                                                  ply,
-                                                  position_z_hash,
-                                                  transposition_table_entry);
-                                          });
+    transposition_table.write(maximum_depth,
+                              ply,
+                              position_z_hash,
+                              transposition_table_entry);
 
     return {best_move, best_score};
 }
@@ -949,6 +920,7 @@ bool Search_Engine::aspiration_windows(Aspiration_Window& window)
 
             std::unique_ptr<Thread_Job> job =
                 std::make_unique<Search_Work>(m_shared_data,
+                                              m_transposition_table,
                                               m_threads_states[i],
                                               m_cuckoo_rm_table,
                                               m_chess_board,

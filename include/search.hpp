@@ -274,6 +274,7 @@ class Search_Work : public Thread_Job
   public:
 
     Search_Work(Threads_Shared_Data&   shared_data,
+                Transposition_Table&   transposition_table,
                 Search_Worker_Data&    thread_state,
                 const Cuckoo_RM_Table& cuckoo_rm_table,
                 Chess_Board            position,
@@ -291,8 +292,7 @@ class Search_Work : public Thread_Job
 
     Search_Worker_History& m_history;
 
-    constexpr static std::size_t m_index_to_transposition_table = 0;
-
+    std::size_t m_index_to_transposition_table;
     std::size_t m_index_to_position;
     std::size_t m_index_to_my_side;
     std::size_t m_index_to_depth;
