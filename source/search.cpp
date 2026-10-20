@@ -966,20 +966,17 @@ bool Search_Engine::aspiration_windows(Aspiration_Window& window)
                     && score < current_window.beta;
             };
 
-            const auto completed_worker =
-                std::max_element(m_threads_states.begin(),
-                                 m_threads_states.end(),
-                                 [&](const Search_Worker_Data& lhs,
-                                     const Search_Worker_Data& rhs)
-                                 {
-                                     const bool lhs_eligible = is_eligible(lhs);
-                                     const bool rhs_eligible = is_eligible(rhs);
-                                     if (lhs_eligible != rhs_eligible)
-                                     {
-                                         return !lhs_eligible;
-                                     }
-                                     return rhs.has_better_search_result_than(lhs);
-                                 });
+            const auto completed_worker = std::max_element(
+                m_threads_states.begin(),
+                m_threads_states.end(),
+                [&](const Search_Worker_Data& lhs,
+                    const Search_Worker_Data& rhs)
+                {
+                    const bool lhs_eligible = is_eligible(lhs);
+                    const bool rhs_eligible = is_eligible(rhs);
+                    if (lhs_eligible != rhs_eligible) { return !lhs_eligible; }
+                    return rhs.has_better_search_result_than(lhs);
+                });
 
             const bool has_completed_result =
                 (completed_worker != m_threads_states.end())

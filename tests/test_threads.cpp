@@ -23,10 +23,8 @@ class Thread_Addition_Job : public Thread_Job
 
     virtual std::any operator()(std::stop_token) override
     {
-        int64_t addend_one =
-            std::any_cast<int64_t>(read_private_data(m_index_to_addend_one));
-        int64_t addend_two =
-            std::any_cast<int64_t>(read_private_data(m_index_to_addend_two));
+        int64_t addend_one = read_private_data<int64_t>(m_index_to_addend_one);
+        int64_t addend_two = read_private_data<int64_t>(m_index_to_addend_two);
 
         call_shared_data<int64_t>(
             m_index_to_result,
