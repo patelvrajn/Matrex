@@ -60,6 +60,7 @@ TEST(negamax, draw_detection)
     constraints.time_controls[PIECE_COLOR::BLACK].time_remaining = 150000;
     constraints.time_controls[PIECE_COLOR::BLACK].increment      = 1500;
     constraints.transposition_table_size                         = 64;
+    constraints.num_of_search_workers                            = 4;
 
     Chess_Board cb;
     cb.set_from_fen(std::string(START_POSITION_FEN));
