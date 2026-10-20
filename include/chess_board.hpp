@@ -107,6 +107,8 @@ class Chess_Board
     Undo_Chess_Move make_move(const Chess_Move& move);
     void            undo_move(const Undo_Chess_Move& undo_move);
 
+    Undo_Chess_Move make_null_move();
+
     void make_moves_from_string(const std::string& moves_str,
                                 const bool         is_frc);
 

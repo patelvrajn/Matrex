@@ -431,6 +431,11 @@ void Chess_Board::undo_move(const Undo_Chess_Move& undo_move)
     }
 }
 
+Undo_Chess_Move Chess_Board::make_null_move()
+{
+    return make_move(Chess_Move::null_move());
+}
+
 void Chess_Board::make_moves_from_string(const std::string& moves_str,
                                          const bool         is_frc)
 {

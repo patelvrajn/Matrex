@@ -19,7 +19,7 @@ constexpr Depth_Int MAX_SEARCH_DEPTH_SOFT_LIMIT = 256;
 
 constexpr Depth_Int QUIESCENCE_SEARCH_DEPTH = 0;
 
-constexpr Matrex_FP_Int PV_WINDOW_SIZE = Matrex_FP_Int::from_integer(1);
+constexpr Matrex_FP_Int NULL_WINDOW_SIZE = Matrex_FP_Int::from_integer(1);
 
 constexpr std::size_t CORRECTION_HISTORY_TABLE_SIZE = 16384;
 
@@ -439,6 +439,9 @@ class Search_Work : public Thread_Job
     should_do_late_move_reductions(const Chess_Move& move,
                                    const Score       best_score,
                                    const bool        is_side_to_move_in_check);
+
+    inline bool
+    should_do_null_move_pruning(const bool is_side_to_move_in_check);
 };
 
 inline uint64_t Search_Engine::get_node_count()
@@ -656,4 +659,10 @@ Search_Work::should_do_late_move_reductions(const Chess_Move& move,
 {
     return (move.is_quiet_move() && (!is_side_to_move_in_check)
             && (!best_score.is_enemy_mate()) && (move.score <= 0));
+}
+
+inline bool
+Search_Work::should_do_null_move_pruning(const bool is_side_to_move_in_check)
+{
+    return (!is_side_to_move_in_check);
 }
