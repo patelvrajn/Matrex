@@ -221,7 +221,7 @@ struct Search_Worker_Data
     bool                     timer_expired_during_search = false;
     Welford                  leaf_scores_welford;
 
-    bool has_better_result_than(const Search_Worker_Data& other) const
+    bool has_better_search_result_than(const Search_Worker_Data& other) const
     {
         if (timer_expired_during_search) { return false; }
         if (other.timer_expired_during_search) { return true; }

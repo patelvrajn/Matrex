@@ -228,7 +228,7 @@ Search_Work::negamax(Chess_Board&                    position,
                      c_cont_hist_stack);
     mo.generate_moves<MOVE_GENERATION_TYPE::ALL>();
 
-    Move_Generation_List& moves = mo.get_sorted_moves<false>();
+    Move_Generation_List& moves = mo.get_sorted_moves();
 
     Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
     const bool is_side_to_move_in_check       = mo.is_side_to_move_in_check();
@@ -692,7 +692,7 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
     {
         mo.generate_moves<MOVE_GENERATION_TYPE::TACTICAL>();
     }
-    Move_Generation_List&  moves              = mo.get_sorted_moves<false>();
+    Move_Generation_List&  moves              = mo.get_sorted_moves();
     Moves_Bitboard_Matrix& moving_side_matrix = mo.get_moves_matrix();
 
     // Generate moves matrix for the opposing side for evaluation purposes.
@@ -978,7 +978,7 @@ bool Search_Engine::aspiration_windows(Aspiration_Window& window)
                                      {
                                          return !lhs_eligible;
                                      }
-                                     return rhs.has_better_result_than(lhs);
+                                     return rhs.has_better_search_result_than(lhs);
                                  });
 
             const bool has_completed_result =
@@ -998,7 +998,7 @@ bool Search_Engine::aspiration_windows(Aspiration_Window& window)
             m_threads_states.begin(),
             m_threads_states.end(),
             [](const Search_Worker_Data& lhs, const Search_Worker_Data& rhs)
-            { return rhs.has_better_result_than(lhs); });
+            { return rhs.has_better_search_result_than(lhs); });
 
         best_worker->principal_variation.truncate(m_current_search_depth - 1);
 
