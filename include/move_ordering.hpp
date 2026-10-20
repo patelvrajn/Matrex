@@ -1,5 +1,8 @@
 #pragma once
 
+#include <algorithm>
+#include <random>
+
 #include "chess_board.hpp"
 #include "chess_move.hpp"
 #include "globals.hpp"
@@ -30,7 +33,8 @@ class Move_Ordering
         const Capture_Continuation_History_Stack<CONT_HIST_STACK_SIZE>&
             c_cont_hist_stack);
 
-    Move_Generation_List&  get_sorted_moves();
+    Move_Generation_List& get_sorted_moves();
+
     Moves_Bitboard_Matrix& get_moves_matrix();
     bool                   is_side_to_move_in_check() const;
 

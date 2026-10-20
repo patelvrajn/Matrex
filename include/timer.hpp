@@ -12,9 +12,9 @@ class Timer
     Timer();
 
     void     start();
-    uint64_t elapsed();
+    uint64_t elapsed() const;
     bool     is_search_time_expired(const uint64_t time_remaining_constraint,
-                                    const uint64_t time_increment_constraint);
+                                    const uint64_t time_increment_constraint) const;
 
   private:
 

@@ -1,16 +1,64 @@
 #pragma once
 
+#include <algorithm>
 #include <any>
+#include <atomic>
 #include <condition_variable>
 #include <cstddef>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <optional>
 #include <thread>
 #include <vector>
 
 #include "globals.hpp"
+
+// =============================================================================
+// Threads States Class
+//
+// An abstraction of data that represents the state of multiple threads. The
+// typename T is expected to be a class/struct that represents the state of a
+// single thread.
+// =============================================================================
+template <typename T>
+class Threads_States
+{
+  public:
+
+    Threads_States() {}
+
+    Threads_States(std::size_t num_of_threads) : m_states(num_of_threads) {}
+
+    T& operator[](std::size_t index) { return m_states[index]; }
+
+    auto begin() { return m_states.begin(); }
+
+    auto begin() const { return m_states.begin(); }
+
+    auto end() { return m_states.end(); }
+
+    auto end() const { return m_states.end(); }
+
+    void resize(std::size_t num_of_threads) { m_states.resize(num_of_threads); }
+
+    void reset()
+    {
+        for (auto& state : m_states)
+        {
+            if constexpr (requires { state.reset(); }) { state.reset(); }
+            else
+            {
+                state = T {};
+            }
+        }
+    }
+
+  private:
+
+    std::vector<T> m_states;
+};
 
 // =============================================================================
 // Threads Shared Data Class
@@ -24,44 +72,35 @@ class Threads_Shared_Data
 {
   public:
 
-    // This constructor treates every argument as a seperate object and
-    // stores references to the arguments passed in (which are expected to
-    // live longer than the Threads Shared Data object).
     template <typename... Args>
     explicit Threads_Shared_Data(Args&... args)
     {
-        (m_data.emplace_back(std::ref(args)), ...);
+        (
+            [&]
+            {
+                m_data.emplace_back(std::ref(args));
+                m_mutexes.emplace_back(std::make_unique<std::mutex>());
+            }(),
+            ...);
     }
 
-    // This performs a write of a reference to data (the reference is expected
-    // to live longer than this shared data instance) to the shared data guarded
-    // by the mutex.
-    template <typename T>
-    std::size_t write(std::reference_wrapper<T> data)
-    {
-        std::scoped_lock<std::mutex> lock(m_mutex);
-
-        m_data.push_back(data);
-
-        return (m_data.size() - 1);
-    }
-
-    // This performs a read to the shared data guarded by the mutex.
     template <typename T>
     auto read(std::size_t index)
     {
-        std::scoped_lock<std::mutex> lock(m_mutex);
+        // Prevent remove() from changing indexes/vector storage.
+        std::shared_lock structure_lock(m_structure_mutex);
+
+        std::scoped_lock data_lock(*m_mutexes[index]);
 
         return std::any_cast<std::reference_wrapper<T>>(m_data[index]);
     }
 
-    // Call any function on the shared data object guarded by the mutex.
-    // Warning: do not return a reference to the data and manipulate it as
-    // this escapes the lock!
     template <typename Expected_Obj_Type, typename Function_Type>
     decltype(auto) call(std::size_t index, Function_Type&& func)
     {
-        std::scoped_lock<std::mutex> lock(m_mutex);
+        std::shared_lock structure_lock(m_structure_mutex);
+
+        std::scoped_lock data_lock(*m_mutexes[index]);
 
         Expected_Obj_Type& obj =
             std::any_cast<std::reference_wrapper<Expected_Obj_Type>>(
@@ -71,10 +110,34 @@ class Threads_Shared_Data
         return std::forward<Function_Type>(func)(obj);
     }
 
+    // This performs a write of a reference to data (the reference is expected
+    // to live longer than this shared data instance) to the shared data guarded
+    // by the mutex.
+    template <typename T>
+    std::size_t write(std::reference_wrapper<T> data)
+    {
+        std::unique_lock structure_lock(m_structure_mutex);
+
+        m_data.emplace_back(data);
+        m_mutexes.emplace_back(std::make_unique<std::mutex>());
+
+        return (m_data.size() - 1);
+    }
+
+    // Thread-safe method to remove an element from the shared data vector.
+    void remove(std::size_t index)
+    {
+        std::unique_lock structure_lock(m_structure_mutex);
+
+        m_data.erase(m_data.begin() + index);
+        m_mutexes.erase(m_mutexes.begin() + index);
+    }
+
   private:
 
-    std::mutex            m_mutex;
-    std::vector<std::any> m_data;
+    std::shared_mutex                        m_structure_mutex;
+    std::vector<std::unique_ptr<std::mutex>> m_mutexes;
+    std::vector<std::any>                    m_data;
 };
 
 // =============================================================================
@@ -145,9 +208,10 @@ class Thread_Job
     }
 
     // Any job needs to be able to read from their private data.
-    std::any& read_private_data(std::size_t index)
+    template <typename T>
+    T& read_private_data(std::size_t index)
     {
-        return (*m_private_data[index]);
+        return std::any_cast<T&>(*m_private_data[index]);
     }
 
     // Any job needs to be able to call functions on their private data.
@@ -203,17 +267,23 @@ class Thread_Worker
 
     // Construct the thread worker - mainly, assign the worker thread the task
     // of the worker loop.
-    Thread_Worker(std::size_t id) :
-        m_id(id), m_thread([this](std::stop_token stop) { worker_loop(stop); })
+    Thread_Worker(
+        std::size_t                               id,
+        std::reference_wrapper<std::atomic<bool>> should_dispatch_pulse) :
+        m_id(id),
+        m_should_dispatch_pulse(should_dispatch_pulse),
+        m_thread([this](std::stop_token stop) { worker_loop(stop); })
     {
     }
 
     // An overloaded constructor to assign an initial job to the worker thread.
-    Thread_Worker(std::size_t id, Thread_Job& job) :
-        m_id(id),
-        m_job(job),
-        m_thread([this](std::stop_token stop) { worker_loop(stop); })
+    Thread_Worker(
+        std::size_t                               id,
+        Thread_Job&                               job,
+        std::reference_wrapper<std::atomic<bool>> should_dispatch_pulse) :
+        Thread_Worker(id, should_dispatch_pulse)
     {
+        assign_job(job);
     }
 
     // Assigns an incomplete valid job to the thread.
@@ -222,6 +292,7 @@ class Thread_Worker
         if (job.get().has_job() && (!job.get().is_complete()))
         {
             std::scoped_lock lock(m_job_assignment_mutex);
+            job.get().set_assigned_thread_id(m_id);
             m_job = std::move(job);
 
             m_conditional_variable.notify_one();
@@ -234,7 +305,7 @@ class Thread_Worker
     // A check for if the worker currently has a job.
     bool has_job()
     {
-        std::unique_lock lock(m_job_status_mutex);
+        std::unique_lock lock(m_job_assignment_mutex);
         return (m_job.has_ref() && m_job.get_ref().has_job()
                 && (!m_job.get_ref().is_complete()));
     }
@@ -247,16 +318,15 @@ class Thread_Worker
 
     // The thread for the worker and it's job.
     Optional_Reference<Thread_Job> m_job;
-    std::jthread                   m_thread;
 
     // Mutex and conditional variable for when the thread is being assigned a
     // job or is waiting for a job to be assigned.
     std::mutex                  m_job_assignment_mutex;
     std::condition_variable_any m_conditional_variable;
 
-    // Mutex for any reading and/or manipulation of the status (like has_job or
-    // complete) of a job.
-    std::mutex m_job_status_mutex;
+    std::reference_wrapper<std::atomic<bool>> m_should_dispatch_pulse;
+
+    std::jthread m_thread;
 
     // Discards the job by assigning no value through the optional.
     void discard_job() { m_job.unbound_ref(); }
@@ -290,13 +360,18 @@ class Thread_Worker
 
             // Atomically manipulate m_job.
             {
-                std::scoped_lock lock(m_job_status_mutex);
-
-                // Set the job to complete.
-                m_job.get_ref().set_complete(true);
+                std::scoped_lock lock(m_job_assignment_mutex);
+                auto&            job = m_job.get_ref();
 
                 // Discard the job from the thread.
                 discard_job();
+
+                // The dispatcher may delete the job as soon as this is set.
+                job.set_complete(true);
+
+                // Publish completion before waking the dispatcher.
+                m_should_dispatch_pulse.get().store(true);
+                m_should_dispatch_pulse.get().notify_one();
             }
         }
     }
@@ -322,6 +397,15 @@ class Thread_Pool
     {
     }
 
+    void set_max_num_of_threads(std::size_t max_num_of_threads)
+    {
+        std::scoped_lock lock(m_jobs_mutex);
+        m_max_num_of_threads = max_num_of_threads;
+        m_next_thread_id     = std::min(m_next_thread_id, max_num_of_threads);
+        m_should_dispatch_pulse.store(true);
+        m_should_dispatch_pulse.notify_one();
+    }
+
     // Allows pushing a job to the job vector for the dispatcher to assign to a
     // thread.
     void push_job(std::unique_ptr<Thread_Job> job)
@@ -329,14 +413,22 @@ class Thread_Pool
         std::scoped_lock lock(m_jobs_mutex);
         m_are_jobs_done.store(false);
         m_jobs.push_back(std::move(job));
+        m_should_dispatch_pulse.store(true);
+        m_should_dispatch_pulse.notify_one();
     }
 
     // Terminate all workers and the dispatcher thread.
     void terminate_all()
     {
-        for (auto& worker : m_threads) { worker->stop(); }
-
         m_dispatcher.request_stop();
+        m_should_dispatch_pulse.store(true);
+        m_should_dispatch_pulse.notify_one();
+        if (m_dispatcher.joinable()) { m_dispatcher.join(); }
+
+        // The dispatcher no longer changes the workers. Join them while their
+        // jobs and the dispatch notification are still alive.
+        for (auto& worker : m_threads) { worker->stop(); }
+        m_threads.clear();
     }
 
     // Waits for all pushed jobs to complete.
@@ -351,10 +443,21 @@ class Thread_Pool
     // requested are complete.
     std::atomic<bool> m_are_jobs_done {false};
 
+    // Should Dispatch Pulse - used to notify the dispatcher that a job has
+    // completed and it may need to assign a new job to a thread OR that a job
+    // has been pushed to the jobs vector and it may need to assign a job to a
+    // thread.
+    // Start with a pulse so an initially empty pool is marked complete.
+    std::atomic<bool> m_should_dispatch_pulse {true};
+
     // The threads vector and the maximum number of threads allowed to be
     // spawned concurrently.
     std::size_t                                 m_max_num_of_threads;
     std::vector<std::unique_ptr<Thread_Worker>> m_threads;
+
+    // IDs are indices in [0, N). IDs below this ID have been used in this
+    // round.
+    std::size_t m_next_thread_id = 0;
 
     // The jobs vector and its respective mutex because the dispatcher has to
     // manipulate the jobs vector while, we are able to push jobs.
@@ -369,9 +472,26 @@ class Thread_Pool
     {
         while (!stop.stop_requested())
         {
+            // Wait for the dispatch pulse to continue utilizing a CPU core for
+            // dispatching. After waiting, reset the pulse to false.
+            m_should_dispatch_pulse.wait(false);
+            m_should_dispatch_pulse.store(false);
+
+            // Stop could have arrived while waiting for the dispatch pulse. If
+            // so, exit the loop.
+            if (stop.stop_requested()) { return; }
+
             // We need the jobs mutex to be unlocked for the dispatcher to do
             // its loop which involves manipulating the jobs vector.
             std::scoped_lock lock(m_jobs_mutex);
+
+            // Pop workers that are above the max number of threads and
+            // currently have no jobs assigned to them.
+            while (m_threads.size() > m_max_num_of_threads
+                   && (!m_threads.back()->has_job()))
+            {
+                m_threads.pop_back();
+            }
 
             // Discard all jobs in the jobs vector that are labeled complete
             // or do not have a job.
@@ -404,45 +524,42 @@ class Thread_Pool
             // If there is no job that needs to be assigned, do nothing.
             if (next_job_iterator == m_jobs.end()) { continue; }
 
-            // Find the first thread in the threads vector that doesn't have
-            // a job.
-            auto next_thread_iterator = std::ranges::find_if(
-                m_threads,
-                [](auto& worker) { return (!worker->has_job()); });
-
-            // If all threads are busy and the thread vector is at the
-            // maximum number of threads allowed, do nothing.
-            if ((m_threads.size() == m_max_num_of_threads)
-                && (next_thread_iterator == m_threads.end()))
+            // Zero maximum number of threads pauses assignment. If there are
+            // more threads than the maximum number of threads, wait for them to
+            // be popped.
+            if (m_max_num_of_threads == 0
+                || m_threads.size() > m_max_num_of_threads)
             {
                 continue;
             }
 
-            // Get the indices to the next available thread and the next
-            // job that needs to be assigned.
-            std::size_t next_job_index =
-                std::distance(m_jobs.begin(), next_job_iterator);
-            std::size_t next_thread_index =
-                std::distance(m_threads.begin(), next_thread_iterator);
+            // Only begin a new round of IDs after every ID has been assigned.
+            const std::size_t next_thread_id =
+                (m_next_thread_id == m_max_num_of_threads) ? 0
+                                                           : m_next_thread_id;
 
-            // There is no free thread, create one and assign it the next
-            // job.
-            if (next_thread_iterator == m_threads.end())
+            // Wait if the minimum unused ID is busy rather than skipping it.
+            if (next_thread_id < m_threads.size()
+                && m_threads[next_thread_id]->has_job())
             {
-                m_jobs.at(next_job_index)
-                    ->set_assigned_thread_id(m_threads.size());
-                m_threads.emplace_back(std::make_unique<Thread_Worker>(
-                    next_thread_index,
-                    *m_jobs.at(next_job_index)));
+                continue;
             }
-            // There is a free thread, assign it the next job.
+
+            if (next_thread_id == m_threads.size())
+            {
+                m_threads.emplace_back(std::make_unique<Thread_Worker>(
+                    next_thread_id,
+                    **next_job_iterator,
+                    std::ref(m_should_dispatch_pulse)));
+            }
             else
             {
-                m_jobs.at(next_job_index)
-                    ->set_assigned_thread_id(next_thread_index);
-                m_threads.at(next_thread_index)
-                    ->assign_job(*m_jobs.at(next_job_index));
+                m_threads[next_thread_id]->assign_job(**next_job_iterator);
             }
+
+            m_next_thread_id = next_thread_id + 1;
+
+            m_should_dispatch_pulse.store(true);
         }
     }
 };

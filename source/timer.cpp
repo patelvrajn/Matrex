@@ -4,7 +4,7 @@ Timer::Timer() : m_start(std::chrono::high_resolution_clock::now()) {}
 
 void Timer::start() { m_start = std::chrono::high_resolution_clock::now(); }
 
-uint64_t Timer::elapsed()
+uint64_t Timer::elapsed() const
 {
     auto now = std::chrono::high_resolution_clock::now();
 
@@ -12,8 +12,9 @@ uint64_t Timer::elapsed()
         .count();
 }
 
-bool Timer::is_search_time_expired(const uint64_t time_remaining_constraint,
-                                   const uint64_t time_increment_constraint)
+bool Timer::is_search_time_expired(
+    const uint64_t time_remaining_constraint,
+    const uint64_t time_increment_constraint) const
 {
     // 1e6 converts milliseconds to nanoseconds, formula for time per move is
     // from CPW.

@@ -13,6 +13,7 @@
 #include "transposition_table.hpp"
 #include "correction_history_table.hpp"
 #include "history.hpp"
+#include "threads.hpp"
 
 constexpr Depth_Int MAX_SEARCH_DEPTH_SOFT_LIMIT = 256;
 
@@ -40,6 +41,7 @@ struct Search_Constraints
     bool                                      should_ignore_time;
     Multi_Array<Time_Control, NUM_OF_PLAYERS> time_controls;
     uint64_t                                  transposition_table_size;
+    std::size_t                               num_of_search_workers;
 
     bool is_depth_search() { return (depth > 0); }
 };
@@ -125,6 +127,32 @@ class Welford
         return *this;
     }
 
+    constexpr Welford operator+(const Welford& other) const
+    {
+        if (m_count == 0) { return other; }
+        if (other.m_count == 0) { return *this; }
+
+        Welford combined;
+        combined.m_count = m_count + other.m_count;
+
+        const int64_t delta =
+            static_cast<int64_t>(other.m_mean.get_value()) - m_mean.get_value();
+        combined.m_mean =
+            Matrex_FP_Int::from_value(static_cast<Fixed_Point_Int_Storage_Type>(
+                m_mean.get_value()
+                + ((delta * other.m_count) / combined.m_count)));
+
+        constexpr int64_t scale      = Matrex_FP_Int::scale();
+        const int64_t     correction = static_cast<int64_t>(
+            static_cast<__int128_t>(delta) * delta * m_count * other.m_count
+            / (static_cast<__int128_t>(combined.m_count) * scale * scale));
+        combined.m_squared_differences_sum = m_squared_differences_sum
+                                           + other.m_squared_differences_sum
+                                           + correction;
+
+        return combined;
+    }
+
     constexpr Fixed_Point_Int_Storage_Type get_count() const { return m_count; }
 
     constexpr Matrex_FP_Int get_average() const { return m_mean; }
@@ -169,6 +197,53 @@ using Search_Quiet_Cont_Hist_Stack =
 using Search_Capture_Cont_Hist_Stack =
     Capture_Continuation_History_Stack<MAX_SEARCH_DEPTH_SOFT_LIMIT>;
 
+struct Search_Worker_History
+{
+    Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE> correction;
+    Quiet_Continuation_History_Table                         quiet_continuation;
+    Capture_Continuation_History_Table capture_continuation;
+
+    void clear()
+    {
+        correction.clear();
+        quiet_continuation.clear();
+        capture_continuation.clear();
+    }
+};
+
+struct Search_Worker_Data
+{
+    Search_Worker_History    history;
+    uint64_t                 num_of_nodes_searched = 0;
+    Search_Engine_Result     search_result;
+    Depth_Int                search_depth = 0;
+    Principal_Variation_List principal_variation;
+    bool                     timer_expired_during_search = false;
+    Welford                  leaf_scores_welford;
+
+    bool has_better_search_result_than(const Search_Worker_Data& other) const
+    {
+        if (timer_expired_during_search) { return false; }
+        if (other.timer_expired_during_search) { return true; }
+        if (search_depth != other.search_depth)
+        {
+            return search_depth > other.search_depth;
+        }
+        return search_result.second > other.search_result.second;
+    }
+
+    // Reset after a batch of threads die, histories persist.
+    void reset()
+    {
+        num_of_nodes_searched = 0;
+        search_result         = {};
+        search_depth          = 0;
+        principal_variation.clear();
+        timer_expired_during_search = false;
+        leaf_scores_welford         = {};
+    }
+};
+
 class Search_Engine
 {
   public:
@@ -186,51 +261,74 @@ class Search_Engine
 
   private:
 
+    Thread_Pool                        m_worker_pool;
+    Threads_States<Search_Worker_Data> m_threads_states;
+
     Chess_Board              m_chess_board;
     Transposition_Table      m_transposition_table;
     Search_Constraints       m_constraints;
-    PIECE_COLOR              m_my_side;
     Timer                    m_timer;
-    bool                     m_timer_expired_during_search;
-    uint64_t                 m_num_of_nodes_searched;
+    bool                     m_timer_expired_during_search = false;
+    uint64_t                 m_num_of_nodes_searched       = 0;
     Depth_Int                m_current_search_depth;
     Principal_Variation_List m_principal_variation;
 
     const Cuckoo_RM_Table m_cuckoo_rm_table;
 
-    Correction_History_Tables<CORRECTION_HISTORY_TABLE_SIZE>
-        m_correction_history;
+    Threads_Shared_Data m_shared_data;
 
-    Quiet_Continuation_History_Table   m_q_cont_hist_table;
-    Search_Quiet_Cont_Hist_Stack       m_q_cont_hist_stack;
-    Capture_Continuation_History_Table m_c_cont_hist_table;
-    Search_Capture_Cont_Hist_Stack     m_c_cont_hist_stack;
+    bool aspiration_windows(Aspiration_Window& window);
 
-    constexpr static Multi_Array<Matrex_FP_Int,
-                                 (NUM_OF_UNIQUE_PIECES_PER_PLAYER - 1)>
-        FUTILITY_PRUNING_MATERIAL_WEIGHTS = {
-            Matrex_FP_Int::from_integer(100), // PAWN
-            Matrex_FP_Int::from_integer(300), // KNIGHT
-            Matrex_FP_Int::from_integer(350), // BISHOP
-            Matrex_FP_Int::from_integer(500), // ROOK
-            Matrex_FP_Int::from_integer(900)  // QUEEN
-    };
+    Search_Engine_Result iterative_deepening();
+};
+
+class Search_Work : public Thread_Job
+{
+  public:
+
+    Search_Work(Threads_Shared_Data&   shared_data,
+                Transposition_Table&   transposition_table,
+                Search_Worker_Data&    thread_state,
+                const Cuckoo_RM_Table& cuckoo_rm_table,
+                Chess_Board            position,
+                Depth_Int              depth,
+                Score                  alpha,
+                Score                  beta,
+                Timer&                 timer,
+                Search_Constraints&    constraints);
+
+    virtual bool has_job() const override;
+
+    virtual std::any operator()(std::stop_token) override;
+
+  private:
+
+    Search_Worker_History& m_history;
+
+    std::size_t m_index_to_transposition_table;
+    std::size_t m_index_to_position;
+    std::size_t m_index_to_my_side;
+    std::size_t m_index_to_depth;
+    std::size_t m_index_to_alpha;
+    std::size_t m_index_to_beta;
+    std::size_t m_index_to_timer;
+    std::size_t m_index_to_constraints;
+    std::size_t m_index_to_thread_state;
+    std::size_t m_index_to_cuckoo_rm_table;
 
     Search_Engine_Result
     negamax(Chess_Board&                    position,
             Depth_Int                       depth,
-            Welford&                        leaf_nodes_welford,
             Principal_Variation_List&       principal_variation,
             Search_Quiet_Cont_Hist_Stack&   q_cont_hist_stack,
             Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
+            bool&                           timer_expired_during_search,
             Depth_Int                       ply   = 0,
             Score                           alpha = Score(FP_NEGATIVE_INFINITY),
             Score                           beta = Score(FP_POSITIVE_INFINITY));
 
     Search_Engine_Result
     quiescence(Chess_Board& position, Depth_Int ply, Score alpha, Score beta);
-    void                 aspiration_windows(Aspiration_Window& window);
-    Search_Engine_Result iterative_deepening();
 
     template <std::size_t CONT_HIST_STACK_SIZE>
     inline Score get_mate_score(const Move_Ordering<CONT_HIST_STACK_SIZE>& mo,
@@ -350,8 +448,8 @@ inline uint64_t Search_Engine::get_node_count()
 
 template <std::size_t CONT_HIST_STACK_SIZE>
 inline Score
-Search_Engine::get_mate_score(const Move_Ordering<CONT_HIST_STACK_SIZE>& mo,
-                              Depth_Int                                  ply)
+Search_Work::get_mate_score(const Move_Ordering<CONT_HIST_STACK_SIZE>& mo,
+                            Depth_Int                                  ply)
 {
     Score mate_score;
 
@@ -373,7 +471,7 @@ Search_Engine::get_mate_score(const Move_Ordering<CONT_HIST_STACK_SIZE>& mo,
     return mate_score;
 }
 
-inline bool Search_Engine::should_use_transposition_table_score(
+inline bool Search_Work::should_use_transposition_table_score(
     const bool                       is_pv,
     const bool                       is_hit,
     const Depth_Int                  depth,
@@ -389,7 +487,7 @@ inline bool Search_Engine::should_use_transposition_table_score(
                 && entry.score <= alpha));
 }
 
-inline bool Search_Engine::should_use_transposition_table_score(
+inline bool Search_Work::should_use_transposition_table_score(
     const bool                       is_hit,
     const Depth_Int                  depth,
     const Transposition_Table_Entry& entry,
@@ -404,7 +502,7 @@ inline bool Search_Engine::should_use_transposition_table_score(
                 && entry.score <= alpha));
 }
 
-inline bool Search_Engine::should_use_transposition_table_score(
+inline bool Search_Work::should_use_transposition_table_score(
     const bool                       is_hit,
     const Depth_Int                  depth,
     const Transposition_Table_Entry& entry,
@@ -418,7 +516,7 @@ inline bool Search_Engine::should_use_transposition_table_score(
                 && entry.score <= eval));
 }
 
-inline bool Search_Engine::should_update_correction_history(
+inline bool Search_Work::should_update_correction_history(
     const bool             is_search_timer_expired,
     const Chess_Move&      best_move,
     const Score            best_score,
@@ -435,7 +533,7 @@ inline bool Search_Engine::should_update_correction_history(
             && (!is_side_to_move_in_check));
 }
 
-inline bool Search_Engine::should_update_quiet_continuation_history(
+inline bool Search_Work::should_update_quiet_continuation_history(
     const Chess_Move&      beta_cutoff_move,
     const Score_Bound_Type score_bound)
 {
@@ -443,7 +541,7 @@ inline bool Search_Engine::should_update_quiet_continuation_history(
             && (score_bound == Score_Bound_Type::LOWER_BOUND));
 }
 
-inline bool Search_Engine::should_update_capture_continuation_history(
+inline bool Search_Work::should_update_capture_continuation_history(
     const Chess_Move&      beta_cutoff_move,
     const Score_Bound_Type score_bound)
 {
@@ -452,19 +550,19 @@ inline bool Search_Engine::should_update_capture_continuation_history(
 }
 
 inline bool
-Search_Engine::should_do_move_loop_pruning(const Score best_score,
-                                           const bool  is_side_to_move_in_check,
-                                           const bool  is_first_move)
+Search_Work::should_do_move_loop_pruning(const Score best_score,
+                                         const bool  is_side_to_move_in_check,
+                                         const bool  is_first_move)
 {
     return ((!best_score.is_enemy_mate()) && (!is_side_to_move_in_check)
             && (!is_first_move));
 }
 
 inline bool
-Search_Engine::should_do_see_pruning(const Chess_Move& move,
-                                     const Score       best_score,
-                                     const bool        is_side_to_move_in_check,
-                                     const bool        is_first_move)
+Search_Work::should_do_see_pruning(const Chess_Move& move,
+                                   const Score       best_score,
+                                   const bool        is_side_to_move_in_check,
+                                   const bool        is_first_move)
 {
     return (move.is_capture
             && should_do_move_loop_pruning(best_score,
@@ -473,9 +571,9 @@ Search_Engine::should_do_see_pruning(const Chess_Move& move,
 }
 
 inline bool
-Search_Engine::should_do_see_pruning(const Chess_Move& move,
-                                     const Score       best_score,
-                                     const bool        is_side_to_move_in_check)
+Search_Work::should_do_see_pruning(const Chess_Move& move,
+                                   const Score       best_score,
+                                   const bool        is_side_to_move_in_check)
 {
     return (move.is_capture
             && should_do_move_loop_pruning(best_score,
@@ -483,7 +581,7 @@ Search_Engine::should_do_see_pruning(const Chess_Move& move,
                                            false));
 }
 
-inline bool Search_Engine::should_do_quiet_history_pruning(
+inline bool Search_Work::should_do_quiet_history_pruning(
     const Search_Quiet_Cont_Hist_Stack& q_cont_hist_stack,
     const Chess_Move&                   move,
     const Score                         best_score,
@@ -499,7 +597,7 @@ inline bool Search_Engine::should_do_quiet_history_pruning(
                                            is_first_move));
 }
 
-inline bool Search_Engine::should_do_capture_history_pruning(
+inline bool Search_Work::should_do_capture_history_pruning(
     const Search_Capture_Cont_Hist_Stack& c_cont_hist_stack,
     const Chess_Move&                     move,
     const Score                           best_score,
@@ -514,7 +612,7 @@ inline bool Search_Engine::should_do_capture_history_pruning(
                                            is_first_move));
 }
 
-inline bool Search_Engine::should_do_quiet_futility_pruning(
+inline bool Search_Work::should_do_quiet_futility_pruning(
     const Chess_Move& move,
     const Score       best_score,
     const bool        is_side_to_move_in_check,
@@ -529,7 +627,7 @@ inline bool Search_Engine::should_do_quiet_futility_pruning(
             && (move.is_quiet_move()));
 }
 
-inline bool Search_Engine::should_do_capture_futility_pruning(
+inline bool Search_Work::should_do_capture_futility_pruning(
     const Chess_Move& move,
     const Score       best_score,
     const bool        is_side_to_move_in_check,
@@ -543,7 +641,7 @@ inline bool Search_Engine::should_do_capture_futility_pruning(
                                            is_first_move));
 }
 
-inline bool Search_Engine::should_do_reverse_futility_pruning(
+inline bool Search_Work::should_do_reverse_futility_pruning(
     const bool  is_side_to_move_in_check,
     const Score evaluation_with_margin,
     const Score beta)
@@ -551,10 +649,10 @@ inline bool Search_Engine::should_do_reverse_futility_pruning(
     return ((evaluation_with_margin >= beta) && (!is_side_to_move_in_check));
 }
 
-inline bool Search_Engine::should_do_late_move_reductions(
-    const Chess_Move& move,
-    const Score       best_score,
-    const bool        is_side_to_move_in_check)
+inline bool
+Search_Work::should_do_late_move_reductions(const Chess_Move& move,
+                                            const Score       best_score,
+                                            const bool is_side_to_move_in_check)
 {
     return (move.is_quiet_move() && (!is_side_to_move_in_check)
             && (!best_score.is_enemy_mate()) && (move.score <= 0));

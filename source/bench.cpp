@@ -46,6 +46,7 @@ double Performance_Bench::bench_search(const Depth_Int depth)
     constraints.should_ignore_time                               = true;
     constraints.depth                                            = depth;
     constraints.transposition_table_size                         = 128;
+    constraints.num_of_search_workers                            = 4;
 
     uint64_t total_node_count = 0;
     uint64_t total_time       = 0;

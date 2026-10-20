@@ -8,7 +8,6 @@
 #include "move_generator.hpp"
 #include "non_linear_response.hpp"
 #include "score.hpp"
-#include "correction_history_table.hpp"
 #include "evaluation_weights.hpp"
 #include "evaluation_terms.hpp"
 
@@ -27,9 +26,7 @@ class Evaluator
 
     T evaluate_template_typed() const;
 
-    template <std::size_t corr_hist_table_size>
-    Score evaluate(const Correction_History_Tables<corr_hist_table_size>&
-                       corr_hist_tables) const;
+    Score evaluate(Score correction) const;
 
     template <PIECE_COLOR moving_side, EGAME_PHASE phase>
     inline T material_score() const;
@@ -258,14 +255,10 @@ T Evaluator<T>::evaluate_template_typed() const
 }
 
 template <typename T>
-template <std::size_t corr_hist_table_size>
-Score Evaluator<T>::evaluate(
-    const Correction_History_Tables<corr_hist_table_size>& corr_hist_tables)
-    const
+Score Evaluator<T>::evaluate(Score correction) const
 {
     const Score corrected_evaluation =
-        Score(evaluate_template_typed())
-        + corr_hist_tables.get_correction(m_chess_board);
+        Score(evaluate_template_typed()) + correction;
     T clamped_evaluation =
         Matrex_FP_Int(std::clamp(corrected_evaluation.to_int(),
                                  FP_EVALUATION_MIN,

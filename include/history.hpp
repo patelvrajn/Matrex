@@ -4,7 +4,6 @@
 #include "globals.hpp"
 
 #include <algorithm>
-#include <functional>
 
 using History_Score_Storage_Type = Move_Score;
 
@@ -75,15 +74,18 @@ class Quiet_Continuation_History_Stack
 {
   public:
 
-    Quiet_Continuation_History_Stack();
+    explicit Quiet_Continuation_History_Stack(
+        Quiet_Continuation_History_Table& table);
 
-    void bind_to_history_table(Quiet_History_Table& table,
-                               const std::size_t    index);
+    void bind_to_move(const Chess_Move& move, std::size_t index);
 
     History_Score_Storage_Type get_score(const Chess_Move& move) const;
 
-    Partially_Filled_Array<Optional_Reference<Quiet_History_Table>, STACK_SIZE>
-        stack;
+    Partially_Filled_Array<Chess_Move, STACK_SIZE> stack;
+
+  private:
+
+    Quiet_Continuation_History_Table& m_table;
 };
 
 class Capture_History_Table
@@ -136,16 +138,18 @@ class Capture_Continuation_History_Stack
 {
   public:
 
-    Capture_Continuation_History_Stack();
+    explicit Capture_Continuation_History_Stack(
+        Capture_Continuation_History_Table& table);
 
-    void bind_to_history_table(Capture_History_Table& table,
-                               const std::size_t      index);
+    void bind_to_move(const Chess_Move& move, std::size_t index);
 
     History_Score_Storage_Type get_score(const Chess_Move& move) const;
 
-    Partially_Filled_Array<Optional_Reference<Capture_History_Table>,
-                           STACK_SIZE>
-        stack;
+    Partially_Filled_Array<Chess_Move, STACK_SIZE> stack;
+
+  private:
+
+    Capture_Continuation_History_Table& m_table;
 };
 
 template <bool is_malus>
@@ -210,16 +214,18 @@ void Capture_History_Table::gravity_update(
 }
 
 template <std::size_t STACK_SIZE>
-Quiet_Continuation_History_Stack<STACK_SIZE>::Quiet_Continuation_History_Stack()
+Quiet_Continuation_History_Stack<STACK_SIZE>::Quiet_Continuation_History_Stack(
+    Quiet_Continuation_History_Table& table) :
+    m_table(table)
 {
 }
 
 template <std::size_t STACK_SIZE>
-void Quiet_Continuation_History_Stack<STACK_SIZE>::bind_to_history_table(
-    Quiet_History_Table& table,
-    const std::size_t    index)
+void Quiet_Continuation_History_Stack<STACK_SIZE>::bind_to_move(
+    const Chess_Move& move,
+    const std::size_t index)
 {
-    stack[index] = table;
+    stack[index] = move;
 }
 
 template <std::size_t STACK_SIZE>
@@ -241,8 +247,7 @@ Quiet_Continuation_History_Stack<STACK_SIZE>::get_score(
     {
         for (int64_t i = start; i >= end; --i)
         {
-            const auto& hist_table  = stack[static_cast<std::size_t>(i)];
-            score                  += hist_table.get_ref()[move];
+            score += m_table[stack[static_cast<std::size_t>(i)]][move];
         }
     }
 
@@ -253,17 +258,19 @@ Quiet_Continuation_History_Stack<STACK_SIZE>::get_score(
 }
 
 template <std::size_t STACK_SIZE>
-Capture_Continuation_History_Stack<
-    STACK_SIZE>::Capture_Continuation_History_Stack()
+Capture_Continuation_History_Stack<STACK_SIZE>::
+    Capture_Continuation_History_Stack(
+        Capture_Continuation_History_Table& table) :
+    m_table(table)
 {
 }
 
 template <std::size_t STACK_SIZE>
-void Capture_Continuation_History_Stack<STACK_SIZE>::bind_to_history_table(
-    Capture_History_Table& table,
-    const std::size_t      index)
+void Capture_Continuation_History_Stack<STACK_SIZE>::bind_to_move(
+    const Chess_Move& move,
+    const std::size_t index)
 {
-    stack[index] = table;
+    stack[index] = move;
 }
 
 template <std::size_t STACK_SIZE>
@@ -286,8 +293,7 @@ Capture_Continuation_History_Stack<STACK_SIZE>::get_score(
     {
         for (int64_t i = start; i >= end; --i)
         {
-            const auto& hist_table  = stack[static_cast<std::size_t>(i)];
-            score                  += hist_table.get_ref()[move];
+            score += m_table[stack[static_cast<std::size_t>(i)]][move];
         }
     }
 

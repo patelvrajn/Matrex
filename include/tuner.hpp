@@ -205,12 +205,13 @@ class Tuner_Step : public Thread_Job
 
         // Grab necessary private data.
         const auto& tuner_instance =
-            std::any_cast<std::reference_wrapper<const Tuner>>(
-                read_private_data(m_index_to_tuner))
+            read_private_data<std::reference_wrapper<const Tuner>>(
+                m_index_to_tuner)
                 .get();
+
         const auto& batch =
-            std::any_cast<std::reference_wrapper<const Mini_Batch>>(
-                read_private_data(m_index_to_data))
+            read_private_data<std::reference_wrapper<const Mini_Batch>>(
+                m_index_to_data)
                 .get();
 
         // Calculate the local gradient using the global state's weights.

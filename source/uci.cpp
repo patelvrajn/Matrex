@@ -182,6 +182,8 @@ void UCI::handle_uci(const std::string&)
     std::cout << "option name Hash type spin default "
               << DEFAULT_TRANSPOSITION_TABLE_SIZE << " min 1 max 1024"
               << std::endl;
+    std::cout << "option name Threads type spin default " << 1 << " min 1 max 8"
+              << std::endl;
     std::cout << "uciok" << std::endl;
 }
 
@@ -215,6 +217,14 @@ void UCI::handle_setoption(const std::string& arguments)
                 current_index += 2; // Skip "Hash" and "value"
 
                 m_search_constraints.transposition_table_size =
+                    std::stoull(tokens->at(current_index));
+            }
+
+            if (option_name == "Threads")
+            {
+                current_index += 2; // Skip "Threads" and "value"
+
+                m_search_constraints.num_of_search_workers =
                     std::stoull(tokens->at(current_index));
             }
         }
