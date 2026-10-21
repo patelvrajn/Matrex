@@ -55,6 +55,28 @@ struct Chess_Move
             .score                            = 0};
     }
 
+    static Chess_Move null_move()
+    {
+        return Chess_Move {
+            .source_square      = static_cast<ESQUARE>(0),
+            .destination_square = static_cast<ESQUARE>(0),
+            .moving_piece = PIECES::KNIGHT, // The moving piece being a pawn can
+                                            // conflict with draw detection.
+            .promoted_piece                   = PIECES::NO_PIECE,
+            .captured_piece                   = PIECES::NO_PIECE,
+            .is_capture                       = false,
+            .is_short_castling                = false,
+            .is_long_castling                 = false,
+            .castling_rook_source_square      = static_cast<ESQUARE>(0),
+            .castling_rook_destination_square = static_cast<ESQUARE>(0),
+            .is_double_pawn_push              = false,
+            .is_en_passant                    = false,
+            .en_passant_victim_square         = ESQUARE::NO_SQUARE,
+            .is_promotion                     = false,
+            .padding                          = 0,
+            .score                            = 0};
+    }
+
     std::string to_coordinate_notation(const bool is_frc) const
     {
         const std::string source_square_str = SQUARE_STRINGS[source_square];

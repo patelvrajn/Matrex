@@ -188,9 +188,9 @@ Search_Work::negamax(Chess_Board&                    position,
     // a full window to get a baseline score. Assuming the first move is not an
     // exact score and is not the best move then we redo the search with a full
     // window looking for the PV node. If the first move is the PV node then we
-    // only expect a PV_WINDOW_SIZE alpha-beta window for all other moves.
+    // only expect a NULL_WINDOW_SIZE alpha-beta window for all other moves.
     const bool is_pv_node =
-        ((beta - alpha).to_int() > PV_WINDOW_SIZE.get_value());
+        ((beta - alpha).to_int() > NULL_WINDOW_SIZE.get_value());
 
     // Transposition table cutoff - use the stored best move and score if it
     // satisfies the conditions.
@@ -302,6 +302,39 @@ Search_Work::negamax(Chess_Board&                    position,
     const Score correction = m_history.correction.get_correction(position);
     const Score static_evaluation = e.evaluate(correction);
 
+    Principal_Variation_List child_principal_variation;
+
+    // Null Move Pruning - The idea is that if the side to move can do nothing 
+    // and still induce a beta cutoff in an obviously good position then we can 
+    // assume that the best legal move in the position will induce a beta cutoff
+    // due to the Null Move Observation (the observation that in non-zugzwang 
+    // positions, making the best legal move is better than making a null move). 
+    // Thus, the whole node can be pruned and treated as a beta cutoff.  
+    if (should_do_null_move_pruning(is_side_to_move_in_check))
+    {
+        const Undo_Chess_Move undo_null_move = position.make_null_move();
+
+        const Depth_Int depth_reduction = 4 + (depth / 4);
+
+        const Search_Engine_Result child_result =
+            negamax(position,
+                    (depth - 1 - depth_reduction),
+                    child_principal_variation,
+                    q_cont_hist_stack,
+                    c_cont_hist_stack,
+                    timer_expired_during_search,
+                    (ply + 1),
+                    -beta,
+                    -(beta - Score(NULL_WINDOW_SIZE)));
+
+        position.undo_move(undo_null_move);
+
+        if ((-child_result.second) >= beta)
+        {
+            return {Chess_Move(), -child_result.second};
+        }
+    }
+
     // const Matrex_FP_Int fp_reverse_futility_pruning_margin =
     //     Matrex_FP_Int::from_integer((2 * depth_squared) + (32 * depth) + 16);
     // const Score reverse_futility_pruning_margin =
@@ -315,10 +348,9 @@ Search_Work::negamax(Chess_Board&                    position,
     //     return {Chess_Move(), reverse_futility_threshold};
     // }
 
-    Principal_Variation_List child_principal_variation;
-    Chess_Move               best_move        = Chess_Move();
-    Chess_Move               beta_cutoff_move = Chess_Move();
-    Score                    best_score       = Score(FP_NEGATIVE_INFINITY);
+    Chess_Move best_move        = Chess_Move();
+    Chess_Move beta_cutoff_move = Chess_Move();
+    Score      best_score       = Score(FP_NEGATIVE_INFINITY);
 
     Move_Generation_List quiets_to_malus;
     Move_Generation_List captures_to_malus;
@@ -438,7 +470,7 @@ Search_Work::negamax(Chess_Board&                    position,
                                        c_cont_hist_stack,
                                        timer_expired_during_search,
                                        (ply + 1),
-                                       (-alpha - Score(PV_WINDOW_SIZE)),
+                                       (-alpha - Score(NULL_WINDOW_SIZE)),
                                        -alpha);
             }
             else
@@ -459,7 +491,7 @@ Search_Work::negamax(Chess_Board&                    position,
                                        c_cont_hist_stack,
                                        timer_expired_during_search,
                                        (ply + 1),
-                                       (-alpha - Score(PV_WINDOW_SIZE)),
+                                       (-alpha - Score(NULL_WINDOW_SIZE)),
                                        -alpha);
 
                 const Score child_score = -child_result.second;
