@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <ranges>
 
 #include "evaluate.hpp"
@@ -31,10 +32,9 @@
 // → Quiescence Search Move Pruning (Implemented and passes SPRT)
 // → Move Ordering (Currently, does not pass SPRT.)
 //
-// If the moving piece at the start of capture sequence of the move given during
-// search does not match the cheapest attacker that SEE calculates we simply
-// penalize it, this is to avoid any logic reordering of the arrays which could
-// be expensive.
+// The requested source square is moved to the back of its side's attackers
+// before interleaving, so it captures first and the remaining order is
+// preserved.
 //
 // The following are additional features that can be implemented:
 //
@@ -57,7 +57,7 @@ class Static_Exchange_Evaluator
     Static_Exchange_Evaluator(const Chess_Board& position);
 
     Integral_Type evaluate(Square        target_square,
-                           PIECES        moving_piece,
+                           Square        source_square,
                            Integral_Type score_scaler);
 
     constexpr Integral_Type negamax_threshold(uint32_t search_depth_squared);
@@ -78,17 +78,15 @@ class Static_Exchange_Evaluator
     static constexpr Multi_Array<Integral_Type, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
         m_material_weights = {10, 30, 35, 50, 90, 150};
 
-    static constexpr Multi_Array<Integral_Type, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
-        m_moving_piece_penalties = {10, 30, 35, 50, 90, 150};
-
     SEE_Attackers_Array
     what_pieces_attack_this_square(const Square      s,
                                    const PIECE_COLOR this_side) const;
 
-    SEE_Interleaved_Attackers_Array
-    get_all_interleaved_attackers(const Square      s,
-                                  const PIECE_COLOR this_side,
-                                  bool&             only_kings) const;
+    SEE_Interleaved_Attackers_Array get_all_interleaved_attackers(
+        const Square      s,
+        const PIECE_COLOR this_side,
+        bool&             only_kings,
+        Square            source_square = Square(ESQUARE::NO_SQUARE)) const;
 
     void reset_occupancy_bitboards();
 
@@ -191,12 +189,29 @@ SEE_Interleaved_Attackers_Array
 Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
     const Square      s,
     const PIECE_COLOR this_side,
-    bool&             only_kings) const
+    bool&             only_kings,
+    Square            source_square) const
 {
     SEE_Interleaved_Attackers_Array interleaved_attackers;
 
     auto this_side_attackers  = what_pieces_attack_this_square(s, this_side);
     auto other_side_attackers = what_pieces_attack_this_square(s, ~this_side);
+
+    // If the source square is a valid square it means that the first attacker
+    // is forced first in the order - this logic moves the attacker so it
+    // captures first.
+    if (source_square.has_square())
+    {
+        const auto first =
+            std::ranges::find(this_side_attackers, // Iterable object to search.
+                              source_square,       // Value to find.
+                              &Placed_Piece::square); // Member to compare.
+
+        if (first != this_side_attackers.end())
+        {
+            std::rotate(first, first + 1, this_side_attackers.end());
+        }
+    }
 
     // The only kings boolean starts as true if either side as a size of 1 or
     // both sides have a size of 1 (this is equivalent to an OR).
@@ -425,21 +440,20 @@ inline void Static_Exchange_Evaluator<Integral_Type>::insert_hidden_attacker(
 template <typename Integral_Type>
 Integral_Type
 Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
-                                                   PIECES        moving_piece,
+                                                   Square        source_square,
                                                    Integral_Type score_scaler)
 {
     bool only_kings = false;
 
-    // All attackers to this square from both sides in interleaved order and in
-    // order of least to greatest material value (e.g. white, black, white, ...
-    // ).
+    // The requested move's attacker captures first and then subsequent
+    // attackers are interleaved in least-value order.
     SEE_Interleaved_Attackers_Array attackers =
-        get_all_interleaved_attackers(target_square, m_this_side, only_kings);
+        get_all_interleaved_attackers(target_square,
+                                      m_this_side,
+                                      only_kings,
+                                      source_square);
 
-    // Score of the overall exchange sequence. Start with a penalty if the move
-    // does not capture with the least valuable piece first.
-    Integral_Type score = (m_moving_piece_penalties[attackers.back().piece]
-                           - m_moving_piece_penalties[moving_piece]);
+    Integral_Type score = 0;
 
     bool         is_first_iteration = true;
     Placed_Piece previous_attacker;
@@ -471,7 +485,13 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
         {
             const Placed_Piece attacker = attackers.back();
 
-            if (attacker.piece == PIECES::KING)
+            // Handle recaptures with the king. Note, the first move in the
+            // original attackers sequence is assumed always legal AND we don't
+            // want to re-order the first move so "(previous_attacker.square !=
+            // target_square)" is a check if this is a forced first move with a
+            // king.
+            if ((attacker.piece == PIECES::KING)
+                && (previous_attacker.square != target_square))
             {
                 // Pre-compute the next set of attackers - if there are any
                 // attackers besides kings - don't execute any other logic. The
@@ -571,7 +591,8 @@ constexpr Integral_Type
 Static_Exchange_Evaluator<Integral_Type>::negamax_threshold(
     uint32_t search_depth_squared)
 {
-    return ((-1 * (m_material_weights[PIECES::PAWN] / 5)) * search_depth_squared);
+    return ((-1 * (m_material_weights[PIECES::PAWN] / 5))
+            * search_depth_squared);
 }
 
 template <typename Integral_Type>

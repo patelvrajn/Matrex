@@ -142,7 +142,7 @@ void Move_Ordering<CONT_HIST_STACK_SIZE>::move_scorer()
                 m_mvv_lva_array[move.moving_piece][move.captured_piece];
 
             // move.score +=
-            //     m_see.evaluate(move.destination_square, move.moving_piece,
+            //     m_see.evaluate(move.destination_square, move.source_square,
             //     15);
         }
         // Enpassant is a capture but not labeled under is_capture for move

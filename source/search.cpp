@@ -304,12 +304,12 @@ Search_Work::negamax(Chess_Board&                    position,
 
     Principal_Variation_List child_principal_variation;
 
-    // Null Move Pruning - The idea is that if the side to move can do nothing 
-    // and still induce a beta cutoff in an obviously good position then we can 
+    // Null Move Pruning - The idea is that if the side to move can do nothing
+    // and still induce a beta cutoff in an obviously good position then we can
     // assume that the best legal move in the position will induce a beta cutoff
-    // due to the Null Move Observation (the observation that in non-zugzwang 
-    // positions, making the best legal move is better than making a null move). 
-    // Thus, the whole node can be pruned and treated as a beta cutoff.  
+    // due to the Null Move Observation (the observation that in non-zugzwang
+    // positions, making the best legal move is better than making a null move).
+    // Thus, the whole node can be pruned and treated as a beta cutoff.
     if (should_do_null_move_pruning(is_side_to_move_in_check))
     {
         const Undo_Chess_Move undo_null_move = position.make_null_move();
@@ -368,7 +368,7 @@ Search_Work::negamax(Chess_Board&                    position,
                                   is_first_move))
         {
             const auto see_evaluation =
-                see.evaluate(move.destination_square, move.moving_piece, 1);
+                see.evaluate(move.destination_square, move.source_square, 1);
 
             if (see_evaluation < see.negamax_threshold(depth_squared))
             {
@@ -852,7 +852,7 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
         if (should_do_see_pruning(move, best_score, is_side_to_move_in_check))
         {
             const auto see_evaluation =
-                see.evaluate(move.destination_square, move.moving_piece, 1);
+                see.evaluate(move.destination_square, move.source_square, 1);
 
             if (see_evaluation < see.quiescence_threshold()) { continue; }
         }
