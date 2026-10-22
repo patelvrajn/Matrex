@@ -355,26 +355,26 @@ Search_Work::negamax(Chess_Board&                    position,
     Move_Generation_List quiets_to_malus;
     Move_Generation_List captures_to_malus;
 
-    // Static_Exchange_Evaluator<int64_t> see(position);
+    Static_Exchange_Evaluator<int64_t> see(position);
 
     bool    is_first_move = true;
     uint8_t move_index    = 0;
     for (const Chess_Move& move : moves)
     {
-        // // Static Exchange Evaluation Pruning (Captures Only)
-        // if (should_do_see_pruning(move,
-        //                           best_score,
-        //                           is_side_to_move_in_check,
-        //                           is_first_move))
-        // {
-        //     const auto see_evaluation =
-        //         see.evaluate(move.destination_square, move.moving_piece, 1);
+        // Static Exchange Evaluation Pruning (Captures Only)
+        if (should_do_see_pruning(move,
+                                  best_score,
+                                  is_side_to_move_in_check,
+                                  is_first_move))
+        {
+            const auto see_evaluation =
+                see.evaluate(move.destination_square, move.moving_piece, 1);
 
-        //     if (see_evaluation < see.negamax_threshold(depth_squared))
-        //     {
-        //         continue;
-        //     }
-        // }
+            if (see_evaluation < see.negamax_threshold(depth_squared))
+            {
+                continue;
+            }
+        }
 
         // Futility pruning - we have a large enough margin from alpha that
         // evaluating this branch is futile. The margin is determined by depth

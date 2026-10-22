@@ -571,7 +571,7 @@ constexpr Integral_Type
 Static_Exchange_Evaluator<Integral_Type>::negamax_threshold(
     uint32_t search_depth_squared)
 {
-    return ((-1 * m_material_weights[PIECES::PAWN]) * search_depth_squared);
+    return ((-1 * (m_material_weights[PIECES::PAWN] / 5)) * search_depth_squared);
 }
 
 template <typename Integral_Type>
