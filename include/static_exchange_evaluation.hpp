@@ -4,6 +4,7 @@
 #include <ranges>
 
 #include "evaluate.hpp"
+#include "globals.hpp"
 
 // =============================================================================
 // Static Exchange Evaluation (SEE) Class
@@ -60,7 +61,7 @@ class Static_Exchange_Evaluator
                            Square        source_square,
                            Integral_Type score_scaler);
 
-    constexpr Integral_Type negamax_threshold(uint32_t search_depth_squared);
+    constexpr Integral_Type negamax_threshold(uint32_t search_depth);
     constexpr Integral_Type quiescence_threshold();
 
   private:
@@ -455,6 +456,25 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
 
     Integral_Type score = 0;
 
+    Partially_Filled_Array<Integral_Type, 2 * SEE_ATTACKERS_ARRAY_SIZE>
+               balances;
+    const auto finish = [&]()
+    {
+        // The balance scores are from our perspective - we want to maximize.
+        // Even indices the opponent chooses the minimum of stopping at
+        // balances[i] or continuing with the result. Odd indices we choose the
+        // maximum. The initial capture is forced.
+        Integral_Type result = score;
+        for (int64_t i = balances.get_max_index() - 1; i >= 0; --i)
+        {
+            result = ((i % NUM_OF_PLAYERS) == 0)
+                       ? std::min(balances[i], result)
+                       : std::max(balances[i], result);
+        }
+        reset_occupancy_bitboards();
+        return result * score_scaler;
+    };
+
     bool         is_first_iteration = true;
     Placed_Piece previous_attacker;
     while (true)
@@ -507,8 +527,7 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
                 // king cannot capture a guarded piece.
                 if ((!only_kings) && (attackers.size() <= 2))
                 {
-                    reset_occupancy_bitboards();
-                    return (score * score_scaler);
+                    return finish();
                 }
 
                 if (!only_kings) { break; }
@@ -532,8 +551,8 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
                 // After accounting for the last attacker's value and ensuring
                 // the king was the lone attacker - we are done just return the
                 // current score.
-                reset_occupancy_bitboards();
-                return (score * score_scaler);
+                balances.append(score);
+                return finish();
             }
 
             // Account for the value of the previous attacker.
@@ -546,6 +565,8 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
             {
                 score += m_material_weights[previous_attacker.piece];
             }
+
+            balances.append(score);
 
             // Clear the attacker from it's square which will unhide any
             // attackers that were behind it.
@@ -582,17 +603,15 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
                                                   only_kings);
     }
 
-    reset_occupancy_bitboards();
-    return (score * score_scaler);
+    return finish();
 }
 
 template <typename Integral_Type>
 constexpr Integral_Type
 Static_Exchange_Evaluator<Integral_Type>::negamax_threshold(
-    uint32_t search_depth_squared)
+    uint32_t search_depth)
 {
-    return ((-1 * (m_material_weights[PIECES::PAWN] / 5))
-            * search_depth_squared);
+    return (-m_material_weights[PIECES::PAWN] * search_depth);
 }
 
 template <typename Integral_Type>

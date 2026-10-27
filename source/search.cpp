@@ -370,10 +370,7 @@ Search_Work::negamax(Chess_Board&                    position,
             const auto see_evaluation =
                 see.evaluate(move.destination_square, move.source_square, 1);
 
-            if (see_evaluation < see.negamax_threshold(depth_squared))
-            {
-                continue;
-            }
+            if (see_evaluation < see.negamax_threshold(depth)) { continue; }
         }
 
         // Futility pruning - we have a large enough margin from alpha that

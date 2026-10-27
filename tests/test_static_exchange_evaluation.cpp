@@ -14,7 +14,7 @@ TEST(see_tests, all_piece_type_exchange_without_kings)
     Chess_Board position;
     position.set_from_fen("2kr4/8/5q2/1n2b3/3P4/2B2N2/1Q6/3RK3 b - - 0 1");
     Static_Exchange_Evaluator<int64_t> see(position);
-    ASSERT_EQ(see.evaluate(Square(ESQUARE::D4), Square(ESQUARE::B5), 1), -80);
+    ASSERT_EQ(see.evaluate(Square(ESQUARE::D4), Square(ESQUARE::B5), 1), -20);
 }
 
 TEST(see_tests, all_piece_type_exchange)
@@ -22,7 +22,7 @@ TEST(see_tests, all_piece_type_exchange)
     Chess_Board position;
     position.set_from_fen("3r4/8/5q2/1n2b3/2kP4/2B1KN2/1Q6/3R4 b - - 0 1");
     Static_Exchange_Evaluator<int64_t> see(position);
-    ASSERT_EQ(see.evaluate(Square(ESQUARE::D4), Square(ESQUARE::B5), 1), -80);
+    ASSERT_EQ(see.evaluate(Square(ESQUARE::D4), Square(ESQUARE::B5), 1), -20);
 }
 
 TEST(see_tests, pawn_attack)
@@ -31,7 +31,7 @@ TEST(see_tests, pawn_attack)
     position.set_from_fen(
         "r1bqk2r/pppp1pp1/6n1/2bPp2p/3QP1n1/2N2N2/PPP1BPPP/R1B2RK1 b kq - 0 1");
     Static_Exchange_Evaluator<int64_t> see(position);
-    ASSERT_EQ(see.evaluate(Square(ESQUARE::D4), Square(ESQUARE::E5), 1), 110);
+    ASSERT_EQ(see.evaluate(Square(ESQUARE::D4), Square(ESQUARE::E5), 1), 90);
 }
 
 TEST(see_tests, this_side_has_more_attackers)
@@ -40,7 +40,7 @@ TEST(see_tests, this_side_has_more_attackers)
     position.set_from_fen(
         "rn1qkbnr/ppp1pppp/4b3/3p4/4P3/1BN5/PPPP1PPP/R1BQK1NR w KQkq - 0 1");
     Static_Exchange_Evaluator<int64_t> see(position);
-    EXPECT_EQ(see.evaluate(Square(ESQUARE::D5), Square(ESQUARE::E4), 1), 95);
+    EXPECT_EQ(see.evaluate(Square(ESQUARE::D5), Square(ESQUARE::E4), 1), 10);
 }
 
 TEST(see_tests, king_is_always_last_attacker)
