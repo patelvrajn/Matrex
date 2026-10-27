@@ -351,7 +351,8 @@ Static_Exchange_Evaluator<Integral_Type>::find_hidden_attacker(
     }
 
     // A bishop attacks the target square.
-    if (m_piece_bitboards[side][PIECES::BISHOP].get_square(
+    if (attacker_ray.is_diagonal()
+        && m_piece_bitboards[side][PIECES::BISHOP].get_square(
             first_occupied_square))
     {
         return {.color  = side,
@@ -360,7 +361,9 @@ Static_Exchange_Evaluator<Integral_Type>::find_hidden_attacker(
     }
 
     // A rook attacks the target square.
-    if (m_piece_bitboards[side][PIECES::ROOK].get_square(first_occupied_square))
+    if (attacker_ray.is_orthogonal()
+        && m_piece_bitboards[side][PIECES::ROOK].get_square(
+            first_occupied_square))
     {
         return {.color  = side,
                 .piece  = PIECES::ROOK,
