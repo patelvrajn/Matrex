@@ -367,8 +367,7 @@ Search_Work::negamax(Chess_Board&                    position,
                                   is_side_to_move_in_check,
                                   is_first_move))
         {
-            const auto see_evaluation =
-                see.evaluate(move.destination_square, move.source_square, 1);
+            const auto see_evaluation = see.evaluate(move, 1);
 
             if (see_evaluation < see.negamax_threshold(depth)) { continue; }
         }
@@ -848,8 +847,7 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
         // Static Exchange Evaluation Pruning
         if (should_do_see_pruning(move, best_score, is_side_to_move_in_check))
         {
-            const auto see_evaluation =
-                see.evaluate(move.destination_square, move.source_square, 1);
+            const auto see_evaluation = see.evaluate(move, 1);
 
             if (see_evaluation < see.quiescence_threshold()) { continue; }
         }

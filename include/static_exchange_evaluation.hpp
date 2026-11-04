@@ -57,9 +57,8 @@ class Static_Exchange_Evaluator
 
     Static_Exchange_Evaluator(const Chess_Board& position);
 
-    Integral_Type evaluate(Square        target_square,
-                           Square        source_square,
-                           Integral_Type score_scaler);
+    Integral_Type evaluate(const Chess_Move&   move,
+                           const Integral_Type score_scaler);
 
     constexpr Integral_Type negamax_threshold(uint32_t search_depth);
     constexpr Integral_Type quiescence_threshold();
@@ -81,12 +80,14 @@ class Static_Exchange_Evaluator
 
     SEE_Attackers_Array
     what_pieces_attack_this_square(const Square      s,
-                                   const PIECE_COLOR this_side) const;
+                                   const PIECE_COLOR this_side,
+                                   const bool        is_promotion_square) const;
 
     SEE_Interleaved_Attackers_Array get_all_interleaved_attackers(
         const Square      s,
         const PIECE_COLOR this_side,
         bool&             only_kings,
+        const bool        is_promotion_square,
         Square            source_square = Square(ESQUARE::NO_SQUARE)) const;
 
     void reset_occupancy_bitboards();
@@ -115,7 +116,8 @@ template <typename Integral_Type>
 SEE_Attackers_Array
 Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
     const Square      s,
-    const PIECE_COLOR this_side) const
+    const PIECE_COLOR this_side,
+    const bool        is_promotion_square) const
 {
     SEE_Attackers_Array attackers;
 
@@ -152,6 +154,18 @@ Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
             {.color = this_side, .piece = PIECES::KING, .square = attacker});
     }
 
+    // Always promote pawns last in a capture sequence because of their great
+    // value but before the kings.
+    if (is_promotion_square)
+    {
+        for (const Square attacker : this_attacking_pawns)
+        {
+            attackers.append({.color  = this_side,
+                              .piece  = PIECES::PAWN,
+                              .square = attacker});
+        }
+    }
+
     for (const Square attacker : this_attacking_queens)
     {
         attackers.append(
@@ -176,10 +190,15 @@ Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
             {.color = this_side, .piece = PIECES::KNIGHT, .square = attacker});
     }
 
-    for (const Square attacker : this_attacking_pawns)
+    // Non-promotable pawns.
+    if (!is_promotion_square)
     {
-        attackers.append(
-            {.color = this_side, .piece = PIECES::PAWN, .square = attacker});
+        for (const Square attacker : this_attacking_pawns)
+        {
+            attackers.append({.color  = this_side,
+                              .piece  = PIECES::PAWN,
+                              .square = attacker});
+        }
     }
 
     return attackers;
@@ -191,12 +210,15 @@ Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
     const Square      s,
     const PIECE_COLOR this_side,
     bool&             only_kings,
+    const bool        is_promotion_square,
     Square            source_square) const
 {
     SEE_Interleaved_Attackers_Array interleaved_attackers;
 
-    auto this_side_attackers  = what_pieces_attack_this_square(s, this_side);
-    auto other_side_attackers = what_pieces_attack_this_square(s, ~this_side);
+    auto this_side_attackers =
+        what_pieces_attack_this_square(s, this_side, is_promotion_square);
+    auto other_side_attackers =
+        what_pieces_attack_this_square(s, ~this_side, is_promotion_square);
 
     // If the source square is a valid square it means that the first attacker
     // is forced first in the order - this logic moves the attacker so it
@@ -442,20 +464,20 @@ inline void Static_Exchange_Evaluator<Integral_Type>::insert_hidden_attacker(
 }
 
 template <typename Integral_Type>
-Integral_Type
-Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
-                                                   Square        source_square,
-                                                   Integral_Type score_scaler)
+Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
+    const Chess_Move&   move,
+    const Integral_Type score_scaler)
 {
     bool only_kings = false;
 
     // The requested move's attacker captures first and then subsequent
     // attackers are interleaved in least-value order.
     SEE_Interleaved_Attackers_Array attackers =
-        get_all_interleaved_attackers(target_square,
+        get_all_interleaved_attackers(move.destination_square,
                                       m_this_side,
                                       only_kings,
-                                      source_square);
+                                      move.is_promotion,
+                                      move.source_square);
 
     Integral_Type score = 0;
 
@@ -490,8 +512,9 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
             previous_attacker = {
                 .color = ~m_this_side,
                 .piece =
-                    m_position.what_piece_is_on_square(target_square).second,
-                .square = target_square};
+                    m_position.what_piece_is_on_square(move.destination_square)
+                        .second,
+                .square = move.destination_square};
 
             // Clear the target square of it's original piece.
             m_all_occupancies.unset_square(previous_attacker.square);
@@ -511,19 +534,20 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
             // Handle recaptures with the king. Note, the first move in the
             // original attackers sequence is assumed always legal AND we don't
             // want to re-order the first move so "(previous_attacker.square !=
-            // target_square)" is a check if this is a forced first move with a
-            // king.
+            // move.destination_square)" is a check if this is a forced first
+            // move with a king.
             if ((attacker.piece == PIECES::KING)
-                && (previous_attacker.square != target_square))
+                && (previous_attacker.square != move.destination_square))
             {
                 // Pre-compute the next set of attackers - if there are any
                 // attackers besides kings - don't execute any other logic. The
                 // king will not attack if there are other attackers so generate
                 // attackers for the opposing side of the previous attacker.
                 attackers =
-                    get_all_interleaved_attackers(target_square,
+                    get_all_interleaved_attackers(move.destination_square,
                                                   ~previous_attacker.color,
-                                                  only_kings);
+                                                  only_kings,
+                                                  move.is_promotion);
 
                 // If there is not only kings but only this king and less than
                 // or equal to 1 attackers total, then we can return because the
@@ -569,6 +593,15 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
                 score += m_material_weights[previous_attacker.piece];
             }
 
+            bool is_capturing_with_promotion =
+                (move.is_promotion && (attacker.piece == PIECES::PAWN));
+
+            if (is_capturing_with_promotion)
+            {
+                score += (m_material_weights[PIECES::QUEEN]
+                          - m_material_weights[PIECES::PAWN]);
+            }
+
             balances.append(score);
 
             // Clear the attacker from it's square which will unhide any
@@ -580,15 +613,24 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
             previous_attacker = attacker;
             attackers.pop();
 
+            // If a pawn captured with promotion, the piece on the square is a
+            // queen (assume the highest material value when promoting).
+            if (is_capturing_with_promotion)
+            {
+                previous_attacker = {.color  = attacker.color,
+                                     .piece  = PIECES::QUEEN,
+                                     .square = attacker.square};
+            }
+
             // Find if a hidden attacker was revealed for either side.
             Placed_Piece hidden_attacker =
                 find_hidden_attacker(previous_attacker,
-                                     target_square,
+                                     move.destination_square,
                                      ~previous_attacker.color);
             if (hidden_attacker == Placed_Piece())
             {
                 hidden_attacker = find_hidden_attacker(previous_attacker,
-                                                       target_square,
+                                                       move.destination_square,
                                                        previous_attacker.color);
             }
 
@@ -601,9 +643,10 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
 
         // Generate next set of attackers that may have been hidden behind other
         // attackers.
-        attackers = get_all_interleaved_attackers(target_square,
+        attackers = get_all_interleaved_attackers(move.destination_square,
                                                   ~previous_attacker.color,
-                                                  only_kings);
+                                                  only_kings,
+                                                  move.is_promotion);
     }
 
     return finish();
