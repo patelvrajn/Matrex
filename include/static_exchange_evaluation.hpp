@@ -605,7 +605,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
 {
     bool only_kings = false;
 
-    // Remove the en passant victim before finding attackers, its square may 
+    // Remove the en passant victim before finding attackers, its square may
     // uncover a rook/queen attack or change which pieces are pinned.
     if (move.is_en_passant)
     {
