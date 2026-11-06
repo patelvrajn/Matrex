@@ -69,7 +69,8 @@ class Static_Exchange_Evaluator
 
     PIECE_COLOR m_this_side;
 
-    Bitboard m_all_occupancies;
+    Bitboard                              m_all_occupancies;
+    Multi_Array<Bitboard, NUM_OF_PLAYERS> m_color_occupancies;
     Multi_Array<Bitboard, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
         m_piece_bitboards;
 
@@ -77,6 +78,14 @@ class Static_Exchange_Evaluator
     // because they require computations too slow for SEE purposes.
     static constexpr Multi_Array<Integral_Type, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
         m_material_weights = {10, 30, 35, 50, 90, 150};
+
+    Bitboard generate_pinned(const PIECE_COLOR moving_side) const;
+
+    bool is_pinned(const Bitboard pinned, const Square source_square) const;
+
+    Bitboard get_pin_mask(const PIECE_COLOR moving_side,
+                          const Bitboard    pinned,
+                          const Square      source_square) const;
 
     SEE_Attackers_Array
     what_pieces_attack_this_square(const Square      s,
@@ -108,8 +117,107 @@ Static_Exchange_Evaluator<Integral_Type>::Static_Exchange_Evaluator(
     m_position(position),
     m_this_side(position.get_side_to_move()),
     m_all_occupancies(position.get_both_color_occupancies()),
+    m_color_occupancies(position.get_color_occupancies()),
     m_piece_bitboards(position.get_piece_occupancies())
 {
+}
+
+template <typename Integral_Type>
+Bitboard Static_Exchange_Evaluator<Integral_Type>::generate_pinned(
+    const PIECE_COLOR moving_side) const
+{
+    Attacks a;
+
+    const PIECE_COLOR opposing_side = ~moving_side;
+
+    const Bitboard our_king_occupancy =
+        m_piece_bitboards[moving_side][PIECES::KING];
+    const Square our_king_square = Square(
+        m_piece_bitboards[moving_side][PIECES::KING].get_index_of_high_lsb());
+
+    const Bitboard friendly_pieces = m_color_occupancies[moving_side];
+    const Bitboard enemy_pieces    = m_color_occupancies[opposing_side];
+
+    const Bitboard enemy_orthogonal_pieces =
+        m_piece_bitboards[opposing_side][PIECES::ROOK]
+        | m_piece_bitboards[opposing_side][PIECES::QUEEN];
+    const Bitboard enemy_diagonal_pieces =
+        m_piece_bitboards[opposing_side][PIECES::BISHOP]
+        | m_piece_bitboards[opposing_side][PIECES::QUEEN];
+
+    // Ray orginating from the king's square used to find orthogonal and
+    // diagonal attackers; keep in mind knights cannot pin a piece because of
+    // the way they move.
+    const Bitboard orthogonal_rays =
+        a.get_rook_attacks(our_king_square, enemy_pieces);
+    const Bitboard diagonal_rays =
+        a.get_bishop_attacks(our_king_square, enemy_pieces);
+
+    Bitboard orthogonal_pinners = enemy_orthogonal_pieces & orthogonal_rays;
+    Bitboard diagonal_pinners   = enemy_diagonal_pieces & diagonal_rays;
+
+    Bitboard pinned;
+
+    for (const Square& pinner_square : orthogonal_pinners)
+    {
+        const Bitboard ray_from_pinner_to_king =
+            orthogonal_rays
+            & a.get_rook_attacks(pinner_square, our_king_occupancy);
+
+        const Bitboard potentially_pinned =
+            ray_from_pinner_to_king & friendly_pieces;
+
+        // The friendly piece is pinned if it is the only piece between the king
+        // and the enemy pinner.
+        if (potentially_pinned.high_bit_count() == 1)
+        {
+            pinned |= potentially_pinned;
+        }
+    }
+
+    for (const Square& pinner_square : diagonal_pinners)
+    {
+        const Bitboard ray_from_pinner_to_king =
+            diagonal_rays
+            & a.get_bishop_attacks(pinner_square, our_king_occupancy);
+
+        const Bitboard potentially_pinned =
+            ray_from_pinner_to_king & friendly_pieces;
+
+        if (potentially_pinned.high_bit_count() == 1)
+        {
+            pinned |= potentially_pinned;
+        }
+    }
+
+    return pinned;
+}
+
+template <typename Integral_Type>
+bool Static_Exchange_Evaluator<Integral_Type>::is_pinned(
+    const Bitboard pinned,
+    const Square   source_square) const
+{
+    return ((pinned & Bitboard(source_square.get_mask())).get_board() != 0);
+}
+
+template <typename Integral_Type>
+Bitboard Static_Exchange_Evaluator<Integral_Type>::get_pin_mask(
+    const PIECE_COLOR moving_side,
+    const Bitboard    pinned,
+    const Square      source_square) const
+{
+    const Square our_king_square = Square(
+        m_piece_bitboards[moving_side][PIECES::KING].get_index_of_high_lsb());
+
+    if (is_pinned(pinned, source_square))
+    {
+        return Attacks::get_infinite_ray(our_king_square, source_square);
+    }
+    else
+    {
+        return FULL_BITBOARD;
+    }
 }
 
 template <typename Integral_Type>
@@ -332,8 +440,9 @@ Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
 template <typename Integral_Type>
 void Static_Exchange_Evaluator<Integral_Type>::reset_occupancy_bitboards()
 {
-    m_all_occupancies = m_position.get_both_color_occupancies();
-    m_piece_bitboards = m_position.get_piece_occupancies();
+    m_all_occupancies   = m_position.get_both_color_occupancies();
+    m_piece_bitboards   = m_position.get_piece_occupancies();
+    m_color_occupancies = m_position.get_color_occupancies();
 }
 
 template <typename Integral_Type>
@@ -518,6 +627,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
 
             // Clear the target square of it's original piece.
             m_all_occupancies.unset_square(previous_attacker.square);
+            m_color_occupancies[previous_attacker.color].unset_square(previous_attacker.square);
             m_piece_bitboards[previous_attacker.color][previous_attacker.piece]
                 .unset_square(previous_attacker.square);
 
@@ -607,6 +717,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
             // Clear the attacker from it's square which will unhide any
             // attackers that were behind it.
             m_all_occupancies.unset_square(attacker.square);
+            m_color_occupancies[attacker.color].unset_square(attacker.square);
             m_piece_bitboards[attacker.color][attacker.piece].unset_square(
                 attacker.square);
 

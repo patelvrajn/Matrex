@@ -146,3 +146,16 @@ TEST(see_tests, capture_with_promotion_optimal_full_exchange)
 
     EXPECT_EQ(see.evaluate(move, 1), 0);
 }
+
+TEST(see_tests, pinned_attackers)
+{
+    Chess_Board position;
+    position.set_from_fen("2k5/3r4/3n3r/2q5/4N3/7B/3B4/2RK4 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E4;
+    move.destination_square = ESQUARE::D6;
+
+    EXPECT_EQ(see.evaluate(move, 1), 0);
+}

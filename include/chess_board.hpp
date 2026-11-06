@@ -74,6 +74,11 @@ class Chess_Board
 
     Bitboard get_both_color_occupancies() const;
 
+    const auto& get_color_occupancies() const
+    {
+        return m_color_occupancy_bitboards;
+    }
+
     Bitboard get_color_occupancies(const PIECE_COLOR c) const;
 
     Bitboard get_piece_occupancies(const PIECE_COLOR c, const PIECES p) const;
