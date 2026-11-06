@@ -40,6 +40,21 @@ TEST(see_tests, simple_capture)
     ASSERT_EQ(see.evaluate(move, 1), 10);
 }
 
+TEST(see_tests, en_passant)
+{
+    Chess_Board position;
+    position.set_from_fen("k7/8/8/3pP3/3r4/8/8/K7 w - d6 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move               = Chess_Move::null_move();
+    move.source_square            = ESQUARE::E5;
+    move.destination_square       = ESQUARE::D6;
+    move.is_en_passant            = true;
+    move.en_passant_victim_square = ESQUARE::D5;
+
+    ASSERT_EQ(see.evaluate(move, 1), 0);
+}
+
 TEST(see_tests, all_piece_type_exchange_without_kings)
 {
     Chess_Board position;

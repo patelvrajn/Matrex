@@ -36,10 +36,6 @@
 // The requested source square is moved to the back of its side's attackers
 // before interleaving, so it captures first and the remaining order is
 // preserved.
-//
-// The following are additional features that can be implemented:
-//
-// → En passant
 // =============================================================================
 
 constexpr std::size_t SEE_ATTACKERS_ARRAY_SIZE = NUM_OF_PIECES_PER_PLAYER;
@@ -609,6 +605,17 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
 {
     bool only_kings = false;
 
+    // Remove the en passant victim before finding attackers, its square may 
+    // uncover a rook/queen attack or change which pieces are pinned.
+    if (move.is_en_passant)
+    {
+        m_all_occupancies.unset_square(move.en_passant_victim_square);
+        m_color_occupancies[~m_this_side].unset_square(
+            move.en_passant_victim_square);
+        m_piece_bitboards[~m_this_side][PIECES::PAWN].unset_square(
+            move.en_passant_victim_square);
+    }
+
     // The requested move's attacker captures first and then subsequent
     // attackers are interleaved in least-value order.
     SEE_Interleaved_Attackers_Array attackers =
@@ -618,7 +625,8 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
                                       move.is_promotion,
                                       move.source_square);
 
-    Integral_Type score = 0;
+    Integral_Type score =
+        move.is_en_passant ? m_material_weights[PIECES::PAWN] : 0;
 
     Partially_Filled_Array<Integral_Type, 2 * SEE_ATTACKERS_ARRAY_SIZE>
                balances;
