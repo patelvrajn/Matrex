@@ -309,6 +309,20 @@ Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
         }
     }
 
+    // Remove the pinned attackers from the list of attackers because they 
+    // cannot capture.
+    const Bitboard pinned = generate_pinned(this_side);
+    const auto removed = std::ranges::remove_if(
+        attackers,
+        [&](const Placed_Piece& attacker)
+        {
+            // This is true if the attacker is pinned and the target square lies 
+            // outside its pin ray.
+            return !get_pin_mask(this_side, pinned, attacker.square)
+                        .get_square(s);
+        });
+    attackers.truncate(removed.begin() - attackers.begin() - 1);
+
     return attackers;
 }
 
@@ -477,6 +491,14 @@ Static_Exchange_Evaluator<Integral_Type>::find_hidden_attacker(
     // If there is no first occupied square, return an empty Placed_Piece
     // because there is no hidden attacker on the ray.
     if (first_occupied_square.get_index() >= NUM_OF_SQUARES_ON_CHESS_BOARD)
+    {
+        return Placed_Piece();
+    }
+
+    // The attacker on the first occupied square is pinned and cannot capture 
+    // the target square.
+    if (!get_pin_mask(side, generate_pinned(side), first_occupied_square)
+             .get_square(target_square))
     {
         return Placed_Piece();
     }
