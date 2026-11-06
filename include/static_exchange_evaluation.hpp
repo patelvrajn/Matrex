@@ -25,8 +25,8 @@
 // attackers that may have access to the square because the attacker that moved
 // gave it a path to the target square (these attackers can only be slider
 // pieces so we only consider those). This is supposed to be a quick and cheap
-// calculation for the scoring of captures and it has the following uses in
-// search:
+// calculation for the scoring of captures and quiet moves (hanging pieces),
+// with the following uses in search:
 //
 // → Negamax Capture Move Pruning (Implemented and passes SPRT)
 // → Negamax Quiet Move Pruning (TBD)
@@ -39,7 +39,6 @@
 //
 // The following are additional features that can be implemented:
 //
-// → Pinned piece detection
 // → En passant
 // =============================================================================
 
@@ -309,14 +308,14 @@ Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
         }
     }
 
-    // Remove the pinned attackers from the list of attackers because they 
+    // Remove the pinned attackers from the list of attackers because they
     // cannot capture.
-    const Bitboard pinned = generate_pinned(this_side);
-    const auto removed = std::ranges::remove_if(
+    const Bitboard pinned  = generate_pinned(this_side);
+    const auto     removed = std::ranges::remove_if(
         attackers,
         [&](const Placed_Piece& attacker)
         {
-            // This is true if the attacker is pinned and the target square lies 
+            // This is true if the attacker is pinned and the target square lies
             // outside its pin ray.
             return !get_pin_mask(this_side, pinned, attacker.square)
                         .get_square(s);
@@ -355,6 +354,15 @@ Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
         if (first != this_side_attackers.end())
         {
             std::rotate(first, first + 1, this_side_attackers.end());
+        }
+        else
+        {
+            // Quiet pawn pushes do not attack their destination square.
+            this_side_attackers.append(
+                {.color = this_side,
+                 .piece =
+                     m_position.what_piece_is_on_square(source_square).second,
+                 .square = source_square});
         }
     }
 
@@ -495,7 +503,7 @@ Static_Exchange_Evaluator<Integral_Type>::find_hidden_attacker(
         return Placed_Piece();
     }
 
-    // The attacker on the first occupied square is pinned and cannot capture 
+    // The attacker on the first occupied square is pinned and cannot capture
     // the target square.
     if (!get_pin_mask(side, generate_pinned(side), first_occupied_square)
              .get_square(target_square))
@@ -647,11 +655,16 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
                         .second,
                 .square = move.destination_square};
 
-            // Clear the target square of it's original piece.
-            m_all_occupancies.unset_square(previous_attacker.square);
-            m_color_occupancies[previous_attacker.color].unset_square(previous_attacker.square);
-            m_piece_bitboards[previous_attacker.color][previous_attacker.piece]
-                .unset_square(previous_attacker.square);
+            // Quiet moves start with no captured material on the target square.
+            if (previous_attacker.piece != PIECES::NO_PIECE)
+            {
+                m_all_occupancies.unset_square(previous_attacker.square);
+                m_color_occupancies[previous_attacker.color].unset_square(
+                    previous_attacker.square);
+                m_piece_bitboards[previous_attacker.color]
+                                 [previous_attacker.piece]
+                                     .unset_square(previous_attacker.square);
+            }
 
             is_first_iteration = false;
         }
@@ -720,7 +733,8 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
                 score -= m_material_weights[previous_attacker.piece];
             }
 
-            if (previous_attacker.color == (~m_this_side))
+            if ((previous_attacker.color == (~m_this_side))
+                && (previous_attacker.piece != PIECES::NO_PIECE))
             {
                 score += m_material_weights[previous_attacker.piece];
             }

@@ -1,6 +1,32 @@
 #include "gtest/gtest.h"
 #include "static_exchange_evaluation.hpp"
 
+TEST(see_tests, quiet_move_hanging_piece)
+{
+    Chess_Board position;
+    position.set_from_fen("k4r2/8/8/8/8/8/8/K5N1 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::G1;
+    move.destination_square = ESQUARE::F3;
+
+    ASSERT_EQ(see.evaluate(move, 1), -30);
+}
+
+TEST(see_tests, quiet_pawn_push)
+{
+    Chess_Board position;
+    position.set_from_fen("k3r3/8/8/8/8/8/4P3/K7 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E2;
+    move.destination_square = ESQUARE::E4;
+
+    ASSERT_EQ(see.evaluate(move, 1), -10);
+}
+
 TEST(see_tests, simple_capture)
 {
     Chess_Board position;
