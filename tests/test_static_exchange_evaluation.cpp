@@ -27,6 +27,20 @@ TEST(see_tests, quiet_pawn_push)
     ASSERT_EQ(see.evaluate(move, 1), -10);
 }
 
+TEST(see_tests, first_move_is_king_move)
+{
+    Chess_Board position;
+    position.set_from_fen("k7/8/8/8/8/8/4p3/4K3 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E1;
+    move.destination_square = ESQUARE::E2;
+    move.is_capture         = true;
+
+    EXPECT_EQ(see.evaluate(move, 1), 10);
+}
+
 TEST(see_tests, simple_capture)
 {
     Chess_Board position;

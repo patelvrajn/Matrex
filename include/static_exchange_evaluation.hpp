@@ -758,6 +758,11 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
 
             balances.append(score);
 
+            // An exchange where the first attacker is a king, we must return
+            // because we cannot remove the king from the board and regenerate
+            // attackers (because of king square logic).
+            if (attacker.piece == PIECES::KING) { return finish(); }
+
             // Clear the attacker from it's square which will unhide any
             // attackers that were behind it.
             m_all_occupancies.unset_square(attacker.square);
