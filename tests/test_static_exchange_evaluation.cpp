@@ -214,3 +214,42 @@ TEST(see_tests, pinned_attackers)
 
     EXPECT_EQ(see.evaluate(move, 1), 0);
 }
+
+TEST(see_tests, king_cannot_capture_on_square_guarded_by_pinned_piece)
+{
+    Chess_Board position;
+    position.set_from_fen("8/1R3pk1/8/8/8/8/4rQ1K/8 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::B7;
+    move.destination_square = ESQUARE::F7;
+
+    EXPECT_EQ(see.evaluate(move, 1), 10);
+}
+
+TEST(see_tests, capture_unpins_defender)
+{
+    Chess_Board position;
+    position.set_from_fen("k7/8/8/8/8/8/K3Qq2/4R3 b - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::F2;
+    move.destination_square = ESQUARE::E1;
+
+    EXPECT_EQ(see.evaluate(move, 1), -40);
+}
+
+TEST(see_tests, capture_unpins_defender_with_king)
+{
+    Chess_Board position;
+    position.set_from_fen("k7/8/8/8/8/4q3/4QP2/4K3 b - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E3;
+    move.destination_square = ESQUARE::F2;
+
+    EXPECT_EQ(see.evaluate(move, 1), -80);
+}

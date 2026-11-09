@@ -76,6 +76,10 @@ class Static_Exchange_Evaluator
 
     Bitboard generate_pinned(const PIECE_COLOR moving_side) const;
 
+    Bitboard generate_pinned(const PIECE_COLOR moving_side,
+                             const Bitboard    attackers,
+                             bool&             has_pinned_attackers) const;
+
     bool is_pinned(const Bitboard pinned, const Square source_square) const;
 
     Bitboard get_pin_mask(const PIECE_COLOR moving_side,
@@ -85,12 +89,14 @@ class Static_Exchange_Evaluator
     SEE_Attackers_Array
     what_pieces_attack_this_square(const Square      s,
                                    const PIECE_COLOR this_side,
-                                   const bool        is_promotion_square) const;
+                                   const bool        is_promotion_square,
+                                   bool& has_pinned_attackers) const;
 
     SEE_Interleaved_Attackers_Array get_all_interleaved_attackers(
         const Square      s,
         const PIECE_COLOR this_side,
         bool&             only_kings,
+        bool&             has_pinned_defenders,
         const bool        is_promotion_square,
         Square            source_square = Square(ESQUARE::NO_SQUARE)) const;
 
@@ -189,6 +195,17 @@ Bitboard Static_Exchange_Evaluator<Integral_Type>::generate_pinned(
 }
 
 template <typename Integral_Type>
+Bitboard Static_Exchange_Evaluator<Integral_Type>::generate_pinned(
+    const PIECE_COLOR moving_side,
+    const Bitboard    attackers,
+    bool&             has_pinned_attackers) const
+{
+    const Bitboard pinned = generate_pinned(moving_side);
+    has_pinned_attackers  = (pinned & attackers).get_board() != 0;
+    return pinned;
+}
+
+template <typename Integral_Type>
 bool Static_Exchange_Evaluator<Integral_Type>::is_pinned(
     const Bitboard pinned,
     const Square   source_square) const
@@ -220,7 +237,8 @@ SEE_Attackers_Array
 Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
     const Square      s,
     const PIECE_COLOR this_side,
-    const bool        is_promotion_square) const
+    const bool        is_promotion_square,
+    bool&             has_pinned_attackers) const
 {
     SEE_Attackers_Array attackers;
 
@@ -306,8 +324,12 @@ Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
 
     // Remove the pinned attackers from the list of attackers because they
     // cannot capture.
-    const Bitboard pinned  = generate_pinned(this_side);
-    const auto     removed = std::ranges::remove_if(
+    const Bitboard pinned = generate_pinned(
+        this_side,
+        this_attacking_pawns | this_attacking_knights | this_attacking_bishops
+            | this_attacking_rooks | this_attacking_queens,
+        has_pinned_attackers);
+    const auto removed = std::ranges::remove_if(
         attackers,
         [&](const Placed_Piece& attacker)
         {
@@ -327,15 +349,23 @@ Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
     const Square      s,
     const PIECE_COLOR this_side,
     bool&             only_kings,
+    bool&             has_pinned_defenders,
     const bool        is_promotion_square,
     Square            source_square) const
 {
     SEE_Interleaved_Attackers_Array interleaved_attackers;
 
+    bool has_pinned_attackers;
     auto this_side_attackers =
-        what_pieces_attack_this_square(s, this_side, is_promotion_square);
+        what_pieces_attack_this_square(s,
+                                       this_side,
+                                       is_promotion_square,
+                                       has_pinned_attackers);
     auto other_side_attackers =
-        what_pieces_attack_this_square(s, ~this_side, is_promotion_square);
+        what_pieces_attack_this_square(s,
+                                       ~this_side,
+                                       is_promotion_square,
+                                       has_pinned_defenders);
 
     // If the source square is a valid square it means that the first attacker
     // is forced first in the order - this logic moves the attacker so it
@@ -603,7 +633,8 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
     const Chess_Move&   move,
     const Integral_Type score_scaler)
 {
-    bool only_kings = false;
+    bool only_kings           = false;
+    bool has_pinned_defenders = false;
 
     // Remove the en passant victim before finding attackers, its square may
     // uncover a rook/queen attack or change which pieces are pinned.
@@ -622,6 +653,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
         get_all_interleaved_attackers(move.destination_square,
                                       m_this_side,
                                       only_kings,
+                                      has_pinned_defenders,
                                       move.is_promotion,
                                       move.source_square);
 
@@ -700,7 +732,16 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
                     get_all_interleaved_attackers(move.destination_square,
                                                   ~previous_attacker.color,
                                                   only_kings,
+                                                  has_pinned_defenders,
                                                   move.is_promotion);
+
+                // Check if a pinned attacker was recently released from it's
+                // pin.
+                if ((attackers.size() > 0)
+                    && (attackers.back().piece != PIECES::KING))
+                {
+                    continue;
+                }
 
                 // If there is not only kings but only this king and less than
                 // or equal to 1 attackers total, then we can return because the
@@ -711,6 +752,9 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
                 }
 
                 if (!only_kings) { break; }
+
+                // Pinned defenders still guard the king's capture square.
+                if (has_pinned_defenders) { return finish(); }
 
                 // If there is only an enemy king left attacking the target
                 // square, then account for the value of the previous attacker
@@ -806,6 +850,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
         attackers = get_all_interleaved_attackers(move.destination_square,
                                                   ~previous_attacker.color,
                                                   only_kings,
+                                                  has_pinned_defenders,
                                                   move.is_promotion);
     }
 
