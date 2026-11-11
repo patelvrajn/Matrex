@@ -181,6 +181,12 @@ struct Placed_Piece
     PIECES      piece  = PIECES::NO_PIECE;
     Square      square = NO_SQUARE_OBJ;
 
+    bool is_slider() const
+    {
+        return ((piece == PIECES::BISHOP) || (piece == PIECES::ROOK)
+                || (piece == PIECES::QUEEN));
+    }
+
     bool operator==(const Placed_Piece& other) const
     {
         return ((other.color == color) && (other.piece == piece)

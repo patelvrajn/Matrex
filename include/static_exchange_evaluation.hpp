@@ -82,6 +82,12 @@ class Static_Exchange_Evaluator
 
     bool is_pinned(const Bitboard pinned, const Square source_square) const;
 
+    PIECES what_piece_is_on_square(const Square      square,
+                                   const PIECE_COLOR color) const;
+
+    inline bool can_attack_square(const Placed_Piece& piece,
+                                  const Square        target_square) const;
+
     Bitboard get_pin_mask(const PIECE_COLOR moving_side,
                           const Bitboard    pinned,
                           const Square      source_square) const;
@@ -90,13 +96,15 @@ class Static_Exchange_Evaluator
     what_pieces_attack_this_square(const Square      s,
                                    const PIECE_COLOR this_side,
                                    const bool        is_promotion_square,
-                                   bool& has_pinned_attackers) const;
+                                   bool&             has_pinned_attackers,
+                                   Bitboard&         pinned) const;
 
     SEE_Interleaved_Attackers_Array get_all_interleaved_attackers(
         const Square      s,
         const PIECE_COLOR this_side,
         bool&             only_kings,
         bool&             has_pinned_defenders,
+        Bitboard&         pinned,
         const bool        is_promotion_square,
         Square            source_square = Square(ESQUARE::NO_SQUARE)) const;
 
@@ -105,11 +113,24 @@ class Static_Exchange_Evaluator
     inline Placed_Piece
     find_hidden_attacker(const Placed_Piece& previous_attacker,
                          Square              target_square,
-                         const PIECE_COLOR   side) const;
+                         const PIECE_COLOR   side,
+                         const Bitboard      pinned) const;
 
-    inline void
-    insert_hidden_attacker(SEE_Interleaved_Attackers_Array& attackers,
-                           const Placed_Piece& hidden_attacker) const;
+    inline void insert_attacker(SEE_Interleaved_Attackers_Array& attackers,
+                                Placed_Piece attacker) const;
+
+    inline void remove_attacker(SEE_Interleaved_Attackers_Array& attackers,
+                                Placed_Piece attacker) const;
+
+    inline void handle_unpins(Bitboard&                        pinned,
+                              const Placed_Piece&              moving_piece,
+                              const Chess_Move&                move,
+                              SEE_Interleaved_Attackers_Array& attackers);
+
+    inline void handle_new_pins(Bitboard&                        pinned,
+                                const Placed_Piece&              moving_piece,
+                                const Chess_Move&                move,
+                                SEE_Interleaved_Attackers_Array& attackers);
 };
 
 template <typename Integral_Type>
@@ -214,6 +235,46 @@ bool Static_Exchange_Evaluator<Integral_Type>::is_pinned(
 }
 
 template <typename Integral_Type>
+PIECES Static_Exchange_Evaluator<Integral_Type>::what_piece_is_on_square(
+    const Square      square,
+    const PIECE_COLOR color) const
+{
+    if (!square.has_square() || (color == PIECE_COLOR::NO_COLOR))
+    {
+        return PIECES::NO_PIECE;
+    }
+
+    for (uint8_t piece = 0; piece < NUM_OF_UNIQUE_PIECES_PER_PLAYER; ++piece)
+    {
+        if (m_piece_bitboards[color][piece].get_square(square))
+        {
+            return static_cast<PIECES>(piece);
+        }
+    }
+
+    return PIECES::NO_PIECE;
+}
+
+template <typename Integral_Type>
+inline bool Static_Exchange_Evaluator<Integral_Type>::can_attack_square(
+    const Placed_Piece& piece,
+    const Square        target_square) const
+{
+    if ((piece.piece == PIECES::NO_PIECE)
+        || (piece.color == PIECE_COLOR::NO_COLOR)
+        || (!piece.square.has_square()) || (!target_square.has_square()))
+    {
+        return false;
+    }
+
+    // Only checks if it can attack the square, legality of the move is not
+    // checked here.
+    return Attacks()
+        .get_attacks(piece.piece, piece.square, piece.color, m_all_occupancies)
+        .get_square(target_square);
+}
+
+template <typename Integral_Type>
 Bitboard Static_Exchange_Evaluator<Integral_Type>::get_pin_mask(
     const PIECE_COLOR moving_side,
     const Bitboard    pinned,
@@ -238,7 +299,8 @@ Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
     const Square      s,
     const PIECE_COLOR this_side,
     const bool        is_promotion_square,
-    bool&             has_pinned_attackers) const
+    bool&             has_pinned_attackers,
+    Bitboard&         pinned) const
 {
     SEE_Attackers_Array attackers;
 
@@ -324,11 +386,11 @@ Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
 
     // Remove the pinned attackers from the list of attackers because they
     // cannot capture.
-    const Bitboard pinned = generate_pinned(
-        this_side,
-        this_attacking_pawns | this_attacking_knights | this_attacking_bishops
-            | this_attacking_rooks | this_attacking_queens,
-        has_pinned_attackers);
+    pinned             = generate_pinned(this_side,
+                             this_attacking_pawns | this_attacking_knights
+                                 | this_attacking_bishops | this_attacking_rooks
+                                 | this_attacking_queens,
+                             has_pinned_attackers);
     const auto removed = std::ranges::remove_if(
         attackers,
         [&](const Placed_Piece& attacker)
@@ -350,22 +412,27 @@ Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
     const PIECE_COLOR this_side,
     bool&             only_kings,
     bool&             has_pinned_defenders,
+    Bitboard&         pinned,
     const bool        is_promotion_square,
     Square            source_square) const
 {
     SEE_Interleaved_Attackers_Array interleaved_attackers;
 
-    bool has_pinned_attackers;
-    auto this_side_attackers =
+    bool     has_pinned_attackers;
+    Bitboard this_side_pinned, other_side_pinned;
+    auto     this_side_attackers =
         what_pieces_attack_this_square(s,
                                        this_side,
                                        is_promotion_square,
-                                       has_pinned_attackers);
+                                       has_pinned_attackers,
+                                       this_side_pinned);
     auto other_side_attackers =
         what_pieces_attack_this_square(s,
                                        ~this_side,
                                        is_promotion_square,
-                                       has_pinned_defenders);
+                                       has_pinned_defenders,
+                                       other_side_pinned);
+    pinned = this_side_pinned | other_side_pinned;
 
     // If the source square is a valid square it means that the first attacker
     // is forced first in the order - this logic moves the attacker so it
@@ -498,7 +565,8 @@ inline Placed_Piece
 Static_Exchange_Evaluator<Integral_Type>::find_hidden_attacker(
     const Placed_Piece& previous_attacker,
     Square              target_square,
-    const PIECE_COLOR   side) const
+    const PIECE_COLOR   side,
+    const Bitboard      pinned) const
 {
     // Attacker ray - The ray going in the direction of the previous attacker
     // from the target square until it reaches the edge of the board.
@@ -531,7 +599,7 @@ Static_Exchange_Evaluator<Integral_Type>::find_hidden_attacker(
 
     // The attacker on the first occupied square is pinned and cannot capture
     // the target square.
-    if (!get_pin_mask(side, generate_pinned(side), first_occupied_square)
+    if (!get_pin_mask(side, pinned, first_occupied_square)
              .get_square(target_square))
     {
         return Placed_Piece();
@@ -572,60 +640,189 @@ Static_Exchange_Evaluator<Integral_Type>::find_hidden_attacker(
 }
 
 template <typename Integral_Type>
-inline void Static_Exchange_Evaluator<Integral_Type>::insert_hidden_attacker(
+inline void Static_Exchange_Evaluator<Integral_Type>::insert_attacker(
     SEE_Interleaved_Attackers_Array& attackers,
-    const Placed_Piece&              hidden_attacker) const
+    Placed_Piece                     attacker) const
 {
-    // There are no current attackers, just return and let the algorithm
-    // generate new attackers.
+    // Preserve whose turn is next.
     if (attackers.size() == 0) { return; }
 
-    // Find the position in the array where the hidden attacker should be
-    // inserted based on only material value.
-    auto material_position = std::lower_bound(
-        attackers.begin(),
-        attackers.end(),
-        hidden_attacker,
-        [](const Placed_Piece& a, const Placed_Piece& b)
-        {
-            return (m_material_weights[a.piece] >= m_material_weights[b.piece]);
-        });
-
-    // If the hidden attacker is higher in material value than all attackers in
-    // the array, return.
-    if (material_position == attackers.end()) { return; }
-
-    std::size_t insert_index = attackers.size();
-
-    for (std::size_t i = 0; i < attackers.size(); ++i)
+    // Insert the given attacker into the attacker array in material value
+    // order.
+    int64_t i = attackers.get_max_index();
+    if (attackers.back().color != attacker.color) { --i; }
+    for (; i >= 0; i -= NUM_OF_PLAYERS)
     {
-        // Look for an attacker of the same color to swap with the hidden
-        // attacker.
-        if (attackers[i].color != hidden_attacker.color) { continue; }
-
-        // If the hidden attacker is cheaper than the indexed attacker, the
-        // index of the indexed attacker is where the hidden attacker should be
-        // inserted.
-        if (m_material_weights[hidden_attacker.piece]
+        if (m_material_weights[attacker.piece]
             < m_material_weights[attackers[i].piece])
         {
-            insert_index = i;
-            break;
+            std::swap(attacker, attackers[i]);
         }
     }
 
-    // No attacker of the same color was found that is more expensive than the
-    // hidden attacker, return.
-    if (insert_index == attackers.size()) { return; }
-
-    // Swap the hidden attacker with the indexed attacker and then keep swapping
-    // till the end of the array.
-    auto value = hidden_attacker;
-    for (int64_t i  = static_cast<int64_t>(insert_index); i >= 0;
-         i         -= NUM_OF_PLAYERS)
+    // If the attacker at the end of the capture sequence is of opposite color
+    // to the attacker that was ejected, insert the ejected attacker to the end
+    // of the capture sequence.
+    if (attackers.front().color != attacker.color)
     {
-        std::swap(value, attackers[static_cast<std::size_t>(i)]);
+        attackers.append(attacker);
+        std::rotate(attackers.begin(), attackers.end() - 1, attackers.end());
     }
+}
+
+template <typename Integral_Type>
+inline void Static_Exchange_Evaluator<Integral_Type>::remove_attacker(
+    SEE_Interleaved_Attackers_Array& attackers,
+    Placed_Piece                     attacker) const
+{
+    // Find the attacker in the attackers array.
+    const auto found = std::ranges::find(attackers, attacker);
+    if (found == attackers.end()) { return; }
+
+    // Fill the gap with the next attacker of the same color, moving the cheaper
+    // ones to take its place, we want to encourage cheaper attackers to be in
+    // the array rather than more expensive ones.
+    int64_t i = found - attackers.begin();
+    for (; i >= NUM_OF_PLAYERS; i -= NUM_OF_PLAYERS)
+    {
+        attackers[i] = attackers[i - NUM_OF_PLAYERS];
+    }
+
+    // Remove the vacated front slots and any opposing attacker whose final
+    // capture is no longer reachable because this side ran out of attackers.
+    const int64_t removed_count = i + 1;
+    std::move(attackers.begin() + removed_count,
+              attackers.end(),
+              attackers.begin());
+    attackers.truncate(attackers.get_max_index() - removed_count);
+}
+
+template <typename Integral_Type>
+inline void Static_Exchange_Evaluator<Integral_Type>::handle_unpins(
+    Bitboard&                        pinned,
+    const Placed_Piece&              moving_piece,
+    const Chess_Move&                move,
+    SEE_Interleaved_Attackers_Array& attackers)
+{
+    // Neither the vacated source nor the occupied target is a pending attacker.
+    pinned.unset_square(moving_piece.square);
+    pinned.unset_square(move.destination_square);
+
+    for (const PIECE_COLOR side : {moving_piece.color, ~moving_piece.color})
+    {
+        // Pinned pieces of this side that can be unpinned.
+        const Bitboard candidates = pinned & m_color_occupancies[side];
+        if (candidates.get_board() == 0) { continue; }
+
+        const Square king_square(
+            m_piece_bitboards[side][PIECES::KING].get_index_of_high_lsb());
+
+        Bitboard blockers = m_all_occupancies;
+        blockers.unset_square(king_square);
+
+        // Recheck existing pins after a pinner moves, is captured, or is
+        // blocked.
+        for (const Square square : candidates)
+        {
+            const auto& ray = Attacks::get_directional_ray(king_square, square);
+            const Square pinner = ray.travel_occupied_ray<true>(1, blockers);
+            const PIECES piece  = what_piece_is_on_square(pinner, ~side);
+            const PIECES slider =
+                ray.is_diagonal() ? PIECES::BISHOP : PIECES::ROOK;
+
+            // If the previously pinned piece is still the first occupied square
+            // along the ray from its king and the pinner is the appropiate
+            // slider piece, the piece is still pinned.
+            if ((ray.travel_occupied_ray<true>(0, blockers) == square)
+                && ((piece == slider) || (piece == PIECES::QUEEN)))
+            {
+                continue;
+            }
+
+            pinned.unset_square(square);
+
+            const Placed_Piece attacker = {
+                .color  = side,
+                .piece  = what_piece_is_on_square(square, side),
+                .square = square};
+            if (can_attack_square(attacker, move.destination_square)
+                && std::ranges::find(attackers, attacker) == attackers.end())
+            {
+                insert_attacker(attackers, attacker);
+            }
+        }
+    }
+}
+
+template <typename Integral_Type>
+inline void Static_Exchange_Evaluator<Integral_Type>::handle_new_pins(
+    Bitboard&                        pinned,
+    const Placed_Piece&              moving_piece,
+    const Chess_Move&                move,
+    SEE_Interleaved_Attackers_Array& attackers)
+{
+    const auto handle_pin = [&](const PIECE_COLOR side, const Square ray_square)
+    {
+        const Square king_square(
+            m_piece_bitboards[side][PIECES::KING].get_index_of_high_lsb());
+
+        const Directional_Ray& ray =
+            Attacks::get_directional_ray(king_square, ray_square);
+
+        Bitboard blockers = m_all_occupancies;
+        blockers.unset_square(king_square);
+
+        // The first occupation in front of the king that is opposite in color
+        // and is not the piece that just moved (because it is no longer a
+        // pending attacker - the pin doesn't matter) is the candidate pinned
+        // piece.
+        const Square candidate = ray.travel_occupied_ray<true>(0, blockers);
+        if (!candidate.has_square() || (candidate == move.destination_square)
+            || !m_color_occupancies[side].get_square(candidate))
+        {
+            return;
+        }
+
+        // The second occupation in front of the king is the pinner.
+        const Square pinner = ray.travel_occupied_ray<true>(1, blockers);
+        if (!pinner.has_square()) { return; }
+
+        // Check if piece is the appropriate slider piece that can pin the
+        // candidate piece.
+        const PIECES piece  = what_piece_is_on_square(pinner, ~side);
+        const PIECES slider = ray.is_diagonal() ? PIECES::BISHOP : PIECES::ROOK;
+        if ((piece != slider) && (piece != PIECES::QUEEN)) { return; }
+
+        pinned.set_square(candidate);
+
+        // move.destination_square is the same as the SEE's target square - we
+        // check whether the SEE target square is on the pin line where
+        // candidate can capture. If it is, then if candidate can capture on
+        // that square (a pre-requisite to being in the attackers array) i.e.
+        // move in the direction of the pin than remove it from the attackers
+        // array if it is in the array.
+        if (!ray.get_ray().get_square(move.destination_square))
+        {
+            remove_attacker(attackers,
+                            {.color  = side,
+                             .piece  = what_piece_is_on_square(candidate, side),
+                             .square = candidate});
+        }
+    };
+
+    // Case 1 - Moving an attacker in the capture sequence to the target square
+    // created a pin where the pinner is the attacker.
+    if (moving_piece.is_slider()
+        || (move.is_promotion && (moving_piece.piece == PIECES::PAWN)))
+    {
+        handle_pin(~moving_piece.color, move.destination_square);
+    }
+
+    // Case 2 - Moving an attacker in the capture sequence to the target square
+    // created a pin where the pinner was discovered by the attacker moving to
+    // the target square.
+    handle_pin(moving_piece.color, moving_piece.square);
+    handle_pin(~moving_piece.color, moving_piece.square);
 }
 
 template <typename Integral_Type>
@@ -649,11 +846,13 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
 
     // The requested move's attacker captures first and then subsequent
     // attackers are interleaved in least-value order.
+    Bitboard                        pinned;
     SEE_Interleaved_Attackers_Array attackers =
         get_all_interleaved_attackers(move.destination_square,
                                       m_this_side,
                                       only_kings,
                                       has_pinned_defenders,
+                                      pinned,
                                       move.is_promotion,
                                       move.source_square);
 
@@ -695,17 +894,6 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
                         .second,
                 .square = move.destination_square};
 
-            // Quiet moves start with no captured material on the target square.
-            if (previous_attacker.piece != PIECES::NO_PIECE)
-            {
-                m_all_occupancies.unset_square(previous_attacker.square);
-                m_color_occupancies[previous_attacker.color].unset_square(
-                    previous_attacker.square);
-                m_piece_bitboards[previous_attacker.color]
-                                 [previous_attacker.piece]
-                                     .unset_square(previous_attacker.square);
-            }
-
             is_first_iteration = false;
         }
 
@@ -733,6 +921,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
                                                   ~previous_attacker.color,
                                                   only_kings,
                                                   has_pinned_defenders,
+                                                  pinned,
                                                   move.is_promotion);
 
                 // Check if a pinned attacker was recently released from it's
@@ -802,10 +991,16 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
 
             balances.append(score);
 
-            // An exchange where the first attacker is a king, we must return
-            // because we cannot remove the king from the board and regenerate
-            // attackers (because of king square logic).
-            if (attacker.piece == PIECES::KING) { return finish(); }
+            // Remove the captured piece from the target square if it is not a
+            // quiet move or en passant.
+            if (previous_attacker.piece != PIECES::NO_PIECE)
+            {
+                m_color_occupancies[previous_attacker.color].unset_square(
+                    move.destination_square);
+                m_piece_bitboards[previous_attacker.color]
+                                 [previous_attacker.piece]
+                                     .unset_square(move.destination_square);
+            }
 
             // Clear the attacker from it's square which will unhide any
             // attackers that were behind it.
@@ -826,22 +1021,41 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
                                      .square = attacker.square};
             }
 
+            // Simulate the attacker moving to the destination square.
+            m_all_occupancies.set_square(move.destination_square);
+            m_color_occupancies[attacker.color].set_square(
+                move.destination_square);
+            m_piece_bitboards[attacker.color][previous_attacker.piece]
+                .set_square(move.destination_square);
+
+            // The forced first king move ends the exchange.
+            if (attacker.piece == PIECES::KING) { return finish(); }
+
+            // Update pinned bitboard and the attackers array to account for any
+            // unpinned pieces or newly pinned pieces.
+            handle_unpins(pinned, attacker, move, attackers);
+            handle_new_pins(pinned, attacker, move, attackers);
+
             // Find if a hidden attacker was revealed for either side.
             Placed_Piece hidden_attacker =
                 find_hidden_attacker(previous_attacker,
                                      move.destination_square,
-                                     ~previous_attacker.color);
+                                     ~previous_attacker.color,
+                                     pinned);
             if (hidden_attacker == Placed_Piece())
             {
                 hidden_attacker = find_hidden_attacker(previous_attacker,
                                                        move.destination_square,
-                                                       previous_attacker.color);
+                                                       previous_attacker.color,
+                                                       pinned);
             }
 
             // If we found a hidden attacker insert it into the attackers array.
-            if (hidden_attacker != Placed_Piece())
+            if ((hidden_attacker != Placed_Piece())
+                && std::ranges::find(attackers, hidden_attacker)
+                       == attackers.end())
             {
-                insert_hidden_attacker(attackers, hidden_attacker);
+                insert_attacker(attackers, hidden_attacker);
             }
         }
 
@@ -851,6 +1065,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
                                                   ~previous_attacker.color,
                                                   only_kings,
                                                   has_pinned_defenders,
+                                                  pinned,
                                                   move.is_promotion);
     }
 
