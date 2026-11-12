@@ -253,3 +253,55 @@ TEST(see_tests, capture_unpins_defender_with_king)
 
     EXPECT_EQ(see.evaluate(move, 1), -80);
 }
+
+TEST(see_tests, unpin_by_blocking_an_existing_pin)
+{
+    Chess_Board position;
+    position.set_from_fen("7k/2n2b2/R7/3B4/2K5/8/8/8 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::A6;
+    move.destination_square = ESQUARE::E6;
+
+    EXPECT_EQ(see.evaluate(move, 1), -50);
+}
+
+TEST(see_tests, unpin_by_releasing_an_existing_pin)
+{
+    Chess_Board position;
+    position.set_from_fen("2B1r2k/4N3/8/8/8/8/8/4K3 b - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E8;
+    move.destination_square = ESQUARE::C8;
+
+    EXPECT_EQ(see.evaluate(move, 1), -15);
+}
+
+TEST(see_tests, new_pin_by_moving_piece)
+{
+    Chess_Board position;
+    position.set_from_fen("8/8/8/3p4/4n3/3P1q2/2B3k1/K3R3 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::D3;
+    move.destination_square = ESQUARE::E4;
+
+    EXPECT_EQ(see.evaluate(move, 1), 30);
+}
+
+TEST(see_tests, discovered_new_pin)
+{
+    Chess_Board position;
+    position.set_from_fen("8/8/8/8/6k1/5n2/3pR3/K2B4 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E2;
+    move.destination_square = ESQUARE::D2;
+
+    EXPECT_EQ(see.evaluate(move, 1), 10);
+}
