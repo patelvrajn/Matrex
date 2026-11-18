@@ -114,6 +114,8 @@ constexpr uint8_t NUM_OF_SQUARES_ON_CHESS_BOARD =
 constexpr uint8_t NUM_OF_PIECES_PER_PLAYER        = 16;
 constexpr uint8_t NUM_OF_UNIQUE_PIECES_PER_PLAYER = 6;
 
+constexpr uint8_t NUM_OF_PAWNS_PER_PLAYER = 8;
+
 enum PIECE_COLOR
 {
     WHITE,

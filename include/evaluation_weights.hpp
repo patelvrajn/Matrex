@@ -24,8 +24,10 @@ class Evaluation_Weights
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, 
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, 
       T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, 
-      T, T, T, T, T, Piece_Square_Table_Type, T, T, T, T, T, T, T, T, T, T, T,
-      T, T, T, T, T, T, T, T, T>;
+      T, T, T, T, T, Piece_Square_Table_Type, T, T, T, T, T, T, T, T, T, T, T, 
+      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, 
+      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,
+      T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T>;
     // clang-format on
 
   public:
@@ -42,6 +44,7 @@ class Evaluation_Weights
         piece_square_NLR_parameters {},
         piece_square_tables {},
         interactive_piece_square_NLR_parameters {},
+        pawn_dominance_NLR_parameters {},
         m_weight_ref_array(
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::PAWN),
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::KNIGHT),
@@ -100,7 +103,13 @@ class Evaluation_Weights
             NLR_ARRAY_FIELDS(interactive_piece_square_NLR_parameters,
                              PIECE_COLOR::WHITE),
             NLR_ARRAY_FIELDS(interactive_piece_square_NLR_parameters,
-                             PIECE_COLOR::BLACK))
+                             PIECE_COLOR::BLACK),
+            NLR_ARRAY_FIELDS(pawn_dominance_NLR_parameters, PIECES::PAWN),
+            NLR_ARRAY_FIELDS(pawn_dominance_NLR_parameters, PIECES::KNIGHT),
+            NLR_ARRAY_FIELDS(pawn_dominance_NLR_parameters, PIECES::BISHOP),
+            NLR_ARRAY_FIELDS(pawn_dominance_NLR_parameters, PIECES::ROOK),
+            NLR_ARRAY_FIELDS(pawn_dominance_NLR_parameters, PIECES::QUEEN),
+            NLR_ARRAY_FIELDS(pawn_dominance_NLR_parameters, PIECES::KING))
     {
     }
 
@@ -123,7 +132,9 @@ class Evaluation_Weights
                                       piece_square_NLR_weights,
         const Piece_Square_Table_Type piece_square_weights,
         const Multi_Array<NLR_Parameters<T>, NUM_OF_PLAYERS>
-            interactive_piece_square_NLR_weights) :
+            interactive_piece_square_NLR_weights,
+        const Multi_Array<NLR_Parameters<T>, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+            pawn_dominance_NLR_weights) :
         material_NLR_parameters(material_NLR_weights),
         material(material_weights),
         piece_mobility_NLR_parameters(piece_mobility_NLR_weights),
@@ -136,6 +147,7 @@ class Evaluation_Weights
         piece_square_tables(piece_square_weights),
         interactive_piece_square_NLR_parameters(
             interactive_piece_square_NLR_weights),
+        pawn_dominance_NLR_parameters(pawn_dominance_NLR_weights),
         m_weight_ref_array(
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::PAWN),
             NLR_ARRAY_FIELDS(material_NLR_parameters, PIECES::KNIGHT),
@@ -194,7 +206,13 @@ class Evaluation_Weights
             NLR_ARRAY_FIELDS(interactive_piece_square_NLR_parameters,
                              PIECE_COLOR::WHITE),
             NLR_ARRAY_FIELDS(interactive_piece_square_NLR_parameters,
-                             PIECE_COLOR::BLACK))
+                             PIECE_COLOR::BLACK),
+            NLR_ARRAY_FIELDS(pawn_dominance_NLR_parameters, PIECES::PAWN),
+            NLR_ARRAY_FIELDS(pawn_dominance_NLR_parameters, PIECES::KNIGHT),
+            NLR_ARRAY_FIELDS(pawn_dominance_NLR_parameters, PIECES::BISHOP),
+            NLR_ARRAY_FIELDS(pawn_dominance_NLR_parameters, PIECES::ROOK),
+            NLR_ARRAY_FIELDS(pawn_dominance_NLR_parameters, PIECES::QUEEN),
+            NLR_ARRAY_FIELDS(pawn_dominance_NLR_parameters, PIECES::KING))
     {
     }
 
@@ -225,6 +243,10 @@ class Evaluation_Weights
     Piece_Square_Table_Type piece_square_tables;
     Multi_Array<NLR_Parameters<T>, NUM_OF_PLAYERS>
         interactive_piece_square_NLR_parameters;
+
+    // Pawn dominance.
+    Multi_Array<NLR_Parameters<T>, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
+        pawn_dominance_NLR_parameters;
 
     T&       operator[](std::size_t index);
     const T& operator[](std::size_t index) const;

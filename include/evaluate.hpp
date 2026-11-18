@@ -37,6 +37,9 @@ class Evaluator
     template <PIECE_COLOR moving_side, EGAME_PHASE phase>
     inline T piece_square_score() const;
 
+    template <PIECE_COLOR moving_side, EGAME_PHASE phase>
+    inline T pawn_dominance_score() const;
+
   private:
 
     const Game_Phased_Eval_Weights<T>& m_weights;
@@ -157,6 +160,55 @@ class Evaluator
         return tables;
     }();
 
+    // The 2 is the number of maximum attacks per pawn.
+    static constexpr std::size_t MAX_PAWN_DOMINANCE = NUM_OF_PIECES_PER_PLAYER * NUM_OF_PAWNS_PER_PLAYER * 2;
+
+    inline static const Multi_Array<Matrex_FP_Int,
+                                    NUM_OF_GAME_PHASES,
+                                    NUM_OF_UNIQUE_PIECES_PER_PLAYER,
+                                    MAX_PAWN_DOMINANCE + 1>
+        m_pawn_dominance_nlr_tables = []
+    {
+        Multi_Array<Matrex_FP_Int,
+                    NUM_OF_GAME_PHASES,
+                    NUM_OF_UNIQUE_PIECES_PER_PLAYER,
+                    MAX_PAWN_DOMINANCE + 1>
+            tables {};
+        for (std::size_t phase = 0; phase < NUM_OF_GAME_PHASES; ++phase)
+        {
+            const auto& parameters =
+                (phase == MIDDLE_GAME)
+                    ? TUNED_MIDDLE_GAME_PAWN_DOMINANCE_NLR_WEIGHTS
+                    : TUNED_END_GAME_PAWN_DOMINANCE_NLR_WEIGHTS;
+
+            for (std::size_t piece = 0; piece < NUM_OF_UNIQUE_PIECES_PER_PLAYER;
+                 ++piece)
+            {
+                const auto&                  p = parameters[piece];
+                const NLR_Parameters<double> double_parameters {
+                    .h_plus  = p.h_plus.to_double(),
+                    .h_minus = p.h_minus.to_double(),
+                    .z       = p.z.to_double(),
+                    .k       = p.k.to_double(),
+                    .q_plus  = p.q_plus.to_double(),
+                    .q_minus = p.q_minus.to_double(),
+                    .r_plus  = p.r_plus.to_double(),
+                    .r_minus = p.r_minus.to_double(),
+                    .g_plus  = p.g_plus.to_double(),
+                    .g_minus = p.g_minus.to_double()};
+                const Non_Linear_Response<double> response(double_parameters);
+
+                for (std::size_t count = 0; count <= MAX_PAWN_DOMINANCE;
+                     ++count)
+                {
+                    tables[phase][piece][count] = Matrex_FP_Int::from_double(
+                        response.value(static_cast<double>(count)));
+                }
+            }
+        }
+        return tables;
+    }();
+
     // Helpers
     template <PIECE_COLOR side, EGAME_PHASE phase>
     inline T calculate_piece_mobility(const Moves_Bitboard_Matrix& matrix,
@@ -187,6 +239,7 @@ T Evaluator<T>::phased_evaluate_template_typed() const
     T material;
     T mobility;
     T piece_square;
+    T pawn_dominance;
 
     if (moving_side == PIECE_COLOR::WHITE)
     {
@@ -197,6 +250,8 @@ T Evaluator<T>::phased_evaluate_template_typed() const
             - mobility_score<PIECE_COLOR::BLACK, phase>(m_opposing_side_matrix);
         piece_square = piece_square_score<PIECE_COLOR::WHITE, phase>()
                      - piece_square_score<PIECE_COLOR::BLACK, phase>();
+        pawn_dominance = pawn_dominance_score<PIECE_COLOR::WHITE, phase>()
+                       - pawn_dominance_score<PIECE_COLOR::BLACK, phase>();
     }
     else
     {
@@ -207,9 +262,11 @@ T Evaluator<T>::phased_evaluate_template_typed() const
             - mobility_score<PIECE_COLOR::WHITE, phase>(m_opposing_side_matrix);
         piece_square = piece_square_score<PIECE_COLOR::BLACK, phase>()
                      - piece_square_score<PIECE_COLOR::WHITE, phase>();
+        pawn_dominance = pawn_dominance_score<PIECE_COLOR::BLACK, phase>()
+                       - pawn_dominance_score<PIECE_COLOR::WHITE, phase>();
     }
 
-    const T evaluation = material + mobility + piece_square;
+    const T evaluation = material + mobility + piece_square + pawn_dominance;
 
     return evaluation;
 }
@@ -449,6 +506,52 @@ inline T Evaluator<T>::piece_square_score() const
     return (nlr_this_interaction_value + nlr_this_king_value
             + nlr_this_queen_value + nlr_this_rook_value + nlr_this_bishop_value
             + nlr_this_knight_value + nlr_this_pawn_value);
+}
+
+template <typename T>
+template <PIECE_COLOR moving_side, EGAME_PHASE phase>
+inline T Evaluator<T>::pawn_dominance_score() const
+{
+    constexpr PIECE_COLOR        enemy = ~moving_side;
+    const Moves_Bitboard_Matrix& enemy_matrix =
+        (moving_side == m_chess_board.get_side_to_move())
+            ? m_opposing_side_matrix
+            : m_moving_side_matrix;
+
+    const Bitboard pawns =
+        m_chess_board.get_piece_occupancies(moving_side, PIECES::PAWN);
+    const Bitboard pawn_attacks = // Approximation - doesn't account for pins or
+                                  // checks.
+        (moving_side == PIECE_COLOR::WHITE)
+            ? ((pawns >> 7) & NOT_A_FILE) | ((pawns >> 9) & NOT_H_FILE)
+            : ((pawns << 7) & NOT_H_FILE) | ((pawns << 9) & NOT_A_FILE);
+
+    T dominance = constant_conversion<phase>(0.0);
+    for (uint8_t piece = PIECES::PAWN; piece <= PIECES::KING; ++piece)
+    {
+        std::size_t overlaps = 0;
+        for (const Moves_Bitboard& moves :
+             enemy_matrix.get_iterable(enemy, static_cast<PIECES>(piece)))
+        {
+            // How many squares of the enemy piece's movements are attacked by
+            // our pawns?
+            overlaps += (moves.bitboard & pawn_attacks).high_bit_count();
+        }
+
+        if constexpr (std::is_same_v<T, Matrex_FP_Int>)
+        {
+            dominance += m_pawn_dominance_nlr_tables[phase][piece][overlaps];
+        }
+        else
+        {
+            dominance +=
+                Non_Linear_Response<T>(
+                    m_weights[phase].pawn_dominance_NLR_parameters[piece])
+                    .value(constant_conversion<phase>(
+                        static_cast<double>(overlaps)));
+        }
+    }
+    return dominance;
 }
 
 /*******************************************************************************
