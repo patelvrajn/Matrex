@@ -75,11 +75,15 @@ Game_Phased_Eval_Weights<double> Tuner::init_weights()
                                                        random_nlr(0.3L),
                                                        random_nlr(0.6L),
                                                        random_nlr(0.1L)};
-        phase_weights.diagonal_mobility             = perturb(0.43L);
-        phase_weights.orthogonal_mobility           = perturb(0.34L);
-        phase_weights.knight_movement_mobility      = perturb(0.57L);
-        phase_weights.multi_movement_mobility       = perturb(1.0L);
-        phase_weights.backwards_movement_mobility   = perturb(0.36L);
+        for (auto& parameters : phase_weights.pawn_dominance_NLR_parameters)
+        {
+            parameters = random_nlr(0.50L);
+        }
+        phase_weights.diagonal_mobility           = perturb(0.43L);
+        phase_weights.orthogonal_mobility         = perturb(0.34L);
+        phase_weights.knight_movement_mobility    = perturb(0.57L);
+        phase_weights.multi_movement_mobility     = perturb(1.0L);
+        phase_weights.backwards_movement_mobility = perturb(0.36L);
 
         for (uint8_t color = PIECE_COLOR::WHITE; color <= PIECE_COLOR::BLACK;
              ++color)
@@ -816,6 +820,12 @@ void Tuner::print_phase_header(const Evaluation_Weights<double>& weights,
                              weights.interactive_piece_square_NLR_parameters);
     m_output << ";" << std::endl;
 
+    m_output << "constexpr Multi_Array<NLR_Parameters<Matrex_FP_Int>, "
+                "NUM_OF_UNIQUE_PIECES_PER_PLAYER> "
+             << prefix << "PAWN_DOMINANCE_NLR_WEIGHTS = ";
+    print_multi_array_as_cpp(m_output, weights.pawn_dominance_NLR_parameters);
+    m_output << ";" << std::endl;
+
     // Weights
     m_output << "const Evaluation_Weights<Matrex_FP_Int> " << prefix
              << "EVALUATION_WEIGHTS(" << prefix << "MATERIAL_NLR_WEIGHTS,"
@@ -827,7 +837,8 @@ void Tuner::print_phase_header(const Evaluation_Weights<double>& weights,
              << "MULTI_MOVEMENT_MOBILITY_WEIGHT," << prefix
              << "BACKWARDS_MOVEMENT_MOBILITY_WEIGHT," << prefix
              << "PIECE_SQUARE_NLR_WEIGHTS," << prefix << "PIECE_SQUARE_TABLE,"
-             << prefix << "INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS);" << std::endl;
+             << prefix << "INTERACTIVE_PIECE_SQUARE_NLR_WEIGHTS," << prefix
+             << "PAWN_DOMINANCE_NLR_WEIGHTS);" << std::endl;
 }
 
 void Tuner::print_header_file(const Game_Phased_Eval_Weights<double>& weights)

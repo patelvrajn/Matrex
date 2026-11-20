@@ -161,7 +161,8 @@ class Evaluator
     }();
 
     // The 2 is the number of maximum attacks per pawn.
-    static constexpr std::size_t MAX_PAWN_DOMINANCE = NUM_OF_PIECES_PER_PLAYER * NUM_OF_PAWNS_PER_PLAYER * 2;
+    static constexpr std::size_t MAX_PAWN_DOMINANCE =
+        NUM_OF_PIECES_PER_PLAYER * NUM_OF_PAWNS_PER_PLAYER * 2;
 
     inline static const Multi_Array<Matrex_FP_Int,
                                     NUM_OF_GAME_PHASES,
