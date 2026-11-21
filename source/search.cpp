@@ -287,11 +287,9 @@ Search_Work::negamax(Chess_Board&                    position,
 
     // Generate moves matrix for the opposing side for evaluation purposes.
     const PIECE_COLOR     opposing_side = ~position.get_side_to_move();
-    Move_Generation_List  not_used_moves_list;
     Moves_Bitboard_Matrix opposing_side_matrix;
     Move_Generator        mg(position);
     mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,
-                                                     not_used_moves_list,
                                                      opposing_side_matrix);
 
     const Evaluator e(TUNED_EVALUATION_WEIGHTS,
@@ -304,12 +302,12 @@ Search_Work::negamax(Chess_Board&                    position,
 
     Principal_Variation_List child_principal_variation;
 
-    // Null Move Pruning - The idea is that if the side to move can do nothing 
-    // and still induce a beta cutoff in an obviously good position then we can 
+    // Null Move Pruning - The idea is that if the side to move can do nothing
+    // and still induce a beta cutoff in an obviously good position then we can
     // assume that the best legal move in the position will induce a beta cutoff
-    // due to the Null Move Observation (the observation that in non-zugzwang 
-    // positions, making the best legal move is better than making a null move). 
-    // Thus, the whole node can be pruned and treated as a beta cutoff.  
+    // due to the Null Move Observation (the observation that in non-zugzwang
+    // positions, making the best legal move is better than making a null move).
+    // Thus, the whole node can be pruned and treated as a beta cutoff.
     if (should_do_null_move_pruning(is_side_to_move_in_check))
     {
         const Undo_Chess_Move undo_null_move = position.make_null_move();
@@ -729,11 +727,9 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
 
     // Generate moves matrix for the opposing side for evaluation purposes.
     const PIECE_COLOR     opposing_side = ~position.get_side_to_move();
-    Move_Generation_List  not_used_moves_list;
     Moves_Bitboard_Matrix opposing_side_matrix;
     Move_Generator        mg(position);
     mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,
-                                                     not_used_moves_list,
                                                      opposing_side_matrix);
 
     // No moves and in check - return mate score. Note, we don't handle

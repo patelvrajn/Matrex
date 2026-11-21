@@ -445,10 +445,9 @@ void Chess_Board::make_moves_from_string(const std::string& moves_str,
 
     while (iss >> move_str)
     { // Loop over space seperated moves string.
-        Move_Generator        mg(*this);
-        Move_Generation_List  moves;
-        Moves_Bitboard_Matrix dummy_matrix;
-        mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves, dummy_matrix);
+        Move_Generator       mg(*this);
+        Move_Generation_List moves;
+        mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves);
 
         for (const auto& move : moves)
         {

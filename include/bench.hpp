@@ -2,6 +2,7 @@
 
 #include <string>
 #include <cstdint>
+#include <cstddef>
 #include "globals.hpp"
 
 // =============================================================================
@@ -18,7 +19,8 @@ class Performance_Bench
 
     double bench_move_generation(const Depth_Int depth);
 
-    double bench_search(const Depth_Int depth);
+    double bench_search(const Depth_Int   depth,
+                        const std::size_t num_of_search_workers = 4);
 
   private:
 

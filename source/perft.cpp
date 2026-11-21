@@ -7,14 +7,13 @@
 
 uint64_t perft(Chess_Board& board, const uint64_t depth)
 {
-    Move_Generator        mg(board);
-    Move_Generation_List  moves;
-    Moves_Bitboard_Matrix matrix;
-    uint64_t              nodes = 0;
-
     if (depth == 0) { return 1ULL; }
 
-    mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves, matrix);
+    Move_Generator       mg(board);
+    Move_Generation_List moves;
+    uint64_t             nodes = 0;
+
+    mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves);
     for (const auto& move : moves)
     {
         const Undo_Chess_Move undo = board.make_move(move);
@@ -30,10 +29,9 @@ uint64_t perft(Chess_Board& board, const uint64_t depth)
 uint64_t
 divide_perft(Chess_Board& board, const uint64_t depth, const bool is_frc)
 {
-    Move_Generator        mg(board);
-    Move_Generation_List  moves;
-    Moves_Bitboard_Matrix matrix;
-    mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves, matrix);
+    Move_Generator       mg(board);
+    Move_Generation_List moves;
+    mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves);
 
     uint64_t nodes = 0;
 

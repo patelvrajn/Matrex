@@ -511,22 +511,18 @@ Tuner_Eval_Params Tuner::compute_eval_params(const Mini_Batch& mini_batch) const
         cb.set_from_fen(mini_batch.fens[i]);
 
         const PIECE_COLOR     moving_side = cb.get_side_to_move();
-        Move_Generation_List  moving_side_moves_list;
         Moves_Bitboard_Matrix moving_side_matrix;
         Move_Generator        mg_moving_side(cb);
         mg_moving_side.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
             moving_side,
-            moving_side_moves_list,
             moving_side_matrix);
 
         const PIECE_COLOR opposing_side =
             (PIECE_COLOR) ((~cb.get_side_to_move()) & 0x1);
-        Move_Generation_List  opposing_side_moves_list;
         Moves_Bitboard_Matrix opposing_side_matrix;
         Move_Generator        mg_opposing_side(cb);
         mg_opposing_side.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(
             opposing_side,
-            opposing_side_moves_list,
             opposing_side_matrix);
 
         return_value.boards.push_back(cb);

@@ -33,7 +33,8 @@ double Performance_Bench::bench_move_generation(const Depth_Int depth)
     return nps;
 }
 
-double Performance_Bench::bench_search(const Depth_Int depth)
+double Performance_Bench::bench_search(const Depth_Int   depth,
+                                       const std::size_t num_of_search_workers)
 {
     Search_Engine se;
 
@@ -46,7 +47,7 @@ double Performance_Bench::bench_search(const Depth_Int depth)
     constraints.should_ignore_time                               = true;
     constraints.depth                                            = depth;
     constraints.transposition_table_size                         = 128;
-    constraints.num_of_search_workers                            = 4;
+    constraints.num_of_search_workers = num_of_search_workers;
 
     uint64_t total_node_count = 0;
     uint64_t total_time       = 0;
