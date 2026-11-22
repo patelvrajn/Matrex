@@ -262,7 +262,7 @@ class Move_Generator
     Bitboard attackers_to_square(const Square s);
 
     template <PIECE_COLOR moving_side>
-    Bitboard is_our_king_ring_attacked();
+    Bitboard is_our_king_ring_attacked(const Bitboard king_moves);
 
     template <MOVE_GENERATION_TYPE gen_type, PIECE_COLOR moving_side>
     inline void generate_pawn_promotions(const Square source_square,
@@ -492,68 +492,41 @@ Bitboard Move_Generator::get_pin_mask(const Bitboard pinned,
     }
 }
 
-// Determine which squares in the "king ring" (the 8 surrounding squares around
-// our king) are currently under attack by the opponent.
+// Only test reachable king destinations, using enemy attacks and an occupancy
+// without our king so sliding attacks through its source square remain visible.
 template <PIECE_COLOR moving_side>
-Bitboard Move_Generator::is_our_king_ring_attacked()
+Bitboard Move_Generator::is_our_king_ring_attacked(const Bitboard king_moves)
 {
     Attacks a;
-
-    // Bitboard to store the attacked squares in the king ring.
     Bitboard mask;
+    constexpr PIECE_COLOR opposing_side = ~moving_side;
 
-    const PIECE_COLOR opposing_side = ~moving_side;
+    const Bitboard occupancy = m_chess_board.get_both_color_occupancies()
+        & ~m_chess_board.get_piece_occupancies(moving_side, PIECES::KING);
+    const Bitboard pawns =
+        m_chess_board.get_piece_occupancies(opposing_side, PIECES::PAWN);
+    const Bitboard knights =
+        m_chess_board.get_piece_occupancies(opposing_side, PIECES::KNIGHT);
+    const Bitboard king =
+        m_chess_board.get_piece_occupancies(opposing_side, PIECES::KING);
+    const Bitboard queens =
+        m_chess_board.get_piece_occupancies(opposing_side, PIECES::QUEEN);
+    const Bitboard diagonal_sliders = queens
+        | m_chess_board.get_piece_occupancies(opposing_side, PIECES::BISHOP);
+    const Bitboard orthogonal_sliders = queens
+        | m_chess_board.get_piece_occupancies(opposing_side, PIECES::ROOK);
 
-    const Square our_king_square = m_chess_board.get_king_square(moving_side);
-
-    Bitboard king_ring = a.get_king_attacks(our_king_square);
-
-    for (const Square& king_ring_square : king_ring)
+    for (const Square& square : king_moves)
     {
-        // We need to remove the moving side's king from it's occupancy so we
-        // can determine if squares are attacked through a sliding piece's ray.
-        Bitboard black_king_occupancy = Bitboard(
-            m_chess_board
-                .get_piece_occupancies(PIECE_COLOR::BLACK, PIECES::KING)
-                .get_board()
-            * (moving_side == PIECE_COLOR::WHITE));
-        Bitboard white_king_occupancy = Bitboard(
-            m_chess_board
-                .get_piece_occupancies(PIECE_COLOR::WHITE, PIECES::KING)
-                .get_board()
-            * (moving_side == PIECE_COLOR::BLACK));
-
-        Bitboard king_ring_square_attackers = attackers_to_square(
-            king_ring_square,
-            m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE,
-                                                PIECES::PAWN),
-            m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE,
-                                                PIECES::KNIGHT),
-            m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE,
-                                                PIECES::BISHOP),
-            m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE,
-                                                PIECES::ROOK),
-            m_chess_board.get_piece_occupancies(PIECE_COLOR::WHITE,
-                                                PIECES::QUEEN),
-            white_king_occupancy,
-            m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK,
-                                                PIECES::PAWN),
-            m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK,
-                                                PIECES::KNIGHT),
-            m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK,
-                                                PIECES::BISHOP),
-            m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK,
-                                                PIECES::ROOK),
-            m_chess_board.get_piece_occupancies(PIECE_COLOR::BLACK,
-                                                PIECES::QUEEN),
-            black_king_occupancy);
-
-        if ((king_ring_square_attackers
-             & m_chess_board.get_color_occupancies(opposing_side))
-                .get_board())
+        if ((a.get_pawn_attacks(square, moving_side) & pawns).get_board()
+            || (a.get_knight_attacks(square) & knights).get_board()
+            || (a.get_king_attacks(square) & king).get_board()
+            || (a.get_bishop_attacks(square, occupancy) & diagonal_sliders)
+                   .get_board()
+            || (a.get_rook_attacks(square, occupancy) & orthogonal_sliders)
+                   .get_board())
         {
-            // If attacked, set that square’s bit in our result mask.
-            mask |= Bitboard(king_ring_square.get_mask());
+            mask.set_square(square);
         }
     }
 
@@ -1145,8 +1118,9 @@ inline void Move_Generator::generate_king_moves(auto& output,
 
     const Square king_square = m_chess_board.get_king_square(moving_side);
 
-    const Bitboard king_moves = a.get_king_attacks(king_square) & enemy_or_empty
-                              & (~is_our_king_ring_attacked<moving_side>());
+    const Bitboard candidates = a.get_king_attacks(king_square) & enemy_or_empty;
+    const Bitboard king_moves = candidates
+        & ~is_our_king_ring_attacked<moving_side>(candidates);
 
     for (const Square& destination_square : king_moves)
     {
