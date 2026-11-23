@@ -207,16 +207,23 @@ Chess_Board::what_piece_is_on_square(const Square s) const
 {
     const Bitboard square_bb = Bitboard(s.get_mask());
 
-    for (uint8_t color = 0; color <= PIECE_COLOR::BLACK; ++color)
+    // Most squares are empty, so check if it is empty before additional work. 
+    if ((get_both_color_occupancies() & square_bb) == 0)
     {
-        for (uint8_t piece = 0; piece <= PIECES::KING; ++piece)
+        return {PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE};
+    }
+
+    // Determine color.
+    const PIECE_COLOR color =
+        (get_color_occupancies(PIECE_COLOR::WHITE) & square_bb) != 0
+            ? PIECE_COLOR::WHITE : PIECE_COLOR::BLACK;
+
+    // Determine piece.
+    for (uint8_t piece = 0; piece <= PIECES::KING; ++piece)
+    {
+        if ((get_piece_occupancies(color, (PIECES) piece) & square_bb) != 0)
         {
-            if ((get_piece_occupancies((PIECE_COLOR) color, (PIECES) piece)
-                 & square_bb)
-                != 0)
-            {
-                return {(PIECE_COLOR) color, (PIECES) piece};
-            }
+            return {color, (PIECES) piece};
         }
     }
 
@@ -445,10 +452,9 @@ void Chess_Board::make_moves_from_string(const std::string& moves_str,
 
     while (iss >> move_str)
     { // Loop over space seperated moves string.
-        Move_Generator        mg(*this);
-        Move_Generation_List  moves;
-        Moves_Bitboard_Matrix dummy_matrix;
-        mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves, dummy_matrix);
+        Move_Generator       mg(*this);
+        Move_Generation_List moves;
+        mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(moves);
 
         for (const auto& move : moves)
         {

@@ -287,11 +287,9 @@ Search_Work::negamax(Chess_Board&                    position,
 
     // Generate moves matrix for the opposing side for evaluation purposes.
     const PIECE_COLOR     opposing_side = ~position.get_side_to_move();
-    Move_Generation_List  not_used_moves_list;
     Moves_Bitboard_Matrix opposing_side_matrix;
     Move_Generator        mg(position);
     mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,
-                                                     not_used_moves_list,
                                                      opposing_side_matrix);
 
     const Evaluator e(TUNED_EVALUATION_WEIGHTS,
@@ -724,11 +722,9 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
 
     // Generate moves matrix for the opposing side for evaluation purposes.
     const PIECE_COLOR     opposing_side = ~position.get_side_to_move();
-    Move_Generation_List  not_used_moves_list;
     Moves_Bitboard_Matrix opposing_side_matrix;
     Move_Generator        mg(position);
     mg.generate_all_moves<MOVE_GENERATION_TYPE::ALL>(opposing_side,
-                                                     not_used_moves_list,
                                                      opposing_side_matrix);
 
     // No moves and in check - return mate score. Note, we don't handle
