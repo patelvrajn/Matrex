@@ -68,7 +68,7 @@ constexpr Square::Square(uint8_t r, uint8_t f)
 
 constexpr bool Square::has_square() const
 {
-    return (m_index != ESQUARE::NO_SQUARE);
+    return (m_index < ESQUARE::NO_SQUARE);
 }
 
 constexpr bool Square::is_light_square() const

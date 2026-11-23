@@ -90,33 +90,42 @@ constexpr Directional_Ray::Directional_Ray(const Square src, const Square dst)
         return;
     }
 
-    // Starting from square src travel in the direction of square dst until you
-    // cannot travel any further.
-    int8_t square_index = src.get_index();
-    while ((Square(square_index).get_rank() < NUM_OF_RANKS_ON_CHESS_BOARD)
-           && (Square(square_index).get_file() < NUM_OF_FILES_ON_CHESS_BOARD))
-    {
-        m_ray.set_square(Square(square_index));
-        square_index += m_direction;
-    }
-
-    m_start_square = src;
+    *this = Directional_Ray(src, m_direction);
 }
 
 // Creates a vector given an initial square and a direction.
 constexpr Directional_Ray::Directional_Ray(const Square    src,
                                            const DIRECTION d) :
-    m_start_square(src), m_ray(EMPTY_BITBOARD), m_direction(d)
+    Directional_Ray()
 {
-    // Performs a "walk" in the direction specified and sets each square walked
-    // on in the bitboard to form the ray.
-    int8_t index = src.get_index();
-    while ((index >= 0) && (index < NUM_OF_SQUARES_ON_CHESS_BOARD)
-           && (Square(index).get_rank() < NUM_OF_RANKS_ON_CHESS_BOARD)
-           && (Square(index).get_file() < NUM_OF_FILES_ON_CHESS_BOARD))
+    if (!src.has_square()) { return; }
+
+    m_direction = d;
+    if (!is_diagonal() && !is_orthogonal())
     {
-        m_ray.set_square(Square(index));
-        index += d;
+        m_direction = DIRECTION::NO_DIRECTION;
+        return;
+    }
+
+    m_start_square = src;
+
+    const int rank_step = (d == NORTH || d == NORTHWEST || d == NORTHEAST)
+                            ? -1
+                            : (d == SOUTH || d == SOUTHWEST || d == SOUTHEAST);
+    const int file_step = (d == WEST || d == NORTHWEST || d == SOUTHWEST)
+                            ? -1
+                            : (d == EAST || d == NORTHEAST || d == SOUTHEAST);
+
+    // Check rank and file independently so a step cannot wrap over the board
+    // edge.
+    int rank = src.get_rank();
+    int file = src.get_file();
+    while ((rank >= 0) && (rank < NUM_OF_RANKS_ON_CHESS_BOARD) && (file >= 0)
+           && (file < NUM_OF_FILES_ON_CHESS_BOARD))
+    {
+        m_ray.set_square(Square(rank, file));
+        rank += rank_step;
+        file += file_step;
     }
 }
 

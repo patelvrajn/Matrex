@@ -207,7 +207,7 @@ Chess_Board::what_piece_is_on_square(const Square s) const
 {
     const Bitboard square_bb = Bitboard(s.get_mask());
 
-    // Most squares are empty, so check if it is empty before additional work. 
+    // Most squares are empty, so check if it is empty before additional work.
     if ((get_both_color_occupancies() & square_bb) == 0)
     {
         return {PIECE_COLOR::NO_COLOR, PIECES::NO_PIECE};
@@ -216,7 +216,8 @@ Chess_Board::what_piece_is_on_square(const Square s) const
     // Determine color.
     const PIECE_COLOR color =
         (get_color_occupancies(PIECE_COLOR::WHITE) & square_bb) != 0
-            ? PIECE_COLOR::WHITE : PIECE_COLOR::BLACK;
+            ? PIECE_COLOR::WHITE
+            : PIECE_COLOR::BLACK;
 
     // Determine piece.
     for (uint8_t piece = 0; piece <= PIECES::KING; ++piece)

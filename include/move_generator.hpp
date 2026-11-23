@@ -497,11 +497,12 @@ Bitboard Move_Generator::get_pin_mask(const Bitboard pinned,
 template <PIECE_COLOR moving_side>
 Bitboard Move_Generator::is_our_king_ring_attacked(const Bitboard king_moves)
 {
-    Attacks a;
-    Bitboard mask;
+    Attacks               a;
+    Bitboard              mask;
     constexpr PIECE_COLOR opposing_side = ~moving_side;
 
-    const Bitboard occupancy = m_chess_board.get_both_color_occupancies()
+    const Bitboard occupancy =
+        m_chess_board.get_both_color_occupancies()
         & ~m_chess_board.get_piece_occupancies(moving_side, PIECES::KING);
     const Bitboard pawns =
         m_chess_board.get_piece_occupancies(opposing_side, PIECES::PAWN);
@@ -511,9 +512,11 @@ Bitboard Move_Generator::is_our_king_ring_attacked(const Bitboard king_moves)
         m_chess_board.get_piece_occupancies(opposing_side, PIECES::KING);
     const Bitboard queens =
         m_chess_board.get_piece_occupancies(opposing_side, PIECES::QUEEN);
-    const Bitboard diagonal_sliders = queens
+    const Bitboard diagonal_sliders =
+        queens
         | m_chess_board.get_piece_occupancies(opposing_side, PIECES::BISHOP);
-    const Bitboard orthogonal_sliders = queens
+    const Bitboard orthogonal_sliders =
+        queens
         | m_chess_board.get_piece_occupancies(opposing_side, PIECES::ROOK);
 
     for (const Square& square : king_moves)
@@ -1118,9 +1121,10 @@ inline void Move_Generator::generate_king_moves(auto& output,
 
     const Square king_square = m_chess_board.get_king_square(moving_side);
 
-    const Bitboard candidates = a.get_king_attacks(king_square) & enemy_or_empty;
-    const Bitboard king_moves = candidates
-        & ~is_our_king_ring_attacked<moving_side>(candidates);
+    const Bitboard candidates =
+        a.get_king_attacks(king_square) & enemy_or_empty;
+    const Bitboard king_moves =
+        candidates & ~is_our_king_ring_attacked<moving_side>(candidates);
 
     for (const Square& destination_square : king_moves)
     {
