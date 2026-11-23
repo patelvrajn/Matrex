@@ -985,7 +985,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
 
             if (is_capturing_with_promotion)
             {
-                score += (m_material_weights[PIECES::QUEEN]
+                score += (m_material_weights[move.promoted_piece]
                           - m_material_weights[PIECES::PAWN]);
             }
 
@@ -1012,12 +1012,10 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
             previous_attacker = attacker;
             attackers.pop();
 
-            // If a pawn captured with promotion, the piece on the square is a
-            // queen (assume the highest material value when promoting).
             if (is_capturing_with_promotion)
             {
                 previous_attacker = {.color  = attacker.color,
-                                     .piece  = PIECES::QUEEN,
+                                     .piece  = move.promoted_piece,
                                      .square = attacker.square};
             }
 
