@@ -1082,5 +1082,5 @@ template <typename Integral_Type>
 constexpr Integral_Type
 Static_Exchange_Evaluator<Integral_Type>::quiescence_threshold()
 {
-    return (-2 * m_material_weights[PIECES::PAWN]);
+    return 0;
 }

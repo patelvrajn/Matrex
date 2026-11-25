@@ -175,7 +175,7 @@ Search_Work::negamax(Chess_Board&                    position,
         read_private_data<std::reference_wrapper<Transposition_Table>>(
             m_index_to_transposition_table)
             .get();
-    Transposition_Table_Entry transposition_table_entry;
+    Transposition_Table_Entry transposition_table_entry {};
     const bool                did_transposition_table_hit =
         transposition_table.read(maximum_depth,
                                  ply,
@@ -679,7 +679,7 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
         read_private_data<std::reference_wrapper<Transposition_Table>>(
             m_index_to_transposition_table)
             .get();
-    Transposition_Table_Entry transposition_table_entry;
+    Transposition_Table_Entry transposition_table_entry {};
     const bool                did_transposition_table_hit =
         transposition_table.read(maximum_depth,
                                  ply,
