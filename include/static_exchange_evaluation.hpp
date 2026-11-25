@@ -95,7 +95,6 @@ class Static_Exchange_Evaluator
     SEE_Attackers_Array
     what_pieces_attack_this_square(const Square      s,
                                    const PIECE_COLOR this_side,
-                                   const bool        is_promotion_square,
                                    bool&             has_pinned_attackers,
                                    Bitboard&         pinned) const;
 
@@ -105,7 +104,6 @@ class Static_Exchange_Evaluator
         bool&             only_kings,
         bool&             has_pinned_defenders,
         Bitboard&         pinned,
-        const bool        is_promotion_square,
         Square            source_square = Square(ESQUARE::NO_SQUARE)) const;
 
     void reset_occupancy_bitboards();
@@ -298,11 +296,12 @@ SEE_Attackers_Array
 Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
     const Square      s,
     const PIECE_COLOR this_side,
-    const bool        is_promotion_square,
     bool&             has_pinned_attackers,
     Bitboard&         pinned) const
 {
     SEE_Attackers_Array attackers;
+
+    const bool is_promotion_square = s.is_promotion_square(this_side);
 
     const Attacks a;
 
@@ -413,7 +412,6 @@ Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
     bool&             only_kings,
     bool&             has_pinned_defenders,
     Bitboard&         pinned,
-    const bool        is_promotion_square,
     Square            source_square) const
 {
     SEE_Interleaved_Attackers_Array interleaved_attackers;
@@ -423,13 +421,11 @@ Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
     auto     this_side_attackers =
         what_pieces_attack_this_square(s,
                                        this_side,
-                                       is_promotion_square,
                                        has_pinned_attackers,
                                        this_side_pinned);
     auto other_side_attackers =
         what_pieces_attack_this_square(s,
                                        ~this_side,
-                                       is_promotion_square,
                                        has_pinned_defenders,
                                        other_side_pinned);
     pinned = this_side_pinned | other_side_pinned;
@@ -812,8 +808,7 @@ inline void Static_Exchange_Evaluator<Integral_Type>::handle_new_pins(
 
     // Case 1 - Moving an attacker in the capture sequence to the target square
     // created a pin where the pinner is the attacker.
-    if (moving_piece.is_slider()
-        || (move.is_promotion && (moving_piece.piece == PIECES::PAWN)))
+    if (moving_piece.is_slider())
     {
         handle_pin(~moving_piece.color, move.destination_square);
     }
@@ -853,7 +848,6 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
                                       only_kings,
                                       has_pinned_defenders,
                                       pinned,
-                                      move.is_promotion,
                                       move.source_square);
 
     Integral_Type score =
@@ -921,8 +915,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
                                                   ~previous_attacker.color,
                                                   only_kings,
                                                   has_pinned_defenders,
-                                                  pinned,
-                                                  move.is_promotion);
+                                                  pinned);
 
                 // Check if a pinned attacker was recently released from it's
                 // pin.
@@ -980,13 +973,21 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
                 score += m_material_weights[previous_attacker.piece];
             }
 
-            bool is_capturing_with_promotion =
-                (move.is_promotion && (attacker.piece == PIECES::PAWN));
-
-            if (is_capturing_with_promotion)
+            PIECES resulting_piece = attacker.piece;
+            if ((attacker.piece == PIECES::PAWN)
+                && Square(move.destination_square)
+                       .is_promotion_square(attacker.color))
             {
-                score += (m_material_weights[move.promoted_piece]
-                          - m_material_weights[PIECES::PAWN]);
+                resulting_piece = ((balances.size() == 0) && move.is_promotion)
+                                    ? move.promoted_piece
+                                    : PIECES::QUEEN;
+
+                const Integral_Type promotion_gain =
+                    m_material_weights[resulting_piece]
+                    - m_material_weights[PIECES::PAWN];
+
+                score += attacker.color == m_this_side ? promotion_gain
+                                                       : -promotion_gain;
             }
 
             balances.append(score);
@@ -1009,15 +1010,9 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
             m_piece_bitboards[attacker.color][attacker.piece].unset_square(
                 attacker.square);
 
-            previous_attacker = attacker;
+            previous_attacker       = attacker;
+            previous_attacker.piece = resulting_piece;
             attackers.pop();
-
-            if (is_capturing_with_promotion)
-            {
-                previous_attacker = {.color  = attacker.color,
-                                     .piece  = move.promoted_piece,
-                                     .square = attacker.square};
-            }
 
             // Simulate the attacker moving to the destination square.
             m_all_occupancies.set_square(move.destination_square);
@@ -1032,7 +1027,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
             // Update pinned bitboard and the attackers array to account for any
             // unpinned pieces or newly pinned pieces.
             handle_unpins(pinned, attacker, move, attackers);
-            handle_new_pins(pinned, attacker, move, attackers);
+            handle_new_pins(pinned, previous_attacker, move, attackers);
 
             // Find if a hidden attacker was revealed for either side.
             Placed_Piece hidden_attacker =
@@ -1063,8 +1058,7 @@ Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
                                                   ~previous_attacker.color,
                                                   only_kings,
                                                   has_pinned_defenders,
-                                                  pinned,
-                                                  move.is_promotion);
+                                                  pinned);
     }
 
     return finish();

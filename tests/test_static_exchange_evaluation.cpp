@@ -183,12 +183,11 @@ TEST(see_tests, capture_with_promotion_partial_exchange)
     Chess_Move move         = Chess_Move::null_move();
     move.source_square      = ESQUARE::H6;
     move.destination_square = ESQUARE::G8;
-    move.is_promotion       = true;
 
     EXPECT_EQ(see.evaluate(move, 1), 50);
 }
 
-TEST(see_tests, capture_with_promotion_optimal_full_exchange)
+TEST(see_tests, capture_with_promotion_full_exchange)
 {
     Chess_Board position;
     position.set_from_fen("R5n1/4nP1b/1k6/8/8/8/K7/8 w - - 0 1");
@@ -197,9 +196,24 @@ TEST(see_tests, capture_with_promotion_optimal_full_exchange)
     Chess_Move move         = Chess_Move::null_move();
     move.source_square      = ESQUARE::A8;
     move.destination_square = ESQUARE::G8;
-    move.is_promotion       = true;
 
     EXPECT_EQ(see.evaluate(move, 1), 0);
+}
+
+TEST(see_tests, capture_with_promotion_optimal_exchange)
+{
+    Chess_Board position;
+    position.set_from_fen("1r6/P1Q5/7k/8/8/8/1p1p4/2n1R2K w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E1;
+    move.destination_square = ESQUARE::C1;
+    move.moving_piece       = PIECES::ROOK;
+    move.captured_piece     = PIECES::KNIGHT;
+    move.is_capture         = true;
+
+    EXPECT_EQ(see.evaluate(move, 1), -100);
 }
 
 TEST(see_tests, pinned_attackers)

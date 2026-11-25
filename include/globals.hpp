@@ -114,13 +114,6 @@ constexpr uint8_t NUM_OF_SQUARES_ON_CHESS_BOARD =
 constexpr uint8_t NUM_OF_PIECES_PER_PLAYER        = 16;
 constexpr uint8_t NUM_OF_UNIQUE_PIECES_PER_PLAYER = 6;
 
-enum PIECE_COLOR
-{
-    WHITE,
-    BLACK,
-    NO_COLOR
-};
-
 constexpr PIECE_COLOR& operator++(PIECE_COLOR& c)
 {
     const int8_t value = static_cast<int8_t>(c) + 1;
