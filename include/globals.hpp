@@ -114,13 +114,6 @@ constexpr uint8_t NUM_OF_SQUARES_ON_CHESS_BOARD =
 constexpr uint8_t NUM_OF_PIECES_PER_PLAYER        = 16;
 constexpr uint8_t NUM_OF_UNIQUE_PIECES_PER_PLAYER = 6;
 
-enum PIECE_COLOR
-{
-    WHITE,
-    BLACK,
-    NO_COLOR
-};
-
 constexpr PIECE_COLOR& operator++(PIECE_COLOR& c)
 {
     const int8_t value = static_cast<int8_t>(c) + 1;
@@ -180,6 +173,12 @@ struct Placed_Piece
     PIECE_COLOR color  = PIECE_COLOR::NO_COLOR;
     PIECES      piece  = PIECES::NO_PIECE;
     Square      square = NO_SQUARE_OBJ;
+
+    bool is_slider() const
+    {
+        return ((piece == PIECES::BISHOP) || (piece == PIECES::ROOK)
+                || (piece == PIECES::QUEEN));
+    }
 
     bool operator==(const Placed_Piece& other) const
     {

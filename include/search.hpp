@@ -389,14 +389,12 @@ class Search_Work : public Thread_Job
                                             const bool is_side_to_move_in_check,
                                             const bool is_first_move);
 
-    inline bool should_do_see_pruning(const Chess_Move& move,
-                                      const Score       best_score,
-                                      const bool is_side_to_move_in_check,
-                                      const bool is_first_move);
+    inline bool should_do_see_pruning(const Score best_score,
+                                      const bool  is_side_to_move_in_check,
+                                      const bool  is_first_move);
 
-    inline bool should_do_see_pruning(const Chess_Move& move,
-                                      const Score       best_score,
-                                      const bool is_side_to_move_in_check);
+    inline bool should_do_see_pruning(const Score best_score,
+                                      const bool  is_side_to_move_in_check);
 
     inline bool should_do_quiet_history_pruning(
         const Search_Quiet_Cont_Hist_Stack& q_cont_hist_stack,
@@ -562,26 +560,22 @@ Search_Work::should_do_move_loop_pruning(const Score best_score,
 }
 
 inline bool
-Search_Work::should_do_see_pruning(const Chess_Move& move,
-                                   const Score       best_score,
-                                   const bool        is_side_to_move_in_check,
-                                   const bool        is_first_move)
+Search_Work::should_do_see_pruning(const Score best_score,
+                                   const bool  is_side_to_move_in_check,
+                                   const bool  is_first_move)
 {
-    return (move.is_capture
-            && should_do_move_loop_pruning(best_score,
-                                           is_side_to_move_in_check,
-                                           is_first_move));
+    return (should_do_move_loop_pruning(best_score,
+                                        is_side_to_move_in_check,
+                                        is_first_move));
 }
 
 inline bool
-Search_Work::should_do_see_pruning(const Chess_Move& move,
-                                   const Score       best_score,
-                                   const bool        is_side_to_move_in_check)
+Search_Work::should_do_see_pruning(const Score best_score,
+                                   const bool  is_side_to_move_in_check)
 {
-    return (move.is_capture
-            && should_do_move_loop_pruning(best_score,
-                                           is_side_to_move_in_check,
-                                           false));
+    return (should_do_move_loop_pruning(best_score,
+                                        is_side_to_move_in_check,
+                                        false));
 }
 
 inline bool Search_Work::should_do_quiet_history_pruning(

@@ -1,8 +1,10 @@
 #pragma once
 
+#include <algorithm>
 #include <ranges>
 
 #include "evaluate.hpp"
+#include "globals.hpp"
 
 // =============================================================================
 // Static Exchange Evaluation (SEE) Class
@@ -23,23 +25,17 @@
 // attackers that may have access to the square because the attacker that moved
 // gave it a path to the target square (these attackers can only be slider
 // pieces so we only consider those). This is supposed to be a quick and cheap
-// calculation for the scoring of captures and it has the following uses in
-// search:
+// calculation for the scoring of captures and quiet moves (hanging pieces),
+// with the following uses in search:
 //
 // → Negamax Capture Move Pruning (Implemented and passes SPRT)
 // → Negamax Quiet Move Pruning (TBD)
 // → Quiescence Search Move Pruning (Implemented and passes SPRT)
 // → Move Ordering (Currently, does not pass SPRT.)
 //
-// If the moving piece at the start of capture sequence of the move given during
-// search does not match the cheapest attacker that SEE calculates we simply
-// penalize it, this is to avoid any logic reordering of the arrays which could
-// be expensive.
-//
-// The following are additional features that can be implemented:
-//
-// → Pinned piece detection
-// → En passant
+// The requested source square is moved to the back of its side's attackers
+// before interleaving, so it captures first and the remaining order is
+// preserved.
 // =============================================================================
 
 constexpr std::size_t SEE_ATTACKERS_ARRAY_SIZE = NUM_OF_PIECES_PER_PLAYER;
@@ -56,11 +52,10 @@ class Static_Exchange_Evaluator
 
     Static_Exchange_Evaluator(const Chess_Board& position);
 
-    Integral_Type evaluate(Square        target_square,
-                           PIECES        moving_piece,
-                           Integral_Type score_scaler);
+    Integral_Type evaluate(const Chess_Move&   move,
+                           const Integral_Type score_scaler);
 
-    constexpr Integral_Type negamax_threshold(uint32_t search_depth_squared);
+    constexpr Integral_Type negamax_threshold(uint32_t search_depth);
     constexpr Integral_Type quiescence_threshold();
 
   private:
@@ -69,7 +64,8 @@ class Static_Exchange_Evaluator
 
     PIECE_COLOR m_this_side;
 
-    Bitboard m_all_occupancies;
+    Bitboard                              m_all_occupancies;
+    Multi_Array<Bitboard, NUM_OF_PLAYERS> m_color_occupancies;
     Multi_Array<Bitboard, NUM_OF_PLAYERS, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
         m_piece_bitboards;
 
@@ -78,28 +74,61 @@ class Static_Exchange_Evaluator
     static constexpr Multi_Array<Integral_Type, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
         m_material_weights = {10, 30, 35, 50, 90, 150};
 
-    static constexpr Multi_Array<Integral_Type, NUM_OF_UNIQUE_PIECES_PER_PLAYER>
-        m_moving_piece_penalties = {10, 30, 35, 50, 90, 150};
+    Bitboard generate_pinned(const PIECE_COLOR moving_side) const;
+
+    Bitboard generate_pinned(const PIECE_COLOR moving_side,
+                             const Bitboard    attackers,
+                             bool&             has_pinned_attackers) const;
+
+    bool is_pinned(const Bitboard pinned, const Square source_square) const;
+
+    PIECES what_piece_is_on_square(const Square      square,
+                                   const PIECE_COLOR color) const;
+
+    inline bool can_attack_square(const Placed_Piece& piece,
+                                  const Square        target_square) const;
+
+    Bitboard get_pin_mask(const PIECE_COLOR moving_side,
+                          const Bitboard    pinned,
+                          const Square      source_square) const;
 
     SEE_Attackers_Array
     what_pieces_attack_this_square(const Square      s,
-                                   const PIECE_COLOR this_side) const;
+                                   const PIECE_COLOR this_side,
+                                   bool&             has_pinned_attackers,
+                                   Bitboard&         pinned) const;
 
-    SEE_Interleaved_Attackers_Array
-    get_all_interleaved_attackers(const Square      s,
-                                  const PIECE_COLOR this_side,
-                                  bool&             only_kings) const;
+    SEE_Interleaved_Attackers_Array get_all_interleaved_attackers(
+        const Square      s,
+        const PIECE_COLOR this_side,
+        bool&             only_kings,
+        bool&             has_pinned_defenders,
+        Bitboard&         pinned,
+        Square            source_square = Square(ESQUARE::NO_SQUARE)) const;
 
     void reset_occupancy_bitboards();
 
     inline Placed_Piece
     find_hidden_attacker(const Placed_Piece& previous_attacker,
                          Square              target_square,
-                         const PIECE_COLOR   side) const;
+                         const PIECE_COLOR   side,
+                         const Bitboard      pinned) const;
 
-    inline void
-    insert_hidden_attacker(SEE_Interleaved_Attackers_Array& attackers,
-                           const Placed_Piece& hidden_attacker) const;
+    inline void insert_attacker(SEE_Interleaved_Attackers_Array& attackers,
+                                Placed_Piece attacker) const;
+
+    inline void remove_attacker(SEE_Interleaved_Attackers_Array& attackers,
+                                Placed_Piece attacker) const;
+
+    inline void handle_unpins(Bitboard&                        pinned,
+                              const Placed_Piece&              moving_piece,
+                              const Chess_Move&                move,
+                              SEE_Interleaved_Attackers_Array& attackers);
+
+    inline void handle_new_pins(Bitboard&                        pinned,
+                                const Placed_Piece&              moving_piece,
+                                const Chess_Move&                move,
+                                SEE_Interleaved_Attackers_Array& attackers);
 };
 
 template <typename Integral_Type>
@@ -108,17 +137,171 @@ Static_Exchange_Evaluator<Integral_Type>::Static_Exchange_Evaluator(
     m_position(position),
     m_this_side(position.get_side_to_move()),
     m_all_occupancies(position.get_both_color_occupancies()),
+    m_color_occupancies(position.get_color_occupancies()),
     m_piece_bitboards(position.get_piece_occupancies())
 {
+}
+
+template <typename Integral_Type>
+Bitboard Static_Exchange_Evaluator<Integral_Type>::generate_pinned(
+    const PIECE_COLOR moving_side) const
+{
+    Attacks a;
+
+    const PIECE_COLOR opposing_side = ~moving_side;
+
+    const Bitboard our_king_occupancy =
+        m_piece_bitboards[moving_side][PIECES::KING];
+    const Square our_king_square = Square(
+        m_piece_bitboards[moving_side][PIECES::KING].get_index_of_high_lsb());
+
+    const Bitboard friendly_pieces = m_color_occupancies[moving_side];
+    const Bitboard enemy_pieces    = m_color_occupancies[opposing_side];
+
+    const Bitboard enemy_orthogonal_pieces =
+        m_piece_bitboards[opposing_side][PIECES::ROOK]
+        | m_piece_bitboards[opposing_side][PIECES::QUEEN];
+    const Bitboard enemy_diagonal_pieces =
+        m_piece_bitboards[opposing_side][PIECES::BISHOP]
+        | m_piece_bitboards[opposing_side][PIECES::QUEEN];
+
+    // Ray orginating from the king's square used to find orthogonal and
+    // diagonal attackers; keep in mind knights cannot pin a piece because of
+    // the way they move.
+    const Bitboard orthogonal_rays =
+        a.get_rook_attacks(our_king_square, enemy_pieces);
+    const Bitboard diagonal_rays =
+        a.get_bishop_attacks(our_king_square, enemy_pieces);
+
+    Bitboard orthogonal_pinners = enemy_orthogonal_pieces & orthogonal_rays;
+    Bitboard diagonal_pinners   = enemy_diagonal_pieces & diagonal_rays;
+
+    Bitboard pinned;
+
+    for (const Square& pinner_square : orthogonal_pinners)
+    {
+        const Bitboard ray_from_pinner_to_king =
+            orthogonal_rays
+            & a.get_rook_attacks(pinner_square, our_king_occupancy);
+
+        const Bitboard potentially_pinned =
+            ray_from_pinner_to_king & friendly_pieces;
+
+        // The friendly piece is pinned if it is the only piece between the king
+        // and the enemy pinner.
+        if (potentially_pinned.high_bit_count() == 1)
+        {
+            pinned |= potentially_pinned;
+        }
+    }
+
+    for (const Square& pinner_square : diagonal_pinners)
+    {
+        const Bitboard ray_from_pinner_to_king =
+            diagonal_rays
+            & a.get_bishop_attacks(pinner_square, our_king_occupancy);
+
+        const Bitboard potentially_pinned =
+            ray_from_pinner_to_king & friendly_pieces;
+
+        if (potentially_pinned.high_bit_count() == 1)
+        {
+            pinned |= potentially_pinned;
+        }
+    }
+
+    return pinned;
+}
+
+template <typename Integral_Type>
+Bitboard Static_Exchange_Evaluator<Integral_Type>::generate_pinned(
+    const PIECE_COLOR moving_side,
+    const Bitboard    attackers,
+    bool&             has_pinned_attackers) const
+{
+    const Bitboard pinned = generate_pinned(moving_side);
+    has_pinned_attackers  = (pinned & attackers).get_board() != 0;
+    return pinned;
+}
+
+template <typename Integral_Type>
+bool Static_Exchange_Evaluator<Integral_Type>::is_pinned(
+    const Bitboard pinned,
+    const Square   source_square) const
+{
+    return ((pinned & Bitboard(source_square.get_mask())).get_board() != 0);
+}
+
+template <typename Integral_Type>
+PIECES Static_Exchange_Evaluator<Integral_Type>::what_piece_is_on_square(
+    const Square      square,
+    const PIECE_COLOR color) const
+{
+    if (!square.has_square() || (color == PIECE_COLOR::NO_COLOR))
+    {
+        return PIECES::NO_PIECE;
+    }
+
+    for (uint8_t piece = 0; piece < NUM_OF_UNIQUE_PIECES_PER_PLAYER; ++piece)
+    {
+        if (m_piece_bitboards[color][piece].get_square(square))
+        {
+            return static_cast<PIECES>(piece);
+        }
+    }
+
+    return PIECES::NO_PIECE;
+}
+
+template <typename Integral_Type>
+inline bool Static_Exchange_Evaluator<Integral_Type>::can_attack_square(
+    const Placed_Piece& piece,
+    const Square        target_square) const
+{
+    if ((piece.piece == PIECES::NO_PIECE)
+        || (piece.color == PIECE_COLOR::NO_COLOR)
+        || (!piece.square.has_square()) || (!target_square.has_square()))
+    {
+        return false;
+    }
+
+    // Only checks if it can attack the square, legality of the move is not
+    // checked here.
+    return Attacks()
+        .get_attacks(piece.piece, piece.square, piece.color, m_all_occupancies)
+        .get_square(target_square);
+}
+
+template <typename Integral_Type>
+Bitboard Static_Exchange_Evaluator<Integral_Type>::get_pin_mask(
+    const PIECE_COLOR moving_side,
+    const Bitboard    pinned,
+    const Square      source_square) const
+{
+    const Square our_king_square = Square(
+        m_piece_bitboards[moving_side][PIECES::KING].get_index_of_high_lsb());
+
+    if (is_pinned(pinned, source_square))
+    {
+        return Attacks::get_infinite_ray(our_king_square, source_square);
+    }
+    else
+    {
+        return FULL_BITBOARD;
+    }
 }
 
 template <typename Integral_Type>
 SEE_Attackers_Array
 Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
     const Square      s,
-    const PIECE_COLOR this_side) const
+    const PIECE_COLOR this_side,
+    bool&             has_pinned_attackers,
+    Bitboard&         pinned) const
 {
     SEE_Attackers_Array attackers;
+
+    const bool is_promotion_square = s.is_promotion_square(this_side);
 
     const Attacks a;
 
@@ -153,6 +336,18 @@ Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
             {.color = this_side, .piece = PIECES::KING, .square = attacker});
     }
 
+    // Always promote pawns last in a capture sequence because of their great
+    // value but before the kings.
+    if (is_promotion_square)
+    {
+        for (const Square attacker : this_attacking_pawns)
+        {
+            attackers.append({.color  = this_side,
+                              .piece  = PIECES::PAWN,
+                              .square = attacker});
+        }
+    }
+
     for (const Square attacker : this_attacking_queens)
     {
         attackers.append(
@@ -177,11 +372,34 @@ Static_Exchange_Evaluator<Integral_Type>::what_pieces_attack_this_square(
             {.color = this_side, .piece = PIECES::KNIGHT, .square = attacker});
     }
 
-    for (const Square attacker : this_attacking_pawns)
+    // Non-promotable pawns.
+    if (!is_promotion_square)
     {
-        attackers.append(
-            {.color = this_side, .piece = PIECES::PAWN, .square = attacker});
+        for (const Square attacker : this_attacking_pawns)
+        {
+            attackers.append({.color  = this_side,
+                              .piece  = PIECES::PAWN,
+                              .square = attacker});
+        }
     }
+
+    // Remove the pinned attackers from the list of attackers because they
+    // cannot capture.
+    pinned             = generate_pinned(this_side,
+                             this_attacking_pawns | this_attacking_knights
+                                 | this_attacking_bishops | this_attacking_rooks
+                                 | this_attacking_queens,
+                             has_pinned_attackers);
+    const auto removed = std::ranges::remove_if(
+        attackers,
+        [&](const Placed_Piece& attacker)
+        {
+            // This is true if the attacker is pinned and the target square lies
+            // outside its pin ray.
+            return !get_pin_mask(this_side, pinned, attacker.square)
+                        .get_square(s);
+        });
+    attackers.truncate(removed.begin() - attackers.begin() - 1);
 
     return attackers;
 }
@@ -191,12 +409,51 @@ SEE_Interleaved_Attackers_Array
 Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
     const Square      s,
     const PIECE_COLOR this_side,
-    bool&             only_kings) const
+    bool&             only_kings,
+    bool&             has_pinned_defenders,
+    Bitboard&         pinned,
+    Square            source_square) const
 {
     SEE_Interleaved_Attackers_Array interleaved_attackers;
 
-    auto this_side_attackers  = what_pieces_attack_this_square(s, this_side);
-    auto other_side_attackers = what_pieces_attack_this_square(s, ~this_side);
+    bool     has_pinned_attackers;
+    Bitboard this_side_pinned, other_side_pinned;
+    auto     this_side_attackers =
+        what_pieces_attack_this_square(s,
+                                       this_side,
+                                       has_pinned_attackers,
+                                       this_side_pinned);
+    auto other_side_attackers =
+        what_pieces_attack_this_square(s,
+                                       ~this_side,
+                                       has_pinned_defenders,
+                                       other_side_pinned);
+    pinned = this_side_pinned | other_side_pinned;
+
+    // If the source square is a valid square it means that the first attacker
+    // is forced first in the order - this logic moves the attacker so it
+    // captures first.
+    if (source_square.has_square())
+    {
+        const auto first =
+            std::ranges::find(this_side_attackers, // Iterable object to search.
+                              source_square,       // Value to find.
+                              &Placed_Piece::square); // Member to compare.
+
+        if (first != this_side_attackers.end())
+        {
+            std::rotate(first, first + 1, this_side_attackers.end());
+        }
+        else
+        {
+            // Quiet pawn pushes do not attack their destination square.
+            this_side_attackers.append(
+                {.color = this_side,
+                 .piece =
+                     m_position.what_piece_is_on_square(source_square).second,
+                 .square = source_square});
+        }
+    }
 
     // The only kings boolean starts as true if either side as a size of 1 or
     // both sides have a size of 1 (this is equivalent to an OR).
@@ -294,8 +551,9 @@ Static_Exchange_Evaluator<Integral_Type>::get_all_interleaved_attackers(
 template <typename Integral_Type>
 void Static_Exchange_Evaluator<Integral_Type>::reset_occupancy_bitboards()
 {
-    m_all_occupancies = m_position.get_both_color_occupancies();
-    m_piece_bitboards = m_position.get_piece_occupancies();
+    m_all_occupancies   = m_position.get_both_color_occupancies();
+    m_piece_bitboards   = m_position.get_piece_occupancies();
+    m_color_occupancies = m_position.get_color_occupancies();
 }
 
 template <typename Integral_Type>
@@ -303,7 +561,8 @@ inline Placed_Piece
 Static_Exchange_Evaluator<Integral_Type>::find_hidden_attacker(
     const Placed_Piece& previous_attacker,
     Square              target_square,
-    const PIECE_COLOR   side) const
+    const PIECE_COLOR   side,
+    const Bitboard      pinned) const
 {
     // Attacker ray - The ray going in the direction of the previous attacker
     // from the target square until it reaches the edge of the board.
@@ -334,8 +593,17 @@ Static_Exchange_Evaluator<Integral_Type>::find_hidden_attacker(
         return Placed_Piece();
     }
 
+    // The attacker on the first occupied square is pinned and cannot capture
+    // the target square.
+    if (!get_pin_mask(side, pinned, first_occupied_square)
+             .get_square(target_square))
+    {
+        return Placed_Piece();
+    }
+
     // A bishop attacks the target square.
-    if (m_piece_bitboards[side][PIECES::BISHOP].get_square(
+    if (attacker_ray.is_diagonal()
+        && m_piece_bitboards[side][PIECES::BISHOP].get_square(
             first_occupied_square))
     {
         return {.color  = side,
@@ -344,7 +612,9 @@ Static_Exchange_Evaluator<Integral_Type>::find_hidden_attacker(
     }
 
     // A rook attacks the target square.
-    if (m_piece_bitboards[side][PIECES::ROOK].get_square(first_occupied_square))
+    if (attacker_ray.is_orthogonal()
+        && m_piece_bitboards[side][PIECES::ROOK].get_square(
+            first_occupied_square))
     {
         return {.color  = side,
                 .piece  = PIECES::ROOK,
@@ -366,80 +636,241 @@ Static_Exchange_Evaluator<Integral_Type>::find_hidden_attacker(
 }
 
 template <typename Integral_Type>
-inline void Static_Exchange_Evaluator<Integral_Type>::insert_hidden_attacker(
+inline void Static_Exchange_Evaluator<Integral_Type>::insert_attacker(
     SEE_Interleaved_Attackers_Array& attackers,
-    const Placed_Piece&              hidden_attacker) const
+    Placed_Piece                     attacker) const
 {
-    // There are no current attackers, just return and let the algorithm
-    // generate new attackers.
+    // Preserve whose turn is next.
     if (attackers.size() == 0) { return; }
 
-    // Find the position in the array where the hidden attacker should be
-    // inserted based on only material value.
-    auto material_position = std::lower_bound(
-        attackers.begin(),
-        attackers.end(),
-        hidden_attacker,
-        [](const Placed_Piece& a, const Placed_Piece& b)
-        {
-            return (m_material_weights[a.piece] >= m_material_weights[b.piece]);
-        });
-
-    // If the hidden attacker is higher in material value than all attackers in
-    // the array, return.
-    if (material_position == attackers.end()) { return; }
-
-    std::size_t insert_index = attackers.size();
-
-    for (std::size_t i = 0; i < attackers.size(); ++i)
+    // Insert the given attacker into the attacker array in material value
+    // order.
+    int64_t i = attackers.get_max_index();
+    if (attackers.back().color != attacker.color) { --i; }
+    for (; i >= 0; i -= NUM_OF_PLAYERS)
     {
-        // Look for an attacker of the same color to swap with the hidden
-        // attacker.
-        if (attackers[i].color != hidden_attacker.color) { continue; }
-
-        // If the hidden attacker is cheaper than the indexed attacker, the
-        // index of the indexed attacker is where the hidden attacker should be
-        // inserted.
-        if (m_material_weights[hidden_attacker.piece]
+        if (m_material_weights[attacker.piece]
             < m_material_weights[attackers[i].piece])
         {
-            insert_index = i;
-            break;
+            std::swap(attacker, attackers[i]);
         }
     }
 
-    // No attacker of the same color was found that is more expensive than the
-    // hidden attacker, return.
-    if (insert_index == attackers.size()) { return; }
-
-    // Swap the hidden attacker with the indexed attacker and then keep swapping
-    // till the end of the array.
-    auto value = hidden_attacker;
-    for (int64_t i  = static_cast<int64_t>(insert_index); i >= 0;
-         i         -= NUM_OF_PLAYERS)
+    // If the attacker at the end of the capture sequence is of opposite color
+    // to the attacker that was ejected, insert the ejected attacker to the end
+    // of the capture sequence.
+    if (attackers.front().color != attacker.color)
     {
-        std::swap(value, attackers[static_cast<std::size_t>(i)]);
+        attackers.append(attacker);
+        std::rotate(attackers.begin(), attackers.end() - 1, attackers.end());
     }
 }
 
 template <typename Integral_Type>
-Integral_Type
-Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
-                                                   PIECES        moving_piece,
-                                                   Integral_Type score_scaler)
+inline void Static_Exchange_Evaluator<Integral_Type>::remove_attacker(
+    SEE_Interleaved_Attackers_Array& attackers,
+    Placed_Piece                     attacker) const
 {
-    bool only_kings = false;
+    // Find the attacker in the attackers array.
+    const auto found = std::ranges::find(attackers, attacker);
+    if (found == attackers.end()) { return; }
 
-    // All attackers to this square from both sides in interleaved order and in
-    // order of least to greatest material value (e.g. white, black, white, ...
-    // ).
+    // Fill the gap with the next attacker of the same color, moving the cheaper
+    // ones to take its place, we want to encourage cheaper attackers to be in
+    // the array rather than more expensive ones.
+    int64_t i = found - attackers.begin();
+    for (; i >= NUM_OF_PLAYERS; i -= NUM_OF_PLAYERS)
+    {
+        attackers[i] = attackers[i - NUM_OF_PLAYERS];
+    }
+
+    // Remove the vacated front slots and any opposing attacker whose final
+    // capture is no longer reachable because this side ran out of attackers.
+    const int64_t removed_count = i + 1;
+    std::move(attackers.begin() + removed_count,
+              attackers.end(),
+              attackers.begin());
+    attackers.truncate(attackers.get_max_index() - removed_count);
+}
+
+template <typename Integral_Type>
+inline void Static_Exchange_Evaluator<Integral_Type>::handle_unpins(
+    Bitboard&                        pinned,
+    const Placed_Piece&              moving_piece,
+    const Chess_Move&                move,
+    SEE_Interleaved_Attackers_Array& attackers)
+{
+    // Neither the vacated source nor the occupied target is a pending attacker.
+    pinned.unset_square(moving_piece.square);
+    pinned.unset_square(move.destination_square);
+
+    for (const PIECE_COLOR side : {moving_piece.color, ~moving_piece.color})
+    {
+        // Pinned pieces of this side that can be unpinned.
+        const Bitboard candidates = pinned & m_color_occupancies[side];
+        if (candidates.get_board() == 0) { continue; }
+
+        const Square king_square(
+            m_piece_bitboards[side][PIECES::KING].get_index_of_high_lsb());
+
+        Bitboard blockers = m_all_occupancies;
+        blockers.unset_square(king_square);
+
+        // Recheck existing pins after a pinner moves, is captured, or is
+        // blocked.
+        for (const Square square : candidates)
+        {
+            const auto& ray = Attacks::get_directional_ray(king_square, square);
+            const Square pinner = ray.travel_occupied_ray<true>(1, blockers);
+            const PIECES piece  = what_piece_is_on_square(pinner, ~side);
+            const PIECES slider =
+                ray.is_diagonal() ? PIECES::BISHOP : PIECES::ROOK;
+
+            // If the previously pinned piece is still the first occupied square
+            // along the ray from its king and the pinner is the appropiate
+            // slider piece, the piece is still pinned.
+            if ((ray.travel_occupied_ray<true>(0, blockers) == square)
+                && ((piece == slider) || (piece == PIECES::QUEEN)))
+            {
+                continue;
+            }
+
+            pinned.unset_square(square);
+
+            const Placed_Piece attacker = {
+                .color  = side,
+                .piece  = what_piece_is_on_square(square, side),
+                .square = square};
+            if (can_attack_square(attacker, move.destination_square)
+                && std::ranges::find(attackers, attacker) == attackers.end())
+            {
+                insert_attacker(attackers, attacker);
+            }
+        }
+    }
+}
+
+template <typename Integral_Type>
+inline void Static_Exchange_Evaluator<Integral_Type>::handle_new_pins(
+    Bitboard&                        pinned,
+    const Placed_Piece&              moving_piece,
+    const Chess_Move&                move,
+    SEE_Interleaved_Attackers_Array& attackers)
+{
+    const auto handle_pin = [&](const PIECE_COLOR side, const Square ray_square)
+    {
+        const Square king_square(
+            m_piece_bitboards[side][PIECES::KING].get_index_of_high_lsb());
+
+        const Directional_Ray& ray =
+            Attacks::get_directional_ray(king_square, ray_square);
+
+        Bitboard blockers = m_all_occupancies;
+        blockers.unset_square(king_square);
+
+        // The first occupation in front of the king that is opposite in color
+        // and is not the piece that just moved (because it is no longer a
+        // pending attacker - the pin doesn't matter) is the candidate pinned
+        // piece.
+        const Square candidate = ray.travel_occupied_ray<true>(0, blockers);
+        if (!candidate.has_square() || (candidate == move.destination_square)
+            || !m_color_occupancies[side].get_square(candidate))
+        {
+            return;
+        }
+
+        // The second occupation in front of the king is the pinner.
+        const Square pinner = ray.travel_occupied_ray<true>(1, blockers);
+        if (!pinner.has_square()) { return; }
+
+        // Check if piece is the appropriate slider piece that can pin the
+        // candidate piece.
+        const PIECES piece  = what_piece_is_on_square(pinner, ~side);
+        const PIECES slider = ray.is_diagonal() ? PIECES::BISHOP : PIECES::ROOK;
+        if ((piece != slider) && (piece != PIECES::QUEEN)) { return; }
+
+        pinned.set_square(candidate);
+
+        // move.destination_square is the same as the SEE's target square - we
+        // check whether the SEE target square is on the pin line where
+        // candidate can capture. If it is, then if candidate can capture on
+        // that square (a pre-requisite to being in the attackers array) i.e.
+        // move in the direction of the pin than remove it from the attackers
+        // array if it is in the array.
+        if (!ray.get_ray().get_square(move.destination_square))
+        {
+            remove_attacker(attackers,
+                            {.color  = side,
+                             .piece  = what_piece_is_on_square(candidate, side),
+                             .square = candidate});
+        }
+    };
+
+    // Case 1 - Moving an attacker in the capture sequence to the target square
+    // created a pin where the pinner is the attacker.
+    if (moving_piece.is_slider())
+    {
+        handle_pin(~moving_piece.color, move.destination_square);
+    }
+
+    // Case 2 - Moving an attacker in the capture sequence to the target square
+    // created a pin where the pinner was discovered by the attacker moving to
+    // the target square.
+    handle_pin(moving_piece.color, moving_piece.square);
+    handle_pin(~moving_piece.color, moving_piece.square);
+}
+
+template <typename Integral_Type>
+Integral_Type Static_Exchange_Evaluator<Integral_Type>::evaluate(
+    const Chess_Move&   move,
+    const Integral_Type score_scaler)
+{
+    bool only_kings           = false;
+    bool has_pinned_defenders = false;
+
+    // Remove the en passant victim before finding attackers, its square may
+    // uncover a rook/queen attack or change which pieces are pinned.
+    if (move.is_en_passant)
+    {
+        m_all_occupancies.unset_square(move.en_passant_victim_square);
+        m_color_occupancies[~m_this_side].unset_square(
+            move.en_passant_victim_square);
+        m_piece_bitboards[~m_this_side][PIECES::PAWN].unset_square(
+            move.en_passant_victim_square);
+    }
+
+    // The requested move's attacker captures first and then subsequent
+    // attackers are interleaved in least-value order.
+    Bitboard                        pinned;
     SEE_Interleaved_Attackers_Array attackers =
-        get_all_interleaved_attackers(target_square, m_this_side, only_kings);
+        get_all_interleaved_attackers(move.destination_square,
+                                      m_this_side,
+                                      only_kings,
+                                      has_pinned_defenders,
+                                      pinned,
+                                      move.source_square);
 
-    // Score of the overall exchange sequence. Start with a penalty if the move
-    // does not capture with the least valuable piece first.
-    Integral_Type score = (m_moving_piece_penalties[attackers.back().piece]
-                           - m_moving_piece_penalties[moving_piece]);
+    Integral_Type score =
+        move.is_en_passant ? m_material_weights[PIECES::PAWN] : 0;
+
+    Partially_Filled_Array<Integral_Type, 2 * SEE_ATTACKERS_ARRAY_SIZE>
+               balances;
+    const auto finish = [&]()
+    {
+        // The balance scores are from our perspective - we want to maximize.
+        // Even indices the opponent chooses the minimum of stopping at
+        // balances[i] or continuing with the result. Odd indices we choose the
+        // maximum. The initial capture is forced.
+        Integral_Type result = score;
+        for (int64_t i = balances.get_max_index() - 1; i >= 0; --i)
+        {
+            result = ((i % NUM_OF_PLAYERS) == 0)
+                       ? std::min(balances[i], result)
+                       : std::max(balances[i], result);
+        }
+        reset_occupancy_bitboards();
+        return result * score_scaler;
+    };
 
     bool         is_first_iteration = true;
     Placed_Piece previous_attacker;
@@ -453,13 +884,9 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
             previous_attacker = {
                 .color = ~m_this_side,
                 .piece =
-                    m_position.what_piece_is_on_square(target_square).second,
-                .square = target_square};
-
-            // Clear the target square of it's original piece.
-            m_all_occupancies.unset_square(previous_attacker.square);
-            m_piece_bitboards[previous_attacker.color][previous_attacker.piece]
-                .unset_square(previous_attacker.square);
+                    m_position.what_piece_is_on_square(move.destination_square)
+                        .second,
+                .square = move.destination_square};
 
             is_first_iteration = false;
         }
@@ -471,27 +898,45 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
         {
             const Placed_Piece attacker = attackers.back();
 
-            if (attacker.piece == PIECES::KING)
+            // Handle recaptures with the king. Note, the first move in the
+            // original attackers sequence is assumed always legal AND we don't
+            // want to re-order the first move so "(previous_attacker.square !=
+            // move.destination_square)" is a check if this is a forced first
+            // move with a king.
+            if ((attacker.piece == PIECES::KING)
+                && (previous_attacker.square != move.destination_square))
             {
                 // Pre-compute the next set of attackers - if there are any
                 // attackers besides kings - don't execute any other logic. The
                 // king will not attack if there are other attackers so generate
                 // attackers for the opposing side of the previous attacker.
                 attackers =
-                    get_all_interleaved_attackers(target_square,
+                    get_all_interleaved_attackers(move.destination_square,
                                                   ~previous_attacker.color,
-                                                  only_kings);
+                                                  only_kings,
+                                                  has_pinned_defenders,
+                                                  pinned);
+
+                // Check if a pinned attacker was recently released from it's
+                // pin.
+                if ((attackers.size() > 0)
+                    && (attackers.back().piece != PIECES::KING))
+                {
+                    continue;
+                }
 
                 // If there is not only kings but only this king and less than
                 // or equal to 1 attackers total, then we can return because the
                 // king cannot capture a guarded piece.
                 if ((!only_kings) && (attackers.size() <= 2))
                 {
-                    reset_occupancy_bitboards();
-                    return (score * score_scaler);
+                    return finish();
                 }
 
                 if (!only_kings) { break; }
+
+                // Pinned defenders still guard the king's capture square.
+                if (has_pinned_defenders) { return finish(); }
 
                 // If there is only an enemy king left attacking the target
                 // square, then account for the value of the previous attacker
@@ -512,8 +957,8 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
                 // After accounting for the last attacker's value and ensuring
                 // the king was the lone attacker - we are done just return the
                 // current score.
-                reset_occupancy_bitboards();
-                return (score * score_scaler);
+                balances.append(score);
+                return finish();
             }
 
             // Account for the value of the previous attacker.
@@ -522,61 +967,114 @@ Static_Exchange_Evaluator<Integral_Type>::evaluate(Square        target_square,
                 score -= m_material_weights[previous_attacker.piece];
             }
 
-            if (previous_attacker.color == (~m_this_side))
+            if ((previous_attacker.color == (~m_this_side))
+                && (previous_attacker.piece != PIECES::NO_PIECE))
             {
                 score += m_material_weights[previous_attacker.piece];
+            }
+
+            PIECES resulting_piece = attacker.piece;
+            if ((attacker.piece == PIECES::PAWN)
+                && Square(move.destination_square)
+                       .is_promotion_square(attacker.color))
+            {
+                resulting_piece = ((balances.size() == 0) && move.is_promotion)
+                                    ? move.promoted_piece
+                                    : PIECES::QUEEN;
+
+                const Integral_Type promotion_gain =
+                    m_material_weights[resulting_piece]
+                    - m_material_weights[PIECES::PAWN];
+
+                score += attacker.color == m_this_side ? promotion_gain
+                                                       : -promotion_gain;
+            }
+
+            balances.append(score);
+
+            // Remove the captured piece from the target square if it is not a
+            // quiet move or en passant.
+            if (previous_attacker.piece != PIECES::NO_PIECE)
+            {
+                m_color_occupancies[previous_attacker.color].unset_square(
+                    move.destination_square);
+                m_piece_bitboards[previous_attacker.color]
+                                 [previous_attacker.piece]
+                                     .unset_square(move.destination_square);
             }
 
             // Clear the attacker from it's square which will unhide any
             // attackers that were behind it.
             m_all_occupancies.unset_square(attacker.square);
+            m_color_occupancies[attacker.color].unset_square(attacker.square);
             m_piece_bitboards[attacker.color][attacker.piece].unset_square(
                 attacker.square);
 
-            previous_attacker = attacker;
+            previous_attacker       = attacker;
+            previous_attacker.piece = resulting_piece;
             attackers.pop();
+
+            // Simulate the attacker moving to the destination square.
+            m_all_occupancies.set_square(move.destination_square);
+            m_color_occupancies[attacker.color].set_square(
+                move.destination_square);
+            m_piece_bitboards[attacker.color][previous_attacker.piece]
+                .set_square(move.destination_square);
+
+            // The forced first king move ends the exchange.
+            if (attacker.piece == PIECES::KING) { return finish(); }
+
+            // Update pinned bitboard and the attackers array to account for any
+            // unpinned pieces or newly pinned pieces.
+            handle_unpins(pinned, attacker, move, attackers);
+            handle_new_pins(pinned, previous_attacker, move, attackers);
 
             // Find if a hidden attacker was revealed for either side.
             Placed_Piece hidden_attacker =
                 find_hidden_attacker(previous_attacker,
-                                     target_square,
-                                     ~previous_attacker.color);
+                                     move.destination_square,
+                                     ~previous_attacker.color,
+                                     pinned);
             if (hidden_attacker == Placed_Piece())
             {
                 hidden_attacker = find_hidden_attacker(previous_attacker,
-                                                       target_square,
-                                                       previous_attacker.color);
+                                                       move.destination_square,
+                                                       previous_attacker.color,
+                                                       pinned);
             }
 
             // If we found a hidden attacker insert it into the attackers array.
-            if (hidden_attacker != Placed_Piece())
+            if ((hidden_attacker != Placed_Piece())
+                && std::ranges::find(attackers, hidden_attacker)
+                       == attackers.end())
             {
-                insert_hidden_attacker(attackers, hidden_attacker);
+                insert_attacker(attackers, hidden_attacker);
             }
         }
 
         // Generate next set of attackers that may have been hidden behind other
         // attackers.
-        attackers = get_all_interleaved_attackers(target_square,
+        attackers = get_all_interleaved_attackers(move.destination_square,
                                                   ~previous_attacker.color,
-                                                  only_kings);
+                                                  only_kings,
+                                                  has_pinned_defenders,
+                                                  pinned);
     }
 
-    reset_occupancy_bitboards();
-    return (score * score_scaler);
+    return finish();
 }
 
 template <typename Integral_Type>
 constexpr Integral_Type
 Static_Exchange_Evaluator<Integral_Type>::negamax_threshold(
-    uint32_t search_depth_squared)
+    uint32_t search_depth)
 {
-    return ((-1 * m_material_weights[PIECES::PAWN]) * search_depth_squared);
+    return (-m_material_weights[PIECES::PAWN] * search_depth);
 }
 
 template <typename Integral_Type>
 constexpr Integral_Type
 Static_Exchange_Evaluator<Integral_Type>::quiescence_threshold()
 {
-    return (-2 * m_material_weights[PIECES::PAWN]);
+    return 0;
 }

@@ -175,7 +175,7 @@ Search_Work::negamax(Chess_Board&                    position,
         read_private_data<std::reference_wrapper<Transposition_Table>>(
             m_index_to_transposition_table)
             .get();
-    Transposition_Table_Entry transposition_table_entry;
+    Transposition_Table_Entry transposition_table_entry {};
     const bool                did_transposition_table_hit =
         transposition_table.read(maximum_depth,
                                  ply,
@@ -353,25 +353,20 @@ Search_Work::negamax(Chess_Board&                    position,
     Move_Generation_List quiets_to_malus;
     Move_Generation_List captures_to_malus;
 
-    // Static_Exchange_Evaluator<int64_t> see(position);
+    Static_Exchange_Evaluator<int64_t> see(position);
 
     bool    is_first_move = true;
     uint8_t move_index    = 0;
     for (const Chess_Move& move : moves)
     {
-        // // Static Exchange Evaluation Pruning (Captures Only)
-        // if (should_do_see_pruning(move,
-        //                           best_score,
+        // Static Exchange Evaluation Pruning (Captures Only)
+        // if (should_do_see_pruning(best_score,
         //                           is_side_to_move_in_check,
         //                           is_first_move))
         // {
-        //     const auto see_evaluation =
-        //         see.evaluate(move.destination_square, move.moving_piece, 1);
+        //     const auto see_evaluation = see.evaluate(move, 1);
 
-        //     if (see_evaluation < see.negamax_threshold(depth_squared))
-        //     {
-        //         continue;
-        //     }
+        //     if (see_evaluation < see.negamax_threshold(depth)) { continue; }
         // }
 
         // Futility pruning - we have a large enough margin from alpha that
@@ -684,7 +679,7 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
         read_private_data<std::reference_wrapper<Transposition_Table>>(
             m_index_to_transposition_table)
             .get();
-    Transposition_Table_Entry transposition_table_entry;
+    Transposition_Table_Entry transposition_table_entry {};
     const bool                did_transposition_table_hit =
         transposition_table.read(maximum_depth,
                                  ply,
@@ -845,10 +840,9 @@ Search_Engine_Result Search_Work::quiescence(Chess_Board& position,
     for (const Chess_Move& move : moves)
     {
         // Static Exchange Evaluation Pruning
-        if (should_do_see_pruning(move, best_score, is_side_to_move_in_check))
+        if (should_do_see_pruning(best_score, is_side_to_move_in_check))
         {
-            const auto see_evaluation =
-                see.evaluate(move.destination_square, move.moving_piece, 1);
+            const auto see_evaluation = see.evaluate(move, 1);
 
             if (see_evaluation < see.quiescence_threshold()) { continue; }
         }

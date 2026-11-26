@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <string>
 
+#include "piece_color.hpp"
+
 // clang-format off
 // Enumeration mapping chess square to bit index on the bitboard.
 enum ESQUARE // E for ENUM
@@ -40,6 +42,7 @@ class Square
 
     constexpr bool is_light_square() const;
     constexpr bool is_dark_square() const;
+    constexpr bool is_promotion_square(const PIECE_COLOR color) const;
 
     constexpr uint8_t  get_index() const;
     constexpr uint8_t  get_rank() const;
@@ -68,7 +71,7 @@ constexpr Square::Square(uint8_t r, uint8_t f)
 
 constexpr bool Square::has_square() const
 {
-    return (m_index != ESQUARE::NO_SQUARE);
+    return (m_index < ESQUARE::NO_SQUARE);
 }
 
 constexpr bool Square::is_light_square() const
@@ -80,6 +83,12 @@ constexpr bool Square::is_light_square() const
 }
 
 constexpr bool Square::is_dark_square() const { return (!is_light_square()); }
+
+constexpr bool Square::is_promotion_square(const PIECE_COLOR color) const
+{
+    return ((color == PIECE_COLOR::WHITE) && (get_rank() == 0))
+        || ((color == PIECE_COLOR::BLACK) && (get_rank() == 7));
+}
 
 constexpr uint8_t Square::get_index() const { return m_index; }
 

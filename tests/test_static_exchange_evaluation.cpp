@@ -1,12 +1,72 @@
 #include "gtest/gtest.h"
 #include "static_exchange_evaluation.hpp"
 
+TEST(see_tests, quiet_move_hanging_piece)
+{
+    Chess_Board position;
+    position.set_from_fen("k4r2/8/8/8/8/8/8/K5N1 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::G1;
+    move.destination_square = ESQUARE::F3;
+
+    ASSERT_EQ(see.evaluate(move, 1), -30);
+}
+
+TEST(see_tests, quiet_pawn_push)
+{
+    Chess_Board position;
+    position.set_from_fen("k3r3/8/8/8/8/8/4P3/K7 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E2;
+    move.destination_square = ESQUARE::E4;
+
+    ASSERT_EQ(see.evaluate(move, 1), -10);
+}
+
+TEST(see_tests, first_move_is_king_move)
+{
+    Chess_Board position;
+    position.set_from_fen("k7/8/8/8/8/8/4p3/4K3 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E1;
+    move.destination_square = ESQUARE::E2;
+    move.is_capture         = true;
+
+    EXPECT_EQ(see.evaluate(move, 1), 10);
+}
+
 TEST(see_tests, simple_capture)
 {
     Chess_Board position;
     position.set_from_fen("3k4/7p/8/8/8/8/8/3K3R w - - 0 1");
     Static_Exchange_Evaluator<int64_t> see(position);
-    ASSERT_EQ(see.evaluate(Square(ESQUARE::H7), PIECES::ROOK, 1), 10);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::H1;
+    move.destination_square = ESQUARE::H7;
+
+    ASSERT_EQ(see.evaluate(move, 1), 10);
+}
+
+TEST(see_tests, en_passant)
+{
+    Chess_Board position;
+    position.set_from_fen("k7/8/8/3pP3/3r4/8/8/K7 w - d6 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move               = Chess_Move::null_move();
+    move.source_square            = ESQUARE::E5;
+    move.destination_square       = ESQUARE::D6;
+    move.is_en_passant            = true;
+    move.en_passant_victim_square = ESQUARE::D5;
+
+    ASSERT_EQ(see.evaluate(move, 1), 0);
 }
 
 TEST(see_tests, all_piece_type_exchange_without_kings)
@@ -14,7 +74,12 @@ TEST(see_tests, all_piece_type_exchange_without_kings)
     Chess_Board position;
     position.set_from_fen("2kr4/8/5q2/1n2b3/3P4/2B2N2/1Q6/3RK3 b - - 0 1");
     Static_Exchange_Evaluator<int64_t> see(position);
-    ASSERT_EQ(see.evaluate(Square(ESQUARE::D4), PIECES::KNIGHT, 1), -80);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::B5;
+    move.destination_square = ESQUARE::D4;
+
+    ASSERT_EQ(see.evaluate(move, 1), -20);
 }
 
 TEST(see_tests, all_piece_type_exchange)
@@ -22,7 +87,12 @@ TEST(see_tests, all_piece_type_exchange)
     Chess_Board position;
     position.set_from_fen("3r4/8/5q2/1n2b3/2kP4/2B1KN2/1Q6/3R4 b - - 0 1");
     Static_Exchange_Evaluator<int64_t> see(position);
-    ASSERT_EQ(see.evaluate(Square(ESQUARE::D4), PIECES::KNIGHT, 1), -80);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::B5;
+    move.destination_square = ESQUARE::D4;
+
+    ASSERT_EQ(see.evaluate(move, 1), -20);
 }
 
 TEST(see_tests, pawn_attack)
@@ -31,7 +101,12 @@ TEST(see_tests, pawn_attack)
     position.set_from_fen(
         "r1bqk2r/pppp1pp1/6n1/2bPp2p/3QP1n1/2N2N2/PPP1BPPP/R1B2RK1 b kq - 0 1");
     Static_Exchange_Evaluator<int64_t> see(position);
-    ASSERT_EQ(see.evaluate(Square(ESQUARE::D4), PIECES::PAWN, 1), 110);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E5;
+    move.destination_square = ESQUARE::D4;
+
+    ASSERT_EQ(see.evaluate(move, 1), 90);
 }
 
 TEST(see_tests, this_side_has_more_attackers)
@@ -40,7 +115,12 @@ TEST(see_tests, this_side_has_more_attackers)
     position.set_from_fen(
         "rn1qkbnr/ppp1pppp/4b3/3p4/4P3/1BN5/PPPP1PPP/R1BQK1NR w KQkq - 0 1");
     Static_Exchange_Evaluator<int64_t> see(position);
-    EXPECT_EQ(see.evaluate(Square(ESQUARE::D5), PIECES::PAWN, 1), 95);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E4;
+    move.destination_square = ESQUARE::D5;
+
+    EXPECT_EQ(see.evaluate(move, 1), 10);
 }
 
 TEST(see_tests, king_is_always_last_attacker)
@@ -49,12 +129,21 @@ TEST(see_tests, king_is_always_last_attacker)
     position.set_from_fen(
         "4r2k/1p3rbp/2p1N1p1/p3n3/P2NB1nq/1P6/4R1P1/B1Q2RK1 b - - 4 32");
     Static_Exchange_Evaluator<int64_t> see_one(position);
-    ASSERT_EQ(see_one.evaluate(Square(ESQUARE::F1), PIECES::ROOK, 1), 0);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::F7;
+    move.destination_square = ESQUARE::F1;
+
+    ASSERT_EQ(see_one.evaluate(move, 1), 0);
 
     position.set_from_fen(
         "4r2k/1p4bp/2p1N1p1/p3n3/P2NB1nq/1P6/4R1P1/B1Q2rK1 w - - 0 33");
     Static_Exchange_Evaluator<int64_t> see_two(position);
-    ASSERT_EQ(see_two.evaluate(Square(ESQUARE::F1), PIECES::QUEEN, 1), 50);
+
+    move.source_square      = ESQUARE::C1;
+    move.destination_square = ESQUARE::F1;
+
+    ASSERT_EQ(see_two.evaluate(move, 1), 50);
 }
 
 TEST(see_tests, king_cannot_capture_guarded_piece)
@@ -63,7 +152,12 @@ TEST(see_tests, king_cannot_capture_guarded_piece)
     position.set_from_fen(
         "4r2k/1p4rp/2p1N1p1/p7/P2BB1nq/1P3P2/4R3/2Q2RK1 w - - 1 35");
     Static_Exchange_Evaluator<int64_t> see(position);
-    EXPECT_EQ(see.evaluate(Square(ESQUARE::G7), PIECES::KNIGHT, 1), 50);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::D4;
+    move.destination_square = ESQUARE::G7;
+
+    EXPECT_EQ(see.evaluate(move, 1), 50);
 }
 
 TEST(see_tests, a_cheaper_hidden_attacker)
@@ -72,5 +166,156 @@ TEST(see_tests, a_cheaper_hidden_attacker)
     position.set_from_fen(
         "r4rk1/p1p3pp/bp1n1n2/5p2/4p3/3P2N1/PPB2PPP/R1B1QRK1 w - - 0 1");
     Static_Exchange_Evaluator<int64_t> see(position);
-    EXPECT_EQ(see.evaluate(Square(ESQUARE::E4), PIECES::PAWN, 1), 5);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::D3;
+    move.destination_square = ESQUARE::E4;
+
+    EXPECT_EQ(see.evaluate(move, 1), 5);
+}
+
+TEST(see_tests, capture_with_promotion_partial_exchange)
+{
+    Chess_Board position;
+    position.set_from_fen("3k2r1/5P1b/7N/8/8/8/8/3K4 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::H6;
+    move.destination_square = ESQUARE::G8;
+
+    EXPECT_EQ(see.evaluate(move, 1), 50);
+}
+
+TEST(see_tests, capture_with_promotion_full_exchange)
+{
+    Chess_Board position;
+    position.set_from_fen("R5n1/4nP1b/1k6/8/8/8/K7/8 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::A8;
+    move.destination_square = ESQUARE::G8;
+
+    EXPECT_EQ(see.evaluate(move, 1), 0);
+}
+
+TEST(see_tests, capture_with_promotion_optimal_exchange)
+{
+    Chess_Board position;
+    position.set_from_fen("1r6/P1Q5/7k/8/8/8/1p1p4/2n1R2K w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E1;
+    move.destination_square = ESQUARE::C1;
+    move.moving_piece       = PIECES::ROOK;
+    move.captured_piece     = PIECES::KNIGHT;
+    move.is_capture         = true;
+
+    EXPECT_EQ(see.evaluate(move, 1), -100);
+}
+
+TEST(see_tests, pinned_attackers)
+{
+    Chess_Board position;
+    position.set_from_fen("2k5/3r4/3n3r/2q5/4N3/7B/3B4/2RK4 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E4;
+    move.destination_square = ESQUARE::D6;
+
+    EXPECT_EQ(see.evaluate(move, 1), 0);
+}
+
+TEST(see_tests, king_cannot_capture_on_square_guarded_by_pinned_piece)
+{
+    Chess_Board position;
+    position.set_from_fen("8/1R3pk1/8/8/8/8/4rQ1K/8 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::B7;
+    move.destination_square = ESQUARE::F7;
+
+    EXPECT_EQ(see.evaluate(move, 1), 10);
+}
+
+TEST(see_tests, capture_unpins_defender)
+{
+    Chess_Board position;
+    position.set_from_fen("k7/8/8/8/8/8/K3Qq2/4R3 b - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::F2;
+    move.destination_square = ESQUARE::E1;
+
+    EXPECT_EQ(see.evaluate(move, 1), -40);
+}
+
+TEST(see_tests, capture_unpins_defender_with_king)
+{
+    Chess_Board position;
+    position.set_from_fen("k7/8/8/8/8/4q3/4QP2/4K3 b - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E3;
+    move.destination_square = ESQUARE::F2;
+
+    EXPECT_EQ(see.evaluate(move, 1), -80);
+}
+
+TEST(see_tests, unpin_by_blocking_an_existing_pin)
+{
+    Chess_Board position;
+    position.set_from_fen("7k/2n2b2/R7/3B4/2K5/8/8/8 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::A6;
+    move.destination_square = ESQUARE::E6;
+
+    EXPECT_EQ(see.evaluate(move, 1), -50);
+}
+
+TEST(see_tests, unpin_by_releasing_an_existing_pin)
+{
+    Chess_Board position;
+    position.set_from_fen("2B1r2k/4N3/8/8/8/8/8/4K3 b - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E8;
+    move.destination_square = ESQUARE::C8;
+
+    EXPECT_EQ(see.evaluate(move, 1), -15);
+}
+
+TEST(see_tests, new_pin_by_moving_piece)
+{
+    Chess_Board position;
+    position.set_from_fen("8/8/8/3p4/4n3/3P1q2/2B3k1/K3R3 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::D3;
+    move.destination_square = ESQUARE::E4;
+
+    EXPECT_EQ(see.evaluate(move, 1), 30);
+}
+
+TEST(see_tests, discovered_new_pin)
+{
+    Chess_Board position;
+    position.set_from_fen("8/8/8/8/6k1/5n2/3pR3/K2B4 w - - 0 1");
+    Static_Exchange_Evaluator<int64_t> see(position);
+
+    Chess_Move move         = Chess_Move::null_move();
+    move.source_square      = ESQUARE::E2;
+    move.destination_square = ESQUARE::D2;
+
+    EXPECT_EQ(see.evaluate(move, 1), 10);
 }
